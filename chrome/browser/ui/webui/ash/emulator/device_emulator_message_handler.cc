@@ -7,17 +7,18 @@
 #include <stdint.h>
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "chrome/browser/ash/system/fake_input_device_settings.h"
 #include "chrome/browser/ash/system/input_device_settings.h"
-#include "chrome/browser/ui/webui/ash/bluetooth_pairing_dialog.h"
+#include "chrome/browser/ui/webui/ash/bluetooth/bluetooth_pairing_dialog.h"
 #include "chromeos/ash/components/dbus/audio/fake_cras_audio_client.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
 #include "chromeos/dbus/power/fake_power_manager_client.h"
@@ -62,7 +63,7 @@ const double kPowerLevelHigh = 50;
 const double kPowerLevelLow = 2;
 
 bool GetString(const base::Value::Dict& dict,
-               base::StringPiece key,
+               std::string_view key,
                std::string* result) {
   CHECK(result);
   const std::string* value = dict.FindString(key);
@@ -102,7 +103,7 @@ class DeviceEmulatorMessageHandler::BluetoothObserver
   void DeviceRemoved(const dbus::ObjectPath& object_path) override;
 
  private:
-  DeviceEmulatorMessageHandler* owner_;
+  raw_ptr<DeviceEmulatorMessageHandler> owner_;
 };
 
 void DeviceEmulatorMessageHandler::BluetoothObserver::DeviceAdded(
@@ -152,7 +153,7 @@ class DeviceEmulatorMessageHandler::CrasAudioObserver
   }
 
  private:
-  DeviceEmulatorMessageHandler* owner_;
+  raw_ptr<DeviceEmulatorMessageHandler> owner_;
 };
 
 class DeviceEmulatorMessageHandler::PowerObserver
@@ -172,7 +173,7 @@ class DeviceEmulatorMessageHandler::PowerObserver
   void PowerChanged(const power_manager::PowerSupplyProperties& proto) override;
 
  private:
-  DeviceEmulatorMessageHandler* owner_;
+  raw_ptr<DeviceEmulatorMessageHandler> owner_;
 };
 
 void DeviceEmulatorMessageHandler::PowerObserver::PowerChanged(
@@ -247,8 +248,9 @@ void DeviceEmulatorMessageHandler::HandleRequestBluetoothInfo(
 
   // Get each device's properties.
   base::Value::List devices;
-  for (const dbus::ObjectPath& path : paths)
+  for (const dbus::ObjectPath& path : paths) {
     devices.Append(GetDeviceInfo(path));
+  }
 
   base::Value predefined_devices =
       fake_bluetooth_device_client_->GetBluetoothDevicesAsDictionaries();
@@ -423,9 +425,10 @@ void DeviceEmulatorMessageHandler::UpdatePowerSources(
     CHECK(device_type);
     bool dual_role = *device_type == "DualRoleUSB";
     source->set_active_by_default(!dual_role);
-    if (dual_role)
+    if (dual_role) {
       props.set_supports_dual_role_devices(true);
-    absl::optional<int> port = val.GetDict().FindInt("port");
+    }
+    std::optional<int> port = val.GetDict().FindInt("port");
     CHECK(port.has_value());
     source->set_port(
         static_cast<power_manager::PowerSupplyProperties_PowerSource_Port>(
@@ -434,14 +437,16 @@ void DeviceEmulatorMessageHandler::UpdatePowerSources(
     CHECK(power_level);
     source->set_max_power(*power_level == "high" ? kPowerLevelHigh
                                                  : kPowerLevelLow);
-    if (*id == selected_id)
+    if (*id == selected_id) {
       selected_source = source;
+    }
   }
 
   // Emulate the device's source selection process.
   for (const auto& source : props.available_external_power_source()) {
-    if (!source.active_by_default())
+    if (!source.active_by_default()) {
       continue;
+    }
     if (selected_source && selected_source->active_by_default() &&
         source.max_power() < selected_source->max_power()) {
       continue;
@@ -570,7 +575,7 @@ std::string DeviceEmulatorMessageHandler::CreateBluetoothDeviceFromListValue(
   CHECK(GetString(device_dict, "pairingAuthToken", &props.pairing_auth_token));
   CHECK(GetString(device_dict, "pairingAction", &props.pairing_action));
 
-  absl::optional<int> class_value = device_dict.FindInt("classValue");
+  std::optional<int> class_value = device_dict.FindInt("classValue");
   CHECK(class_value);
   props.device_class = *class_value;
 
@@ -612,8 +617,9 @@ base::Value::Dict DeviceEmulatorMessageHandler::GetDeviceInfo(
   device.Set("incoming", false);
 
   base::Value::List uuids;
-  for (const std::string& uuid : props->uuids.value())
+  for (const std::string& uuid : props->uuids.value()) {
     uuids.Append(uuid);
+  }
   device.Set("uuids", std::move(uuids));
 
   return device;
@@ -641,16 +647,18 @@ void DeviceEmulatorMessageHandler::ConnectToBluetoothDevice(
 }
 
 void DeviceEmulatorMessageHandler::TouchpadExists(bool exists) {
-  if (!IsJavascriptAllowed())
+  if (!IsJavascriptAllowed()) {
     return;
+  }
   FireWebUIListener("touchpad-exists-changed", base::Value(exists));
 }
 
 void DeviceEmulatorMessageHandler::HapticTouchpadExists(bool exists) {}
 
 void DeviceEmulatorMessageHandler::MouseExists(bool exists) {
-  if (!IsJavascriptAllowed())
+  if (!IsJavascriptAllowed()) {
     return;
+  }
   FireWebUIListener("mouse-exists-changed", base::Value(exists));
 }
 

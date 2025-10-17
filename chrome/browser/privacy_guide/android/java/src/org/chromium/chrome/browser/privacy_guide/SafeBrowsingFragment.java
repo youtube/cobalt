@@ -4,59 +4,69 @@
 
 package org.chromium.chrome.browser.privacy_guide;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RadioGroup;
 
-import androidx.fragment.app.Fragment;
-
+import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.safe_browsing.SafeBrowsingBridge;
 import org.chromium.chrome.browser.safe_browsing.SafeBrowsingState;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.widget.RadioButtonWithDescription;
 import org.chromium.components.browser_ui.widget.RadioButtonWithDescriptionAndAuxButton;
 
-/**
- * Controls the behaviour of the Safe Browsing privacy guide page.
- */
-public class SafeBrowsingFragment extends Fragment
+/** Controls the behavior of the Safe Browsing privacy guide page. */
+@NullMarked
+public class SafeBrowsingFragment extends PrivacyGuideBasePage
         implements RadioButtonWithDescriptionAndAuxButton.OnAuxButtonClickedListener,
-                   RadioGroup.OnCheckedChangeListener {
-    private RadioButtonWithDescriptionAndAuxButton mStandardProtection;
+                RadioGroup.OnCheckedChangeListener {
+    private RadioButtonWithDescription mStandardProtection;
     private RadioButtonWithDescriptionAndAuxButton mEnhancedProtection;
-    private BottomSheetController mBottomSheetController;
+    private @Nullable BottomSheetController mBottomSheetController;
+    private @Nullable PrivacyGuideBottomSheetView mBottomSheetView;
 
     @Override
     public View onCreateView(
-            LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+            LayoutInflater inflater,
+            @Nullable ViewGroup container,
+            @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.privacy_guide_sb_step, container, false);
     }
 
     @Override
-    public void onViewCreated(View view, Bundle savedInstanceState) {
+    public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         RadioGroup radioGroup = view.findViewById(R.id.sb_radio_button);
         radioGroup.setOnCheckedChangeListener(this);
 
         mEnhancedProtection =
                 (RadioButtonWithDescriptionAndAuxButton) view.findViewById(R.id.enhanced_option);
-        mStandardProtection =
-                (RadioButtonWithDescriptionAndAuxButton) view.findViewById(R.id.standard_option);
+        mStandardProtection = (RadioButtonWithDescription) view.findViewById(R.id.standard_option);
+
+        if (SafeBrowsingBridge.isHashRealTimeLookupEligibleInSession()) {
+            mStandardProtection.setDescriptionText(
+                    getContext()
+                            .getString(R.string.safe_browsing_standard_protection_summary_proxy));
+        }
 
         mEnhancedProtection.setAuxButtonClickedListener(this);
-        mStandardProtection.setAuxButtonClickedListener(this);
 
-        initialRadioButtonConfig();
+        updateRadioButtonConfig();
     }
 
-    private void initialRadioButtonConfig() {
+    private void updateRadioButtonConfig() {
         @SafeBrowsingState
-        int safeBrowsingState = PrivacyGuideUtils.getSafeBrowsingState();
+        int safeBrowsingState = PrivacyGuideUtils.getSafeBrowsingState(getProfile());
         switch (safeBrowsingState) {
-            case (SafeBrowsingState.ENHANCED_PROTECTION):
+            case SafeBrowsingState.ENHANCED_PROTECTION:
                 mEnhancedProtection.setChecked(true);
                 break;
-            case (SafeBrowsingState.STANDARD_PROTECTION):
+            case SafeBrowsingState.STANDARD_PROTECTION:
                 mStandardProtection.setChecked(true);
                 break;
             default:
@@ -65,16 +75,17 @@ public class SafeBrowsingFragment extends Fragment
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        updateRadioButtonConfig();
+    }
+
+    @Override
     public void onAuxButtonClicked(int clickedButtonId) {
-        LayoutInflater inflater = LayoutInflater.from(getView().getContext());
+        LayoutInflater inflater = LayoutInflater.from(assumeNonNull(getView()).getContext());
         if (clickedButtonId == mEnhancedProtection.getId()) {
             displayBottomSheet(
-                    inflater.inflate(R.layout.privacy_guide_sb_enhanced_explanation, null),
-                    inflater.inflate(R.layout.privacy_guide_sb_bottom_sheet_toolbar, null));
-        } else if (clickedButtonId == mStandardProtection.getId()) {
-            displayBottomSheet(
-                    inflater.inflate(R.layout.privacy_guide_sb_standard_explanation, null),
-                    inflater.inflate(R.layout.privacy_guide_sb_bottom_sheet_toolbar, null));
+                    inflater.inflate(R.layout.privacy_guide_sb_enhanced_explanation, null));
         } else {
             assert false : "Unknown Aux clickedButtonId " + clickedButtonId;
         }
@@ -82,12 +93,13 @@ public class SafeBrowsingFragment extends Fragment
 
     @Override
     public void onCheckedChanged(RadioGroup radioGroup, int clickedButtonId) {
+        SafeBrowsingBridge safeBrowsingBridge = new SafeBrowsingBridge(getProfile());
         if (clickedButtonId == R.id.enhanced_option) {
-            SafeBrowsingBridge.setSafeBrowsingState(SafeBrowsingState.ENHANCED_PROTECTION);
+            safeBrowsingBridge.setSafeBrowsingState(SafeBrowsingState.ENHANCED_PROTECTION);
             PrivacyGuideMetricsDelegate.recordMetricsOnSafeBrowsingChange(
                     SafeBrowsingState.ENHANCED_PROTECTION);
         } else if (clickedButtonId == R.id.standard_option) {
-            SafeBrowsingBridge.setSafeBrowsingState(SafeBrowsingState.STANDARD_PROTECTION);
+            safeBrowsingBridge.setSafeBrowsingState(SafeBrowsingState.STANDARD_PROTECTION);
             PrivacyGuideMetricsDelegate.recordMetricsOnSafeBrowsingChange(
                     SafeBrowsingState.STANDARD_PROTECTION);
         } else {
@@ -95,13 +107,24 @@ public class SafeBrowsingFragment extends Fragment
         }
     }
 
-    private void displayBottomSheet(View sheetContent, View sheetToolbar) {
-        PrivacyGuideBottomSheetView bottomSheet =
-                new PrivacyGuideBottomSheetView(sheetContent, sheetToolbar);
-        mBottomSheetController.requestShowContent(bottomSheet, /* animate= */ true);
+    private void displayBottomSheet(View sheetContent) {
+        mBottomSheetView =
+                new PrivacyGuideBottomSheetView(sheetContent, this::closeBottomSheet, 0.9f, 1.0f);
+        // TODO(crbug.com/40211402): Re-enable animation once bug is fixed
+        if (mBottomSheetController != null) {
+            mBottomSheetController.requestShowContent(mBottomSheetView, false);
+        }
     }
 
-    public void setBottomSheetController(BottomSheetController bottomSheetController) {
-        mBottomSheetController = bottomSheetController;
+    private void closeBottomSheet() {
+        if (mBottomSheetController != null && mBottomSheetView != null) {
+            mBottomSheetController.hideContent(mBottomSheetView, true);
+        }
+    }
+
+    void setBottomSheetControllerSupplier(
+            OneshotSupplier<BottomSheetController> bottomSheetControllerSupplier) {
+        bottomSheetControllerSupplier.onAvailable(
+                (bottomSheetController) -> mBottomSheetController = bottomSheetController);
     }
 }

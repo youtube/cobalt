@@ -49,6 +49,10 @@ config("starboard") {
       defines += [ "SB_IS_EVERGREEN=1" ]
     }
 
+    if (current_toolchain == default_toolchain) {
+      defines += [ "SB_IS_DEFAULT_TC" ]
+    }
+
     if (sb_is_evergreen_compatible) {
       defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
     }

@@ -9,13 +9,13 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.browser_ui.widget.R;
 import org.chromium.components.browser_ui.widget.image_tiles.TileSizeSupplier.TileSize;
 import org.chromium.ui.modelutil.RecyclerViewAdapter;
 
-/**
- * A factory class to create view holders for the tiles.
- */
+/** A factory class to create view holders for the tiles. */
+@NullMarked
 class TileViewHolderFactory implements RecyclerViewAdapter.ViewHolderFactory<TileViewHolder> {
     private final Supplier<TileSize> mTileSizeSupplier;
 
@@ -29,8 +29,9 @@ class TileViewHolderFactory implements RecyclerViewAdapter.ViewHolderFactory<Til
 
     @Override
     public TileViewHolder createViewHolder(ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                            .inflate(R.layout.query_tile_view, parent, false);
+        View view =
+                LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.query_tile_view, parent, false);
         view.getLayoutParams().width = mTileSizeSupplier.get().width;
         view.getLayoutParams().height = mTileSizeSupplier.get().width;
         return new TileViewHolder(view);

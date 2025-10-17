@@ -129,7 +129,6 @@ void ServiceWorkerScriptLoaderFactory::CreateLoaderAndStart(
           // This is invalid, as scripts in compared script info must have been
           // compared.
           NOTREACHED();
-          return;
       }
     }
   }

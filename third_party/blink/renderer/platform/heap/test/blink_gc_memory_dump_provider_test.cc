@@ -4,7 +4,9 @@
 
 #include "third_party/blink/renderer/platform/heap/blink_gc_memory_dump_provider.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
+#include "base/containers/contains.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -37,11 +39,11 @@ template <typename Callback>
 void IterateMemoryDumps(base::trace_event::ProcessMemoryDump& dump,
                         const std::string dump_prefix,
                         Callback callback) {
-  auto dump_prefix_depth = base::ranges::count(dump_prefix, '/');
+  auto dump_prefix_depth = std::ranges::count(dump_prefix, '/');
   for (auto& it : dump.allocator_dumps()) {
     const std::string& key = it.first;
     if ((key.compare(0, dump_prefix.size(), dump_prefix) == 0) &&
-        (base::ranges::count(key, '/') == dump_prefix_depth)) {
+        (std::ranges::count(key, '/') == dump_prefix_depth)) {
       callback(it.second.get());
     }
   }
@@ -62,7 +64,7 @@ void CheckSpacesInDump(base::trace_event::ProcessMemoryDump& dump,
 
 TEST_F(BlinkGCMemoryDumpProviderTest, MainThreadLightDump) {
   base::trace_event::MemoryDumpArgs args = {
-      base::trace_event::MemoryDumpLevelOfDetail::LIGHT};
+      base::trace_event::MemoryDumpLevelOfDetail::kLight};
   std::unique_ptr<base::trace_event::ProcessMemoryDump> dump(
       new base::trace_event::ProcessMemoryDump(args));
   std::unique_ptr<BlinkGCMemoryDumpProvider> dump_provider(
@@ -78,7 +80,7 @@ TEST_F(BlinkGCMemoryDumpProviderTest, MainThreadLightDump) {
 
 TEST_F(BlinkGCMemoryDumpProviderTest, MainThreadDetailedDump) {
   base::trace_event::MemoryDumpArgs args = {
-      base::trace_event::MemoryDumpLevelOfDetail::DETAILED};
+      base::trace_event::MemoryDumpLevelOfDetail::kDetailed};
   std::unique_ptr<base::trace_event::ProcessMemoryDump> dump(
       new base::trace_event::ProcessMemoryDump(args));
   std::unique_ptr<BlinkGCMemoryDumpProvider> dump_provider(
@@ -94,7 +96,7 @@ TEST_F(BlinkGCMemoryDumpProviderTest, MainThreadDetailedDump) {
 
 TEST_F(BlinkGCMemoryDumpProviderTest, WorkerLightDump) {
   base::trace_event::MemoryDumpArgs args = {
-      base::trace_event::MemoryDumpLevelOfDetail::LIGHT};
+      base::trace_event::MemoryDumpLevelOfDetail::kLight};
   std::unique_ptr<base::trace_event::ProcessMemoryDump> dump(
       new base::trace_event::ProcessMemoryDump(args));
   std::unique_ptr<BlinkGCMemoryDumpProvider> dump_provider(
@@ -109,7 +111,7 @@ TEST_F(BlinkGCMemoryDumpProviderTest, WorkerLightDump) {
 
   size_t workers_found = 0;
   for (const auto& kvp : dump->allocator_dumps()) {
-    if (kvp.first.find("blink_gc/workers/") != std::string::npos) {
+    if (base::Contains(kvp.first, "blink_gc/workers/")) {
       workers_found++;
       CheckBasicHeapDumpStructure(dump->GetAllocatorDump(kvp.first));
     }
@@ -119,7 +121,7 @@ TEST_F(BlinkGCMemoryDumpProviderTest, WorkerLightDump) {
 
 TEST_F(BlinkGCMemoryDumpProviderTest, WorkerDetailedDump) {
   base::trace_event::MemoryDumpArgs args = {
-      base::trace_event::MemoryDumpLevelOfDetail::DETAILED};
+      base::trace_event::MemoryDumpLevelOfDetail::kDetailed};
   std::unique_ptr<base::trace_event::ProcessMemoryDump> dump(
       new base::trace_event::ProcessMemoryDump(args));
   std::unique_ptr<BlinkGCMemoryDumpProvider> dump_provider(
@@ -135,8 +137,7 @@ TEST_F(BlinkGCMemoryDumpProviderTest, WorkerDetailedDump) {
   // Find worker suffix.
   std::string worker_suffix;
   for (const auto& kvp : dump->allocator_dumps()) {
-    if (kvp.first.find(worker_path_prefix + "/worker_0x") !=
-        std::string::npos) {
+    if (base::Contains(kvp.first, worker_path_prefix + "/worker_0x")) {
       auto start_pos = kvp.first.find("_0x");
       auto end_pos = kvp.first.find("/", start_pos);
       worker_suffix = kvp.first.substr(start_pos + 1, end_pos - start_pos - 1);

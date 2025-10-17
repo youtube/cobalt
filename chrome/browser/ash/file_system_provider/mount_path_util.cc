@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ash/file_system_provider/mount_path_util.h"
 
 #include <stddef.h>
@@ -24,9 +29,7 @@
 
 using content::BrowserThread;
 
-namespace ash {
-namespace file_system_provider {
-namespace util {
+namespace ash::file_system_provider::util {
 
 namespace {
 
@@ -40,8 +43,7 @@ const base::FilePath::CharType kProvidedMountPointRoot[] =
 // This is based on net/base/escape.cc: net::(anonymous namespace)::Escape
 std::string EscapeFileSystemId(const std::string& file_system_id) {
   std::string escaped;
-  for (size_t i = 0; i < file_system_id.size(); ++i) {
-    const char c = file_system_id[i];
+  for (char c : file_system_id) {
     if (c == '%' || c == '.' || c == '/') {
       base::StringAppendF(&escaped, "%%%02X", c);
     } else {
@@ -85,8 +87,7 @@ bool IsFileSystemProviderLocalPath(const base::FilePath& local_path) {
 FileSystemURLParser::FileSystemURLParser(const storage::FileSystemURL& url)
     : url_(url), file_system_(nullptr) {}
 
-FileSystemURLParser::~FileSystemURLParser() {
-}
+FileSystemURLParser::~FileSystemURLParser() = default;
 
 bool FileSystemURLParser::Parse() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -159,8 +160,7 @@ LocalPathParser::LocalPathParser(Profile* profile,
                                  const base::FilePath& local_path)
     : profile_(profile), local_path_(local_path), file_system_(nullptr) {}
 
-LocalPathParser::~LocalPathParser() {
-}
+LocalPathParser::~LocalPathParser() = default;
 
 bool LocalPathParser::Parse() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -196,6 +196,4 @@ bool LocalPathParser::Parse() {
   return true;
 }
 
-}  // namespace util
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider::util

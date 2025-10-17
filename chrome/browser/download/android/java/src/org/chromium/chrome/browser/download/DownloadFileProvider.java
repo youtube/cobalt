@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.download;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.pm.ProviderInfo;
@@ -14,13 +16,13 @@ import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
 import android.webkit.MimeTypeMap;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.content.FileProvider;
 
 import org.chromium.base.ContentUriUtils;
 import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.DownloadDirectoryProvider.SecondaryStorageInfo;
 import org.chromium.components.embedder_support.util.UrlConstants;
 
@@ -43,23 +45,18 @@ import java.io.FileNotFoundException;
  * File on external SD card from R: /storage/724E-59EE/Download/demo.apk"
  *  * generates URI: content://[package name].DownloadFileProvide/external_volume?file=demo.apk
  */
+@NullMarked
 public class DownloadFileProvider extends FileProvider {
     private static final String[] COLUMNS = new String[] {"_display_name", "_size"};
     private static final String URI_AUTHORITY_SUFFIX = ".DownloadFileProvider";
 
-    /**
-     * The URI path for downloads on primary storage.
-     */
+    /** The URI path for downloads on primary storage. */
     private static final String URI_PATH = "download";
 
-    /**
-     * The URI path for downloads on external storage before Android R.
-     */
+    /** The URI path for downloads on external storage before Android R. */
     private static final String URI_EXTERNAL_PATH_LEGACY = "download_external";
 
-    /**
-     * The URI path for downloads on external storage from Android R.
-     */
+    /** The URI path for downloads on external storage from Android R. */
     private static final String URI_EXTERNAL_PATH = "external_volume";
 
     private static final String URI_QUERY_FILE = "file";
@@ -89,6 +86,7 @@ public class DownloadFileProvider extends FileProvider {
 
         // Check whether the download is on primary storage.
         File primaryDir = delegate.getPrimaryDownloadDirectory();
+        assumeNonNull(primaryDir);
         int index = filePath.indexOf(primaryDir.getAbsolutePath());
         if (index == 0 && filePath.length() > primaryDir.getAbsolutePath().length()) {
             return buildUri(
@@ -101,7 +99,8 @@ public class DownloadFileProvider extends FileProvider {
             for (File file : info.directories) {
                 if (file == null) continue;
                 if (filePath.startsWith(file.getAbsolutePath())) {
-                    return buildUri(URI_EXTERNAL_PATH,
+                    return buildUri(
+                            URI_EXTERNAL_PATH,
                             filePath.substring(file.getAbsolutePath().length() + 1));
                 }
             }
@@ -112,7 +111,8 @@ public class DownloadFileProvider extends FileProvider {
         for (File file : info.directoriesPreR) {
             if (file == null) continue;
             if (filePath.startsWith(file.getAbsolutePath())) {
-                return buildUri(URI_EXTERNAL_PATH_LEGACY,
+                return buildUri(
+                        URI_EXTERNAL_PATH_LEGACY,
                         filePath.substring(file.getAbsolutePath().length() + 1));
             }
         }
@@ -120,13 +120,15 @@ public class DownloadFileProvider extends FileProvider {
     }
 
     private static Uri buildUri(String path, String query) {
-        Uri uri = new Uri.Builder()
-                          .scheme(UrlConstants.CONTENT_SCHEME)
-                          .authority(ContextUtils.getApplicationContext().getPackageName()
-                                  + URI_AUTHORITY_SUFFIX)
-                          .path(path)
-                          .appendQueryParameter(URI_QUERY_FILE, query)
-                          .build();
+        Uri uri =
+                new Uri.Builder()
+                        .scheme(UrlConstants.CONTENT_SCHEME)
+                        .authority(
+                                ContextUtils.getApplicationContext().getPackageName()
+                                        + URI_AUTHORITY_SUFFIX)
+                        .path(path)
+                        .appendQueryParameter(URI_QUERY_FILE, query)
+                        .build();
         return uri;
     }
 
@@ -136,7 +138,7 @@ public class DownloadFileProvider extends FileProvider {
     }
 
     @Override
-    public void attachInfo(@NonNull Context context, @NonNull ProviderInfo info) {
+    public void attachInfo(Context context, ProviderInfo info) {
         super.attachInfo(context, info);
         if (info.exported) {
             throw new SecurityException("Provider must not be exported");
@@ -147,8 +149,9 @@ public class DownloadFileProvider extends FileProvider {
 
     @Override
     public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
-        String filePath = getFilePathFromUri(
-                uri, new DownloadDirectoryProvider.DownloadDirectoryProviderDelegate());
+        String filePath =
+                getFilePathFromUri(
+                        uri, new DownloadDirectoryProvider.DownloadDirectoryProviderDelegate());
         if (filePath == null) throw new FileNotFoundException();
 
         int fileMode = modeToMode(mode);
@@ -157,16 +160,21 @@ public class DownloadFileProvider extends FileProvider {
     }
 
     @Override
-    public Cursor query(@NonNull Uri uri, @Nullable String[] projection, @Nullable String selection,
-            @Nullable String[] selectionArgs, @Nullable String sortOrder) {
+    public Cursor query(
+            Uri uri,
+            String @Nullable [] projection,
+            @Nullable String selection,
+            String @Nullable [] selectionArgs,
+            @Nullable String sortOrder) {
         if (projection == null) {
             projection = COLUMNS;
         }
         String[] cols = new String[projection.length];
         Object[] values = new Object[projection.length];
 
-        String filePath = getFilePathFromUri(
-                uri, new DownloadDirectoryProvider.DownloadDirectoryProviderDelegate());
+        String filePath =
+                getFilePathFromUri(
+                        uri, new DownloadDirectoryProvider.DownloadDirectoryProviderDelegate());
         if (TextUtils.isEmpty(filePath)) return new MatrixCursor(cols, 1);
 
         File file = new File(filePath);
@@ -194,7 +202,7 @@ public class DownloadFileProvider extends FileProvider {
     }
 
     @Override
-    public String getType(Uri uri) {
+    public @Nullable String getType(Uri uri) {
         if (uri == null) return null;
 
         String filePath = uri.getQueryParameter(URI_QUERY_FILE);
@@ -208,41 +216,38 @@ public class DownloadFileProvider extends FileProvider {
     }
 
     @Override
-    public int delete(Uri uri, String s, String[] strings) {
+    public int delete(Uri uri, @Nullable String s, String @Nullable [] strings) {
         throw new UnsupportedOperationException("No external deletes");
     }
 
     @Override
-    public int update(Uri uri, ContentValues contentValues, String s, String[] strings) {
+    public int update(
+            Uri uri, ContentValues contentValues, @Nullable String s, String @Nullable [] strings) {
         throw new UnsupportedOperationException("No external updates");
     }
 
-    private static String getMimeTypeFromUri(Uri fileUri) {
-        String extension = MimeTypeMap.getFileExtensionFromUrl(fileUri.toString());
+    private static @Nullable String getMimeTypeFromUri(Uri fileUri) {
+        // #getFileExtensionFromUrl does not support white space.
+        String extension =
+                MimeTypeMap.getFileExtensionFromUrl(fileUri.toString().replace(' ', '_'));
         return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
     }
 
-    /**
-     * Copy from {@link FileProvider}.
-     */
+    /** Copy from {@link FileProvider}. */
     private static String[] copyOf(String[] original, int newLength) {
         String[] result = new String[newLength];
         System.arraycopy(original, 0, result, 0, newLength);
         return result;
     }
 
-    /**
-     * Copy from {@link FileProvider}.
-     */
+    /** Copy from {@link FileProvider}. */
     private static Object[] copyOf(Object[] original, int newLength) {
         Object[] result = new Object[newLength];
         System.arraycopy(original, 0, result, 0, newLength);
         return result;
     }
 
-    /**
-     * Copy from {@link FileProvider}.
-     */
+    /** Copy from {@link FileProvider}. */
     private static int modeToMode(String mode) {
         int modeBits;
         if ("r".equals(mode)) {
@@ -274,7 +279,8 @@ public class DownloadFileProvider extends FileProvider {
      *         or null if the file doesn't exist.
      */
     @VisibleForTesting
-    public static String getFilePathFromUri(Uri uri, DownloadDirectoryProvider.Delegate delegate) {
+    public static @Nullable String getFilePathFromUri(
+            Uri uri, DownloadDirectoryProvider.Delegate delegate) {
         if (uri == null) return null;
         String path = uri.getPath();
         if (TextUtils.isEmpty(path)) return null;
@@ -282,7 +288,7 @@ public class DownloadFileProvider extends FileProvider {
 
         // Path traverse to parent is not allowed.
         String query = uri.getQueryParameter(URI_QUERY_FILE);
-        if (query.contains(".." + File.separator)) return null;
+        if (query == null || query.contains(".." + File.separator)) return null;
 
         // Parse download on primary storage.
         if (path.equals(URI_PATH)) {
@@ -292,7 +298,9 @@ public class DownloadFileProvider extends FileProvider {
 
         // Parse download on external SD card on new Android R directory.
         SecondaryStorageInfo info = delegate.getSecondaryStorageDownloadDirectories();
-        if (path.equals(URI_EXTERNAL_PATH) && !info.directories.isEmpty()) {
+        if (path.equals(URI_EXTERNAL_PATH)
+                && info.directories != null
+                && !info.directories.isEmpty()) {
             // Only supports one directory.
             return info.directories.get(0).getAbsolutePath() + File.separator + query;
         }

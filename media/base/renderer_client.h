@@ -5,6 +5,8 @@
 #ifndef MEDIA_BASE_RENDERER_CLIENT_H_
 #define MEDIA_BASE_RENDERER_CLIENT_H_
 
+#include <optional>
+
 #include "media/base/audio_decoder_config.h"
 #include "media/base/buffering_state.h"
 #include "media/base/media_export.h"
@@ -12,13 +14,12 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/video_decoder_config.h"
 #include "media/base/waiting.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
 
-// Interface used by Renderer, AudioRenderer, VideoRenderer and
-// MediaPlayerRenderer implementations to notify their clients.
+// Interface used by Renderer, AudioRenderer and VideoRenderer implementations
+// to notify their clients.
 class MEDIA_EXPORT RendererClient {
  public:
   // Executed if any error was encountered after Renderer initialization.
@@ -57,14 +58,14 @@ class MEDIA_EXPORT RendererClient {
   virtual void OnVideoOpacityChange(bool opaque) = 0;
 
   // Returns true if video stream is available in the media resource.
-  // TODO(crbug.com/988535): Used by AudioRendererImpl.  This can be removed
+  // TODO(crbug.com/40638012): Used by AudioRendererImpl.  This can be removed
   // when the bug is resolved.
   virtual bool IsVideoStreamAvailable();
 
   // Called when the bucketed frames per second has changed.  |fps| will be
   // unset if the frame rate is unstable.  The duration used for the frame rate
   // is based on the wall clock time, not the media time.
-  virtual void OnVideoFrameRateChange(absl::optional<int> fps) = 0;
+  virtual void OnVideoFrameRateChange(std::optional<int> fps) = 0;
 };
 
 }  // namespace media

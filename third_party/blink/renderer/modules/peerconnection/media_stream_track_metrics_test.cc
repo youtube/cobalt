@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "third_party/blink/renderer/modules/peerconnection/media_stream_track_metrics.h"
+
 #include <stddef.h>
 
 #include <memory>
@@ -11,8 +13,8 @@
 #include "base/threading/thread.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/renderer/modules/peerconnection/media_stream_track_metrics.h"
 #include "third_party/blink/renderer/modules/peerconnection/mock_peer_connection_dependency_factory.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/webrtc/api/media_stream_interface.h"
 
 using webrtc::AudioSourceInterface;
@@ -65,9 +67,10 @@ class MockVideoTrackInterface : public VideoTrackInterface {
   MOCK_METHOD1(set_enabled, bool(bool));
   MOCK_METHOD1(set_state, bool(TrackState));
   MOCK_METHOD2(AddOrUpdateSink,
-               void(rtc::VideoSinkInterface<webrtc::VideoFrame>*,
-                    const rtc::VideoSinkWants&));
-  MOCK_METHOD1(RemoveSink, void(rtc::VideoSinkInterface<webrtc::VideoFrame>*));
+               void(webrtc::VideoSinkInterface<webrtc::VideoFrame>*,
+                    const webrtc::VideoSinkWants&));
+  MOCK_METHOD1(RemoveSink,
+               void(webrtc::VideoSinkInterface<webrtc::VideoFrame>*));
   MOCK_CONST_METHOD0(GetSource, VideoTrackSourceInterface*());
 
  private:
@@ -89,7 +92,7 @@ class MediaStreamTrackMetricsTest : public testing::Test {
 
   void SetUp() override {
     metrics_ = std::make_unique<MockMediaStreamTrackMetrics>();
-    stream_ = new rtc::RefCountedObject<blink::MockMediaStream>("stream");
+    stream_ = new webrtc::RefCountedObject<blink::MockMediaStream>("stream");
     signaling_thread_.Start();
   }
 
@@ -100,13 +103,14 @@ class MediaStreamTrackMetricsTest : public testing::Test {
   }
 
   scoped_refptr<MockAudioTrackInterface> MakeAudioTrack(const std::string& id) {
-    return new rtc::RefCountedObject<MockAudioTrackInterface>(id);
+    return new webrtc::RefCountedObject<MockAudioTrackInterface>(id);
   }
 
   scoped_refptr<MockVideoTrackInterface> MakeVideoTrack(const std::string& id) {
-    return new rtc::RefCountedObject<MockVideoTrackInterface>(id);
+    return new webrtc::RefCountedObject<MockVideoTrackInterface>(id);
   }
 
+  test::TaskEnvironment task_environment_;
   std::unique_ptr<MockMediaStreamTrackMetrics> metrics_;
   scoped_refptr<MediaStreamInterface> stream_;
 

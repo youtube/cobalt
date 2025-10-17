@@ -42,7 +42,7 @@ class StartupInformationHelper {
   // Create PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES and
   //        PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY
   // based on |container|. |container| should be valid.
-  void SetAppContainer(scoped_refptr<AppContainer> container);
+  void SetAppContainer(AppContainer* container);
   // Creates PROC_THREAD_ATTRIBUTE_JOB_LIST with |job_handle|.
   void AddJobToAssociate(HANDLE job_handle);
 
@@ -75,10 +75,11 @@ class StartupInformationHelper {
   DWORD CountAttributes();
 
   // Fields that are not passed into CreateProcessAsUserW().
-  scoped_refptr<AppContainer> app_container_;
+  // This can only be true if security_capabilities_ is also initialized.
+  bool enable_low_privilege_app_container_ = false;
   bool restrict_child_process_creation_ = false;
-  HANDLE stdout_handle_ = INVALID_HANDLE_VALUE;
-  HANDLE stderr_handle_ = INVALID_HANDLE_VALUE;
+  HANDLE stdout_handle_ = nullptr;
+  HANDLE stderr_handle_ = nullptr;
   bool inherit_handles_ = false;
   bool filter_environment_ = false;
   size_t mitigations_size_ = 0;

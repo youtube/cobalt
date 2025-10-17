@@ -6,8 +6,8 @@
 
 #include <tuple>
 
+#include "chrome/common/extensions/api/passwords_private.h"
 #include "components/password_manager/core/browser/password_form.h"
-#include "components/password_manager/core/browser/password_list_sorter.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/password_manager/core/browser/password_ui_utils.h"
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
@@ -42,19 +42,22 @@ api::passwords_private::UrlCollection CreateUrlCollectionFromGURL(
 
 extensions::api::passwords_private::PasswordStoreSet StoreSetFromCredential(
     const CredentialUIEntry& credential) {
+  if (!credential.passkey_credential_id.empty()) {
+    return extensions::api::passwords_private::PasswordStoreSet::kAccount;
+  }
   if (credential.stored_in.contains(Store::kAccountStore) &&
       credential.stored_in.contains(Store::kProfileStore)) {
-    return extensions::api::passwords_private::
-        PASSWORD_STORE_SET_DEVICE_AND_ACCOUNT;
+    return extensions::api::passwords_private::PasswordStoreSet::
+        kDeviceAndAccount;
   }
   if (credential.stored_in.contains(Store::kAccountStore)) {
-    return extensions::api::passwords_private::PASSWORD_STORE_SET_ACCOUNT;
+    return extensions::api::passwords_private::PasswordStoreSet::kAccount;
   }
   if (credential.stored_in.contains(Store::kProfileStore)) {
-    return extensions::api::passwords_private::PASSWORD_STORE_SET_DEVICE;
+    return extensions::api::passwords_private::PasswordStoreSet::kDevice;
   }
-  NOTREACHED();
-  return extensions::api::passwords_private::PASSWORD_STORE_SET_DEVICE;
+  DUMP_WILL_BE_NOTREACHED();
+  return extensions::api::passwords_private::PasswordStoreSet::kDevice;
 }
 
 IdGenerator::IdGenerator() = default;
@@ -77,7 +80,7 @@ int IdGenerator::GenerateId(CredentialUIEntry credential) {
   // Refresh the |credential| in the caches, as the |key_to_credential_| may
   // contain stale one.
   auto iterator_to_credential = id_to_credential_.find(id_for_key);
-  DCHECK(iterator_to_credential != id_to_credential_.end());
+  CHECK(iterator_to_credential != id_to_credential_.end());
   iterator_to_credential->second = std::move(credential);
 
   return id_for_key;

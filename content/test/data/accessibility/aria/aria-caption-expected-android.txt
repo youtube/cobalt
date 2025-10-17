@@ -1,2 +1,2 @@
-android.webkit.WebView focusable focused scrollable
-++android.view.View name='Caption'
+android.webkit.WebView focusable focused
+++android.view.View interesting name='Caption'

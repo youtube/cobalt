@@ -17,7 +17,6 @@
 #include "base/values.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/extensions/pending_extension_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
 #include "extensions/browser/pref_names.h"
@@ -85,6 +84,10 @@ void SigninScreenExtensionsExternalLoader::OnExtensionListsUpdated(
   }
   initial_load_finished_ = true;
   LoadFinished(prefs.Clone());
+}
+
+bool SigninScreenExtensionsExternalLoader::IsRollbackAllowed() const {
+  return true;
 }
 
 SigninScreenExtensionsExternalLoader::~SigninScreenExtensionsExternalLoader() =

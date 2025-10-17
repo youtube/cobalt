@@ -7,6 +7,7 @@
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/content_navigation_policy.h"
+#include "content/common/features.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -31,9 +32,8 @@ class RenderDocumentHostBrowserTest : public ContentBrowserTest {
         GetRenderDocumentLevelName(RenderDocumentLevel::kAllFrames));
     // Disable BackForwardCache so that the RenderFrameHost changes aren't
     // caused by proactive BrowsingInstance swap.
-    feature_list_for_back_forward_cache_.InitWithFeatures(
-        {}, {features::kBackForwardCache,
-             features::kProactivelySwapBrowsingInstance});
+    feature_list_for_back_forward_cache_.InitAndDisableFeature(
+        features::kBackForwardCache);
   }
 
   void SetUpOnMainThread() override {
@@ -142,10 +142,12 @@ IN_PROC_BROWSER_TEST_F(RenderDocumentHostBrowserTest, PopupScriptableNavigate) {
   EXPECT_EQ(url_1, EvalJs(new_contents, "window.location.href;"));
 
   // 3) Navigate the new window same-process.
-  int process_id = new_contents->GetPrimaryMainFrame()->GetProcess()->GetID();
+  int process_id =
+      new_contents->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID();
   EXPECT_TRUE(NavigateToURL(new_contents, url_2));
-  EXPECT_EQ(process_id,
-            new_contents->GetPrimaryMainFrame()->GetProcess()->GetID());
+  EXPECT_EQ(
+      process_id,
+      new_contents->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID());
 
   // The URL is accessible from each side and correctly reflects the current
   // value.

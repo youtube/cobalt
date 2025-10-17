@@ -9,10 +9,6 @@
 #import "base/notreached.h"
 #import "ios/web/public/js_messaging/content_world.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 ContentWorld ContentWorldIdentifierForWKContentWorld(
@@ -24,8 +20,7 @@ ContentWorld ContentWorldIdentifierForWKContentWorld(
     return ContentWorld::kIsolatedWorld;
   }
   NOTREACHED() << "Missing association of WKContentWorld instance to a "
-               << "web::ContentWorld value.";
-  return ContentWorld::kAllContentWorlds;
+                  "web::ContentWorld value.";
 }
 
 WKContentWorld* WKContentWorldForContentWorldIdentifier(
@@ -36,9 +31,8 @@ WKContentWorld* WKContentWorldForContentWorldIdentifier(
   if (content_world == ContentWorld::kIsolatedWorld) {
     return WKContentWorld.defaultClientWorld;
   }
-  NOTREACHED() << "Missing association of web::ContentWorld value to a"
-               << "WKContentWorld instance.";
-  return nil;
+  NOTREACHED() << "Missing association of web::ContentWorld value to a "
+                  "WKContentWorld instance.";
 }
 
 }  // namespace web

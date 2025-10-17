@@ -6,12 +6,12 @@
 
 #include "base/containers/span.h"
 #include "chrome/browser/ash/app_list/app_list_client_impl.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/launcher_internals_resources.h"
 #include "chrome/grit/launcher_internals_resources_map.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "ui/webui/webui_util.h"
 
 namespace ash {
 
@@ -20,9 +20,7 @@ LauncherInternalsUI::LauncherInternalsUI(content::WebUI* web_ui)
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(),
       chrome::kChromeUILauncherInternalsHost);
-  webui::SetupWebUIDataSource(source,
-                              base::make_span(kLauncherInternalsResources,
-                                              kLauncherInternalsResourcesSize),
+  webui::SetupWebUIDataSource(source, kLauncherInternalsResources,
                               IDR_LAUNCHER_INTERNALS_INDEX_HTML);
 }
 
@@ -39,8 +37,9 @@ void LauncherInternalsUI::CreatePageHandler(
     mojo::PendingRemote<launcher_internals::mojom::Page> page) {
   auto* search_controller =
       AppListClientImpl::GetInstance()->search_controller();
-  if (!search_controller)
+  if (!search_controller) {
     return;
+  }
 
   page_handler_ = std::make_unique<LauncherInternalsHandler>(search_controller,
                                                              std::move(page));

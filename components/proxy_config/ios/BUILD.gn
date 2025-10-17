@@ -3,12 +3,10 @@
 # found in the LICENSE file.
 
 component("ios") {
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   deps = [
     "//base",
     "//components/proxy_config",
-    "//ios/web",
+    "//ios/web/public/thread",
     "//net",
   ]
 

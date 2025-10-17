@@ -6,9 +6,10 @@ package org.chromium.chrome.browser.usb;
 
 import android.content.Intent;
 
-/**
- * Delegate for {@link UsbNotificationManager}.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Delegate for {@link UsbNotificationManager}. */
+@NullMarked
 public interface UsbNotificationManagerDelegate {
     /**
      * Creates an Intent to bring an Activity for a particular Tab back to the
@@ -18,9 +19,7 @@ public interface UsbNotificationManagerDelegate {
      */
     Intent createTrustedBringTabToFrontIntent(int tabId);
 
-    /**
-     * Stops the service.
-     */
+    /** Stops the service. */
     void stopSelf();
 
     /**

@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_PAINT_PREVIEW_SERVICES_PAINT_PREVIEW_TAB_SERVICE_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/containers/flat_set.h"
@@ -14,13 +15,11 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "components/paint_preview/browser/paint_preview_base_service.h"
 #include "components/paint_preview/browser/paint_preview_policy.h"
 #include "components/paint_preview/common/proto/paint_preview.pb.h"
 #include "content/public/browser/global_routing_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
@@ -100,7 +99,7 @@ class PaintPreviewTabService : public PaintPreviewBaseService {
       JNIEnv* env,
       const base::android::JavaParamRef<jintArray>& j_tab_ids);
   jboolean IsCacheInitializedAndroid(JNIEnv* env);
-  base::android::ScopedJavaLocalRef<jstring> GetPathAndroid(JNIEnv* env);
+  std::string GetPathAndroid(JNIEnv* env);
 
   base::android::ScopedJavaGlobalRef<jobject> GetJavaRef() { return java_ref_; }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -112,7 +111,7 @@ class PaintPreviewTabService : public PaintPreviewBaseService {
 
     TabServiceTask(int tab_id,
                    const DirectoryKey& key,
-                   int frame_tree_node_id,
+                   content::FrameTreeNodeId frame_tree_node_id,
                    content::GlobalRenderFrameHostId frame_routing_id,
                    float page_scale_factor,
                    int x,
@@ -125,7 +124,9 @@ class PaintPreviewTabService : public PaintPreviewBaseService {
 
     int tab_id() const { return tab_id_; }
     const DirectoryKey& key() const { return key_; }
-    int frame_tree_node_id() const { return frame_tree_node_id_; }
+    content::FrameTreeNodeId frame_tree_node_id() const {
+      return frame_tree_node_id_;
+    }
     content::GlobalRenderFrameHostId frame_routing_id() const {
       return frame_routing_id_;
     }
@@ -162,7 +163,7 @@ class PaintPreviewTabService : public PaintPreviewBaseService {
    private:
     int tab_id_;
     DirectoryKey key_;
-    int frame_tree_node_id_;
+    content::FrameTreeNodeId frame_tree_node_id_;
     content::GlobalRenderFrameHostId frame_routing_id_;
     float page_scale_factor_;
     int scroll_offset_x_;
@@ -186,7 +187,7 @@ class PaintPreviewTabService : public PaintPreviewBaseService {
   // The FTN ID is to look-up the content::WebContents.
   void CaptureTabInternal(base::WeakPtr<TabServiceTask> task,
                           bool accessibility_enabled,
-                          const absl::optional<base::FilePath>& file_path);
+                          const std::optional<base::FilePath>& file_path);
 
   void OnAXTreeWritten(base::WeakPtr<TabServiceTask> task, bool result);
 

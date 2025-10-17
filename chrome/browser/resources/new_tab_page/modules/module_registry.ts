@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ModuleIdName} from '../new_tab_page.mojom-webui.js';
+import type {ModuleIdName} from '../new_tab_page.mojom-webui.js';
 import {NewTabPageProxy} from '../new_tab_page_proxy.js';
 
-import {Module, ModuleDescriptor} from './module_descriptor.js';
+import type {Module, ModuleDescriptor} from './module_descriptor.js';
 import {descriptors} from './module_descriptors.js';
 
 /**
@@ -68,7 +68,6 @@ export class ModuleRegistry {
           });
       NewTabPageProxy.getInstance().handler.updateDisabledModules();
     });
-
     const descriptorsMap: Map<string, ModuleDescriptor> =
         new Map(this.descriptors_.map(d => [d.id, d]));
     const descriptors: ModuleDescriptor[] =
@@ -99,10 +98,45 @@ export class ModuleRegistry {
         return 0;  // Keep current order.
       });
     }
+    const elements = await Promise.all(
+        descriptors.map(d => d.initialize(timeout, /*onNtpLoad=*/ true)));
+    return elements.map((e, i) => ({elements: e, descriptor: descriptors[i]}))
+        .filter(m => !!m.elements)
+        .map(m => (({
+                     elements: Array.isArray(m.elements) ? m.elements :
+                                                           [m.elements],
 
-    const elements =
-        await Promise.all(descriptors.map(d => d.initialize(timeout)));
-    return elements.map((e, i) => ({element: e, descriptor: descriptors[i]}))
-               .filter(m => !!m.element) as Module[];
+                     descriptor: m.descriptor,
+                   }) as Module))
+        .filter(m => m.elements.length !== 0);
+  }
+
+  /**
+   * Initializes a module based on the provided module id.
+   * Serves as a convenience method for cases where the caller already knows the
+   * desired module id to load.
+   *
+   * @param moduleId A module id to be leveraged when determining the
+   *     module to be initialized.
+   * @param timeout Timeout in milliseconds after which initialization of a
+   *     the module aborts.
+   */
+  async initializeModuleById(id: string, timeout: number):
+      Promise<Module|null> {
+    const descriptor = this.descriptors_.find(d => d.id === id);
+    if (!descriptor) {
+      console.error('Missing descriptor for module id ', id);
+      return null;
+    }
+
+    const elements = await descriptor.initialize(timeout, /*onNtpLoad=*/ false);
+    if (!elements) {
+      return null;
+    }
+
+    return {
+      elements: Array.isArray(elements) ? elements : [elements],
+      descriptor: descriptor,
+    } as Module;
   }
 }

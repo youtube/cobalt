@@ -52,7 +52,6 @@ double DistanceEffect::Gain(double distance) {
       return ExponentialGain(distance);
   }
   NOTREACHED();
-  return 0.0;
 }
 
 double DistanceEffect::LinearGain(double distance) {

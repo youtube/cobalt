@@ -90,14 +90,24 @@ void VertexAttribute::updateCachedElementLimit(const VertexBinding &binding)
         return;
     }
 
-    angle::CheckedNumeric<GLint64> bufferSize(buffer->getSize());
     angle::CheckedNumeric<GLint64> bufferOffset(binding.getOffset());
+    angle::CheckedNumeric<GLint64> bufferSize(buffer->getSize());
     angle::CheckedNumeric<GLint64> attribOffset(relativeOffset);
     angle::CheckedNumeric<GLint64> attribSize(ComputeVertexAttributeTypeSize(*this));
 
-    // (buffer.size - buffer.offset - attrib.relativeOffset - attrib.size) / binding.stride
-    angle::CheckedNumeric<GLint64> elementLimit =
-        (bufferSize - bufferOffset - attribOffset - attribSize);
+    // Disallow referencing data before the start of the buffer with negative offsets
+    angle::CheckedNumeric<GLint64> offset = bufferOffset + attribOffset;
+    if (!offset.IsValid() || offset.ValueOrDie() < 0)
+    {
+        mCachedElementLimit = kIntegerOverflow;
+        return;
+    }
+
+    // The element limit is (exclusive) end of the accessible range for the vertex.  For example, if
+    // N attributes can be accessed, the following calculates N.
+    //
+    // (buffer.size - buffer.offset - attrib.relativeOffset - attrib.size) / binding.stride + 1
+    angle::CheckedNumeric<GLint64> elementLimit = (bufferSize - offset - attribSize);
 
     // Use the special integer overflow value if there was a math error.
     if (!elementLimit.IsValid())
@@ -120,20 +130,8 @@ void VertexAttribute::updateCachedElementLimit(const VertexBinding &binding)
         return;
     }
 
-    angle::CheckedNumeric<GLint64> bindingStride(binding.getStride());
-    elementLimit /= bindingStride;
-
-    if (binding.getDivisor() > 0)
-    {
-        // For instanced draws, the element count is floor(instanceCount - 1) / binding.divisor.
-        angle::CheckedNumeric<GLint64> bindingDivisor(binding.getDivisor());
-        elementLimit *= bindingDivisor;
-
-        // We account for the floor() part rounding by adding a rounding constant.
-        elementLimit += bindingDivisor - 1;
-    }
-
-    mCachedElementLimit = elementLimit.ValueOrDefault(kIntegerOverflow);
+    mCachedElementLimit /= binding.getStride();
+    ++mCachedElementLimit;
 }
 
 size_t ComputeVertexAttributeStride(const VertexAttribute &attrib, const VertexBinding &binding)

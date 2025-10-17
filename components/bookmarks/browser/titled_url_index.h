@@ -9,15 +9,17 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/flat_set.h"
 #include "base/feature_list.h"
+#include "base/memory/raw_ptr.h"
 #include "components/bookmarks/browser/titled_url_node_sorter.h"
 #include "components/query_parser/query_parser.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace bookmarks {
 
@@ -32,9 +34,10 @@ struct TitledUrlMatch;
 // TitledUrlNodes that contain that string in their title or URL.
 class TitledUrlIndex {
  public:
-  using TitledUrlNodeSet = base::flat_set<const TitledUrlNode*>;
+  using TitledUrlNodeSet =
+      base::flat_set<raw_ptr<const TitledUrlNode, CtnExperimental>>;
 
-  // Constructs a TitledUrlIndex. |sorter| is used to construct a sorted list
+  // Constructs a TitledUrlIndex. `sorter` is used to construct a sorted list
   // of matches when matches are returned from the index. If null, matches are
   // returned unsorted.
   explicit TitledUrlIndex(
@@ -70,15 +73,16 @@ class TitledUrlIndex {
 
   // Returns a normalized version of the UTF16 string `text`.  If it fails to
   // normalize the string, returns `text` itself as a best-effort.
-  static std::u16string Normalize(const std::u16string& text);
+  static std::u16string Normalize(std::u16string_view text);
 
  private:
   friend class TitledUrlIndexFake;
 
-  using TitledUrlNodes = std::vector<const TitledUrlNode*>;
+  using TitledUrlNodes =
+      std::vector<raw_ptr<const TitledUrlNode, CtnExperimental>>;
   using Index = std::map<std::u16string, TitledUrlNodeSet>;
 
-  // Constructs |sorted_nodes| by copying the matches in |matches| and sorting
+  // Constructs `sorted_nodes` by copying the matches in `matches` and sorting
   // them.
   void SortMatches(const TitledUrlNodeSet& matches,
                    TitledUrlNodes* sorted_nodes) const;
@@ -91,14 +95,14 @@ class TitledUrlIndex {
       const std::vector<std::u16string>& query_terms,
       size_t max_count);
 
-  // Finds |query_nodes| matches in |node| and returns a TitledUrlMatch
-  // containing |node| and the matches.
-  absl::optional<TitledUrlMatch> MatchTitledUrlNodeWithQuery(
+  // Finds `query_nodes` matches in `node` and returns a TitledUrlMatch
+  // containing `node` and the matches.
+  std::optional<TitledUrlMatch> MatchTitledUrlNodeWithQuery(
       const TitledUrlNode* node,
       const query_parser::QueryNodeVector& query_nodes,
       const std::vector<std::u16string>& query_terms);
 
-  // Return matches for the specified |terms|. This is an intersection of each
+  // Return matches for the specified `terms`. This is an intersection of each
   // term's matches.
   TitledUrlNodeSet RetrieveNodesMatchingAllTerms(
       const std::vector<std::u16string>& terms,
@@ -115,7 +119,7 @@ class TitledUrlIndex {
       query_parser::MatchingAlgorithm matching_algorithm,
       size_t max_nodes) const;
 
-  // Return matches for the specified |term|. May return duplicates.
+  // Return matches for the specified `term`. May return duplicates.
   TitledUrlNodes RetrieveNodesMatchingTerm(
       const std::u16string& term,
       query_parser::MatchingAlgorithm matching_algorithm) const;
@@ -125,18 +129,18 @@ class TitledUrlIndex {
       const std::u16string& term,
       query_parser::MatchingAlgorithm matching_algorithm) const;
 
-  // Returns the set of query words from |query|.
+  // Returns the set of query words from `query`.
   static std::vector<std::u16string> ExtractQueryWords(
       const std::u16string& query);
 
-  // Return the index terms for |node|.
+  // Return the index terms for `node`.
   static std::vector<std::u16string> ExtractIndexTerms(
       const TitledUrlNode* node);
 
-  // Adds |node| to |index_|.
+  // Adds `node` to `index_`.
   void RegisterNode(const std::u16string& term, const TitledUrlNode* node);
 
-  // Removes |node| from |index_|.
+  // Removes `node` from `index_`.
   void UnregisterNode(const std::u16string& term, const TitledUrlNode* node);
 
   // A map of terms and the nodes containing those terms in their titles or

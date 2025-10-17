@@ -5,10 +5,11 @@
 #ifndef COMPONENTS_SAFE_BROWSING_CONTENT_BROWSER_DOWNLOAD_DOWNLOAD_STATS_H_
 #define COMPONENTS_SAFE_BROWSING_CONTENT_BROWSER_DOWNLOAD_DOWNLOAD_STATS_H_
 
+#include <optional>
+
 #include "components/download/public/common/download_danger_type.h"
 #include "components/download/public/common/download_stats.h"
 #include "components/safe_browsing/content/common/file_type_policies.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class FilePath;
@@ -55,28 +56,12 @@ void RecordDangerousDownloadWarningBypassed(
     bool is_https,
     bool has_user_gesture);
 
-// Records the latency after completion a download was opened from the download
-// shelf/bubble or the chrome://downloads page, or show in folder was clicked.
-void RecordDownloadOpenedLatency(download::DownloadDangerType danger_type,
-                                 download::DownloadContent download_content,
-                                 base::Time download_opened_time,
-                                 base::Time download_end_time,
-                                 bool show_download_in_folder);
-
-// Records the latency after completion for when a download was opened (via the
-// shelf/bubble or chrome://downloads), or show in folder was clicked, by
-// extension type.
-void RecordDownloadOpenedLatencyFileType(
-    download::DownloadContent download_content,
-    base::Time download_opened_time,
-    base::Time download_end_time);
-
 // Records the attributes of a download.
 void RecordDownloadFileTypeAttributes(
     DownloadFileType::DangerLevel danger_level,
     bool has_user_gesture,
     bool visited_referrer_before,
-    absl::optional<base::Time> latest_bypass_time);
+    std::optional<base::Time> latest_bypass_time);
 
 }  // namespace safe_browsing
 

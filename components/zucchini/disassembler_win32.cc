@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/zucchini/disassembler_win32.h"
 
 #include <stddef.h>
@@ -38,7 +43,7 @@ bool ReadWin32Header(ConstBufferView image, BufferSource* source) {
     return false;
   }
   // Offset to PE header is in DOS header.
-  *source = std::move(BufferSource(image).Skip(dos_header->e_lfanew));
+  *source = BufferSource(image, dos_header->e_lfanew);
   // Check 'PE\0\0' magic from PE header.
   if (!source->ConsumeBytes({'P', 'E', 0, 0}))
     return false;

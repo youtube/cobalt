@@ -11,7 +11,6 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "components/pdf/browser/fake_pdf_stream_delegate.h"
-#include "components/pdf/browser/mock_url_loader_client.h"
 #include "components/pdf/browser/pdf_stream_delegate.h"
 #include "content/public/browser/url_loader_request_interceptor.h"
 #include "content/public/test/test_renderer_host.h"
@@ -19,6 +18,7 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
+#include "services/network/test/mock_url_loader_client.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -26,6 +26,8 @@
 namespace pdf {
 
 namespace {
+
+using ::network::MockURLLoaderClient;
 
 using ::testing::NiceMock;
 
@@ -37,9 +39,19 @@ class PdfURLLoaderRequestInterceptorTest
     resource_request_.url = GURL(FakePdfStreamDelegate::kDefaultOriginalUrl);
   }
 
+  void SetUp() override {
+    content::RenderViewHostTestHarness::SetUp();
+
+    content::RenderFrameHostTester* tester =
+        content::RenderFrameHostTester::For(main_rfh());
+    tester->InitializeRenderFrameIfNeeded();
+    child_frame_tree_node_id_ =
+        tester->AppendChild("PDF content frame")->GetFrameTreeNodeId();
+  }
+
   std::unique_ptr<PdfURLLoaderRequestInterceptor> CreateInterceptor() {
     return std::make_unique<PdfURLLoaderRequestInterceptor>(
-        main_rfh()->GetFrameTreeNodeId(), std::move(stream_delegate_));
+        child_frame_tree_node_id_, std::move(stream_delegate_));
   }
 
   std::unique_ptr<FakePdfStreamDelegate> stream_delegate_ =
@@ -48,6 +60,7 @@ class PdfURLLoaderRequestInterceptorTest
   network::ResourceRequest resource_request_;
   base::MockCallback<content::URLLoaderRequestInterceptor::LoaderCallback>
       loader_callback_;
+  content::FrameTreeNodeId child_frame_tree_node_id_;
 };
 
 void RunRequestHandler(
@@ -70,7 +83,7 @@ void RunRequestHandler(
 
 TEST_F(PdfURLLoaderRequestInterceptorTest, MaybeCreateInterceptor) {
   EXPECT_TRUE(PdfURLLoaderRequestInterceptor::MaybeCreateInterceptor(
-      main_rfh()->GetFrameTreeNodeId(), std::move(stream_delegate_)));
+      child_frame_tree_node_id_, std::move(stream_delegate_)));
 }
 
 TEST_F(PdfURLLoaderRequestInterceptorTest, MaybeCreateLoader) {

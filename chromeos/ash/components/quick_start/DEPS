@@ -1,4 +1,6 @@
 include_rules = [
+  "+chromeos/ash/services/nearby/public",
   "+components/cbor",
+  "+components/metrics",
   "+sandbox/policy"
 ]

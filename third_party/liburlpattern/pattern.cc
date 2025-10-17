@@ -5,7 +5,19 @@
 
 #include "third_party/liburlpattern/pattern.h"
 
+#include <algorithm>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "base/notreached.h"
+#include "base/types/expected.h"
 #include "third_party/abseil-cpp/absl/base/macros.h"
+#include "third_party/abseil-cpp/absl/status/status.h"
+#include "third_party/abseil-cpp/absl/strings/str_cat.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
 #include "third_party/liburlpattern/utils.h"
@@ -42,45 +54,6 @@ size_t ModifierLength(Modifier modifier) {
 }
 
 }  // namespace
-
-std::ostream& operator<<(std::ostream& o, Part part) {
-  o << "{ type:" << static_cast<int>(part.type) << ", name:" << part.name
-    << ", prefix:" << part.prefix << ", value:" << part.value
-    << ", suffix:" << part.suffix
-    << ", modifier:" << static_cast<int>(part.modifier) << " }";
-  return o;
-}
-
-Part::Part(PartType t, std::string v, Modifier m)
-    : type(t), value(std::move(v)), modifier(m) {
-  ABSL_ASSERT(type == PartType::kFixed);
-}
-
-Part::Part(PartType t,
-           std::string n,
-           std::string p,
-           std::string v,
-           std::string s,
-           Modifier m)
-    : type(t),
-      name(std::move(n)),
-      prefix(std::move(p)),
-      value(std::move(v)),
-      suffix(std::move(s)),
-      modifier(m) {
-  ABSL_ASSERT(type != PartType::kFixed);
-  ABSL_ASSERT(!name.empty());
-  if (type == PartType::kFullWildcard || type == PartType::kSegmentWildcard)
-    ABSL_ASSERT(value.empty());
-}
-
-bool Part::HasCustomName() const {
-  // Determine if the part name was custom, like `:foo`, or an
-  // automatically assigned numeric value.  Since custom group
-  // names follow javascript identifier rules the first character
-  // cannot be a digit, so that is all we need to check here.
-  return !name.empty() && !std::isdigit(name[0]);
-}
 
 Pattern::Pattern(std::vector<Part> part_list,
                  Options options,
@@ -301,7 +274,7 @@ std::string Pattern::GenerateRegexString(
 
     // Compute the Part regex value.  For kSegmentWildcard and kFullWildcard
     // types we must convert the type enum back to the defined regex value.
-    absl::string_view regex_value = part.value;
+    std::string_view regex_value = part.value;
     if (part.type == PartType::kSegmentWildcard)
       regex_value = segment_wildcard_regex_;
     else if (part.type == PartType::kFullWildcard)
@@ -450,6 +423,15 @@ std::string Pattern::GenerateRegexString(
   return result;
 }
 
+bool Pattern::HasRegexGroups() const {
+  for (const Part& part : part_list_) {
+    if (part.type == PartType::kRegex) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool Pattern::CanDirectMatch() const {
   // We currently only support direct matching with the options used by
   // URLPattern.
@@ -462,9 +444,9 @@ bool Pattern::CanDirectMatch() const {
 }
 
 bool Pattern::DirectMatch(
-    absl::string_view input,
+    std::string_view input,
     std::vector<
-        std::pair<absl::string_view, absl::optional<absl::string_view>>>*
+        std::pair<std::string_view, std::optional<std::string_view>>>*
         group_list_out) const {
   ABSL_ASSERT(CanDirectMatch());
 
@@ -482,6 +464,69 @@ bool Pattern::DirectMatch(
   }
 
   return false;
+}
+
+base::expected<std::string, absl::Status> Pattern::Generate(
+    const std::unordered_map<std::string, std::string>& groups,
+    EncodeCallback callback) const {
+  std::string result;
+  for (auto&& p : part_list_) {
+    if (p.modifier != Modifier::kNone) {
+      return base::unexpected(absl::UnimplementedError(
+          "Patterns with modifiers are not supported."));
+    }
+    switch (p.type) {
+      case PartType::kFixed: {
+        ABSL_ASSERT(p.prefix.empty() && p.suffix.empty());
+        result += p.value;
+        continue;
+      }
+      case PartType::kSegmentWildcard: {
+        if (!p.HasCustomName()) {
+          // Reaches when input patterns has a RegExp that is identical to
+          // the segment wildcard regex string.
+          // e.g. { pathname: "/([^\\/]+?)" }
+          return base::unexpected(absl::UnimplementedError(
+              "Segment-Wildcards with numeric names are not supported."));
+        }
+
+        // Note that names are not encoded while we should encode values.
+        auto it = groups.find(p.name);
+        if (it == groups.end()) {
+          return base::unexpected(absl::InvalidArgumentError(
+              absl::StrFormat("No input found for `%s`", p.name)));
+        }
+
+        base::expected<std::string, absl::Status> encoded_value_result =
+            callback(it->second);
+        if (!encoded_value_result.has_value()) {
+          return base::unexpected(encoded_value_result.error());
+        }
+
+        std::string& value = encoded_value_result.value();
+
+        // Throws error if input strings have delimiter chars.
+        // TODO(crbug.com/414682820): support this according to specification
+        // discussions.
+        for (auto delimiter : options_.delimiter_list) {
+          if (value.find(delimiter) != std::string::npos) {
+            return base::unexpected(absl::UnimplementedError(absl::StrFormat(
+                "Unsupported input: `%s` contains delimiter char `%c`.", value,
+                delimiter)));
+          }
+        }
+
+        absl::StrAppend(&result, p.prefix, value, p.suffix);
+        continue;
+      }
+      case PartType::kFullWildcard:
+      case PartType::kRegex:
+        return base::unexpected(absl::UnimplementedError(
+            "Patterns with Full-Wildcards or RegExp are not supported."));
+    }
+    NOTREACHED();
+  }
+  return result;
 }
 
 size_t Pattern::RegexStringLength() const {
@@ -509,7 +554,7 @@ size_t Pattern::RegexStringLength() const {
       continue;
     }
 
-    absl::string_view regex_value = part.value;
+    std::string_view regex_value = part.value;
     if (part.type == PartType::kSegmentWildcard)
       regex_value = segment_wildcard_regex_;
     else if (part.type == PartType::kFullWildcard)

@@ -4,22 +4,29 @@
 
 package org.chromium.components.browser_ui.site_settings;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge.SITE_WILDCARD;
+
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.text.format.Formatter;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
 import org.chromium.components.browser_ui.settings.ChromeImageViewPreference;
 import org.chromium.components.browser_ui.settings.FaviconViewUtils;
+import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.embedder_support.util.UrlUtilities;
-import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.url.GURL;
 
 /**
@@ -28,22 +35,28 @@ import org.chromium.url.GURL;
  * of the preference. See {@link ChromeImageViewPreference} for more details on how this icon
  * can be used.
  */
+@NullMarked
 class WebsitePreference extends ChromeImageViewPreference {
-    private final SiteSettingsDelegate mSiteSettingsDelegate;
-    private final Website mSite;
-    private final SiteSettingsCategory mCategory;
-
-    // TODO(crbug.com/1076571): Move these constants to dimens.xml
-    private static final int FAVICON_PADDING_DP = 4;
-    private static final int TEXT_SIZE_SP = 13;
+    protected final SiteSettingsDelegate mSiteSettingsDelegate;
+    protected final Website mSite;
+    protected final SiteSettingsCategory mCategory;
+    private @Nullable Runnable mRefreshZoomsListFunction;
 
     // Whether the favicon has been fetched already.
     private boolean mFaviconFetched;
 
-    // Finch param to allow subdomain settings for Request Desktop Site.
-    static final String PARAM_SUBDOMAIN_SETTINGS = "SubdomainSettings";
+    private @Nullable OnStorageAccessWebsiteDetailsRequested mStorageAccessSettingsPageListener;
 
-    WebsitePreference(Context context, SiteSettingsDelegate siteSettingsClient, Website site,
+    /** Used to notify storage access website details subpage requests. */
+    public interface OnStorageAccessWebsiteDetailsRequested {
+        /** Notify that website details subpage is requested. */
+        void onStorageAccessWebsiteDetailsRequested(WebsitePreference website);
+    }
+
+    WebsitePreference(
+            Context context,
+            SiteSettingsDelegate siteSettingsClient,
+            Website site,
             SiteSettingsCategory category) {
         super(context);
         mSiteSettingsDelegate = siteSettingsClient;
@@ -61,6 +74,15 @@ class WebsitePreference extends ChromeImageViewPreference {
         refresh();
     }
 
+    public void setRefreshZoomsListFunction(Runnable refreshZoomsListCallback) {
+        mRefreshZoomsListFunction = refreshZoomsListCallback;
+    }
+
+    public void setStorageAccessSettingsPageListener(
+            OnStorageAccessWebsiteDetailsRequested storageAccessSettingsPageListener) {
+        mStorageAccessSettingsPageListener = storageAccessSettingsPageListener;
+    }
+
     public void putSiteIntoExtras(String key) {
         getExtras().putSerializable(key, mSite);
     }
@@ -69,60 +91,172 @@ class WebsitePreference extends ChromeImageViewPreference {
         getExtras().putSerializable(key, mSite.getAddress());
     }
 
-    /**
-     * Return the Website this object is representing.
-     */
+    /** Return the Website this object is representing. */
     public Website site() {
         return mSite;
     }
 
-    /**
-     * Returns the url of the site to fetch a favicon for.
-     */
+    /** Returns the url of the site to fetch a favicon for. */
     private GURL faviconUrl() {
         String origin = mSite.getMainAddress().getOrigin();
-        GURL uri = new GURL(origin);
+        GURL uri =
+                new GURL(
+                        origin.contains(WebsiteAddress.ANY_SUBDOMAIN_PATTERN)
+                                ? origin.replace(WebsiteAddress.ANY_SUBDOMAIN_PATTERN, "")
+                                : origin);
         return UrlUtilities.clearPort(uri);
     }
 
-    private void refresh() {
-        setTitle(mSite.getTitle());
+    /** @return if a |mCategory| has a sub page to show the |mSite| permissions. */
+    private boolean hasSubPage() {
+        int type = mCategory.getContentSettingsType();
 
-        if (mSiteSettingsDelegate.isPrivacySandboxFirstPartySetsUIFeatureEnabled()
-                && mSiteSettingsDelegate.isFirstPartySetsDataAccessEnabled()
-                && mSite.getFPSCookieInfo() != null) {
-            var fpsInfo = mSite.getFPSCookieInfo();
-            setSummary(getContext().getResources().getQuantityString(
-                    R.plurals.allsites_fps_list_summary, fpsInfo.getMembersCount(),
-                    Integer.toString(fpsInfo.getMembersCount()), fpsInfo.getOwner()));
-            return;
+        if (!Website.isEmbeddedPermission(type)) {
+            return false;
+        }
+
+        int numberSites = assumeNonNull(mSite.getEmbeddedContentSettings(type)).size();
+        return numberSites != 1 || !mSite.isEmbargoed(type);
+    }
+
+    protected String buildTitle() {
+        if (mCategory.getType() == SiteSettingsCategory.Type.STORAGE_ACCESS) {
+            return mSite.getTitleForPreferenceRow();
+        }
+
+        return mSite.getTitle();
+    }
+
+    protected String buildExpirationSummary(ContentSettingException exception) {
+        assert exception != null && exception.hasExpiration();
+        var expirationInDays = assumeNonNull(exception.getExpirationInDays());
+        return expirationInDays == 0
+                ? getContext().getString(R.string.site_settings_expires_today_label)
+                : getContext()
+                        .getResources()
+                        .getQuantityString(
+                                R.plurals.site_settings_expires_label,
+                                expirationInDays,
+                                expirationInDays);
+    }
+
+    protected @Nullable String buildSummary() {
+        if (mSiteSettingsDelegate.isRelatedWebsiteSetsDataAccessEnabled()
+                && mSite.getRwsCookieInfo() != null) {
+            var rwsInfo = mSite.getRwsCookieInfo();
+            return getContext()
+                    .getResources()
+                    .getQuantityString(
+                            R.plurals.allsites_rws_list_summary,
+                            rwsInfo.getMembersCount(),
+                            Integer.toString(rwsInfo.getMembersCount()),
+                            rwsInfo.getOwner());
+        }
+
+        if (hasSubPage()) {
+            int numberSites =
+                    assumeNonNull(
+                                    mSite.getEmbeddedContentSettings(
+                                            mCategory.getContentSettingsType()))
+                            .size();
+            return getContext()
+                    .getResources()
+                    .getQuantityString(
+                            R.plurals.number_sites, numberSites, Integer.toString(numberSites));
         }
 
         if (mSite.getEmbedder() == null) {
             if (mSite.isEmbargoed(mCategory.getContentSettingsType())) {
-                setSummary(getContext().getString(R.string.automatically_blocked));
-            } else if (mCategory.getType() == SiteSettingsCategory.Type.REQUEST_DESKTOP_SITE
-                    && ContentFeatureList.getFieldTrialParamByFeatureAsBoolean(
-                            ContentFeatureList.REQUEST_DESKTOP_SITE_EXCEPTIONS,
-                            PARAM_SUBDOMAIN_SETTINGS, true)
-                    && mSite.getAddress().getIsAnySubdomainPattern()) {
-                setSummary(String.format(
-                        getContext().getString(R.string.website_settings_domain_exception_label),
-                        mSite.getAddress().getHost()));
+                return getContext().getString(R.string.automatically_blocked);
             }
-            return;
-        }
-        String subtitleText;
-        if (mSite.representsThirdPartiesOnSite()) {
-            subtitleText = getContext().getString(
-                    R.string.website_settings_third_party_cookies_exception_label);
-        } else {
-            subtitleText =
-                    String.format(getContext().getString(R.string.website_settings_embedded_on),
-                            mSite.getEmbedder().getTitle());
+
+            if (mCategory.getType() == SiteSettingsCategory.Type.REQUEST_DESKTOP_SITE
+                    && mSite.getAddress().getIsAnySubdomainPattern()) {
+                return getContext()
+                        .getString(
+                                R.string.website_settings_domain_exception_label,
+                                mSite.getAddress().getHost());
+            }
+
+            return null;
         }
 
-        setSummary(subtitleText);
+        if (mCategory.getType() == SiteSettingsCategory.Type.THIRD_PARTY_COOKIES) {
+            var exception = mSite.getContentSettingException(ContentSettingsType.COOKIES);
+            if (exception != null && exception.hasExpiration()) {
+                return buildExpirationSummary(exception);
+            }
+            return null;
+        }
+
+        String embedderTitle = mSite.getEmbedder().getTitle();
+        if (mSite.representsThirdPartiesOnSite()
+                || (embedderTitle != null
+                        && (embedderTitle.isEmpty() || embedderTitle.equals(SITE_WILDCARD)))) {
+            return null;
+        }
+
+        // TODO(crbug.com/40071127): Check if on Android there is a possibility of other exceptions
+        // being scoped to an embedder.
+        return getContext()
+                .getString(R.string.website_settings_embedded_on, mSite.getEmbedder().getTitle());
+    }
+
+    protected void maybeSetImageView() {
+        if (mCategory.getType() == SiteSettingsCategory.Type.ZOOM) {
+            // Create and set the delete button for this preference.
+            setImageView(
+                    R.drawable.ic_delete_white_24dp,
+                    getContext()
+                            .getString(
+                                    R.string.site_settings_delete_zoom_level_content_description,
+                                    buildTitle()),
+                    (OnClickListener)
+                            view -> {
+                                SiteSettingsUtil.resetZoomLevel(
+                                        mSite, mSiteSettingsDelegate.getBrowserContextHandle());
+                                assumeNonNull(mRefreshZoomsListFunction).run();
+                            });
+            setImageViewEnabled(true);
+            setImagePadding(25, 0, 0, 0);
+            return;
+        }
+
+        if (hasSubPage()) {
+            setImageView(
+                    R.drawable.ic_expand_more_horizontal_black_24dp,
+                    getContext()
+                            .getString(
+                                    R.string.webstorage_delete_data_content_description,
+                                    buildTitle()),
+                    (OnClickListener)
+                            view -> {
+                                assumeNonNull(mStorageAccessSettingsPageListener)
+                                        .onStorageAccessWebsiteDetailsRequested(this);
+                            });
+            setImageViewEnabled(true);
+            setImagePadding(25, 0, 0, 0);
+            return;
+        }
+
+        if (mSiteSettingsDelegate.isPermissionSiteSettingsRadioButtonFeatureEnabled()) {
+            setImageView(
+                    R.drawable.ic_more_vert_24dp,
+                    null,
+                    (OnClickListener)
+                            view -> {
+                                performClick(view);
+                            });
+            setImageViewEnabled(true);
+            setImagePadding(25, 0, 0, 0);
+            return;
+        }
+    }
+
+    protected void refresh() {
+        setTitle(buildTitle());
+        maybeSetImageView();
+        setSummary(buildSummary());
     }
 
     @Override
@@ -147,16 +281,27 @@ class WebsitePreference extends ChromeImageViewPreference {
             long totalUsage = mSite.getTotalUsage();
             if (totalUsage > 0) {
                 usageText.setText(Formatter.formatShortFileSize(getContext(), totalUsage));
-                usageText.setTextSize(TEXT_SIZE_SP);
                 usageText.setVisibility(View.VISIBLE);
             }
+        }
+        if (mCategory.getType() == SiteSettingsCategory.Type.ZOOM) {
+            TextView summaryText = (TextView) holder.findViewById(android.R.id.summary);
+            long readableZoomLevel =
+                    Math.round(
+                            100
+                                    * PageZoomUtils.convertZoomFactorToZoomLevel(
+                                            mSite.getZoomFactor()));
+            summaryText.setText(
+                    getContext().getString(R.string.page_zoom_level, readableZoomLevel));
+            summaryText.setVisibility(View.VISIBLE);
+            setViewClickable(false);
         }
 
         // Manually apply ListItemStartIcon style to draw the outer circle in the right size.
         ImageView icon = (ImageView) holder.findViewById(android.R.id.icon);
         FaviconViewUtils.formatIconForFavicon(getContext().getResources(), icon);
 
-        if (!mFaviconFetched) {
+        if (!mFaviconFetched && faviconUrl().isValid()) {
             // Start the favicon fetching. Will respond in onFaviconAvailable.
             mSiteSettingsDelegate.getFaviconImageForURL(faviconUrl(), this::onFaviconAvailable);
             mFaviconFetched = true;

@@ -10,10 +10,18 @@
 
 #include "modules/video_coding/utility/ivf_file_reader.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 
+#include "api/scoped_refptr.h"
+#include "api/video/encoded_image.h"
+#include "api/video/video_codec_type.h"
 #include "modules/video_coding/utility/ivf_file_writer.h"
+#include "rtc_base/system/file_wrapper.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 
@@ -30,10 +38,9 @@ constexpr uint8_t kDummyPayload[4] = {'0', '1', '2', '3'};
 class IvfFileReaderTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    file_name_ =
-        webrtc::test::TempFilename(webrtc::test::OutputPath(), "test_file.ivf");
+    file_name_ = test::TempFilename(test::OutputPath(), "test_file.ivf");
   }
-  void TearDown() override { webrtc::test::RemoveFile(file_name_); }
+  void TearDown() override { test::RemoveFile(file_name_); }
 
   bool WriteDummyTestFrames(IvfFileWriter* file_writer,
                             VideoCodecType codec_type,
@@ -44,7 +51,7 @@ class IvfFileReaderTest : public ::testing::Test {
                             int spatial_layers_count) {
     EncodedImage frame;
     frame.SetSpatialIndex(spatial_layers_count);
-    rtc::scoped_refptr<EncodedImageBuffer> payload = EncodedImageBuffer::Create(
+    scoped_refptr<EncodedImageBuffer> payload = EncodedImageBuffer::Create(
         sizeof(kDummyPayload) * spatial_layers_count);
     for (int i = 0; i < spatial_layers_count; ++i) {
       memcpy(&payload->data()[i * sizeof(kDummyPayload)], kDummyPayload,
@@ -58,7 +65,7 @@ class IvfFileReaderTest : public ::testing::Test {
       if (use_capture_tims_ms) {
         frame.capture_time_ms_ = i;
       } else {
-        frame.SetTimestamp(i);
+        frame.SetRtpTimestamp(i);
       }
       if (!file_writer->WriteFrame(frame, codec_type))
         return false;
@@ -78,7 +85,7 @@ class IvfFileReaderTest : public ::testing::Test {
     ASSERT_TRUE(file_writer->Close());
   }
 
-  void ValidateFrame(absl::optional<EncodedImage> frame,
+  void ValidateFrame(std::optional<EncodedImage> frame,
                      int frame_index,
                      bool use_capture_tims_ms,
                      int spatial_layers_count) {
@@ -86,9 +93,9 @@ class IvfFileReaderTest : public ::testing::Test {
     EXPECT_EQ(frame->SpatialIndex(), spatial_layers_count - 1);
     if (use_capture_tims_ms) {
       EXPECT_EQ(frame->capture_time_ms_, static_cast<int64_t>(frame_index));
-      EXPECT_EQ(frame->Timestamp(), static_cast<int64_t>(90 * frame_index));
+      EXPECT_EQ(frame->RtpTimestamp(), static_cast<int64_t>(90 * frame_index));
     } else {
-      EXPECT_EQ(frame->Timestamp(), static_cast<int64_t>(frame_index));
+      EXPECT_EQ(frame->RtpTimestamp(), static_cast<int64_t>(frame_index));
     }
     ASSERT_EQ(frame->size(), sizeof(kDummyPayload) * spatial_layers_count);
     for (int i = 0; i < spatial_layers_count; ++i) {

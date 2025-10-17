@@ -6,7 +6,6 @@
 #define ASH_SYSTEM_AUDIO_MIC_GAIN_SLIDER_VIEW_H_
 
 #include "ash/system/unified/unified_slider_view.h"
-#include "base/memory/raw_ptr.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 
@@ -16,9 +15,9 @@ class MicGainSliderController;
 
 class MicGainSliderView : public UnifiedSliderView,
                           public CrasAudioHandler::AudioObserver {
- public:
-  METADATA_HEADER(MicGainSliderView);
+  METADATA_HEADER(MicGainSliderView, UnifiedSliderView)
 
+ public:
   explicit MicGainSliderView(MicGainSliderController* controller);
   MicGainSliderView(MicGainSliderController* controller,
                     uint64_t device_id,
@@ -46,9 +45,6 @@ class MicGainSliderView : public UnifiedSliderView,
 
   // True if the audio device this slider represents is internal.
   const bool internal_;
-
-  // View used for a11y alert when mute state changes.
-  raw_ptr<views::View, ExperimentalAsh> announcement_view_ = nullptr;
 };
 
 }  // namespace ash

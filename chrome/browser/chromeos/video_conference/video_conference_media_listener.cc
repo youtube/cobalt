@@ -61,7 +61,8 @@ void VideoConferenceMediaListener::OnIsCapturingVideoChanged(
   if (vc_app) {
     auto& state = vc_app->state();
     bool prev_is_capturing_video = state.is_capturing_camera;
-    state.is_capturing_camera = is_capturing_video;
+    vc_app->SetCapturingStatus(VideoConferenceMediaType::kCamera,
+                               is_capturing_video);
 
     // Remove `vc_app` from client if it belongs to an extension which has
     // stopped capturing.
@@ -70,14 +71,16 @@ void VideoConferenceMediaListener::OnIsCapturingVideoChanged(
       return;
     }
 
+    media_usage_update_callback_.Run();
+
+    // This will be an AnchoredNudge, which is only visible if the tray is
+    // visible; so we have to call this after media_usage_update_callback_.
     if (camera_system_disabled_ && !prev_is_capturing_video &&
         is_capturing_video) {
       device_used_while_disabled_callback_.Run(
           crosapi::mojom::VideoConferenceMediaDevice::kCamera,
           contents->GetTitle());
     }
-
-    media_usage_update_callback_.Run();
   }
 }
 
@@ -93,7 +96,8 @@ void VideoConferenceMediaListener::OnIsCapturingAudioChanged(
   if (vc_app) {
     auto& state = vc_app->state();
     bool prev_is_capturing_audio = state.is_capturing_microphone;
-    state.is_capturing_microphone = is_capturing_audio;
+    vc_app->SetCapturingStatus(VideoConferenceMediaType::kMicrophone,
+                               is_capturing_audio);
 
     // Remove `vc_app` from client if it belongs to an extension which has
     // stopped capturing.
@@ -102,15 +106,25 @@ void VideoConferenceMediaListener::OnIsCapturingAudioChanged(
       return;
     }
 
+    media_usage_update_callback_.Run();
+
+    // This will be an AnchoredNudge, which is only visible if the tray is
+    // visible; so we have to call this after media_usage_update_callback_.
     if (microphone_system_disabled_ && !prev_is_capturing_audio &&
         is_capturing_audio) {
       device_used_while_disabled_callback_.Run(
           crosapi::mojom::VideoConferenceMediaDevice::kMicrophone,
           contents->GetTitle());
     }
-
-    media_usage_update_callback_.Run();
   }
+}
+
+void VideoConferenceMediaListener::OnIsCapturingTabChanged(
+    content::WebContents* contents,
+    bool is_capturing_tab) {
+  // We don't distinguish between tab and display capture and put them
+  // together into 'screen capturing'.
+  OnIsCapturingScreenChanged(contents, is_capturing_tab);
 }
 
 void VideoConferenceMediaListener::OnIsCapturingWindowChanged(
@@ -139,7 +153,8 @@ void VideoConferenceMediaListener::OnIsCapturingScreenChanged(
   // upon the deletion of a `VideoConferenceWebApp` with an is_capturing of
   // false.
   if (vc_app) {
-    vc_app->state().is_capturing_screen = is_capturing_screen;
+    vc_app->SetCapturingStatus(VideoConferenceMediaType::kScreen,
+                               is_capturing_screen);
 
     // Remove `vc_app` from client if it belongs to an extension which has
     // stopped capturing.

@@ -5,8 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_INSPECTOR_INSPECTOR_EMULATION_AGENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_INSPECTOR_INSPECTOR_EMULATION_AGENT_H_
 
+#include <optional>
+
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/platform/web_theme_engine.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -48,53 +49,58 @@ class CORE_EXPORT InspectorEmulationAgent final
   protocol::Response setDocumentCookieDisabled(bool disabled) override;
   protocol::Response setTouchEmulationEnabled(
       bool enabled,
-      protocol::Maybe<int> max_touch_points) override;
+      std::optional<int> max_touch_points) override;
   protocol::Response setEmulatedMedia(
-      protocol::Maybe<String> media,
-      protocol::Maybe<protocol::Array<protocol::Emulation::MediaFeature>>
+      std::optional<String> media,
+      std::unique_ptr<protocol::Array<protocol::Emulation::MediaFeature>>
           features) override;
   protocol::Response setEmulatedVisionDeficiency(const String&) override;
   protocol::Response setCPUThrottlingRate(double) override;
   protocol::Response setFocusEmulationEnabled(bool) override;
-  protocol::Response setAutoDarkModeOverride(protocol::Maybe<bool>) override;
+  protocol::Response setAutoDarkModeOverride(std::optional<bool>) override;
   protocol::Response setVirtualTimePolicy(
       const String& policy,
-      protocol::Maybe<double> virtual_time_budget_ms,
-      protocol::Maybe<int> max_virtual_time_task_starvation_count,
-      protocol::Maybe<double> initial_virtual_time,
+      std::optional<double> virtual_time_budget_ms,
+      std::optional<int> max_virtual_time_task_starvation_count,
+      std::optional<double> initial_virtual_time,
       double* virtual_time_ticks_base_ms) override;
   protocol::Response setTimezoneOverride(const String& timezone_id) override;
   protocol::Response setNavigatorOverrides(const String& platform) override;
   protocol::Response setDefaultBackgroundColorOverride(
-      protocol::Maybe<protocol::DOM::RGBA>) override;
+      std::unique_ptr<protocol::DOM::RGBA>) override;
+  protocol::Response setSafeAreaInsetsOverride(
+      std::unique_ptr<protocol::Emulation::SafeAreaInsets> insets) override;
   protocol::Response setDeviceMetricsOverride(
       int width,
       int height,
       double device_scale_factor,
       bool mobile,
-      protocol::Maybe<double> scale,
-      protocol::Maybe<int> screen_width,
-      protocol::Maybe<int> screen_height,
-      protocol::Maybe<int> position_x,
-      protocol::Maybe<int> position_y,
-      protocol::Maybe<bool> dont_set_visible_size,
-      protocol::Maybe<protocol::Emulation::ScreenOrientation>,
-      protocol::Maybe<protocol::Page::Viewport>,
-      protocol::Maybe<protocol::Emulation::DisplayFeature>) override;
+      std::optional<double> scale,
+      std::optional<int> screen_width,
+      std::optional<int> screen_height,
+      std::optional<int> position_x,
+      std::optional<int> position_y,
+      std::optional<bool> dont_set_visible_size,
+      std::unique_ptr<protocol::Emulation::ScreenOrientation>,
+      std::unique_ptr<protocol::Page::Viewport>,
+      std::unique_ptr<protocol::Emulation::DisplayFeature>,
+      std::unique_ptr<protocol::Emulation::DevicePosture>) override;
   protocol::Response clearDeviceMetricsOverride() override;
   protocol::Response setHardwareConcurrencyOverride(
       int hardware_concurrency) override;
   protocol::Response setUserAgentOverride(
       const String& user_agent,
-      protocol::Maybe<String> accept_language,
-      protocol::Maybe<String> platform,
-      protocol::Maybe<protocol::Emulation::UserAgentMetadata>
+      std::optional<String> accept_language,
+      std::optional<String> platform,
+      std::unique_ptr<protocol::Emulation::UserAgentMetadata>
           ua_metadata_override) override;
-  protocol::Response setLocaleOverride(protocol::Maybe<String>) override;
+  protocol::Response setLocaleOverride(std::optional<String>) override;
   protocol::Response setDisabledImageTypes(
       std::unique_ptr<protocol::Array<protocol::Emulation::DisabledImageType>>)
       override;
   protocol::Response setAutomationOverride(bool enabled) override;
+  protocol::Response setSmallViewportHeightDifferenceOverride(
+      int difference) override;
 
   // Automation Emulation API
   void ApplyAutomationOverride(bool& enabled) const;
@@ -104,7 +110,7 @@ class CORE_EXPORT InspectorEmulationAgent final
   void ApplyHardwareConcurrencyOverride(unsigned int& hardware_concurrency);
   void ApplyUserAgentOverride(String* user_agent);
   void ApplyUserAgentMetadataOverride(
-      absl::optional<blink::UserAgentMetadata>* ua_metadata);
+      std::optional<blink::UserAgentMetadata>* ua_metadata);
   void PrepareRequest(DocumentLoader*,
                       ResourceRequest&,
                       ResourceLoaderOptions&,
@@ -116,6 +122,7 @@ class CORE_EXPORT InspectorEmulationAgent final
   // InspectorBaseAgent overrides.
   protocol::Response disable() override;
   void Restore() override;
+  void DidCommitLoadForLocalFrame(LocalFrame*) override;
 
   void Trace(Visitor*) const override;
 
@@ -135,7 +142,7 @@ class CORE_EXPORT InspectorEmulationAgent final
 
   std::unique_ptr<TimeZoneController::TimeZoneOverride> timezone_override_;
 
-  blink::WebThemeEngine::SystemColorInfoState initial_system_color_info_state_;
+  bool initial_system_forced_colors_state_;
 
   // Unlike other media features `forced-colors` state must be tracked outside
   // the document.
@@ -156,7 +163,7 @@ class CORE_EXPORT InspectorEmulationAgent final
   InspectorAgentState::Integer hardware_concurrency_override_;
   InspectorAgentState::String user_agent_override_;
   InspectorAgentState::Bytes serialized_ua_metadata_override_;
-  absl::optional<blink::UserAgentMetadata> ua_metadata_override_;
+  std::optional<blink::UserAgentMetadata> ua_metadata_override_;
   InspectorAgentState::String accept_language_override_;
   InspectorAgentState::String locale_override_;
   InspectorAgentState::Double virtual_time_budget_;
@@ -170,6 +177,8 @@ class CORE_EXPORT InspectorEmulationAgent final
   InspectorAgentState::BooleanMap disabled_image_types_;
   InspectorAgentState::Double cpu_throttling_rate_;
   InspectorAgentState::Boolean automation_override_;
+  InspectorAgentState::Bytes safe_area_insets_override_;
+  InspectorAgentState::Double small_viewport_height_difference_override_;
 };
 
 }  // namespace blink

@@ -33,7 +33,7 @@ AccountMigrationWelcomeDialog::AccountMigrationWelcomeDialog(
       email_(email),
       id_(gurl.spec()) {}
 
-AccountMigrationWelcomeDialog::~AccountMigrationWelcomeDialog() {}
+AccountMigrationWelcomeDialog::~AccountMigrationWelcomeDialog() = default;
 
 // static
 AccountMigrationWelcomeDialog* AccountMigrationWelcomeDialog::Show(
@@ -90,7 +90,7 @@ bool AccountMigrationWelcomeDialog::ShouldShowCloseButton() const {
   return false;
 }
 
-const std::string& AccountMigrationWelcomeDialog::Id() {
+std::string AccountMigrationWelcomeDialog::Id() {
   return id_;
 }
 

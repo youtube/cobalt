@@ -18,12 +18,12 @@ limitations under the License.
 #include <memory>
 #include <string>
 
-#include "absl/flags/flag.h"       // from @com_google_absl
-#include "absl/status/status.h"    // from @com_google_absl
-#include "absl/strings/cord.h"     // from @com_google_absl
+#include "absl/flags/flag.h"  // from @com_google_absl
+#include "absl/status/status.h"  // from @com_google_absl
+#include "absl/strings/cord.h"  // from @com_google_absl
 #include "absl/strings/str_cat.h"  // from @com_google_absl
 #include "tensorflow/lite/core/api/op_resolver.h"
-#include "tensorflow/lite/core/shims/cc/shims_test_util.h"
+#include "tensorflow/lite/test_util.h"
 #include "tensorflow_lite_support/cc/common.h"
 #include "tensorflow_lite_support/cc/port/gmock.h"
 #include "tensorflow_lite_support/cc/port/gtest.h"
@@ -70,7 +70,7 @@ constexpr char kUSESearcher[] = "universal_sentence_encoder_searcher.tflite";
 // tolerancy on floating-point scores to account for numerical instabilities.
 void ExpectApproximatelyEqual(const SearchResult& actual,
                               const SearchResult& expected) {
-  const float kPrecision = 1e-5;
+  constexpr float kPrecision = 3e-3;
   EXPECT_EQ(actual.nearest_neighbors_size(), expected.nearest_neighbors_size());
   for (int i = 0; i < actual.nearest_neighbors_size(); ++i) {
     const NearestNeighbor& a = actual.nearest_neighbors(i);
@@ -85,7 +85,7 @@ std::unique_ptr<tflite::OpResolver> GetOpResolver(
   if (is_universal_sentence_encoder) {
     return CreateTextOpResolver();
   } else {
-    return absl::make_unique<tflite_shims::ops::builtin::BuiltinOpResolver>();
+    return absl::make_unique<tflite::ops::builtin::BuiltinOpResolver>();
   }
 }
 
@@ -218,8 +218,7 @@ TEST_P(CreateFromOptionsTest, FailsWithInvalidMaxResults) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    CreateFromOptionsTest,
-    CreateFromOptionsTest,
+    CreateFromOptionsTest, CreateFromOptionsTest,
     Values(CreateFromOptionsParams{
                /* name= */ "Bert",
                /* embedder_model_name= */ kMobileBertEmbedder,
@@ -268,7 +267,7 @@ TEST_P(SearchTest, SucceedsWithStandaloneIndex) {
 
   // Perform search.
   SUPPORT_ASSERT_OK_AND_ASSIGN(const SearchResult& result,
-                               searcher->Search("The weather was excellent."));
+                       searcher->Search("The weather was excellent."));
 
   // Check results.
   ExpectApproximatelyEqual(
@@ -289,7 +288,7 @@ TEST_P(SearchTest, SucceedsWithMetadataIndex) {
 
   // Perform search.
   SUPPORT_ASSERT_OK_AND_ASSIGN(const SearchResult& result,
-                               searcher->Search("The weather was excellent."));
+                       searcher->Search("The weather was excellent."));
 
   // Check results.
   ExpectApproximatelyEqual(
@@ -314,7 +313,7 @@ TEST_P(SearchTest, SucceedsWithMaxResults) {
 
   // Perform search.
   SUPPORT_ASSERT_OK_AND_ASSIGN(const SearchResult& result,
-                               searcher->Search("The weather was excellent."));
+                       searcher->Search("The weather was excellent."));
 
   // Check results.
   SearchResult all_results =
@@ -328,8 +327,7 @@ TEST_P(SearchTest, SucceedsWithMaxResults) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    SearchTest,
-    SearchTest,
+    SearchTest, SearchTest,
     Values(SearchParams{
                /* name= */ "Bert",
                /* embedder_model_name= */ kMobileBertEmbedder,
@@ -339,23 +337,23 @@ INSTANTIATE_TEST_SUITE_P(
                /* expected_result= */ R"pb(
                  nearest_neighbors {
                    metadata: "The weather was excellent."
-                   distance: 0.0
+                   distance: 0.00221
                  }
                  nearest_neighbors {
                    metadata: "It was a sunny day."
-                   distance: 0.11537
+                   distance: 0.10934
                  }
                  nearest_neighbors {
                    metadata: "The sun was shining on that day."
-                   distance: 0.23002
+                   distance: 0.217592
                  }
                  nearest_neighbors {
                    metadata: "He was very happy with his newly bought car."
-                   distance: 0.32456
+                   distance: 0.308592
                  }
                  nearest_neighbors {
                    metadata: "The cat is chasing after the mouse."
-                   distance: 0.96693
+                   distance: 0.9497475
                  }
                )pb"},
            SearchParams{

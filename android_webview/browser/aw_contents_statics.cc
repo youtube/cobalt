@@ -2,29 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "android_webview/browser/aw_contents_statics.h"
+
 #include "android_webview/browser/aw_browser_process.h"
 #include "android_webview/browser/aw_content_browser_client.h"
 #include "android_webview/browser/aw_contents.h"
 #include "android_webview/browser/aw_contents_io_thread_client.h"
+#include "android_webview/browser/aw_crash_keys.h"
 #include "android_webview/browser/safe_browsing/aw_safe_browsing_allowlist_manager.h"
-#include "android_webview/browser_jni_headers/AwContentsStatics_jni.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "components/flags_ui/flags_ui_metrics.h"
 #include "components/google/core/common/google_util.h"
 #include "components/security_interstitials/core/urls.h"
 #include "components/variations/variations_ids_provider.h"
 #include "components/version_info/version_info.h"
+#include "components/webui/flags/flags_ui_metrics.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/url_constants.h"
 #include "net/cert/cert_database.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "android_webview/browser_jni_headers/AwContentsStatics_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
@@ -46,7 +51,7 @@ void ClientCertificatesCleared(const JavaRef<jobject>& callback) {
 
 void NotifyClientCertificatesChanged() {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  net::CertDatabase::GetInstance()->NotifyObserversCertDBChanged();
+  net::CertDatabase::GetInstance()->NotifyObserversClientCertStoreChanged();
 }
 
 void SafeBrowsingAllowlistAssigned(const JavaRef<jobject>& callback,
@@ -58,9 +63,15 @@ void SafeBrowsingAllowlistAssigned(const JavaRef<jobject>& callback,
 
 }  // namespace
 
+net::SocketTag GetDefaultSocketTag() {
+  JNIEnv* env = AttachCurrentThread();
+  uid_t uid = Java_AwContentsStatics_getDefaultTrafficStatsUid(env);
+  int32_t tag = Java_AwContentsStatics_getDefaultTrafficStatsTag(env);
+  return net::SocketTag(uid, tag);
+}
+
 // static
-ScopedJavaLocalRef<jstring>
-JNI_AwContentsStatics_GetSafeBrowsingPrivacyPolicyUrl(JNIEnv* env) {
+std::string JNI_AwContentsStatics_GetSafeBrowsingPrivacyPolicyUrl(JNIEnv* env) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   GURL privacy_policy_url(
       security_interstitials::kSafeBrowsingPrivacyPolicyUrl);
@@ -68,7 +79,7 @@ JNI_AwContentsStatics_GetSafeBrowsingPrivacyPolicyUrl(JNIEnv* env) {
       AwBrowserProcess::GetInstance()->GetSafeBrowsingUIManager()->app_locale();
   privacy_policy_url =
       google_util::AppendGoogleLocaleParam(privacy_policy_url, locale);
-  return base::android::ConvertUTF8ToJavaString(env, privacy_policy_url.spec());
+  return privacy_policy_url.spec();
 }
 
 // static
@@ -83,10 +94,8 @@ void JNI_AwContentsStatics_ClearClientCertPreferences(
 }
 
 // static
-ScopedJavaLocalRef<jstring> JNI_AwContentsStatics_GetUnreachableWebDataUrl(
-    JNIEnv* env) {
-  return base::android::ConvertUTF8ToJavaString(
-      env, content::kUnreachableWebDataURL);
+std::string JNI_AwContentsStatics_GetUnreachableWebDataUrl(JNIEnv* env) {
+  return content::kUnreachableWebDataURL;
 }
 
 // static
@@ -109,15 +118,6 @@ void JNI_AwContentsStatics_SetSafeBrowsingAllowlist(
       std::move(rules),
       base::BindOnce(&SafeBrowsingAllowlistAssigned,
                      ScopedJavaGlobalRef<jobject>(env, callback)));
-}
-
-// static
-void JNI_AwContentsStatics_SetServiceWorkerIoThreadClient(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& io_thread_client,
-    const base::android::JavaParamRef<jobject>& browser_context) {
-  AwContentsIoThreadClient::SetServiceWorkerIoThreadClient(io_thread_client,
-                                                           browser_context);
 }
 
 // static
@@ -153,8 +153,10 @@ void JNI_AwContentsStatics_LogFlagMetrics(
   for (const auto& jfeature : jfeatures.ReadElements<jstring>()) {
     features.insert(ConvertJavaStringToUTF8(jfeature));
   }
+
   flags_ui::ReportAboutFlagsHistogram("Launch.FlagsAtStartup", switches,
                                       features);
+  SetCrashKeysFromFeaturesAndSwitches(switches, features);
 }
 
 // static
@@ -163,17 +165,14 @@ jboolean JNI_AwContentsStatics_IsMultiProcessEnabled(JNIEnv* env) {
 }
 
 // static
-ScopedJavaLocalRef<jstring> JNI_AwContentsStatics_GetVariationsHeader(
-    JNIEnv* env) {
+std::string JNI_AwContentsStatics_GetVariationsHeader(JNIEnv* env) {
   const bool is_signed_in = false;
   auto headers =
       variations::VariationsIdsProvider::GetInstance()->GetClientDataHeaders(
           is_signed_in);
   if (!headers)
-    return base::android::ConvertUTF8ToJavaString(env, "");
-  return base::android::ConvertUTF8ToJavaString(
-      env,
-      headers->headers_map.at(variations::mojom::GoogleWebVisibility::ANY));
+    return "";
+  return headers->headers_map.at(variations::mojom::GoogleWebVisibility::ANY);
 }
 
 }  // namespace android_webview

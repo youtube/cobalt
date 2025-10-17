@@ -43,18 +43,6 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) RemotingSender final
     : public media::mojom::RemotingDataStreamSender,
       public media::cast::FrameSender::Client {
  public:
-  // Old way of instantiating using a cast transport. |transport| is expected to
-  // outlive this class.
-  // TODO(https://crbug.com/1316434): should be removed once libcast sender is
-  // successfully launched.
-  RemotingSender(scoped_refptr<media::cast::CastEnvironment> cast_environment,
-                 media::cast::CastTransport* transport,
-                 const media::cast::FrameSenderConfig& config,
-                 mojo::ScopedDataPipeConsumerHandle pipe,
-                 mojo::PendingReceiver<media::mojom::RemotingDataStreamSender>
-                     stream_sender,
-                 base::OnceClosure error_callback);
-
   // New way of instantiating using an openscreen::cast::Sender. Since the
   // |Sender| instance is destroyed when renegotiation is complete, |this|
   // is also invalid and should be immediately torn down.
@@ -72,6 +60,9 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) RemotingSender final
   ~RemotingSender() override;
 
  private:
+  // Ctor that takes a media::cast::FrameSender for unit tests.
+  // TODO(issues.chromium.org/329781397): Remove unnecessary wrapper objects in
+  // Chrome's implementation of the Cast sender.
   RemotingSender(scoped_refptr<media::cast::CastEnvironment> cast_environment,
                  std::unique_ptr<media::cast::FrameSender> sender,
                  const media::cast::FrameSenderConfig& config,
@@ -120,7 +111,7 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) RemotingSender final
   // The backing frame sender implementation.
   std::unique_ptr<media::cast::FrameSender> frame_sender_;
 
-  raw_ptr<const base::TickClock> clock_;
+  raw_ref<const base::TickClock> clock_;
 
   // Callback that is run to notify when a fatal error occurs.
   base::OnceClosure error_callback_;
@@ -153,7 +144,7 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) RemotingSender final
 
   // Number of EnqueueFrame() calls that have failed since the last successful
   // call.
-  int consecuitive_enqueue_frame_failure_count_ = 0;
+  int consecutive_enqueue_frame_failure_count_ = 0;
 
   // The next frame's ID. Before any frames are sent, this will be the ID of
   // the first frame.

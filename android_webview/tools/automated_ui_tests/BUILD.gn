@@ -5,31 +5,7 @@
 import("//build/config/android/rules.gni")
 import("//testing/test.gni")
 
-group("webview_ui_test_app") {
-  testonly = true
-  deps = [
-    ":webview_ui_test_app_apk",
-    ":webview_ui_test_app_test_apk",
-  ]
-}
-
-android_apk("webview_ui_test_app_apk") {
-  apk_name = "WebViewUiTestApp"
-  android_manifest = "java/AndroidManifest.xml"
-  deps = [
-    ":webview_ui_test_app_apk_resources",
-    ":webview_ui_test_app_java",
-  ]
-}
-
-android_library("webview_ui_test_app_java") {
-  sources =
-      [ "java/src/org/chromium/webview_ui_test/WebViewUiTestActivity.java" ]
-  deps = [
-    ":webview_ui_test_app_apk_resources",
-    "//base:base_java",
-  ]
-}
+testonly = true
 
 android_resources("webview_ui_test_app_apk_resources") {
   sources = [
@@ -41,9 +17,9 @@ android_resources("webview_ui_test_app_apk_resources") {
 
 instrumentation_test_apk("webview_ui_test_app_test_apk") {
   apk_name = "WebViewUiTestAppTest"
-  apk_under_test = ":webview_ui_test_app_apk"
   android_manifest = "javatests/AndroidManifest.xml"
   sources = [
+    "java/src/org/chromium/webview_ui_test/WebViewUiTestActivity.java",
     "javatests/src/org/chromium/webview_ui_test/test/ActionModeTest.java",
     "javatests/src/org/chromium/webview_ui_test/test/DropDownListTest.java",
     "javatests/src/org/chromium/webview_ui_test/test/WebViewJSTest.java",
@@ -55,11 +31,9 @@ instrumentation_test_apk("webview_ui_test_app_test_apk") {
   ]
   deps = [
     ":webview_ui_test_app_apk_resources",
-    ":webview_ui_test_app_java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//third_party/android_deps:espresso_java",
-    "//third_party/android_sdk:android_test_base_java",
     "//third_party/androidx:androidx_test_monitor_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/androidx:androidx_test_uiautomator_uiautomator_java",
@@ -67,7 +41,10 @@ instrumentation_test_apk("webview_ui_test_app_test_apk") {
     "//third_party/junit",
     "//ui/android:ui_java_test_support",
   ]
-  data = [ "test/data/" ]
+  data = [
+    "//components/variations/test_data/cipd",
+    "test/data/",
+  ]
 
   # Tell GN to ignore 'incremental_install' even if the user has it in their GN
   # args because it's incompatible with 'use_webview_provider'.

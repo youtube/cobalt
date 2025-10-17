@@ -11,6 +11,8 @@
 
 #include "base/base64.h"
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/notreached.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -20,20 +22,7 @@ namespace net {
 
 namespace {
 
-// LessThan comparator for use with std::binary_search() in determining
-// whether a SHA-256 HashValue appears within a sorted array of
-// SHA256HashValues.
-struct SHA256ToHashValueComparator {
-  bool operator()(const SHA256HashValue& lhs, const HashValue& rhs) const {
-    DCHECK_EQ(HASH_VALUE_SHA256, rhs.tag());
-    return memcmp(lhs.data, rhs.data(), rhs.size()) < 0;
-  }
-
-  bool operator()(const HashValue& lhs, const SHA256HashValue& rhs) const {
-    DCHECK_EQ(HASH_VALUE_SHA256, lhs.tag());
-    return memcmp(lhs.data(), rhs.data, lhs.size()) < 0;
-  }
-};
+constexpr std::string_view kSha256Slash = "sha256/";
 
 }  // namespace
 
@@ -43,61 +32,53 @@ HashValue::HashValue(const SHA256HashValue& hash)
   fingerprint.sha256 = hash;
 }
 
-bool HashValue::FromString(const base::StringPiece value) {
-  base::StringPiece base64_str;
-  if (base::StartsWith(value, "sha256/")) {
-    tag_ = HASH_VALUE_SHA256;
-    base64_str = value.substr(7);
-  } else {
+HashValue::HashValue(base::span<const uint8_t> hash)
+    : HashValue(HASH_VALUE_SHA256) {
+  base::span(fingerprint.sha256).copy_from(hash);
+}
+
+bool HashValue::FromString(std::string_view value) {
+  if (!value.starts_with(kSha256Slash)) {
     return false;
   }
 
-  std::string decoded;
-  if (!base::Base64Decode(base64_str, &decoded) || decoded.size() != size())
-    return false;
+  std::string_view base64_str = value.substr(kSha256Slash.size());
 
-  memcpy(data(), decoded.data(), size());
+  auto decoded = base::Base64Decode(base64_str);
+  if (!decoded || decoded->size() != span().size()) {
+    return false;
+  }
+  tag_ = HASH_VALUE_SHA256;
+  span().copy_from(*decoded);
   return true;
 }
 
 std::string HashValue::ToString() const {
-  std::string base64_str;
-  base::Base64Encode(base::StringPiece(reinterpret_cast<const char*>(data()),
-                                       size()), &base64_str);
+  std::string base64_str = base::Base64Encode(span());
   switch (tag_) {
     case HASH_VALUE_SHA256:
-      return std::string("sha256/") + base64_str;
+      return std::string(kSha256Slash) + base64_str;
   }
 
-  NOTREACHED() << "Unknown HashValueTag " << tag_;
-  return std::string("unknown/" + base64_str);
+  NOTREACHED();
 }
 
-size_t HashValue::size() const {
+base::span<uint8_t> HashValue::span() {
   switch (tag_) {
     case HASH_VALUE_SHA256:
-      return sizeof(fingerprint.sha256.data);
+      return fingerprint.sha256;
   }
 
-  NOTREACHED() << "Unknown HashValueTag " << tag_;
-  // While an invalid tag should not happen, return a non-zero length
-  // to avoid compiler warnings when the result of size() is
-  // used with functions like memset.
-  return sizeof(fingerprint.sha256.data);
+  NOTREACHED();
 }
 
-unsigned char* HashValue::data() {
-  return const_cast<unsigned char*>(const_cast<const HashValue*>(this)->data());
-}
-
-const unsigned char* HashValue::data() const {
+base::span<const uint8_t> HashValue::span() const {
   switch (tag_) {
     case HASH_VALUE_SHA256:
-      return fingerprint.sha256.data;
+      return fingerprint.sha256;
   }
 
-  NOTREACHED() << "Unknown HashValueTag " << tag_;
-  return nullptr;
+  NOTREACHED();
 }
 
 bool operator==(const HashValue& lhs, const HashValue& rhs) {
@@ -110,7 +91,6 @@ bool operator==(const HashValue& lhs, const HashValue& rhs) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 bool operator!=(const HashValue& lhs, const HashValue& rhs) {
@@ -127,7 +107,6 @@ bool operator<(const HashValue& lhs, const HashValue& rhs) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 bool operator>(const HashValue& lhs, const HashValue& rhs) {
@@ -140,24 +119,6 @@ bool operator<=(const HashValue& lhs, const HashValue& rhs) {
 
 bool operator>=(const HashValue& lhs, const HashValue& rhs) {
   return !(lhs < rhs);
-}
-
-bool IsSHA256HashInSortedArray(const HashValue& hash,
-                               base::span<const SHA256HashValue> array) {
-  return std::binary_search(array.begin(), array.end(), hash,
-                            SHA256ToHashValueComparator());
-}
-
-bool IsAnySHA256HashInSortedArray(base::span<const HashValue> hashes,
-                                  base::span<const SHA256HashValue> array) {
-  for (const auto& hash : hashes) {
-    if (hash.tag() != HASH_VALUE_SHA256)
-      continue;
-
-    if (IsSHA256HashInSortedArray(hash, array))
-      return true;
-  }
-  return false;
 }
 
 }  // namespace net

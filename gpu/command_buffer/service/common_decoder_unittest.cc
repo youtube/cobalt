@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
+#include "gpu/command_buffer/service/common_decoder.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 
 #include "gpu/command_buffer/client/client_test_helper.h"
-#include "gpu/command_buffer/service/common_decoder.h"
 #include "gpu/command_buffer/service/mocks.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -225,7 +232,7 @@ TEST_F(CommonDecoderTest, SetBucketData) {
 
 TEST_F(CommonDecoderTest, SetBucketDataImmediate) {
   cmd::SetBucketSize size_cmd;
-  int8_t buffer[1024];
+  std::array<int8_t, 1024> buffer;
   cmd::SetBucketDataImmediate& cmd =
       *reinterpret_cast<cmd::SetBucketDataImmediate*>(&buffer);
 
@@ -281,6 +288,20 @@ TEST_F(CommonDecoderTest, SetBucketDataImmediate) {
   EXPECT_NE(error::kNoError, ExecuteImmediateCmd(cmd, sizeof(kData)));
 }
 
+namespace {
+
+uint32_t LoadU32Unaligned(const void* ptr) {
+  uint32_t ret;
+  memcpy(&ret, ptr, sizeof(uint32_t));
+  return ret;
+}
+
+void StoreU32Unaligned(uint32_t v, void* ptr) {
+  memcpy(ptr, &v, sizeof(uint32_t));
+}
+
+}  // namespace
+
 TEST_F(CommonDecoderTest, GetBucketStart) {
   cmd::SetBucketSize size_cmd;
   cmd::SetBucketData set_cmd;
@@ -304,31 +325,31 @@ TEST_F(CommonDecoderTest, GetBucketStart) {
   EXPECT_EQ(error::kNoError, ExecuteCmd(set_cmd));
 
   // Check that the size is correct with no data buffer.
-  uint32_t* memory = GetSharedMemoryAs<uint32_t*>(kSomeOffsetInSharedMemory);
-  *memory = 0x0;
+  void* memory = GetSharedMemoryAs<void*>(kSomeOffsetInSharedMemory);
+  StoreU32Unaligned(0, memory);
   cmd.Init(kBucketId, valid_shm_id_, kSomeOffsetInSharedMemory, 0, 0, 0);
   EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  EXPECT_EQ(kBucketSize, *memory);
+  EXPECT_EQ(kBucketSize, LoadU32Unaligned(memory));
 
   // Check that the data is copied with data buffer.
   const uint32_t kDataOffsetInSharedMemory = 54;
   uint8_t* data = GetSharedMemoryAs<uint8_t*>(kDataOffsetInSharedMemory);
-  *memory = 0x0;
+  StoreU32Unaligned(0, memory);
   memset(data, 0, sizeof(kData));
   cmd.Init(kBucketId, valid_shm_id_, kSomeOffsetInSharedMemory, kBucketSize,
            valid_shm_id_, kDataOffsetInSharedMemory);
   EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  EXPECT_EQ(kBucketSize, *memory);
+  EXPECT_EQ(kBucketSize, LoadU32Unaligned(memory));
   EXPECT_EQ(0, memcmp(data, kData, kBucketSize));
 
   // Check that we can get a piece.
-  *memory = 0x0;
+  StoreU32Unaligned(0, memory);
   memset(data, 0, sizeof(kData));
   const uint32_t kPieceSize = kBucketSize / 2;
   cmd.Init(kBucketId, valid_shm_id_, kSomeOffsetInSharedMemory, kPieceSize,
            valid_shm_id_, kDataOffsetInSharedMemory);
   EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  EXPECT_EQ(kBucketSize, *memory);
+  EXPECT_EQ(kBucketSize, LoadU32Unaligned(memory));
   EXPECT_EQ(0, memcmp(data, kData, kPieceSize));
   EXPECT_EQ(0, memcmp(data + kPieceSize, zero, sizeof(kData) - kPieceSize));
 
@@ -356,7 +377,7 @@ TEST_F(CommonDecoderTest, GetBucketStart) {
   EXPECT_NE(error::kNoError, ExecuteCmd(cmd));
 
   // Check that it fails if the result size is not set to zero
-  *memory = 0x1;
+  StoreU32Unaligned(0x1, memory);
   cmd.Init(kBucketId, valid_shm_id_, kSomeOffsetInSharedMemory, 0, 0, 0);
   EXPECT_NE(error::kNoError, ExecuteCmd(cmd));
 }

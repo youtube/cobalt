@@ -9,10 +9,10 @@
 #include <sys/system_properties.h>
 
 #include "base/android/sys_utils.h"
+#include "base/compiler_specific.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info_internal.h"
@@ -20,12 +20,11 @@
 namespace {
 
 // Default version of Android to fall back to when actual version numbers
-// cannot be acquired. Use the latest Android release with a higher bug fix
-// version to avoid unnecessarily comparison errors with the latest release.
-// This should be manually kept up to date on each Android release.
-const int kDefaultAndroidMajorVersion = 12;
+// cannot be acquired. Use a super high number in this case, as we assume
+// it's due to being a pre-release version.
+const int kDefaultAndroidMajorVersion = 9999;
 const int kDefaultAndroidMinorVersion = 0;
-const int kDefaultAndroidBugfixVersion = 99;
+const int kDefaultAndroidBugfixVersion = 0;
 
 // Get and parse out the OS version numbers from the system properties.
 // Note if parse fails, the "default" version is returned as fallback.
@@ -39,15 +38,17 @@ void GetOsVersionStringAndNumbers(std::string* version_string,
 
   if (os_version_str[0]) {
     // Try to parse out the version numbers from the string.
-    int num_read = sscanf(os_version_str, "%d.%d.%d", major_version,
-                          minor_version, bugfix_version);
+    int num_read = UNSAFE_TODO(sscanf(os_version_str, "%d.%d.%d", major_version,
+                                      minor_version, bugfix_version));
 
     if (num_read > 0) {
       // If we don't have a full set of version numbers, make the extras 0.
-      if (num_read < 2)
+      if (num_read < 2) {
         *minor_version = 0;
-      if (num_read < 3)
+      }
+      if (num_read < 3) {
         *bugfix_version = 0;
+      }
       *version_string = std::string(os_version_str);
       return;
     }
@@ -59,72 +60,6 @@ void GetOsVersionStringAndNumbers(std::string* version_string,
   *bugfix_version = kDefaultAndroidBugfixVersion;
   *version_string = ::base::StringPrintf("%d.%d.%d", *major_version,
                                          *minor_version, *bugfix_version);
-}
-
-// Parses a system property (specified with unit 'k','m' or 'g').
-// Returns a value in bytes.
-// Returns -1 if the string could not be parsed.
-int64_t ParseSystemPropertyBytes(const base::StringPiece& str) {
-  const int64_t KB = 1024;
-  const int64_t MB = 1024 * KB;
-  const int64_t GB = 1024 * MB;
-  if (str.size() == 0u)
-    return -1;
-  int64_t unit_multiplier = 1;
-  size_t length = str.size();
-  if (str[length - 1] == 'k') {
-    unit_multiplier = KB;
-    length--;
-  } else if (str[length - 1] == 'm') {
-    unit_multiplier = MB;
-    length--;
-  } else if (str[length - 1] == 'g') {
-    unit_multiplier = GB;
-    length--;
-  }
-  int64_t result = 0;
-  bool parsed = base::StringToInt64(str.substr(0, length), &result);
-  bool negative = result <= 0;
-  bool overflow =
-      result >= std::numeric_limits<int64_t>::max() / unit_multiplier;
-  if (!parsed || negative || overflow)
-    return -1;
-  return result * unit_multiplier;
-}
-
-int GetDalvikHeapSizeMB() {
-  char heap_size_str[PROP_VALUE_MAX];
-  __system_property_get("dalvik.vm.heapsize", heap_size_str);
-  // dalvik.vm.heapsize property is writable by a root user.
-  // Clamp it to reasonable range as a sanity check,
-  // a typical android device will never have less than 48MB.
-  const int64_t MB = 1024 * 1024;
-  int64_t result = ParseSystemPropertyBytes(heap_size_str);
-  if (result == -1) {
-    // We should consider not exposing these values if they are not reliable.
-    LOG(ERROR) << "Can't parse dalvik.vm.heapsize: " << heap_size_str;
-    result = base::SysInfo::AmountOfPhysicalMemoryMB() / 3;
-  }
-  result =
-      std::min<int64_t>(std::max<int64_t>(32 * MB, result), 1024 * MB) / MB;
-  return static_cast<int>(result);
-}
-
-int GetDalvikHeapGrowthLimitMB() {
-  char heap_size_str[PROP_VALUE_MAX];
-  __system_property_get("dalvik.vm.heapgrowthlimit", heap_size_str);
-  // dalvik.vm.heapgrowthlimit property is writable by a root user.
-  // Clamp it to reasonable range as a sanity check,
-  // a typical android device will never have less than 24MB.
-  const int64_t MB = 1024 * 1024;
-  int64_t result = ParseSystemPropertyBytes(heap_size_str);
-  if (result == -1) {
-    // We should consider not exposing these values if they are not reliable.
-    LOG(ERROR) << "Can't parse dalvik.vm.heapgrowthlimit: " << heap_size_str;
-    result = base::SysInfo::AmountOfPhysicalMemoryMB() / 6;
-  }
-  result = std::min<int64_t>(std::max<int64_t>(16 * MB, result), 512 * MB) / MB;
-  return static_cast<int>(result);
 }
 
 std::string HardwareManufacturerName() {
@@ -141,6 +76,12 @@ std::string SysInfo::HardwareModelName() {
   char device_model_str[PROP_VALUE_MAX];
   __system_property_get("ro.product.model", device_model_str);
   return std::string(device_model_str);
+}
+
+std::string SysInfo::SocManufacturer() {
+  char soc_manufacturer_str[PROP_VALUE_MAX];
+  __system_property_get("ro.soc.manufacturer", soc_manufacturer_str);
+  return std::string(soc_manufacturer_str);
 }
 
 std::string SysInfo::OperatingSystemName() {
@@ -174,40 +115,16 @@ std::string SysInfo::GetAndroidBuildID() {
   return std::string(os_build_id_str);
 }
 
+std::string SysInfo::GetAndroidHardware() {
+  char os_hardware_str[PROP_VALUE_MAX];
+  __system_property_get("ro.hardware", os_hardware_str);
+  return std::string(os_hardware_str);
+}
+
 std::string SysInfo::GetAndroidHardwareEGL() {
   char os_hardware_egl_str[PROP_VALUE_MAX];
   __system_property_get("ro.hardware.egl", os_hardware_egl_str);
   return std::string(os_hardware_egl_str);
-}
-
-int SysInfo::DalvikHeapSizeMB() {
-  static int heap_size = GetDalvikHeapSizeMB();
-  return heap_size;
-}
-
-int SysInfo::DalvikHeapGrowthLimitMB() {
-  static int heap_growth_limit = GetDalvikHeapGrowthLimitMB();
-  return heap_growth_limit;
-}
-
-static base::LazyInstance<base::internal::LazySysInfoValue<
-    bool,
-    android::SysUtils::IsLowEndDeviceFromJni>>::Leaky g_lazy_low_end_device =
-    LAZY_INSTANCE_INITIALIZER;
-
-bool SysInfo::IsLowEndDeviceImpl() {
-  // This code might be used in some environments
-  // which might not have a Java environment.
-  // Note that we need to call the Java version here.
-  // There exists a complete native implementation in
-  // sys_info.cc but calling that here would mean that
-  // the Java code and the native code would call different
-  // implementations which could give different results.
-  // Also the Java code cannot depend on the native code
-  // since it might not be loaded yet.
-  if (!base::android::IsVMInitialized())
-    return false;
-  return g_lazy_low_end_device.Get().value();
 }
 
 // static

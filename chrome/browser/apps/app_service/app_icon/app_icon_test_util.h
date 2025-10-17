@@ -8,18 +8,17 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "build/chromeos_buildflags.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
 #include "extensions/grit/extensions_browser_resources.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/publishers/app_publisher.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/icon_loader.h"
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace gfx {
 class ImageSkia;
@@ -27,7 +26,7 @@ class ImageSkia;
 
 namespace apps {
 
-constexpr int kSizeInDip = 64;
+inline constexpr int kSizeInDip = 64;
 
 void EnsureRepresentationsLoaded(gfx::ImageSkia& output_image_skia);
 
@@ -39,11 +38,9 @@ void VerifyIcon(const gfx::ImageSkia& src, const gfx::ImageSkia& dst);
 void VerifyCompressedIcon(const std::vector<uint8_t>& src_data,
                           const apps::IconValue& icon);
 
-SkBitmap CreateSquareIconBitmap(int size_px, SkColor solid_color);
-
 gfx::ImageSkia CreateSquareIconImageSkia(int size_dp, SkColor solid_color);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 struct AppLaunchParams;
 
 class FakeIconLoader : public apps::IconLoader {
@@ -52,15 +49,14 @@ class FakeIconLoader : public apps::IconLoader {
 
  private:
   std::unique_ptr<apps::IconLoader::Releaser> LoadIconFromIconKey(
-      apps::AppType app_type,
-      const std::string& app_id,
+      const std::string& id,
       const apps::IconKey& icon_key,
       apps::IconType icon_type,
       int32_t size_in_dip,
       bool allow_placeholder_icon,
       apps::LoadIconCallback callback) override;
 
-  raw_ptr<apps::AppServiceProxy, ExperimentalAsh> proxy_ = nullptr;
+  raw_ptr<apps::AppServiceProxy> proxy_ = nullptr;
 };
 
 class FakePublisherForIconTest : public apps::AppPublisher {
@@ -90,7 +86,7 @@ class FakePublisherForIconTest : public apps::AppPublisher {
                              ui::ResourceScaleFactor scale_factor,
                              apps::LoadIconCallback callback) override;
 };
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace apps
 

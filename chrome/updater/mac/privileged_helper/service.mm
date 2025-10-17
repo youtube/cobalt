@@ -4,18 +4,16 @@
 
 #include "chrome/updater/mac/privileged_helper/service.h"
 
-#include "base/memory/raw_ptr.h"
-#import "base/task/sequenced_task_runner.h"
-
 #import <Foundation/Foundation.h>
 #include <Security/Security.h>
-
 #include <pwd.h>
 #include <unistd.h>
 
 #include <string>
 #include <utility>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/command_line.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
@@ -24,10 +22,8 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
-#include "base/mac/foundation_util.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_cftyperef.h"
-#include "base/mac/scoped_nsobject.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/process/launch.h"
 #include "base/strings/strcat.h"
@@ -38,6 +34,8 @@
 #include "chrome/updater/mac/privileged_helper/server.h"
 #include "chrome/updater/mac/privileged_helper/service_protocol.h"
 #include "chrome/updater/updater_branding.h"
+#include "chrome/updater/util/mac_util.h"
+#include "chrome/updater/util/posix_util.h"
 #include "chrome/updater/util/util.h"
 
 @interface PrivilegedHelperServiceImpl
@@ -66,12 +64,15 @@
 #pragma mark PrivilegedHelperServiceProtocol
 - (void)setupSystemUpdaterWithBrowserPath:(NSString* _Nonnull)browserPath
                                     reply:(void (^_Nonnull)(int rc))reply {
-  auto cb = base::BindOnce(base::RetainBlock(^(const int rc) {
+  auto cb = base::BindOnce(^(const int rc) {
     VLOG(0) << "SetupSystemUpdaterWithUpdaterPath complete. Result: " << rc;
-    if (reply)
+    if (reply) {
       reply(rc);
-    _server->TaskCompleted();
-  }));
+    }
+    // This block is fired and then released, so this strong reference to the
+    // PrivilegedHelperServiceProtocol is OK.
+    self->_server->TaskCompleted();
+  });
 
   _server->TaskStarted();
   _callbackRunner->PostTask(
@@ -108,11 +109,10 @@
   newConnection.exportedInterface = [NSXPCInterface
       interfaceWithProtocol:@protocol(PrivilegedHelperServiceProtocol)];
 
-  base::scoped_nsobject<PrivilegedHelperServiceImpl> obj(
+  newConnection.exportedObject =
       [[PrivilegedHelperServiceImpl alloc] initWithService:_service.get()
                                                     server:_server
-                                            callbackRunner:_callbackRunner]);
-  newConnection.exportedObject = obj.get();
+                                            callbackRunner:_callbackRunner];
   [newConnection resume];
   return YES;
 }
@@ -126,10 +126,8 @@ constexpr base::FilePath::CharType kFrameworksPath[] =
                       " Framework.framework/Helpers");
 constexpr base::FilePath::CharType kProductBundleName[] =
     FILE_PATH_LITERAL(PRODUCT_FULLNAME_STRING ".app");
-constexpr int kPermissionsMask = base::FILE_PERMISSION_USER_MASK |
-                                 base::FILE_PERMISSION_GROUP_MASK |
-                                 base::FILE_PERMISSION_READ_BY_OTHERS |
-                                 base::FILE_PERMISSION_EXECUTE_BY_OTHERS;
+constexpr base::FilePath::CharType kKeystoneBundleName[] =
+    FILE_PATH_LITERAL(KEYSTONE_NAME ".bundle");
 
 // Exit codes
 constexpr int kSuccess = 0;
@@ -139,8 +137,21 @@ constexpr int kFailedToConfirmPermissionChanges = -3;
 constexpr int kFailedToCreateTempDir = -4;
 constexpr int kFailedToCopyToTempDir = -5;
 constexpr int kFailedToVerifyUpdater = -6;
+constexpr int kFailedToReadBrowserPlist = -7;
+constexpr int kFailedToRegister = -8;
+
+}  // namespace
 
 int InstallUpdater(const base::FilePath& browser_path) {
+  base::FilePath browser_plist = browser_path.Append("Contents/Info.plist");
+  std::optional<std::string> browser_app_id =
+      ReadValueFromPlist(browser_plist, "KSProductID");
+  std::optional<std::string> browser_version =
+      ReadValueFromPlist(browser_plist, "KSVersion");
+  if (!browser_app_id || !browser_version) {
+    return kFailedToReadBrowserPlist;
+  }
+
   std::string user_temp_dir(PATH_MAX, std::string::value_type());
   size_t len = confstr(_CS_DARWIN_USER_TEMP_DIR, user_temp_dir.data(),
                        user_temp_dir.size());
@@ -154,10 +165,10 @@ int InstallUpdater(const base::FilePath& browser_path) {
     return kFailedToCreateTempDir;
   }
 
-  if (!base::CopyDirectory(base::FilePath(browser_path)
-                               .Append(kFrameworksPath)
-                               .Append(kProductBundleName),
-                           temp_dir.GetPath(), true)) {
+  if (!CopyDir(base::FilePath(browser_path)
+                   .Append(kFrameworksPath)
+                   .Append(kProductBundleName),
+               temp_dir.GetPath(), false)) {
     return kFailedToCopyToTempDir;
   }
 
@@ -179,23 +190,58 @@ int InstallUpdater(const base::FilePath& browser_path) {
   if (!base::GetAppOutputWithExitCode(command, &output, &exit_code)) {
     return kFailedToInstall;
   }
-
   if (exit_code) {
     VLOG(0) << "Output from attempting to install system-level updater: "
             << output;
     VLOG(0) << "Exit code: " << exit_code;
+    return exit_code;
   }
-  return exit_code;
+
+  base::CommandLine ksadmin_command(temp_dir.GetPath()
+                                        .Append(kProductBundleName)
+                                        .Append("Contents/Helpers")
+                                        .Append(kKeystoneBundleName)
+                                        .Append("Contents/Helpers/ksadmin"));
+  // ksadmin does not support --switch=value, only --switch value, except for
+  // logging arguments.
+  ksadmin_command.AppendArg("--register");
+  ksadmin_command.AppendArg("--productid");
+  ksadmin_command.AppendArg(*browser_app_id);
+  ksadmin_command.AppendArg("--tag-key");
+  ksadmin_command.AppendArg("KSChannelID");
+  ksadmin_command.AppendArg("--tag-path");
+  ksadmin_command.AppendArgPath(browser_plist);
+  ksadmin_command.AppendArg("--version");
+  ksadmin_command.AppendArg(*browser_version);
+  ksadmin_command.AppendArg("--version-key");
+  ksadmin_command.AppendArg("KSVersion");
+  ksadmin_command.AppendArg("--version-path");
+  ksadmin_command.AppendArgPath(browser_path.Append("Contents/Info.plist"));
+  ksadmin_command.AppendArg("--brand-path");
+  ksadmin_command.AppendArg("/Library/" COMPANY_SHORTNAME_STRING
+                            "/" BROWSER_PRODUCT_NAME_STRING " Brand.plist");
+  ksadmin_command.AppendArg("--brand-key");
+  ksadmin_command.AppendArg("KSBrandID");
+  ksadmin_command.AppendArg("--xcpath");
+  ksadmin_command.AppendArgPath(browser_path);
+  ksadmin_command.AppendArg("--system-store");
+  if (!base::GetAppOutputWithExitCode(ksadmin_command, &output, &exit_code)) {
+    return kFailedToRegister;
+  }
+  if (exit_code) {
+    VLOG(0) << "Output from attempting to register the browser: " << output;
+    VLOG(0) << "Exit code: " << exit_code;
+    return exit_code;
+  }
+  return 0;
 }
 
-}  // namespace
-
 bool VerifyUpdaterSignature(const base::FilePath& updater_app_bundle) {
-  base::ScopedCFTypeRef<SecRequirementRef> requirement;
-  base::ScopedCFTypeRef<SecStaticCodeRef> code;
-  base::ScopedCFTypeRef<CFErrorRef> errors;
+  base::apple::ScopedCFTypeRef<SecRequirementRef> requirement;
+  base::apple::ScopedCFTypeRef<SecStaticCodeRef> code;
+  base::apple::ScopedCFTypeRef<CFErrorRef> errors;
   if (SecStaticCodeCreateWithPath(
-          base::mac::NSToCFCast(base::mac::FilePathToNSURL(updater_app_bundle)),
+          base::apple::FilePathToCFURL(updater_app_bundle).get(),
           kSecCSDefaultFlags, code.InitializeInto()) != errSecSuccess) {
     return false;
   }
@@ -205,21 +251,19 @@ bool VerifyUpdaterSignature(const base::FilePath& updater_app_bundle) {
                 " or identifier \"" LEGACY_GOOGLE_UPDATE_APPID "\""
                 " or identifier \"" LEGACY_GOOGLE_UPDATE_APPID ".Agent\""
                 ") and certificate leaf[subject.OU] "
-                "= " MAC_TEAM_IDENTIFIER_STRING),
+                "= \"" MAC_TEAM_IDENTIFIER_STRING "\""),
           kSecCSDefaultFlags, requirement.InitializeInto()) != errSecSuccess) {
     return false;
   }
   if (SecStaticCodeCheckValidityWithErrors(
-          code, kSecCSCheckAllArchitectures | kSecCSCheckNestedCode,
-          requirement, errors.InitializeInto()) != errSecSuccess) {
+          code.get(), kSecCSCheckAllArchitectures | kSecCSCheckNestedCode,
+          requirement.get(), errors.InitializeInto()) != errSecSuccess) {
     return false;
   }
   return true;
 }
 
-PrivilegedHelperService::PrivilegedHelperService()
-    : main_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {}
-
+PrivilegedHelperService::PrivilegedHelperService() = default;
 PrivilegedHelperService::~PrivilegedHelperService() = default;
 
 void PrivilegedHelperService::SetupSystemUpdater(
@@ -258,7 +302,7 @@ void PrivilegedHelperService::SetupSystemUpdater(
     }
   }
 
-  if (!ConfirmFilePermissions(base::FilePath(browser_path), kPermissionsMask)) {
+  if (!SetFilePermissionsRecursive(base::FilePath(browser_path))) {
     main_task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(std::move(result), kFailedToConfirmPermissionChanges));

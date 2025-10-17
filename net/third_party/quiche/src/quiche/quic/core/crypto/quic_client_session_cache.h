@@ -6,7 +6,9 @@
 #define QUICHE_QUIC_CORE_CRYPTO_QUIC_CLIENT_SESSION_CACHE_H_
 
 #include <memory>
+#include <string>
 
+#include "absl/hash/hash.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/quic_lru_cache.h"
 #include "quiche/quic/core/quic_server_id.h"
@@ -19,7 +21,7 @@ class QuicClientSessionCachePeer;
 
 // QuicClientSessionCache maps from QuicServerId to information used to resume
 // TLS sessions for that server.
-class QUIC_EXPORT_PRIVATE QuicClientSessionCache : public SessionCache {
+class QUICHE_EXPORT QuicClientSessionCache : public SessionCache {
  public:
   QuicClientSessionCache();
   explicit QuicClientSessionCache(size_t max_entries);
@@ -48,7 +50,7 @@ class QUIC_EXPORT_PRIVATE QuicClientSessionCache : public SessionCache {
  private:
   friend class test::QuicClientSessionCachePeer;
 
-  struct QUIC_EXPORT_PRIVATE Entry {
+  struct QUICHE_EXPORT Entry {
     Entry();
     Entry(Entry&&);
     ~Entry();
@@ -74,7 +76,7 @@ class QUIC_EXPORT_PRIVATE QuicClientSessionCache : public SessionCache {
                             const TransportParameters& params,
                             const ApplicationState* application_state);
 
-  QuicLRUCache<QuicServerId, Entry, QuicServerIdHash> cache_;
+  QuicLRUCache<std::string, Entry, absl::Hash<std::string>> cache_;
 };
 
 }  // namespace quic

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "media/base/media_export.h"
@@ -33,9 +34,11 @@ class BoxReader;
 
 class MEDIA_EXPORT MP4StreamParser : public StreamParser {
  public:
-  MP4StreamParser(const std::set<int>& audio_object_types,
+  MP4StreamParser(std::optional<base::flat_set<int>> strict_audio_object_types,
                   bool has_sbr,
-                  bool has_flac);
+                  bool has_flac,
+                  bool has_iamf,
+                  bool has_dv);
 
   MP4StreamParser(const MP4StreamParser&) = delete;
   MP4StreamParser& operator=(const MP4StreamParser&) = delete;
@@ -45,15 +48,14 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   void Init(InitCB init_cb,
             NewConfigCB config_cb,
             NewBuffersCB new_buffers_cb,
-            bool ignore_text_tracks,
             EncryptedMediaInitDataCB encrypted_media_init_data_cb,
             NewMediaSegmentCB new_segment_cb,
             EndMediaSegmentCB end_of_segment_cb,
             MediaLog* media_log) override;
   void Flush() override;
   bool GetGenerateTimestampsFlag() const override;
-  [[nodiscard]] bool AppendToParseBuffer(const uint8_t* buf,
-                                         size_t size) override;
+  [[nodiscard]] bool AppendToParseBuffer(
+      base::span<const uint8_t> buf) override;
   [[nodiscard]] ParseStatus Parse(int max_pending_bytes_to_inspect) override;
 
   // Calculates the rotation value from the track header display matricies.
@@ -94,11 +96,6 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   void ChangeState(State new_state);
 
   bool EmitConfigs();
-#if BUILDFLAG(USE_PROPRIETARY_CODECS)
-  bool PrepareAACBuffer(const AAC& aac_config,
-                        std::vector<uint8_t>* frame_buf,
-                        std::vector<SubsampleEntry>* subsamples) const;
-#endif
   ParseResult EnqueueSample(BufferQueueMap* buffers);
   bool SendAndFlushSamples(BufferQueueMap* buffers);
 
@@ -132,7 +129,7 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   // operations, otherwise more data than the amount indicated in the Parse()
   // call's `max_pending_bytes_to_inspect` increment might be inspected in a
   // Parse() call. See the various Modulated*() wrappers in this class.
-  // TODO(https://crbug.com/1286464): Consider reworking all these parsers to
+  // TODO(crbug.com/40815633): Consider reworking all these parsers to
   // use a new type of queue that internally modulates the increment.
   int64_t max_parse_offset_ = 0;
   OffsetByteQueue queue_;
@@ -159,11 +156,21 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   bool has_video_;
   std::set<uint32_t> audio_track_ids_;
   std::set<uint32_t> video_track_ids_;
+
   // The object types allowed for audio tracks. For FLAC indication, use
-  // |has_flac_|;
-  const std::set<int> audio_object_types_;
+  // |has_flac_|. If this is a nullopt, then strict object type assertion will
+  // not happen.
+  const std::optional<base::flat_set<int>> strict_audio_object_types_;
   const bool has_sbr_;
   const bool has_flac_;
+  const bool has_iamf_;
+  // Indicate if source buffer has been set as Dolby Vision. If true,
+  // always treat the source buffer as Dolby Vision, if false and if
+  // the source buffer is cross-compatible, use its compatible codec
+  // defined in Dolby Vision Profiles and Levels specification:
+  // https://professionalsupport.dolby.com/s/article/What-is-Dolby-Vision-Profile,
+  // otherwise still treat the buffer as Dolby Vision.
+  const bool has_dv_;
 
   // Tracks the number of MEDIA_LOGS for skipping empty trun samples.
   int num_empty_samples_skipped_;

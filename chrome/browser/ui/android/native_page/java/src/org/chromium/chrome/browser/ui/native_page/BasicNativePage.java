@@ -10,6 +10,8 @@ import android.widget.FrameLayout.LayoutParams;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.DestroyableObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.content_public.browser.LoadUrlParams;
 
@@ -19,22 +21,28 @@ import org.chromium.content_public.browser.LoadUrlParams;
  *
  * Sub-classes must call {@link #initWithView(View)} to finish setup.
  */
+@NullMarked
 public abstract class BasicNativePage implements NativePage {
     private final NativePageHost mHost;
     private final int mBackgroundColor;
-    private DestroyableObservableSupplier<Rect> mMarginSupplier;
+    private @Nullable DestroyableObservableSupplier<Rect> mMarginSupplier;
+
+    @SuppressWarnings("NullAway.Init")
     private Callback<Rect> mMarginObserver;
-    private View mView;
+
+    private @Nullable View mView;
+
+    @SuppressWarnings("NullAway.Init")
     private String mUrl;
+
+    private @Nullable SmoothTransitionDelegate mSmoothTransitionDelegate;
 
     protected BasicNativePage(NativePageHost host) {
         mHost = host;
         mBackgroundColor = ChromeColors.getPrimaryBackgroundColor(host.getContext(), false);
     }
 
-    /**
-     * Sets the View contained in this native page and finishes BasicNativePage initialization.
-     */
+    /** Sets the View contained in this native page and finishes BasicNativePage initialization. */
     protected void initWithView(View view) {
         assert mView == null : "initWithView() should only be called once";
         mView = view;
@@ -59,6 +67,14 @@ public abstract class BasicNativePage implements NativePage {
     }
 
     @Override
+    public SmoothTransitionDelegate enableSmoothTransition() {
+        if (mSmoothTransitionDelegate == null) {
+            mSmoothTransitionDelegate = new BasicSmoothTransitionDelegate(getView());
+        }
+        return mSmoothTransitionDelegate;
+    }
+
+    @Override
     public String getUrl() {
         return mUrl;
     }
@@ -79,6 +95,11 @@ public abstract class BasicNativePage implements NativePage {
     }
 
     @Override
+    public int getHeightOverlappedWithTopControls() {
+        return 0;
+    }
+
+    @Override
     public void destroy() {
         if (mMarginSupplier != null) {
             mMarginSupplier.removeObserver(mMarginObserver);
@@ -95,15 +116,18 @@ public abstract class BasicNativePage implements NativePage {
         if (url.equals(mUrl)) return;
         LoadUrlParams params = new LoadUrlParams(url);
         params.setShouldReplaceCurrentEntry(replaceLastUrl);
-        mHost.loadUrl(params, /* incognito = */ false);
+        mHost.loadUrl(params, /* incognito= */ false);
     }
-    /**
-     * Updates the top margin depending on whether the browser controls are shown or hidden.
-     */
+
+    /** Updates the top margin depending on whether the browser controls are shown or hidden. */
     private void updateMargins(Rect margins) {
         LayoutParams layoutParams =
                 new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
         layoutParams.setMargins(margins.left, margins.top, margins.left, margins.bottom);
         getView().setLayoutParams(layoutParams);
+    }
+
+    public @Nullable SmoothTransitionDelegate getSmoothTransitionDelegateForTesting() {
+        return mSmoothTransitionDelegate;
     }
 }

@@ -10,8 +10,7 @@
 #include "third_party/abseil-cpp/absl/time/time.h"
 #include "third_party/nearby/src/internal/platform/implementation/condition_variable.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 class Mutex;
 
@@ -30,11 +29,10 @@ class ConditionVariable : public api::ConditionVariable {
   void Notify() override;
 
  private:
-  raw_ptr<Mutex, ExperimentalAsh> mutex_;
+  raw_ptr<Mutex> mutex_;
   base::ConditionVariable condition_variable_;
 };
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome
 
 #endif  // CHROME_SERVICES_SHARING_NEARBY_PLATFORM_CONDITION_VARIABLE_H_

@@ -36,7 +36,6 @@ mojom::ProfileState ProfileStateToMojo(CellularESimProfile::State state) {
   }
   NOTREACHED() << "Cannot convert invalid profile state "
                << static_cast<int>(state);
-  return mojom::ProfileState::kPending;
 }
 
 mojom::ESimOperationResult OperationResultFromStatus(

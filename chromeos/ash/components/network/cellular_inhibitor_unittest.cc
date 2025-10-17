@@ -5,6 +5,7 @@
 #include "chromeos/ash/components/network/cellular_inhibitor.h"
 
 #include <memory>
+#include <variant>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -22,7 +23,6 @@
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/network/network_state_test_helper.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 #include "third_party/cros_system_api/dbus/shill/dbus-constants.h"
 
@@ -77,7 +77,7 @@ class CellularInhibitorTest : public testing::Test {
 
   void TearDown() override {
     cellular_inhibitor_.RemoveObserver(&observer_);
-    helper_.device_test()->SetPropertyChangeDelay(absl::nullopt);
+    helper_.device_test()->SetPropertyChangeDelay(std::nullopt);
   }
 
   void AddCellularDevice() {
@@ -137,14 +137,14 @@ class CellularInhibitorTest : public testing::Test {
       return GetInhibitedPropertyResult::kOperationFailed;
     }
 
-    absl::optional<bool> inhibited =
+    std::optional<bool> inhibited =
         properties_->FindBool(shill::kInhibitedProperty);
     EXPECT_TRUE(inhibited.has_value());
     return inhibited.value() ? GetInhibitedPropertyResult::kTrue
                              : GetInhibitedPropertyResult::kFalse;
   }
 
-  absl::optional<CellularInhibitor::InhibitReason> GetInhibitReason() const {
+  std::optional<CellularInhibitor::InhibitReason> GetInhibitReason() const {
     return cellular_inhibitor_.GetInhibitReason();
   }
 
@@ -170,7 +170,7 @@ class CellularInhibitorTest : public testing::Test {
 
  private:
   void GetPropertiesCallback(const std::string& device_path,
-                             absl::optional<base::Value::Dict> properties) {
+                             std::optional<base::Value::Dict> properties) {
     properties_ = std::move(properties);
   }
 
@@ -180,7 +180,7 @@ class CellularInhibitorTest : public testing::Test {
   CellularInhibitor cellular_inhibitor_;
   TestObserver observer_;
 
-  absl::optional<base::Value::Dict> properties_;
+  std::optional<base::Value::Dict> properties_;
 };
 
 TEST_F(CellularInhibitorTest, SuccessSingleRequest) {

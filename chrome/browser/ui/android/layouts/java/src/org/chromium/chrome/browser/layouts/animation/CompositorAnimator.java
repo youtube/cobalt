@@ -4,23 +4,19 @@
 
 package org.chromium.chrome.browser.layouts.animation;
 
-import static org.chromium.base.ContextUtils.getApplicationContext;
-
 import android.animation.Animator;
 import android.animation.TimeInterpolator;
-import android.animation.ValueAnimator;
-import android.provider.Settings;
 import android.util.FloatProperty;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.supplier.Supplier;
-import org.chromium.components.browser_ui.widget.animation.Interpolators;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.ui.accessibility.AccessibilityState;
+import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.WritableFloatPropertyKey;
 
@@ -29,15 +25,18 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
-/**
- * An animator that can be used for animations in the Browser Compositor.
- */
+/** An animator that can be used for animations in the Browser Compositor. */
+@NullMarked
 public class CompositorAnimator extends Animator {
     private static final String TAG = "CompositorAnimator";
 
     /** The different states that this animator can be in. */
-    @IntDef({AnimationState.STARTED, AnimationState.RUNNING, AnimationState.CANCELED,
-            AnimationState.ENDED})
+    @IntDef({
+        AnimationState.STARTED,
+        AnimationState.RUNNING,
+        AnimationState.CANCELED,
+        AnimationState.ENDED
+    })
     @Retention(RetentionPolicy.SOURCE)
     private @interface AnimationState {
         int STARTED = 0;
@@ -45,13 +44,6 @@ public class CompositorAnimator extends Animator {
         int CANCELED = 2;
         int ENDED = 3;
     }
-
-    /**
-     * The scale honoring Settings.Global.ANIMATOR_DURATION_SCALE. Use static to reduce updating.
-     * See {@link ValueAnimator}.
-     **/
-    @VisibleForTesting
-    public static float sDurationScale = 1;
 
     /** The {@link CompositorAnimationHandler} running the animation. */
     private final WeakReference<CompositorAnimationHandler> mHandler;
@@ -84,9 +76,11 @@ public class CompositorAnimator extends Animator {
     private float mAnimatedFraction;
 
     /** The value that the animation should start with (ending at {@link #mEndValue}). */
+    @SuppressWarnings("NullAway.Init")
     private Supplier<Float> mStartValue;
 
     /** The value that the animation will transition to (starting at {@link #mStartValue}). */
+    @SuppressWarnings("NullAway.Init")
     private Supplier<Float> mEndValue;
 
     /** The duration of the animation in ms. */
@@ -99,8 +93,7 @@ public class CompositorAnimator extends Animator {
     private long mStartDelayMs;
 
     /** The current state of the animation. */
-    @AnimationState
-    private int mAnimationState = AnimationState.ENDED;
+    private @AnimationState int mAnimationState = AnimationState.ENDED;
 
     /**
      * Whether the animation ended because of frame updates. This is used to determine if any
@@ -117,8 +110,12 @@ public class CompositorAnimator extends Animator {
      * @param listener An update listener if specific actions need to be performed.
      * @return A {@link CompositorAnimator} for the property.
      */
-    public static CompositorAnimator ofFloat(CompositorAnimationHandler handler, float startValue,
-            float endValue, long durationMs, @Nullable AnimatorUpdateListener listener) {
+    public static CompositorAnimator ofFloat(
+            CompositorAnimationHandler handler,
+            float startValue,
+            float endValue,
+            long durationMs,
+            @Nullable AnimatorUpdateListener listener) {
         CompositorAnimator animator = new CompositorAnimator(handler);
         animator.setValues(startValue, endValue);
         if (listener != null) animator.addUpdateListener(listener);
@@ -137,9 +134,14 @@ public class CompositorAnimator extends Animator {
      * @param interpolator The time interpolator for the animation.
      * @return A {@link CompositorAnimator} for the property.
      */
-    public static <T> CompositorAnimator ofFloatProperty(CompositorAnimationHandler handler,
-            final T target, final FloatProperty<T> property, float startValue, float endValue,
-            long durationMs, TimeInterpolator interpolator) {
+    public static <T> CompositorAnimator ofFloatProperty(
+            CompositorAnimationHandler handler,
+            final T target,
+            final FloatProperty<T> property,
+            float startValue,
+            float endValue,
+            long durationMs,
+            TimeInterpolator interpolator) {
         CompositorAnimator animator = new CompositorAnimator(handler);
         animator.setValues(startValue, endValue);
         animator.setDuration(durationMs);
@@ -160,9 +162,14 @@ public class CompositorAnimator extends Animator {
      * @param interpolator The time interpolator for the animation.
      * @return A {@link CompositorAnimator} for the property.
      */
-    public static <T> CompositorAnimator ofFloatProperty(CompositorAnimationHandler handler,
-            final T target, final FloatProperty<T> property, Supplier<Float> startValue,
-            Supplier<Float> endValue, long durationMs, TimeInterpolator interpolator) {
+    public static <T> CompositorAnimator ofFloatProperty(
+            CompositorAnimationHandler handler,
+            final T target,
+            final FloatProperty<T> property,
+            Supplier<Float> startValue,
+            Supplier<Float> endValue,
+            long durationMs,
+            TimeInterpolator interpolator) {
         CompositorAnimator animator = new CompositorAnimator(handler);
         animator.setValues(startValue, endValue);
         animator.setDuration(durationMs);
@@ -182,11 +189,21 @@ public class CompositorAnimator extends Animator {
      * @param durationMs The duration of the animation in ms.
      * @return A {@link CompositorAnimator} for the property.
      */
-    public static <T> CompositorAnimator ofFloatProperty(CompositorAnimationHandler handler,
-            final T target, final FloatProperty<T> property, float startValue, float endValue,
+    public static <T> CompositorAnimator ofFloatProperty(
+            CompositorAnimationHandler handler,
+            final T target,
+            final FloatProperty<T> property,
+            float startValue,
+            float endValue,
             long durationMs) {
-        return ofFloatProperty(handler, target, property, startValue, endValue, durationMs,
-                Interpolators.DECELERATE_INTERPOLATOR);
+        return ofFloatProperty(
+                handler,
+                target,
+                property,
+                startValue,
+                endValue,
+                durationMs,
+                Interpolators.STANDARD_DEFAULT_EFFECTS);
     }
 
     /**
@@ -199,10 +216,20 @@ public class CompositorAnimator extends Animator {
      * @param durationMs The duration of the animation in ms.
      * @return A {@link CompositorAnimator} for the property.
      */
-    public static <T> CompositorAnimator ofFloatProperty(CompositorAnimationHandler handler,
-            final T target, final FloatProperty<T> property, Supplier<Float> startValue,
-            Supplier<Float> endValue, long durationMs) {
-        return ofFloatProperty(handler, target, property, startValue, endValue, durationMs,
+    public static <T> CompositorAnimator ofFloatProperty(
+            CompositorAnimationHandler handler,
+            final T target,
+            final FloatProperty<T> property,
+            Supplier<Float> startValue,
+            Supplier<Float> endValue,
+            long durationMs) {
+        return ofFloatProperty(
+                handler,
+                target,
+                property,
+                startValue,
+                endValue,
+                durationMs,
                 Interpolators.DECELERATE_INTERPOLATOR);
     }
 
@@ -217,9 +244,14 @@ public class CompositorAnimator extends Animator {
      * @param interpolator The time interpolator for the animation.
      * @return {@link CompositorAnimator} for animating the {@link WritableFloatPropertyKey}.
      */
-    public static CompositorAnimator ofWritableFloatPropertyKey(CompositorAnimationHandler handler,
-            final PropertyModel model, WritableFloatPropertyKey key, Supplier<Float> startValue,
-            Supplier<Float> endValue, long durationMs, TimeInterpolator interpolator) {
+    public static CompositorAnimator ofWritableFloatPropertyKey(
+            CompositorAnimationHandler handler,
+            final PropertyModel model,
+            WritableFloatPropertyKey key,
+            Supplier<Float> startValue,
+            Supplier<Float> endValue,
+            long durationMs,
+            TimeInterpolator interpolator) {
         CompositorAnimator animator = new CompositorAnimator(handler);
         animator.setValues(startValue, endValue);
         animator.setDuration(durationMs);
@@ -239,9 +271,14 @@ public class CompositorAnimator extends Animator {
      * @param interpolator The time interpolator for the animation.
      * @return {@link CompositorAnimator} for animating the {@link WritableFloatPropertyKey}.
      */
-    public static CompositorAnimator ofWritableFloatPropertyKey(CompositorAnimationHandler handler,
-            final PropertyModel model, WritableFloatPropertyKey key, float startValue,
-            float endValue, long durationMs, TimeInterpolator interpolator) {
+    public static CompositorAnimator ofWritableFloatPropertyKey(
+            CompositorAnimationHandler handler,
+            final PropertyModel model,
+            WritableFloatPropertyKey key,
+            float startValue,
+            float endValue,
+            long durationMs,
+            TimeInterpolator interpolator) {
         return ofWritableFloatPropertyKey(
                 handler, model, key, () -> startValue, () -> endValue, durationMs, interpolator);
     }
@@ -256,10 +293,20 @@ public class CompositorAnimator extends Animator {
      * @param durationMs The duration of the animation in ms.
      * @return {@link CompositorAnimator} for animating the {@link WritableFloatPropertyKey}.
      */
-    public static CompositorAnimator ofWritableFloatPropertyKey(CompositorAnimationHandler handler,
-            final PropertyModel model, WritableFloatPropertyKey key, float startValue,
-            float endValue, long durationMs) {
-        return ofWritableFloatPropertyKey(handler, model, key, startValue, endValue, durationMs,
+    public static CompositorAnimator ofWritableFloatPropertyKey(
+            CompositorAnimationHandler handler,
+            final PropertyModel model,
+            WritableFloatPropertyKey key,
+            float startValue,
+            float endValue,
+            long durationMs) {
+        return ofWritableFloatPropertyKey(
+                handler,
+                model,
+                key,
+                startValue,
+                endValue,
+                durationMs,
                 Interpolators.DECELERATE_INTERPOLATOR);
     }
 
@@ -276,7 +323,7 @@ public class CompositorAnimator extends Animator {
      * Create a new animator for the current context.
      * @param handler The {@link CompositorAnimationHandler} responsible for running the animation.
      */
-    public CompositorAnimator(@NonNull CompositorAnimationHandler handler) {
+    public CompositorAnimator(CompositorAnimationHandler handler) {
         mHandler = new WeakReference<>(handler);
 
         // The default interpolator is decelerate; this mimics the existing ChromeAnimation
@@ -285,17 +332,10 @@ public class CompositorAnimator extends Animator {
 
         // By default, animate for 0 to 1.
         setValues(0, 1);
-
-        // Try to update from the system setting, but not too frequently.
-        sDurationScale = Settings.Global.getFloat(getApplicationContext().getContentResolver(),
-                Settings.Global.ANIMATOR_DURATION_SCALE, sDurationScale);
-        if (sDurationScale != 1) {
-            Log.i(TAG, "Settings.Global.ANIMATOR_DURATION_SCALE = %f", sDurationScale);
-        }
     }
 
     private long getScaledDuration() {
-        return (long) (mDurationMs * sDurationScale);
+        return (long) (mDurationMs * AccessibilityState.getAnimatorDurationScale());
     }
 
     /**
@@ -307,8 +347,13 @@ public class CompositorAnimator extends Animator {
         mTimeSinceStartMs += deltaTimeMs;
 
         // Clamp to the animator's duration, taking into account the start delay.
-        long finalTimeMs = Math.min(
-                (long) (mTimeSinceStartMs - mStartDelayMs * sDurationScale), getScaledDuration());
+        long finalTimeMs =
+                Math.min(
+                        (long)
+                                (mTimeSinceStartMs
+                                        - mStartDelayMs
+                                                * AccessibilityState.getAnimatorDurationScale()),
+                        getScaledDuration());
 
         // Wait until the start delay has passed.
         if (finalTimeMs < 0) return;

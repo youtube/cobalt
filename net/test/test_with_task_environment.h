@@ -7,6 +7,7 @@
 
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "net/test/test_net_log_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -29,13 +30,19 @@ class WithTaskEnvironment {
   // to mock time.
   explicit WithTaskEnvironment(
       base::test::TaskEnvironment::TimeSource time_source =
-          base::test::TaskEnvironment::TimeSource::DEFAULT)
-      : task_environment_(base::test::TaskEnvironment::MainThreadType::IO,
-                          time_source) {}
+          base::test::TaskEnvironment::TimeSource::DEFAULT);
+
+  ~WithTaskEnvironment();
 
   [[nodiscard]] bool MainThreadIsIdle() const {
     return task_environment_.MainThreadIsIdle();
   }
+
+  [[nodiscard]] base::RepeatingClosure QuitClosure() {
+    return task_environment_.QuitClosure();
+  }
+
+  void RunUntilQuit() { task_environment_.RunUntilQuit(); }
 
   void RunUntilIdle() { task_environment_.RunUntilIdle(); }
 
@@ -66,6 +73,7 @@ class WithTaskEnvironment {
 
  private:
   base::test::TaskEnvironment task_environment_;
+  TestNetLogManager net_log_manager_;
 };
 
 // Inherit from this class instead of ::testing::Test directly if a

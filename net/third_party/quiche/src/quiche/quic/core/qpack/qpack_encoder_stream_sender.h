@@ -17,14 +17,14 @@ namespace quic {
 
 // This class serializes instructions for transmission on the encoder stream.
 // Serialized instructions are buffered until Flush() is called.
-class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
+class QUICHE_EXPORT QpackEncoderStreamSender {
  public:
-  QpackEncoderStreamSender();
+  QpackEncoderStreamSender(HuffmanEncoding huffman_encoding);
   QpackEncoderStreamSender(const QpackEncoderStreamSender&) = delete;
   QpackEncoderStreamSender& operator=(const QpackEncoderStreamSender&) = delete;
 
   // Methods for serializing and buffering instructions, see
-  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5.2
+  // https://rfc-editor.org/rfc/rfc9204.html#section-4.3.
 
   // 5.2.1. Insert With Name Reference
   void SendInsertWithNameReference(bool is_static, uint64_t name_index,

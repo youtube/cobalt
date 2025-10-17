@@ -34,7 +34,6 @@ network::mojom::ReferrerPolicy ReferrerUtils::NetToMojoReferrerPolicy(
       return network::mojom::ReferrerPolicy::kNever;
   }
   NOTREACHED();
-  return network::mojom::ReferrerPolicy::kDefault;
 }
 
 net::ReferrerPolicy ReferrerUtils::GetDefaultNetReferrerPolicy() {

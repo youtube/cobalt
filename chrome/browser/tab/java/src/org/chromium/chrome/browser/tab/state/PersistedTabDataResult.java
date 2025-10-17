@@ -4,7 +4,8 @@
 
 package org.chromium.chrome.browser.tab.state;
 
-/**
- * Holds the {@link PersistedTabDataResult} hierarchy together.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Holds the {@link PersistedTabDataResult} hierarchy together. */
+@NullMarked
 public interface PersistedTabDataResult {}

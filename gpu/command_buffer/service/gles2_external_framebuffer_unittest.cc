@@ -7,10 +7,9 @@
 #include "base/bits.h"
 #include "base/command_line.h"
 #include "build/build_config.h"
-#include "components/viz/common/resources/resource_format.h"
-#include "components/viz/common/resources/resource_format_utils.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
+#include "gpu/command_buffer/service/feature_info.h"
 #include "gpu/command_buffer/service/service_utils.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
@@ -18,6 +17,7 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/shared_image/test_utils.h"
+#include "gpu/command_buffer/service/texture_manager.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/config/gpu_feature_info.h"
 #include "gpu/config/gpu_preferences.h"
@@ -56,7 +56,8 @@ void CreateSharedContext(const GpuPreferences& preferences,
       base::MakeRefCounted<gles2::FeatureInfo>(workarounds, GpuFeatureInfo());
   context_state = base::MakeRefCounted<SharedContextState>(
       std::move(share_group), surface, context,
-      /*use_virtualized_gl_contexts=*/false, base::DoNothing());
+      /*use_virtualized_gl_contexts=*/false, base::DoNothing(),
+      GrContextType::kGL);
   context_state->InitializeSkia(GpuPreferences(), workarounds);
   context_state->InitializeGL(GpuPreferences(), feature_info);
 }
@@ -114,8 +115,7 @@ class GLES2ExternalFrameBufferTest
 
   bool use_passthrough() {
     return gles2::UsePassthroughCommandDecoder(
-               base::CommandLine::ForCurrentProcess()) &&
-           gles2::PassthroughCommandDecoderSupported();
+        base::CommandLine::ForCurrentProcess());
   }
 
  protected:
@@ -128,12 +128,15 @@ class GLES2ExternalFrameBufferTest
       return shared_image_representation_factory_->ProduceGLTexture(mailbox);
   }
 
+  // Creates a SharedImage that can be used for reading and writing via the
+  // GLES2 interface (these tests do both).
   Mailbox CreateSharedImage(const viz::SharedImageFormat& format) {
-    auto mailbox = Mailbox::GenerateForSharedImage();
+    auto mailbox = Mailbox::Generate();
     backing_factory_->CreateSharedImage(
         mailbox, format, gfx::Size(64, 64), gfx::ColorSpace::CreateSRGB(),
         kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, SurfaceHandle(),
-        SHARED_IMAGE_USAGE_GLES2, "TestLabel");
+        SHARED_IMAGE_USAGE_GLES2_READ | SHARED_IMAGE_USAGE_GLES2_WRITE,
+        "TestLabel");
     return mailbox;
   }
 
@@ -176,8 +179,8 @@ class GLES2ExternalFrameBufferTest
   scoped_refptr<gl::GLSurface> surface_;
   scoped_refptr<gl::GLContext> context_;
   scoped_refptr<SharedContextState> context_state_;
-  std::unique_ptr<SharedImageFactory> backing_factory_;
   std::unique_ptr<SharedImageManager> shared_image_manager_;
+  std::unique_ptr<SharedImageFactory> backing_factory_;
   std::unique_ptr<MemoryTypeTracker> memory_type_tracker_;
   std::unique_ptr<SharedImageRepresentationFactory>
       shared_image_representation_factory_;
@@ -260,23 +263,9 @@ TEST_P(GLES2ExternalFrameBufferTest, Test) {
   GLint stencil_bits = 0;
   GLint alpha_bits = 0;
 
-  if (context_state_->feature_info()
-          ->gl_version_info()
-          .is_desktop_core_profile) {
-    api->glGetFramebufferAttachmentParameterivEXTFn(
-        GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-        GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE, &alpha_bits);
-    api->glGetFramebufferAttachmentParameterivEXTFn(
-        GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-        GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE, &depth_bits);
-    api->glGetFramebufferAttachmentParameterivEXTFn(
-        GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT,
-        GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE, &stencil_bits);
-  } else {
-    api->glGetIntegervFn(GL_ALPHA_BITS, &alpha_bits);
-    api->glGetIntegervFn(GL_DEPTH_BITS, &depth_bits);
-    api->glGetIntegervFn(GL_STENCIL_BITS, &stencil_bits);
-  }
+  api->glGetIntegervFn(GL_ALPHA_BITS, &alpha_bits);
+  api->glGetIntegervFn(GL_DEPTH_BITS, &depth_bits);
+  api->glGetIntegervFn(GL_STENCIL_BITS, &stencil_bits);
 
   // If we requested depth, expect it to be there.
   if (params.need_depth)

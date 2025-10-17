@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_SENT_PACKET_MANAGER_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_SENT_PACKET_MANAGER_PEER_H_
 
+#include "quiche/quic/core/congestion_control/pacing_sender.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_sent_packet_manager.h"
 
@@ -58,6 +59,9 @@ class QuicSentPacketManagerPeer {
 
   static bool UsingPacing(const QuicSentPacketManager* sent_packet_manager);
 
+  static PacingSender* GetPacingSender(
+      QuicSentPacketManager* sent_packet_manager);
+
   static bool HasRetransmittableFrames(
       QuicSentPacketManager* sent_packet_manager, uint64_t packet_number);
 
@@ -88,6 +92,15 @@ class QuicSentPacketManagerPeer {
 
   static QuicEcnCounts* GetPeerEcnCounts(
       QuicSentPacketManager* sent_packet_manager, PacketNumberSpace space);
+
+  static QuicPacketCount GetEct0Sent(QuicSentPacketManager* sent_packet_manager,
+                                     PacketNumberSpace space);
+
+  static QuicPacketCount GetEct1Sent(QuicSentPacketManager* sent_packet_manager,
+                                     PacketNumberSpace space);
+
+  static void SetEcnQueried(QuicSentPacketManager* sent_packet_manager,
+                            bool ecn_queried);
 };
 
 }  // namespace test

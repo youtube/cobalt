@@ -492,7 +492,9 @@ class LayerTreeHostProxyTestImplFrameCausesAnimatePending
         EndTest();
         break;
       }
-      default: { NOTREACHED(); }
+      default: {
+        NOTREACHED();
+      }
     }
   }
 };
@@ -531,7 +533,9 @@ class LayerTreeHostProxyTestNeedsCommitFromImpl
                            base::Unretained(this)));
         break;
       }
-      default: { NOTREACHED(); }
+      default: {
+        NOTREACHED();
+      }
     }
   }
 
@@ -572,7 +576,7 @@ class LayerTreeHostProxyTestDelayedCommitDueToVisibility
       LayerTreeHostImpl*,
       CommitEarlyOutReason reason,
       bool /* did_sync_scroll_and_viewport */) override {
-    EXPECT_EQ(CommitEarlyOutReason::ABORTED_NOT_VISIBLE, reason);
+    EXPECT_EQ(CommitEarlyOutReason::kAbortedNotVisible, reason);
     PostSetVisibleToMainThread(true);
   }
 

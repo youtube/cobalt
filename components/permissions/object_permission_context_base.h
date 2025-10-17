@@ -7,7 +7,10 @@
 
 #include <map>
 #include <memory>
+#include <optional>
+#include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/flat_set.h"
@@ -18,7 +21,6 @@
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 class HostContentSettingsMap;
@@ -37,6 +39,12 @@ class ObjectPermissionContextBase : public KeyedService {
  public:
   struct Object {
     Object(const url::Origin& origin,
+           base::Value::Dict value,
+           content_settings::SettingSource source,
+           bool incognito);
+    // DEPRECATED.
+    // TODO(crbug.com/40172729): Migrate value to base::Value::Dict.
+    Object(const url::Origin& origin,
            base::Value value,
            content_settings::SettingSource source,
            bool incognito);
@@ -44,7 +52,7 @@ class ObjectPermissionContextBase : public KeyedService {
     std::unique_ptr<Object> Clone();
 
     GURL origin;
-    base::Value value;
+    base::Value::Dict value;
     content_settings::SettingSource source;
     bool incognito;
   };
@@ -60,7 +68,7 @@ class ObjectPermissionContextBase : public KeyedService {
     // context represented by |guard_content_settings_type|, if applicable, and
     // |data_content_settings_type|.
     virtual void OnObjectPermissionChanged(
-        absl::optional<ContentSettingsType> guard_content_settings_type,
+        std::optional<ContentSettingsType> guard_content_settings_type,
         ContentSettingsType data_content_settings_type);
     // Notify observer that an object permission was revoked for |origin|.
     virtual void OnPermissionRevoked(const url::Origin& origin);
@@ -79,9 +87,8 @@ class ObjectPermissionContextBase : public KeyedService {
   ~ObjectPermissionContextBase() override;
 
   // Checks whether |origin| can request permission to access objects. This is
-  // done by checking |guard_content_settings_type_| which will usually be "ask"
-  // by default but could be set by the user or group policy.
-  bool CanRequestObjectPermission(const url::Origin& origin);
+  // done by checking |guard_content_settings_type_| is in the "ask" state.
+  virtual bool CanRequestObjectPermission(const url::Origin& origin) const;
 
   // Returns the object corresponding to |key| that |origin| has been granted
   // permission to access. This method should only be called if
@@ -90,7 +97,7 @@ class ObjectPermissionContextBase : public KeyedService {
   // This method may be extended by a subclass to return
   // objects not stored in |host_content_settings_map_|.
   virtual std::unique_ptr<Object> GetGrantedObject(const url::Origin& origin,
-                                                   const base::StringPiece key);
+                                                   std::string_view key);
 
   // Returns the list of objects that |origin| has been granted permission to
   // access. This method may be extended by a subclass to return objects not
@@ -98,8 +105,10 @@ class ObjectPermissionContextBase : public KeyedService {
   virtual std::vector<std::unique_ptr<Object>> GetGrantedObjects(
       const url::Origin& origin);
 
-  // Returns the list of all origins that have granted permission(s).
-  virtual std::vector<url::Origin> GetOriginsWithGrants();
+  // Returns a set of all origins that have granted permission(s).
+  // This method may be extended by a subclass to return origins with objects
+  // not stored in |host_content_settings_map_|.
+  virtual std::set<url::Origin> GetOriginsWithGrants();
 
   // Returns the set of all objects that any origin has been granted permission
   // to access.
@@ -110,26 +119,27 @@ class ObjectPermissionContextBase : public KeyedService {
 
   // Grants |origin| access to |object| by writing it into
   // |host_content_settings_map_|.
-  // TODO(https://crbug.com/1189682): Combine GrantObjectPermission and
+  // TODO(crbug.com/40755589): Combine GrantObjectPermission and
   // UpdateObjectPermission methods into key-based GrantOrUpdateObjectPermission
   // once backend is updated to make key-based methods more efficient.
-  void GrantObjectPermission(const url::Origin& origin, base::Value object);
+  void GrantObjectPermission(const url::Origin& origin,
+                             base::Value::Dict object);
 
   // Updates |old_object| with |new_object| for |origin|, and writes the value
   // into |host_content_settings_map_|.
   void UpdateObjectPermission(const url::Origin& origin,
-                              const base::Value& old_object,
-                              base::Value new_object);
+                              const base::Value::Dict& old_object,
+                              base::Value::Dict new_object);
 
   // Revokes |origin|'s permission to access |object|.
   //
   // This method may be extended by a subclass to revoke permission to access
   // objects returned by GetGrantedObjects but not stored in
   // |host_content_settings_map_|.
-  // TODO(https://crbug.com/1189682): Remove this method once backend is updated
+  // TODO(crbug.com/40755589): Remove this method once backend is updated
   // to make key-based methods more efficient.
   virtual void RevokeObjectPermission(const url::Origin& origin,
-                                      const base::Value& object);
+                                      const base::Value::Dict& object);
 
   // Revokes |origin|'s permission to access the object corresponding to |key|.
   // This method should only be called if |GetKeyForObject()| is overridden to
@@ -139,24 +149,26 @@ class ObjectPermissionContextBase : public KeyedService {
   // objects returned by GetGrantedObjects but not stored in
   // |host_content_settings_map_|.
   virtual void RevokeObjectPermission(const url::Origin& origin,
-                                      const base::StringPiece key);
+                                      std::string_view key);
 
-  // Returns whether |origin| has granted objects.
+  // Revokes a given `origin`'s permissions for access to all of its
+  // corresponding objects.
   //
-  // This method may be extended by a subclass to include permission to access
-  // objects returned by GetGrantedObjects but not stored in
-  // |host_content_settings_map_|.
-  virtual bool HasGrantedObjects(const url::Origin& origin);
+  // This method may be extended by a subclass to revoke permissions to access
+  // objects returned by `GetGrantedObjects` but not stored in the
+  // `host_content_settings_map`.
+  virtual bool RevokeObjectPermissions(const url::Origin& origin);
 
   // Returns a string which is used to uniquely identify this object.
-  virtual std::string GetKeyForObject(const base::Value& object) = 0;
+  virtual std::string GetKeyForObject(const base::Value::Dict& object) = 0;
 
   // Validates the structure of an object read from
   // |host_content_settings_map_|.
-  virtual bool IsValidObject(const base::Value& object) = 0;
+  virtual bool IsValidObject(const base::Value::Dict& object) = 0;
 
   // Gets the human-readable name for a given object.
-  virtual std::u16string GetObjectDisplayName(const base::Value& object) = 0;
+  virtual std::u16string GetObjectDisplayName(
+      const base::Value::Dict& object) = 0;
 
   // Triggers the immediate flushing of all scheduled save setting operations.
   // To be called when the host_content_settings_map_ is about to become
@@ -170,7 +182,7 @@ class ObjectPermissionContextBase : public KeyedService {
   void NotifyPermissionChanged();
   void NotifyPermissionRevoked(const url::Origin& origin);
 
-  const absl::optional<ContentSettingsType> guard_content_settings_type_;
+  const std::optional<ContentSettingsType> guard_content_settings_type_;
   const ContentSettingsType data_content_settings_type_;
   base::ObserverList<PermissionObserver> permission_observer_list_;
 
@@ -186,7 +198,8 @@ class ObjectPermissionContextBase : public KeyedService {
   // Never use the `objects_` member directly outside of this function.
   ObjectMap& objects();
 
-  const raw_ptr<HostContentSettingsMap> host_content_settings_map_;
+  const raw_ptr<HostContentSettingsMap, DanglingUntriaged>
+      host_content_settings_map_;
 
   // In-memory cache that holds the granted objects. Lazy-initialized by first
   // call to `objects()`.

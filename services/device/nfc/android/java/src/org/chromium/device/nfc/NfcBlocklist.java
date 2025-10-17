@@ -10,6 +10,9 @@ import android.nfc.tech.IsoDep;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Log;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.variations.VariationsAssociatedData;
 
 import java.util.ArrayList;
@@ -21,14 +24,29 @@ import java.util.List;
  * blocklist was introduced to block access to YubiKeys. Without it, websites could use Web
  * NFC to read NDEF URI record in YubiKeys that includes the OTP code.
  */
+@NullMarked
 public class NfcBlocklist {
     private static final String TAG = "NfcBlocklist";
 
     private static final byte[][] STATIC_HISTORICAL_BYTES = {
-            new byte[] {(byte) 0x80, 0x73, (byte) 0xc0, 0x21, (byte) 0xc0, 0x57, 0x59, 0x75, 0x62,
-                    0x69, 0x4b, 0x65, 0x79}, // YubiKey 5 series
-            new byte[] {(byte) 0x59, 0x75, 0x62, 0x69, 0x6b, 0x65, 0x79, 0x4e, 0x45, 0x4f, 0x72,
-                    0x33} // YubiKey NEO
+        new byte[] {
+            (byte) 0x80,
+            0x73,
+            (byte) 0xc0,
+            0x21,
+            (byte) 0xc0,
+            0x57,
+            0x59,
+            0x75,
+            0x62,
+            0x69,
+            0x4b,
+            0x65,
+            0x79
+        }, // YubiKey 5 series
+        new byte[] {
+            (byte) 0x59, 0x75, 0x62, 0x69, 0x6b, 0x65, 0x79, 0x4e, 0x45, 0x4f, 0x72, 0x33
+        } // YubiKey NEO
     };
 
     private static final String TRIAL_NAME = "WebNFCBlockList";
@@ -36,9 +54,9 @@ public class NfcBlocklist {
 
     private final List<byte[]> mServerProvidedHistoricalBytes = new ArrayList<byte[]>();
 
-    private static NfcBlocklist sInstance;
+    private static @Nullable NfcBlocklist sInstance;
 
-    private Boolean mIsTagBlockedForTesting;
+    private @Nullable Boolean mIsTagBlockedForTesting;
 
     public static NfcBlocklist getInstance() {
         if (sInstance == null) {
@@ -47,14 +65,15 @@ public class NfcBlocklist {
         return sInstance;
     }
 
-    @VisibleForTesting
     public static void overrideNfcBlocklistForTests(String serverProvidedValues) {
         sInstance = new NfcBlocklist(serverProvidedValues);
+        ResettersForTesting.register(() -> sInstance = null);
     }
 
     private NfcBlocklist() {
-        String serverProvidedValues = VariationsAssociatedData.getVariationParamValue(
-                TRIAL_NAME, HISTORICAL_BYTES_PARAM_NAME);
+        String serverProvidedValues =
+                VariationsAssociatedData.getVariationParamValue(
+                        TRIAL_NAME, HISTORICAL_BYTES_PARAM_NAME);
         populateWithServerProvidedValues(serverProvidedValues);
     }
 
@@ -76,7 +95,7 @@ public class NfcBlocklist {
         }
     }
 
-    private static byte[] hexStringToByteArray(String str) {
+    private static byte @Nullable [] hexStringToByteArray(String str) {
         int len = str.length();
         if (len % 2 == 1) {
             Log.w(TAG, "Length of %s is odd", str);
@@ -99,7 +118,7 @@ public class NfcBlocklist {
      * Returns true if tag is blocked, otherwise false. A tag is blocked if it is part of
      * STATIC_HISTORICAL_BYTES or server provided historical bytes.
      *
-     * @param tag @see android.nfc.Tag
+     * @see android.nfc.Tag
      * @return true if tag is blocked, otherwise false.
      */
     public boolean isTagBlocked(Tag tag) {
@@ -122,10 +141,9 @@ public class NfcBlocklist {
     }
 
     /**
-     * Returns true if historical bytes are part of
-     * STATIC_HISTORICAL_BYTES or server provided historical bytes.
+     * Returns true if historical bytes are part of STATIC_HISTORICAL_BYTES or server provided
+     * historical bytes.
      *
-     * @param byte[] historical bytes from a NFC tag
      * @return true if historical bytes are blocked, otherwise false.
      */
     @VisibleForTesting
@@ -140,8 +158,8 @@ public class NfcBlocklist {
     }
 
     /** Block/unblock NFC tag access for testing use only. */
-    @VisibleForTesting
     public void setIsTagBlockedForTesting(Boolean blocked) {
         mIsTagBlockedForTesting = blocked;
+        ResettersForTesting.register(() -> mIsTagBlockedForTesting = null);
     }
 }

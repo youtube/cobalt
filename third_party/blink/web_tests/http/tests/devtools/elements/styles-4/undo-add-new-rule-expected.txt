@@ -6,14 +6,15 @@ element.style { ()
     font-size: 12px;
 
 [expanded] 
-div.foo { (inspector-stylesheet:3 -> inspector-stylesheet:3:10)
+div.foo { (*inspector-stylesheet:3 -> inspector-stylesheet:3:10)
 
 [expanded] 
-div.foo { (inspector-stylesheet:1 -> inspector-stylesheet:1:10)
+div.foo { (*inspector-stylesheet:1 -> inspector-stylesheet:1:10)
 
 [expanded] 
 div { (user agent stylesheet)
     display: block;
+    unicode-bidi: isolate;
 
 ===== Style sheet text: =====
 div.foo {}
@@ -26,11 +27,12 @@ element.style { ()
     color: red;
 
 [expanded] 
-div.foo { (inspector-stylesheet:1 -> inspector-stylesheet:1:10)
+div.foo { (*inspector-stylesheet:1 -> inspector-stylesheet:1:10)
 
 [expanded] 
 div { (user agent stylesheet)
     display: block;
+    unicode-bidi: isolate;
 
 ===== Style sheet text: =====
 div.foo {}
@@ -41,14 +43,15 @@ element.style { ()
     font-size: 12px;
 
 [expanded] 
-div.foo { (inspector-stylesheet:3 -> inspector-stylesheet:3:10)
+div.foo { (*inspector-stylesheet:3 -> inspector-stylesheet:3:10)
 
 [expanded] 
-div.foo { (inspector-stylesheet:1 -> inspector-stylesheet:1:10)
+div.foo { (*inspector-stylesheet:1 -> inspector-stylesheet:1:10)
 
 [expanded] 
 div { (user agent stylesheet)
     display: block;
+    unicode-bidi: isolate;
 
 ===== Style sheet text: =====
 div.foo {}

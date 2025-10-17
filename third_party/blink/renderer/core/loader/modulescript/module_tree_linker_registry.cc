@@ -18,14 +18,17 @@ void ModuleTreeLinkerRegistry::Fetch(
     const ScriptFetchOptions& options,
     Modulator* modulator,
     ModuleScriptCustomFetchType custom_fetch_type,
-    ModuleTreeClient* client) {
+    ModuleTreeClient* client,
+    ModuleImportPhase import_phase,
+    String referrer) {
   ModuleTreeLinker* linker = MakeGarbageCollected<ModuleTreeLinker>(
       fetch_client_settings_object_fetcher, context_type, destination,
       modulator, custom_fetch_type, this, client,
       base::PassKey<ModuleTreeLinkerRegistry>());
   AddLinker(linker);
   linker->FetchRoot(url, module_type, options,
-                    base::PassKey<ModuleTreeLinkerRegistry>());
+                    base::PassKey<ModuleTreeLinkerRegistry>(), import_phase,
+                    referrer);
   DCHECK(linker->IsFetching());
 }
 
@@ -60,7 +63,7 @@ void ModuleTreeLinkerRegistry::ReleaseFinishedLinker(ModuleTreeLinker* linker) {
   DCHECK(linker->HasFinished());
 
   auto it = active_tree_linkers_.find(linker);
-  DCHECK_NE(it, active_tree_linkers_.end());
+  CHECK_NE(it, active_tree_linkers_.end());
   active_tree_linkers_.erase(it);
 }
 

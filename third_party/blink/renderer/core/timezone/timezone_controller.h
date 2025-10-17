@@ -56,6 +56,8 @@ class CORE_EXPORT TimeZoneController final
   static void ClearTimeZoneOverride();
   static void ChangeTimeZoneOverride(const String&);
 
+  const String& GetHostTimezoneId();
+
   // device::mojom::blink::TimeZoneMonitorClient:
   void OnTimeZoneChange(const String& timezone_id) override;
 

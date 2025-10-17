@@ -11,6 +11,8 @@
 #include "ash/test/ash_test_base.h"
 #include "ash/test_shell_delegate.h"
 #include "components/version_info/channel.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/color/color_id.h"
 #include "ui/gfx/color_palette.h"
 
 namespace ash {
@@ -37,7 +39,8 @@ class ChannelIndicatorUtilsTest : public AshTestBase {
     std::unique_ptr<TestShellDelegate> shell_delegate =
         std::make_unique<TestShellDelegate>();
     shell_delegate->set_version_string(kTestOsVersion);
-    AshTestBase::SetUp(std::move(shell_delegate));
+    set_shell_delegate(std::move(shell_delegate));
+    AshTestBase::SetUp();
   }
 };
 
@@ -77,26 +80,21 @@ TEST_F(ChannelIndicatorUtilsTest, GetChannelNameStringResourceID) {
 }
 
 TEST_F(ChannelIndicatorUtilsTest, GetColors) {
-  // Non-displayable channel should yield fg/bg colors of 0.
-  EXPECT_EQ(channel_indicator_utils::GetFgColor(version_info::Channel::STABLE),
-            SkColorSetRGB(0x00, 0x00, 0x00));
-  EXPECT_EQ(channel_indicator_utils::GetBgColor(version_info::Channel::STABLE),
-            SkColorSetRGB(0x00, 0x00, 0x00));
+  // Non-displayable channel should yield fg/bg `ColorId` of `ui::ColorId()`.
+  EXPECT_EQ(
+      channel_indicator_utils::GetFgColorJelly(version_info::Channel::STABLE),
+      ui::ColorId());
+  EXPECT_EQ(
+      channel_indicator_utils::GetBgColorJelly(version_info::Channel::STABLE),
+      ui::ColorId());
 
-  // Displayable channel should yield valid, nonzero fg/bg colors. Check with
-  // dark mode not enabled first.
-  DarkLightModeController::Get()->SetDarkModeEnabledForTest(false);
-  EXPECT_EQ(channel_indicator_utils::GetFgColor(version_info::Channel::BETA),
-            gfx::kGoogleBlue900);
-  EXPECT_EQ(channel_indicator_utils::GetBgColor(version_info::Channel::BETA),
-            gfx::kGoogleBlue200);
-
-  // Check with dark mode enabled.
-  DarkLightModeController::Get()->SetDarkModeEnabledForTest(true);
-  EXPECT_EQ(channel_indicator_utils::GetFgColor(version_info::Channel::BETA),
-            gfx::kGoogleBlue200);
-  EXPECT_EQ(channel_indicator_utils::GetBgColor(version_info::Channel::BETA),
-            SkColorSetA(gfx::kGoogleBlue300, 0x55));
+  // Displayable channel should yield valid, fg/bg `ColorId`s.
+  EXPECT_EQ(
+      channel_indicator_utils::GetFgColorJelly(version_info::Channel::BETA),
+      cros_tokens::kCrosSysOnProgressContainer);
+  EXPECT_EQ(
+      channel_indicator_utils::GetBgColorJelly(version_info::Channel::BETA),
+      cros_tokens::kCrosSysProgressContainer);
 }
 
 TEST_F(ChannelIndicatorUtilsTest, GetFullReleaseTrackString) {

@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/login_view.h"
 
 #include <memory>
+#include <string_view>
 
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
@@ -12,6 +13,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/combobox_model.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/combobox/combobox.h"
 #include "ui/views/controls/label.h"
@@ -69,7 +71,7 @@ LoginView::LoginView(const std::u16string& authority,
       .AddRows(1, views::TableLayout::kFixedSize)
       .AddPaddingRow(views::TableLayout::kFixedSize,
                      ChromeLayoutProvider::Get()->GetDistanceMetric(
-                         DISTANCE_CONTROL_LIST_VERTICAL))
+                         views::DISTANCE_CONTROL_LIST_VERTICAL))
       .AddRows(1, views::TableLayout::kFixedSize);
   auto* username_label =
       fields_container->AddChildView(std::make_unique<views::Label>(
@@ -77,14 +79,14 @@ LoginView::LoginView(const std::u16string& authority,
           views::style::CONTEXT_LABEL, views::style::STYLE_PRIMARY));
   username_field_ =
       fields_container->AddChildView(std::make_unique<views::Textfield>());
-  username_field_->SetAccessibleName(username_label);
+  username_field_->GetViewAccessibility().SetName(*username_label);
   auto* password_label =
       fields_container->AddChildView(std::make_unique<views::Label>(
           l10n_util::GetStringUTF16(IDS_LOGIN_DIALOG_PASSWORD_FIELD),
           views::style::CONTEXT_LABEL, views::style::STYLE_PRIMARY));
   password_field_ =
       fields_container->AddChildView(std::make_unique<views::Textfield>());
-  password_field_->SetAccessibleName(password_label);
+  password_field_->GetViewAccessibility().SetName(*password_label);
   password_field_->SetTextInputType(ui::TEXT_INPUT_TYPE_PASSWORD);
 
   if (http_auth_manager_) {
@@ -94,15 +96,16 @@ LoginView::LoginView(const std::u16string& authority,
 }
 
 LoginView::~LoginView() {
-  if (http_auth_manager_)
+  if (http_auth_manager_) {
     http_auth_manager_->DetachObserver(this);
+  }
 }
 
-const std::u16string& LoginView::GetUsername() const {
+std::u16string_view LoginView::GetUsername() const {
   return username_field_->GetText();
 }
 
-const std::u16string& LoginView::GetPassword() const {
+std::u16string_view LoginView::GetPassword() const {
   return password_field_->GetText();
 }
 
@@ -110,8 +113,8 @@ views::View* LoginView::GetInitiallyFocusedView() {
   return username_field_;
 }
 
-void LoginView::OnAutofillDataAvailable(const std::u16string& username,
-                                        const std::u16string& password) {
+void LoginView::OnAutofillDataAvailable(std::u16string_view username,
+                                        std::u16string_view password) {
   if (username_field_->GetText().empty()) {
     username_field_->SetText(username);
     password_field_->SetText(password);
@@ -123,7 +126,7 @@ void LoginView::OnLoginModelDestroying() {
   http_auth_manager_ = nullptr;
 }
 
-BEGIN_METADATA(LoginView, views::View)
-ADD_READONLY_PROPERTY_METADATA(std::u16string, Username)
-ADD_READONLY_PROPERTY_METADATA(std::u16string, Password)
+BEGIN_METADATA(LoginView)
+ADD_READONLY_PROPERTY_METADATA(std::u16string_view, Username)
+ADD_READONLY_PROPERTY_METADATA(std::u16string_view, Password)
 END_METADATA

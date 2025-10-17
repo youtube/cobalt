@@ -42,8 +42,8 @@ MATCHER(OKStatus, "Equality matcher for type OK leveldb::Status") {
 
 class MockListener : public SessionStorageDataMap::Listener {
  public:
-  MockListener() {}
-  ~MockListener() override {}
+  MockListener() = default;
+  ~MockListener() override = default;
   MOCK_METHOD2(OnDataMapCreation,
                void(const std::vector<uint8_t>& map_id,
                     SessionStorageDataMap* map));
@@ -64,7 +64,7 @@ class SessionStorageNamespaceImplTest
   void RunBatch(std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> tasks) {
     base::RunLoop loop(base::RunLoop::Type::kNestableTasksAllowed);
     database_->RunBatchDatabaseTasks(
-        std::move(tasks),
+        RunBatchTasksContext::kTest, std::move(tasks),
         base::BindLambdaForTesting([&](leveldb::Status) { loop.Quit(); }));
     loop.Run();
   }
@@ -73,7 +73,7 @@ class SessionStorageNamespaceImplTest
     // Create a database that already has a namespace saved.
     base::RunLoop loop;
     database_ = AsyncDomStorageDatabase::OpenInMemory(
-        absl::nullopt, "SessionStorageNamespaceImplTest",
+        std::nullopt, "SessionStorageNamespaceImplTest",
         base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}),
         base::BindLambdaForTesting([&](leveldb::Status) { loop.Quit(); }));
     loop.Run();
@@ -228,7 +228,7 @@ TEST_F(SessionStorageNamespaceImplTest, MetadataLoadWithMapOperations) {
       .Times(1)
       .WillOnce(testing::Invoke([&](auto error) { commit_loop.Quit(); }));
   test::PutSync(leveldb_1.get(), StdStringToUint8Vector("key2"),
-                StdStringToUint8Vector("data2"), absl::nullopt, "");
+                StdStringToUint8Vector("data2"), std::nullopt, "");
   commit_loop.Run();
 
   std::vector<blink::mojom::KeyValuePtr> data;
@@ -284,7 +284,7 @@ TEST_F(SessionStorageNamespaceImplTest, CloneBeforeBind) {
               OnDataMapCreation(StdStringToUint8Vector("1"), testing::_))
       .Times(1);
   test::PutSync(leveldb_2.get(), StdStringToUint8Vector("key2"),
-                StdStringToUint8Vector("data2"), absl::nullopt, "");
+                StdStringToUint8Vector("data2"), std::nullopt, "");
   commit_loop.Run();
 
   std::vector<blink::mojom::KeyValuePtr> data;
@@ -349,7 +349,7 @@ TEST_F(SessionStorageNamespaceImplTest, CloneAfterBind) {
       .Times(1)
       .WillOnce(testing::Invoke([&](auto error) { commit_loop.Quit(); }));
   test::PutSync(leveldb_n2_o2.get(), StdStringToUint8Vector("key2"),
-                StdStringToUint8Vector("data2"), absl::nullopt, "");
+                StdStringToUint8Vector("data2"), std::nullopt, "");
   commit_loop.Run();
 
   std::vector<blink::mojom::KeyValuePtr> data;
@@ -457,16 +457,19 @@ TEST_F(SessionStorageNamespaceImplTest, PurgeUnused) {
   mojo::Remote<blink::mojom::StorageArea> leveldb_1;
   namespace_impl->OpenArea(test_storage_key1_,
                            leveldb_1.BindNewPipeAndPassReceiver());
-  EXPECT_TRUE(namespace_impl->HasAreaForStorageKey(test_storage_key1_));
+  EXPECT_TRUE(
+      namespace_impl->HasAreaForStorageKeyForTesting(test_storage_key1_));
 
   EXPECT_CALL(listener_, OnDataMapDestruction(StdStringToUint8Vector("0")))
       .Times(1);
   leveldb_1.reset();
-  EXPECT_TRUE(namespace_impl->HasAreaForStorageKey(test_storage_key1_));
+  EXPECT_TRUE(
+      namespace_impl->HasAreaForStorageKeyForTesting(test_storage_key1_));
 
   namespace_impl->FlushAreasForTesting();
   namespace_impl->PurgeUnboundAreas();
-  EXPECT_FALSE(namespace_impl->HasAreaForStorageKey(test_storage_key1_));
+  EXPECT_FALSE(
+      namespace_impl->HasAreaForStorageKeyForTesting(test_storage_key1_));
 
   namespaces_.clear();
 }
@@ -498,7 +501,8 @@ TEST_F(SessionStorageNamespaceImplTest, ReopenClonedAreaAfterPurge) {
   leveldb_1.reset();
   namespace_impl->FlushAreasForTesting();
   namespace_impl->PurgeUnboundAreas();
-  EXPECT_FALSE(namespace_impl->HasAreaForStorageKey(test_storage_key1_));
+  EXPECT_FALSE(
+      namespace_impl->HasAreaForStorageKeyForTesting(test_storage_key1_));
 
   namespace_impl->OpenArea(test_storage_key1_,
                            leveldb_1.BindNewPipeAndPassReceiver());

@@ -80,11 +80,11 @@ bool IsIsoImage(const base::FilePath& image) {
   return false;
 }
 
-absl::optional<base::ScopedFD> PrepareFD(const base::FilePath& image) {
+std::optional<base::ScopedFD> PrepareFD(const base::FilePath& image) {
   base::File file(image, base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!file.IsValid()) {
     LOG(ERROR) << "Failed to open " << image.value();
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return base::ScopedFD(file.TakePlatformFile());
@@ -95,7 +95,6 @@ PluginVmSetupResult BucketForCancelledInstall(
   switch (installing_state) {
     case PluginVmInstaller::InstallingState::kInactive:
       NOTREACHED();
-      [[fallthrough]];
     case PluginVmInstaller::InstallingState::kCheckingLicense:
       return PluginVmSetupResult::kUserCancelledValidatingLicense;
     case PluginVmInstaller::InstallingState::kCheckingDiskSpace:
@@ -120,7 +119,7 @@ PluginVmInstaller::PluginVmInstaller(Profile* profile)
       download_service_(BackgroundDownloadServiceFactory::GetForKey(
           profile->GetProfileKey())) {}
 
-absl::optional<PluginVmInstaller::FailureReason> PluginVmInstaller::Start() {
+std::optional<PluginVmInstaller::FailureReason> PluginVmInstaller::Start() {
   LOG_FUNCTION_CALL();
   if (IsProcessing()) {
     LOG(ERROR) << "Download of a PluginVm image couldn't be started as"
@@ -160,7 +159,7 @@ absl::optional<PluginVmInstaller::FailureReason> PluginVmInstaller::Start() {
       FROM_HERE, base::BindOnce(&PluginVmInstaller::CheckLicense,
                                 weak_ptr_factory_.GetWeakPtr()));
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void PluginVmInstaller::Cancel() {
@@ -417,7 +416,7 @@ void PluginVmInstaller::OnConciergeAvailable(bool success) {
 }
 
 void PluginVmInstaller::OnListVmDisks(
-    absl::optional<vm_tools::concierge::ListVmDisksResponse> response) {
+    std::optional<vm_tools::concierge::ListVmDisksResponse> response) {
   if (state_ == State::kCancelling) {
     CancelFinished();
     return;
@@ -459,14 +458,14 @@ void PluginVmInstaller::CheckDiskSpace() {
                                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-void PluginVmInstaller::OnAvailableDiskSpace(absl::optional<int64_t> bytes) {
+void PluginVmInstaller::OnAvailableDiskSpace(std::optional<int64_t> bytes) {
   if (state_ == State::kCancelling) {
     CancelFinished();
     return;
   }
 
   if (free_disk_space_for_testing_ != -1) {
-    bytes = absl::optional<int64_t>(free_disk_space_for_testing_);
+    bytes = std::optional<int64_t>(free_disk_space_for_testing_);
   }
 
   if (!bytes.has_value() || bytes.value() < RequiredFreeDiskSpace()) {
@@ -489,7 +488,6 @@ void PluginVmInstaller::StartDlcDownload() {
 
   dlc_installation_ = std::make_unique<guest_os::GuestOsDlcInstallation>(
       kPitaDlc,
-      /*retry=*/false,
       base::BindOnce(&PluginVmInstaller::OnDlcDownloadCompleted,
                      weak_ptr_factory_.GetWeakPtr()),
       base::BindRepeating(&PluginVmInstaller::OnDlcDownloadProgressUpdated,
@@ -607,7 +605,7 @@ void PluginVmInstaller::StartDownload() {
 
   expected_image_size_ = kImageSizeUnknown;
   downloaded_image_size_ = kImageSizeUnknown;
-  absl::optional<std::string> drive_id = GetIdFromDriveUrl(url);
+  std::optional<std::string> drive_id = GetIdFromDriveUrl(url);
   using_drive_download_service_ = drive_id.has_value();
 
   if (using_drive_download_service_) {
@@ -665,7 +663,7 @@ void PluginVmInstaller::OnImageTypeDetected(bool is_iso_image) {
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-void PluginVmInstaller::OnFDPrepared(absl::optional<base::ScopedFD> maybeFd) {
+void PluginVmInstaller::OnFDPrepared(std::optional<base::ScopedFD> maybeFd) {
   // In case import has been cancelled meantime.
   if (state_ != State::kInstalling) {
     return;
@@ -715,7 +713,7 @@ void PluginVmInstaller::OnFDPrepared(absl::optional<base::ScopedFD> maybeFd) {
 }
 
 template <typename ReplyType>
-void PluginVmInstaller::OnImportDiskImage(absl::optional<ReplyType> reply) {
+void PluginVmInstaller::OnImportDiskImage(std::optional<ReplyType> reply) {
   if (!reply.has_value()) {
     LOG(ERROR) << "Could not retrieve response from Create/ImportDiskImage "
                << "call to concierge";
@@ -730,7 +728,7 @@ void PluginVmInstaller::OnImportDiskImage(absl::optional<ReplyType> reply) {
       VLOG(1) << "Disk image creation/import is now in progress";
       current_import_command_uuid_ = response.command_uuid();
       // Image in progress. Waiting for progress signals...
-      // TODO(https://crbug.com/966398): think about adding a timeout here,
+      // TODO(crbug.com/41460680): think about adding a timeout here,
       //   i.e. what happens if concierge dies and does not report any signal
       //   back, not even an error signal. Right now, the user would see
       //   the "Configuring Plugin VM" screen forever. Maybe that's OK
@@ -757,7 +755,7 @@ void PluginVmInstaller::RequestFinalStatus() {
 }
 
 void PluginVmInstaller::OnFinalDiskImageStatus(
-    absl::optional<vm_tools::concierge::DiskImageStatusResponse> reply) {
+    std::optional<vm_tools::concierge::DiskImageStatusResponse> reply) {
   if (!reply.has_value()) {
     LOG(ERROR) << "Could not retrieve response from DiskImageStatus call to "
                << "concierge";
@@ -769,7 +767,7 @@ void PluginVmInstaller::OnFinalDiskImageStatus(
   DCHECK(response.command_uuid() == current_import_command_uuid_);
   switch (response.status()) {
     case vm_tools::concierge::DiskImageStatus::DISK_STATUS_CREATED:
-      OnImported(absl::nullopt);
+      OnImported(std::nullopt);
       break;
     case vm_tools::concierge::DiskImageStatus::DISK_STATUS_NOT_ENOUGH_SPACE:
       LOG(ERROR) << "Disk image import operation ran out of disk space "
@@ -785,7 +783,7 @@ void PluginVmInstaller::OnFinalDiskImageStatus(
 }
 
 void PluginVmInstaller::OnImported(
-    absl::optional<FailureReason> failure_reason) {
+    std::optional<FailureReason> failure_reason) {
   LOG_FUNCTION_CALL();
   GetConciergeClient()->RemoveDiskImageObserver(this);
   RemoveTemporaryImageIfExists();
@@ -908,7 +906,7 @@ void PluginVmInstaller::CancelImport() {
 }
 
 void PluginVmInstaller::OnImportDiskImageCancelled(
-    absl::optional<vm_tools::concierge::CancelDiskImageResponse> reply) {
+    std::optional<vm_tools::concierge::SuccessFailureResponse> reply) {
   DCHECK_EQ(state_, State::kCancelling);
   DCHECK_EQ(installing_state_, InstallingState::kImporting);
 
@@ -921,7 +919,7 @@ void PluginVmInstaller::OnImportDiskImageCancelled(
     return;
   }
 
-  vm_tools::concierge::CancelDiskImageResponse response = reply.value();
+  vm_tools::concierge::SuccessFailureResponse response = reply.value();
   if (response.success()) {
     VLOG(1) << "Import disk image request has been cancelled successfully";
   } else {

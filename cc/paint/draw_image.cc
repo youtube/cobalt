@@ -13,7 +13,7 @@ namespace {
 // and false on failure.
 bool ExtractScale(const SkM44& matrix, SkSize* scale) {
   *scale = SkSize::Make(matrix.rc(0, 0), matrix.rc(1, 1));
-  // TODO(crbug.com/1155544): Don't use SkMatrix here, add functionality to
+  // TODO(crbug.com/40735471): Don't use SkMatrix here, add functionality to
   // MathUtil.
   SkMatrix mat33 = matrix.asM33();
   if (mat33.getType() & SkMatrix::kAffine_Mask) {
@@ -48,7 +48,7 @@ DrawImage::DrawImage(PaintImage image,
                      const SkIRect& src_rect,
                      PaintFlags::FilterQuality filter_quality,
                      const SkM44& matrix,
-                     absl::optional<size_t> frame_index)
+                     std::optional<size_t> frame_index)
     : paint_image_(std::move(image)),
       use_dark_mode_(use_dark_mode),
       src_rect_(src_rect),
@@ -62,14 +62,14 @@ DrawImage::DrawImage(PaintImage image,
                      const SkIRect& src_rect,
                      PaintFlags::FilterQuality filter_quality,
                      const SkM44& matrix,
-                     absl::optional<size_t> frame_index,
+                     std::optional<size_t> frame_index,
                      const TargetColorParams& target_color_params)
     : paint_image_(std::move(image)),
       use_dark_mode_(use_dark_mode),
       src_rect_(src_rect),
       filter_quality_(filter_quality),
-      frame_index_(frame_index),
-      target_color_params_(target_color_params) {
+      frame_index_(frame_index) {
+  SetTargetColorParams(target_color_params);
   matrix_is_decomposable_ = ExtractScale(matrix, &scale_);
 }
 
@@ -85,7 +85,9 @@ DrawImage::DrawImage(const DrawImage& other,
                           other.scale_.height() * scale_adjustment)),
       matrix_is_decomposable_(other.matrix_is_decomposable_),
       frame_index_(frame_index),
-      target_color_params_(target_color_params) {}
+      target_color_params_(target_color_params) {
+  SetTargetColorParams(target_color_params);
+}
 
 DrawImage::DrawImage(const DrawImage& other) = default;
 DrawImage::DrawImage(DrawImage&& other) = default;
@@ -101,6 +103,17 @@ bool DrawImage::IsSameForTesting(const DrawImage& other) const {
          filter_quality_ == other.filter_quality_ && scale_ == other.scale_ &&
          matrix_is_decomposable_ == other.matrix_is_decomposable_ &&
          target_color_params_ == other.target_color_params_;
+}
+
+void DrawImage::SetTargetColorParams(
+    const TargetColorParams& target_color_params) {
+  target_color_params_ = target_color_params;
+  if (paint_image_.GetReinterpretAsSRGB()) {
+    // If `paint_image_` is to be reinterpreted as sRGB, then the target color
+    // space (used by decode) is invalid (which indicates that the color profile
+    // is to be ignored).
+    target_color_params_->color_space = gfx::ColorSpace();
+  }
 }
 
 }  // namespace cc

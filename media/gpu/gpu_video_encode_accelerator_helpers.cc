@@ -5,6 +5,7 @@
 #include "media/gpu/gpu_video_encode_accelerator_helpers.h"
 
 #include <algorithm>
+#include <array>
 #include <ostream>
 
 #include "base/check_op.h"
@@ -59,6 +60,7 @@ size_t GetMaxEncodeBitstreamBufferSize(const gfx::Size& size) {
     return kMaxBitstreamBufferSizeInBytes * 2;
   return kMaxBitstreamBufferSizeInBytes;
 }
+}  // namespace
 
 // This function sets the peak equal to the target. The peak can then be
 // updated by callers.
@@ -71,11 +73,12 @@ VideoBitrateAllocation AllocateBitrateForDefaultEncodingWithBitrates(
 
   // The same bitrate factors as the software encoder.
   // https://source.chromium.org/chromium/chromium/src/+/main:media/video/vpx_video_encoder.cc;l=131;drc=d383d0b3e4f76789a6de2a221c61d3531f4c59da
-  constexpr double kTemporalLayersBitrateScaleFactors[][kMaxTemporalLayers] = {
-      {1.00, 0.00, 0.00},  // For one temporal layer.
-      {0.60, 0.40, 0.00},  // For two temporal layers.
-      {0.50, 0.20, 0.30},  // For three temporal layers.
-  };
+  constexpr auto kTemporalLayersBitrateScaleFactors =
+      std::to_array<std::array<double, kMaxTemporalLayers>>({
+          {1.00, 0.00, 0.00},  // For one temporal layer.
+          {0.60, 0.40, 0.00},  // For two temporal layers.
+          {0.50, 0.20, 0.30},  // For three temporal layers.
+      });
 
   CHECK_GT(num_temporal_layers, 0u);
   CHECK_LE(num_temporal_layers, std::size(kTemporalLayersBitrateScaleFactors));
@@ -99,7 +102,6 @@ VideoBitrateAllocation AllocateBitrateForDefaultEncodingWithBitrates(
 
   return bitrate_allocation;
 }
-}  // namespace
 
 size_t GetEncodeBitstreamBufferSize(const gfx::Size& size,
                                     uint32_t bitrate,
@@ -142,7 +144,7 @@ std::vector<uint8_t> GetFpsAllocation(size_t num_temporal_layers) {
   // TL0 then gets an allocation of 7.5/30 = 1/4. TL1 adds another 7.5fps to end
   // up at (7.5 + 7.5)/30 = 15/30 = 1/2 of the total allocation. TL2 adds the
   // final 15fps to end up at (15 + 15)/30, which is the full allocation.
-  // Therefor, fps_allocation values are as follows,
+  // Therefore, fps_allocation values are as follows,
   // fps_allocation[0][0] = kFullAllocation / 4;
   // fps_allocation[0][1] = kFullAllocation / 2;
   // fps_allocation[0][2] = kFullAllocation;
@@ -157,12 +159,15 @@ std::vector<uint8_t> GetFpsAllocation(size_t num_temporal_layers) {
       return {kFullAllocation / 4, kFullAllocation / 2, kFullAllocation};
     default:
       NOTREACHED() << "Unsupported temporal layers";
-      return {};
   }
 }
 
 VideoBitrateAllocation AllocateBitrateForDefaultEncoding(
     const VideoEncodeAccelerator::Config& config) {
+  if (config.bitrate.mode() == Bitrate::Mode::kExternal) {
+    return VideoBitrateAllocation(Bitrate::Mode::kExternal);
+  }
+
   VideoBitrateAllocation allocation;
   const bool use_vbr = config.bitrate.mode() == Bitrate::Mode::kVariable;
   if (config.spatial_layers.empty()) {
@@ -197,11 +202,12 @@ VideoBitrateAllocation AllocateDefaultBitrateForTesting(
     const size_t num_temporal_layers,
     const Bitrate& bitrate) {
   // Higher spatial layers (those to the right) get more bitrate.
-  constexpr double kSpatialLayersBitrateScaleFactors[][kMaxSpatialLayers] = {
-      {1.00, 0.00, 0.00},  // For one spatial layer.
-      {0.30, 0.70, 0.00},  // For two spatial layers.
-      {0.07, 0.23, 0.70},  // For three spatial layers.
-  };
+  constexpr auto kSpatialLayersBitrateScaleFactors =
+      std::to_array<std::array<double, kMaxSpatialLayers>>({
+          {1.00, 0.00, 0.00},  // For one spatial layer.
+          {0.30, 0.70, 0.00},  // For two spatial layers.
+          {0.07, 0.23, 0.70},  // For three spatial layers.
+      });
 
   CHECK_GT(num_spatial_layers, 0u);
   CHECK_LE(num_spatial_layers, std::size(kSpatialLayersBitrateScaleFactors));

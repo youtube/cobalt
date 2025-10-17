@@ -44,13 +44,12 @@ class MrfuResultRanker : public Ranker {
 class MrfuCategoryRanker : public Ranker {
  public:
   MrfuCategoryRanker(MrfuCache::Params params,
-                     PersistentProto<MrfuCacheProto> proto);
+                     ash::PersistentProto<MrfuCacheProto> proto);
   ~MrfuCategoryRanker() override;
 
   // Ranker:
   void Start(const std::u16string& query,
-             ResultsMap& results,
-             CategoriesList& categories) override;
+             const CategoriesList& categories) override;
   void UpdateCategoryRanks(const ResultsMap& results,
                            CategoriesList& categories,
                            ProviderType provider) override;

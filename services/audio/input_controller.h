@@ -9,11 +9,12 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/strings/string_piece.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
@@ -27,25 +28,24 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "services/audio/stream_monitor.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 class AecdumpRecordingManager;
 class AudioBus;
 class AudioInputStream;
 class AudioManager;
-class Snoopable;
-class UserInputMonitor;
 struct AudioGlitchInfo;
 }  // namespace media
 
 namespace audio {
 class AudioProcessorHandler;
 class AudioCallback;
-class OutputTapper;
 class DeviceOutputListener;
+class OutputTapper;
+
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
 class ProcessingAudioFifo;
+#endif
 
 // Only do power monitoring for non-mobile platforms to save resources.
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -82,14 +82,14 @@ class ProcessingAudioFifo;
 //     AudioInputStream format to |params| provided to
 //     InputController::Create().
 //
-class InputController final : public StreamMonitor {
+class InputController final {
  public:
   // Error codes to make native logging more clear. These error codes are added
   // to generic error strings to provide a higher degree of details.
   // Changing these values can lead to problems when matching native debug
   // logs with the actual cause of error.
   enum ErrorCode {
-    // An unspecified error occured.
+    // An unspecified error occurred.
     UNKNOWN_ERROR = 0,
 
     // Failed to create an audio input stream.
@@ -129,6 +129,10 @@ class InputController final : public StreamMonitor {
   };
 #endif
 
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+  static constexpr int kProcessingFifoSize = 10;
+#endif
+
   // An event handler that receives events from the InputController. The
   // following methods are all called on the audio thread.
   class EventHandler {
@@ -138,7 +142,7 @@ class InputController final : public StreamMonitor {
     // OnMuted callback has had time to be processed.
     virtual void OnCreated(bool initially_muted) = 0;
     virtual void OnError(ErrorCode error_code) = 0;
-    virtual void OnLog(base::StringPiece) = 0;
+    virtual void OnLog(std::string_view) = 0;
     // Called whenever the muted state of the underlying stream changes.
     virtual void OnMuted(bool is_muted) = 0;
 
@@ -155,7 +159,6 @@ class InputController final : public StreamMonitor {
     // Write certain amount of data from |data|.
     virtual void Write(const media::AudioBus* data,
                        double volume,
-                       bool key_pressed,
                        base::TimeTicks capture_time,
                        const media::AudioGlitchInfo& glitch_info) = 0;
 
@@ -173,16 +176,14 @@ class InputController final : public StreamMonitor {
   InputController(const InputController&) = delete;
   InputController& operator=(const InputController&) = delete;
 
-  ~InputController() final;
+  ~InputController();
 
   media::AudioInputStream* stream_for_testing() { return stream_; }
 
-  // |user_input_monitor| is used for typing detection and can be NULL.
   static std::unique_ptr<InputController> Create(
       media::AudioManager* audio_manager,
       EventHandler* event_handler,
       SyncWriter* sync_writer,
-      media::UserInputMonitor* user_input_monitor,
       DeviceOutputListener* device_output_listener,
       media::AecdumpRecordingManager* aecdump_recording_manager,
       media::mojom::AudioProcessingConfigPtr processing_config,
@@ -204,10 +205,6 @@ class InputController final : public StreamMonitor {
   // Sets the output device which will be used to cancel audio from, if this
   // input device supports echo cancellation.
   void SetOutputDeviceForAec(const std::string& output_device_id);
-
-  // StreamMonitor implementation
-  void OnStreamActive(Snoopable* snoopable) override;
-  void OnStreamInactive(Snoopable* snoopable) override;
 
  private:
   friend class InputControllerTestHelper;
@@ -234,7 +231,6 @@ class InputController final : public StreamMonitor {
 
   InputController(EventHandler* event_handler,
                   SyncWriter* sync_writer,
-                  media::UserInputMonitor* user_input_monitor,
                   DeviceOutputListener* device_output_listener,
                   media::AecdumpRecordingManager* aecdump_recording_manager,
                   media::mojom::AudioProcessingConfigPtr processing_config,
@@ -263,10 +259,6 @@ class InputController final : public StreamMonitor {
 
   // Called by the stream with log messages.
   void LogMessage(const std::string& message);
-
-  // Called on the hw callback thread. Checks for keyboard input if
-  // |user_input_monitor_| is set otherwise returns false.
-  bool CheckForKeyboardInput();
 
   // Does power monitoring on supported platforms.
   // Called on the hw callback thread.
@@ -303,7 +295,7 @@ class InputController final : public StreamMonitor {
   // Used as a callback for |audio_processor_handler_|.
   void DeliverProcessedAudio(const media::AudioBus& audio_bus,
                              base::TimeTicks audio_capture_time,
-                             absl::optional<double> new_volume,
+                             std::optional<double> new_volume,
                              const media::AudioGlitchInfo& glitch_info);
 #endif
 
@@ -340,8 +332,6 @@ class InputController final : public StreamMonitor {
   // Manages the |audio_processor_handler_| subscription to output audio.
   std::unique_ptr<OutputTapper> output_tapper_;
 #endif
-
-  const raw_ptr<media::UserInputMonitor, DanglingUntriaged> user_input_monitor_;
 
 #if defined(AUDIO_POWER_MONITORING)
   // Whether the silence state and microphone levels should be checked and sent

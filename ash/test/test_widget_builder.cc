@@ -9,24 +9,26 @@
 #include "ui/aura/client/window_parenting_client.h"
 #include "ui/aura/test/test_windows.h"
 #include "ui/aura/window.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/wm/core/coordinate_conversion.h"
 
 namespace ash {
-namespace {
 
 // WidgetDelegate that is resizable and creates ash's NonClientFrameView
 // implementation.
-class TestWidgetDelegate : public views::WidgetDelegateView {
+class TestWidgetBuilderDelegate : public views::WidgetDelegateView {
  public:
-  TestWidgetDelegate() {
+  TestWidgetBuilderDelegate() {
+    SetCanFullscreen(true);
     SetCanMaximize(true);
     SetCanMinimize(true);
     SetCanResize(true);
   }
-  TestWidgetDelegate(const TestWidgetDelegate& other) = delete;
-  TestWidgetDelegate& operator=(const TestWidgetDelegate& other) = delete;
-  ~TestWidgetDelegate() override = default;
+  TestWidgetBuilderDelegate(const TestWidgetBuilderDelegate& other) = delete;
+  TestWidgetBuilderDelegate& operator=(const TestWidgetBuilderDelegate& other) =
+      delete;
+  ~TestWidgetBuilderDelegate() override = default;
 
   // views::WidgetDelegateView:
   std::unique_ptr<views::NonClientFrameView> CreateNonClientFrameView(
@@ -34,8 +36,6 @@ class TestWidgetDelegate : public views::WidgetDelegateView {
     return Shell::Get()->CreateDefaultNonClientFrameView(widget);
   }
 };
-
-}  // namespace
 
 TestWidgetBuilder::TestWidgetBuilder() = default;
 
@@ -88,7 +88,7 @@ TestWidgetBuilder& TestWidgetBuilder::SetActivatable(bool activatable) {
 }
 
 TestWidgetBuilder& TestWidgetBuilder::SetShowState(
-    ui::WindowShowState show_state) {
+    ui::mojom::WindowShowState show_state) {
   DCHECK(!built_);
   widget_init_params_.show_state = show_state;
   return *this;
@@ -114,17 +114,27 @@ TestWidgetBuilder& TestWidgetBuilder::SetShow(bool show) {
 }
 
 TestWidgetBuilder& TestWidgetBuilder::SetTestWidgetDelegate() {
-  widget_init_params_.delegate = new TestWidgetDelegate();
+  widget_init_params_.delegate = new TestWidgetBuilderDelegate();
   return *this;
 }
 
 std::unique_ptr<views::Widget> TestWidgetBuilder::BuildOwnsNativeWidget() {
+  return BuildWidgetWithOwnership(
+      views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
+}
+
+std::unique_ptr<views::Widget> TestWidgetBuilder::BuildClientOwnsWidget() {
+  return BuildWidgetWithOwnership(
+      views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+}
+
+std::unique_ptr<views::Widget> TestWidgetBuilder::BuildWidgetWithOwnership(
+    views::Widget::InitParams::Ownership ownership) {
   DCHECK(!built_);
   built_ = true;
 
   std::unique_ptr<views::Widget> widget = std::make_unique<views::Widget>();
-  widget_init_params_.ownership =
-      views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
+  widget_init_params_.ownership = ownership;
   widget->Init(std::move(widget_init_params_));
   if (window_id_ != aura::Window::kInitialId)
     widget->GetNativeWindow()->SetId(window_id_);

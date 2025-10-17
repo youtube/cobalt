@@ -6,14 +6,10 @@
 
 #include <utility>
 
-#include "chrome/browser/ash/crosapi/crosapi_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_manager.h"
-#include "chrome/browser/ash/crosapi/file_system_provider_service_ash.h"
 #include "chrome/browser/ash/file_system_provider/provided_file_system_info.h"
 #include "chrome/browser/ash/file_system_provider/request_dispatcher_impl.h"
 #include "chrome/browser/ash/file_system_provider/service.h"
 #include "chrome/common/extensions/api/file_system_provider.h"
-#include "chromeos/crosapi/mojom/file_system_provider.mojom.h"
 #include "extensions/browser/event_router.h"
 
 namespace ash::file_system_provider {
@@ -34,27 +30,27 @@ bool MountRequestHandler::Execute(int request_id) {
       extensions::api::file_system_provider::OnMountRequested::kEventName,
       std::move(event_args));
 
-  return request_dispatcher_->DispatchRequest(request_id, absl::nullopt,
+  return request_dispatcher_->DispatchRequest(request_id, std::nullopt,
                                               std::move(event));
 }
 
-void MountRequestHandler::OnSuccess(int /* request_id */,
-                                    const RequestValue& /* result */,
+void MountRequestHandler::OnSuccess(/*request_id=*/int,
+                                    /*result=*/const RequestValue&,
                                     bool has_more) {
   // File handle is the same as request id of the OpenFile operation.
   DCHECK(callback_);
   std::move(callback_).Run(base::File::FILE_OK);
 }
 
-void MountRequestHandler::OnError(int /* request_id */,
-                                  const RequestValue& /* result */,
+void MountRequestHandler::OnError(/*request_id=*/int,
+                                  /*result=*/const RequestValue&,
                                   base::File::Error error) {
   DCHECK(callback_);
   std::move(callback_).Run(error);
 }
 
 void MountRequestHandler::OnAbort(int request_id) {
-  request_dispatcher_->CancelRequest(request_id, absl::nullopt);
+  request_dispatcher_->CancelRequest(request_id, std::nullopt);
 }
 
 }  // namespace ash::file_system_provider

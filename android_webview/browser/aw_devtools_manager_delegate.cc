@@ -4,6 +4,7 @@
 
 #include "android_webview/browser/aw_devtools_manager_delegate.h"
 
+#include "android_webview/browser/aw_browser_context.h"
 #include "android_webview/browser/gfx/browser_view_renderer.h"
 #include "android_webview/common/aw_content_client.h"
 #include "base/json/json_writer.h"
@@ -58,4 +59,26 @@ bool AwDevToolsManagerDelegate::IsBrowserTargetDiscoverable() {
   return true;
 }
 
+content::DevToolsAgentHost::List
+AwDevToolsManagerDelegate::RemoteDebuggingTargets(TargetType target_type) {
+  DevToolsAgentHost::List result;
+  std::set<content::WebContents*> targets_web_contents;
+  DevToolsAgentHost::List agents = DevToolsAgentHost::GetOrCreateAll();
+  for (DevToolsAgentHost::List::iterator it = agents.begin();
+       it != agents.end(); ++it) {
+    if (content::WebContents* web_contents = (*it)->GetWebContents()) {
+      if (targets_web_contents.find(web_contents) !=
+          targets_web_contents.end()) {
+        continue;
+      }
+      targets_web_contents.insert(web_contents);
+    }
+    result.push_back(*it);
+  }
+  return result;
+}
+
+content::BrowserContext* AwDevToolsManagerDelegate::GetDefaultBrowserContext() {
+  return AwBrowserContext::GetDefault();
+}
 }  // namespace android_webview

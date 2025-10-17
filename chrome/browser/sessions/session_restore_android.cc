@@ -16,9 +16,11 @@
 #include "content/public/browser/restore_type.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
+#include "ui/base/window_open_disposition.h"
 
 // The android implementation does not do anything "foreign session" specific.
-// We use it to restore tabs from "recently closed" too.
+// It is also used to replace the current tab when restoring from "recently
+// closed".
 // static
 content::WebContents* SessionRestore::RestoreForeignSessionTab(
     content::WebContents* web_contents,
@@ -35,7 +37,7 @@ content::WebContents* SessionRestore::RestoreForeignSessionTab(
           session_tab.navigations, profile);
 
   bool is_background_tab =
-      (disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB) ? true : false;
+      disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB;
   content::WebContents::CreateParams create_params(context);
   if (is_background_tab && skip_renderer_creation) {
     create_params.initially_hidden = true;
@@ -61,7 +63,9 @@ content::WebContents* SessionRestore::RestoreForeignSessionTab(
   }
   DCHECK(disposition == WindowOpenDisposition::NEW_FOREGROUND_TAB ||
          disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB);
-  tab_model->CreateTab(current_tab, new_web_contents.release());
+  // Do not select a tab here it will interrupt bulk session restores.
+  tab_model->CreateTab(current_tab, new_web_contents.release(),
+                       /*select=*/false);
   return raw_new_web_contents;
 }
 
@@ -71,5 +75,4 @@ std::vector<Browser*> SessionRestore::RestoreForeignSessionWindows(
     std::vector<const sessions::SessionWindow*>::const_iterator begin,
     std::vector<const sessions::SessionWindow*>::const_iterator end) {
   NOTREACHED();
-  return std::vector<Browser*>();
 }

@@ -21,7 +21,10 @@ enum DataUsage {
 // TODO(crbug.com/1110098): Remove kUnknown.
 // Represents who the user has chosen to be visible to. Note: These values are
 // persisted to logs. Entries should not be renumbered and numeric values
-// should never be reused.
+// should never be reused. Keep in sync with the NearbyShareVisibility UMA enum
+// defined in //tools/metrics/histograms/metadata/nearby/enums.xml.
+//
+// LINT.IfChange(NearbyShareVisibility)
 enum Visibility {
   kUnknown = 0,
   // The user is not advertising to anyone.
@@ -29,8 +32,11 @@ enum Visibility {
   // The user is visible to all contacts.
   kAllContacts = 2,
   // The user is only visible to selected contacts.
-  kSelectedContacts = 3
+  kSelectedContacts = 3,
+  // The user is only visible to their own devices.
+  kYourDevices = 4
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/nearby/enums.xml:NearbyShareVisibility)
 
 // Represents the error result when validating the device name.
 enum DeviceNameValidationResult {

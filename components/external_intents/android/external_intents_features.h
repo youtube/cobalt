@@ -11,8 +11,12 @@ namespace external_intents {
 
 BASE_DECLARE_FEATURE(kExternalNavigationDebugLogs);
 BASE_DECLARE_FEATURE(kBlockFrameRenavigations);
-BASE_DECLARE_FEATURE(kDoNotRequireSpecializedCCTHandler);
 BASE_DECLARE_FEATURE(kBlockIntentsToSelf);
+BASE_DECLARE_FEATURE(kNavigationCaptureRefactorAndroid);
+BASE_DECLARE_FEATURE(kAuxiliaryNavigationStaysInBrowser);
+BASE_DECLARE_FEATURE(kReparentTopLevelNavigationFromPWA);
+BASE_DECLARE_FEATURE(kReparentAuxiliaryNavigationFromPWA);
+
 }  // namespace external_intents
 
 #endif  // COMPONENTS_EXTERNAL_INTENTS_ANDROID_EXTERNAL_INTENTS_FEATURES_H_

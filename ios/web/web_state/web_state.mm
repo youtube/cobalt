@@ -4,11 +4,9 @@
 
 #import "ios/web/public/web_state.h"
 
-#import "ios/web/public/web_client.h"
+#import <string_view>
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/web/public/web_client.h"
 
 namespace web {
 
@@ -59,13 +57,13 @@ WebState::InterfaceBinder::InterfaceBinder(WebState* web_state)
 
 WebState::InterfaceBinder::~InterfaceBinder() = default;
 
-void WebState::InterfaceBinder::AddInterface(base::StringPiece interface_name,
+void WebState::InterfaceBinder::AddInterface(std::string_view interface_name,
                                              Callback callback) {
   callbacks_.emplace(std::string(interface_name), std::move(callback));
 }
 
 void WebState::InterfaceBinder::RemoveInterface(
-    base::StringPiece interface_name) {
+    std::string_view interface_name) {
   callbacks_.erase(std::string(interface_name));
 }
 
@@ -73,8 +71,9 @@ void WebState::InterfaceBinder::BindInterface(
     mojo::GenericPendingReceiver receiver) {
   DCHECK(receiver.is_valid());
   auto it = callbacks_.find(*receiver.interface_name());
-  if (it != callbacks_.end())
+  if (it != callbacks_.end()) {
     it->second.Run(&receiver);
+  }
 
   GetWebClient()->BindInterfaceReceiverFromMainFrame(web_state_,
                                                      std::move(receiver));

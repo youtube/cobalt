@@ -87,7 +87,6 @@ std::string StorageInfo::MakeDeviceId(Type type, const std::string& unique_id) {
       return std::string(kMacImageCapturePrefix) + unique_id;
   }
   NOTREACHED();
-  return std::string();
 }
 
 // static

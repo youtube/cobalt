@@ -4,8 +4,15 @@
 
 import {sendWithPromise} from 'chrome://resources/js/cr.js';
 
+export interface Application {
+  name: string;
+  icon?: string;
+  permissions: string[];
+}
+
 export interface Extension {
   name: string;
+  icon?: string;
   permissions: string[];
 }
 
@@ -15,6 +22,8 @@ export enum ReportingType {
   USER = 'user',
   USER_ACTIVITY = 'user-activity',
   EXTENSIONS = 'extensions',
+  LEGACY_TECH = 'legacy-tech',
+  URL = 'url',
 }
 
 export interface BrowserReportingResponse {
@@ -23,8 +32,9 @@ export interface BrowserReportingResponse {
 }
 
 interface ManagedDataResponse {
+  applicationReportingSubtitle: string;
   browserManagementNotice: string;
-  extensionReportingTitle: string;
+  extensionReportingSubtitle: string;
   managedWebsitesSubtitle: string;
   pageSubtitle: string;
   managed: boolean;
@@ -35,6 +45,8 @@ interface ManagedDataResponse {
   eolMessage: string;
   eolAdminMessage: string;
   showMonitoredNetworkPrivacyDisclosure: boolean;
+  showWindowsNoticeForDeskSync: boolean;
+  showCookiesNoticeForDeskSync: boolean;
 }
 
 interface ThreatProtectionPermission {
@@ -70,12 +82,16 @@ export enum DeviceReportingType {
   LOGIN_LOGOUT = 'login-logout',
   CRD_SESSIONS = 'crd sessions',
   PERIPHERALS = 'peripherals',
+  LEGACY_TECH = 'legacy-tech',
+  WEBSITE_INFO_AND_ACTIVITY = 'website info and activity',
+  FILE_EVENTS = 'file events',
 }
 
 
 export interface DeviceReportingResponse {
   messageId: string;
   reportingType: DeviceReportingType;
+  messageParams?: string[];
 }
 // </if>
 
@@ -85,11 +101,19 @@ export interface ManagementBrowserProxy {
 
   getManagedWebsites(): Promise<string[]>;
 
+  getApplications(): Promise<Application[]>;
+
   // <if expr="is_chromeos">
   /**
    * @return Whether trust root configured or not.
    */
   getLocalTrustRootsInfo(): Promise<boolean>;
+
+  /**
+   * @return Whether uploading of downloads or screenshots to cloud storages is
+   *     configured.
+   */
+  getFilesUploadToCloudInfo(): Promise<string>;
 
   /**
    * @return List of items to display in device reporting section.
@@ -110,6 +134,11 @@ export interface ManagementBrowserProxy {
    * @return The list of browser reporting info messages.
    */
   initBrowserReportingInfo(): Promise<BrowserReportingResponse[]>;
+
+  /**
+   * @return The list of profile reporting info messages.
+   */
+  initProfileReportingInfo(): Promise<BrowserReportingResponse[]>;
 }
 
 export class ManagementBrowserProxyImpl implements ManagementBrowserProxy {
@@ -121,9 +150,17 @@ export class ManagementBrowserProxyImpl implements ManagementBrowserProxy {
     return sendWithPromise('getManagedWebsites');
   }
 
+  getApplications() {
+    return sendWithPromise('getApplications');
+  }
+
   // <if expr="is_chromeos">
   getLocalTrustRootsInfo() {
     return sendWithPromise('getLocalTrustRootsInfo');
+  }
+
+  getFilesUploadToCloudInfo() {
+    return sendWithPromise('getFilesUploadToCloudInfo');
   }
 
   getDeviceReportingInfo() {
@@ -145,6 +182,10 @@ export class ManagementBrowserProxyImpl implements ManagementBrowserProxy {
 
   initBrowserReportingInfo() {
     return sendWithPromise('initBrowserReportingInfo');
+  }
+
+  initProfileReportingInfo() {
+    return sendWithPromise('initProfileReportingInfo');
   }
 
   static getInstance(): ManagementBrowserProxy {

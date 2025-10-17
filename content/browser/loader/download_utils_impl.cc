@@ -26,8 +26,9 @@ const char* const kAllowListSchemesToRenderingMhtml[] = {
 // scheme.
 bool ShouldAlwaysRenderMhtmlAsHtml(const GURL& url) {
   for (const char* scheme : kAllowListSchemesToRenderingMhtml) {
-    if (url.SchemeIs(scheme))
+    if (url.SchemeIs(scheme)) {
       return true;
+    }
   }
 
   return false;
@@ -38,26 +39,30 @@ bool ShouldAlwaysRenderMhtmlAsHtml(const GURL& url) {
 namespace content {
 namespace download_utils {
 
-bool MustDownload(const GURL& url,
+bool MustDownload(BrowserContext* browser_context,
+                  const GURL& url,
                   const net::HttpResponseHeaders* headers,
                   const std::string& mime_type) {
   if (headers) {
-    std::string disposition;
-    if (headers->GetNormalizedHeader("content-disposition", &disposition) &&
-        !disposition.empty() &&
+    std::string disposition =
+        headers->GetNormalizedHeader("content-disposition")
+            .value_or(std::string());
+    if (!disposition.empty() &&
         net::HttpContentDisposition(disposition, std::string())
             .is_attachment()) {
       return true;
     }
-    if (GetContentClient()->browser()->ShouldForceDownloadResource(url,
-                                                                   mime_type))
+    if (GetContentClient()->browser()->ShouldForceDownloadResource(
+            browser_context, url, mime_type)) {
       return true;
+    }
     if (mime_type == "multipart/related" || mime_type == "message/rfc822") {
       // Always allow rendering mhtml for content:// (on Android) and file:///.
-      if (ShouldAlwaysRenderMhtmlAsHtml(url))
+      if (ShouldAlwaysRenderMhtmlAsHtml(url)) {
         return false;
+      }
 
-      // TODO(https://crbug.com/790734): retrieve the new NavigationUIData from
+      // TODO(crbug.com/40552600): retrieve the new NavigationUIData from
       // the request and and pass it to AllowRenderingMhtmlOverHttp().
       return !GetContentClient()->browser()->AllowRenderingMhtmlOverHttp(
           nullptr);
@@ -69,14 +74,17 @@ bool MustDownload(const GURL& url,
   return false;
 }
 
-bool IsDownload(const GURL& url,
+bool IsDownload(BrowserContext* browser_context,
+                const GURL& url,
                 const net::HttpResponseHeaders* headers,
                 const std::string& mime_type) {
-  if (MustDownload(url, headers, mime_type))
+  if (MustDownload(browser_context, url, headers, mime_type)) {
     return true;
+  }
 
-  if (blink::IsSupportedMimeType(mime_type))
+  if (blink::IsSupportedMimeType(mime_type)) {
     return false;
+  }
 
   return !headers || headers->response_code() / 100 == 2;
 }

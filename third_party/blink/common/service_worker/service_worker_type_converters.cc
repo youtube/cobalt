@@ -23,7 +23,6 @@ TypeConverter<blink::ServiceWorkerStatusCode,
       return blink::ServiceWorkerStatusCode::kErrorTimeout;
   }
   NOTREACHED() << status;
-  return blink::ServiceWorkerStatusCode::kErrorFailed;
 }
 
 blink::ServiceWorkerStatusCode
@@ -37,7 +36,6 @@ TypeConverter<blink::ServiceWorkerStatusCode,
       return blink::ServiceWorkerStatusCode::kErrorScriptEvaluateFailed;
   }
   NOTREACHED() << status;
-  return blink::ServiceWorkerStatusCode::kErrorFailed;
 }
 
 }  // namespace mojo

@@ -2,7 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/accessibility/platform/inspect/ax_call_statement_invoker_auralinux.h"
+
+#include <variant>
 
 #include "base/logging.h"
 #include "base/strings/sys_string_conversions.h"
@@ -16,14 +23,14 @@ std::string AXCallStatementInvokerAuraLinux::ToString(
   if (optional.HasValue()) {
     Target value = *optional;
 
-    if (absl::holds_alternative<const AtspiAccessible*>(value)) {
+    if (std::holds_alternative<const AtspiAccessible*>(value)) {
       return "Object";
     }
-    if (absl::holds_alternative<std::string>(value)) {
-      return absl::get<std::string>(value);
+    if (std::holds_alternative<std::string>(value)) {
+      return std::get<std::string>(value);
     }
-    if (absl::holds_alternative<int>(value)) {
-      return base::NumberToString(absl::get<int>(value));
+    if (std::holds_alternative<int>(value)) {
+      return base::NumberToString(std::get<int>(value));
     }
   }
   return optional.StateToString();
@@ -114,9 +121,8 @@ AXOptionalObject AXCallStatementInvokerAuraLinux::Invoke(
 AXOptionalObject AXCallStatementInvokerAuraLinux::InvokeFor(
     const Target target,
     const AXPropertyNode& property_node) const {
-  if (absl::holds_alternative<const AtspiAccessible*>(target)) {
-    const AtspiAccessible* AXElement =
-        absl::get<const AtspiAccessible*>(target);
+  if (std::holds_alternative<const AtspiAccessible*>(target)) {
+    const AtspiAccessible* AXElement = std::get<const AtspiAccessible*>(target);
     return InvokeForAXElement(AXElement, property_node);
   }
 
@@ -323,7 +329,7 @@ AXOptionalObject AXCallStatementInvokerAuraLinux::InvokeForAXElement(
 }
 
 bool AXCallStatementInvokerAuraLinux::IsAtspiAndNotNull(Target target) const {
-  auto** atspi_ptr = absl::get_if<const AtspiAccessible*>(&target);
+  auto** atspi_ptr = std::get_if<const AtspiAccessible*>(&target);
   return atspi_ptr && *atspi_ptr;
 }
 

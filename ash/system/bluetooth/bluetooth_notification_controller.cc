@@ -18,6 +18,7 @@
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/system/model/system_tray_model.h"
 #include "ash/system/toast/toast_manager_impl.h"
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
@@ -62,8 +63,8 @@ class BluetoothPairingNotificationDelegate
 
   // message_center::NotificationDelegate overrides.
   void Close(bool by_user) override;
-  void Click(const absl::optional<int>& button_index,
-             const absl::optional<std::u16string>& reply) override;
+  void Click(const std::optional<int>& button_index,
+             const std::optional<std::u16string>& reply) override;
 
  private:
   // Buttons that appear in notifications.
@@ -101,8 +102,8 @@ void BluetoothPairingNotificationDelegate::Close(bool by_user) {
 }
 
 void BluetoothPairingNotificationDelegate::Click(
-    const absl::optional<int>& button_index,
-    const absl::optional<std::u16string>& reply) {
+    const std::optional<int>& button_index,
+    const std::optional<std::u16string>& reply) {
   if (!button_index)
     return;
 
@@ -178,7 +179,7 @@ void BluetoothNotificationController::DeviceChanged(BluetoothAdapter* adapter,
                                                     BluetoothDevice* device) {
   // If the device is already in the list of bonded devices, then don't
   // notify.
-  if (bonded_devices_.find(device->GetAddress()) != bonded_devices_.end()) {
+  if (base::Contains(bonded_devices_, device->GetAddress())) {
     return;
   }
 
@@ -278,9 +279,12 @@ void BluetoothNotificationController::OnGetAdapter(
 }
 
 void BluetoothNotificationController::NotifyAdapterDiscoverable() {
-  // Do not show toast in kiosk app mode.
-  if (Shell::Get()->session_controller()->IsRunningInAppMode())
+  // Do not show toast in kiosk app mode or if user is not logged in. This
+  // prevents toast from being queued before the session starts.
+  if (Shell::Get()->session_controller()->IsRunningInAppMode() ||
+      !Shell::Get()->session_controller()->IsActiveUserSessionStarted()) {
     return;
+  }
 
   // If Nearby Share has made the local device discoverable, do not
   // unnecessarily display this toast.

@@ -17,20 +17,22 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/net/default_dns_over_https_config_source.h"
+#include "chrome/browser/net/dns_over_https_config_source.h"
 #include "chrome/browser/net/secure_dns_config.h"
 #include "chrome/browser/net/secure_dns_util.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
-#include "components/flags_ui/pref_service_flags_storage.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/webui/flags/pref_service_flags_storage.h"
 #include "content/public/browser/network_service_instance.h"
+#include "net/base/features.h"
 #include "net/dns/public/dns_over_https_config.h"
 #include "net/dns/public/secure_dns_mode.h"
 #include "net/dns/public/util.h"
@@ -40,11 +42,6 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
 #include "chrome/browser/enterprise/util/android_enterprise_info.h"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/net/dns_over_https/templates_uri_resolver_impl.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -91,13 +88,13 @@ bool ShouldDisableDohForWindowsParentalControls() {
 bool ShouldEnableAsyncDns() {
   bool feature_can_be_enabled = true;
 #if BUILDFLAG(IS_ANDROID)
-  int min_sdk =
-      base::GetFieldTrialParamByFeatureAsInt(features::kAsyncDns, "min_sdk", 0);
+  int min_sdk = base::GetFieldTrialParamByFeatureAsInt(net::features::kAsyncDns,
+                                                       "min_sdk", 0);
   if (base::android::BuildInfo::GetInstance()->sdk_int() < min_sdk)
     feature_can_be_enabled = false;
 #endif
   return feature_can_be_enabled &&
-         base::FeatureList::IsEnabled(features::kAsyncDns);
+         base::FeatureList::IsEnabled(net::features::kAsyncDns);
 }
 
 }  // namespace
@@ -108,69 +105,26 @@ constexpr base::TimeDelta StubResolverConfigReader::kParentalControlsCheckDelay;
 StubResolverConfigReader::StubResolverConfigReader(PrefService* local_state,
                                                    bool set_up_pref_defaults)
     : local_state_(local_state) {
+  default_doh_source_ = std::make_unique<DefaultDnsOverHttpsConfigSource>(
+      local_state_, set_up_pref_defaults);
+  if (set_up_pref_defaults) {
+    // Update the DnsClient based on the corresponding features before
+    // registering change callbacks for these preferences. Changing prefs or
+    // defaults after registering change callbacks could result in reentrancy
+    // and mess up registration between this code and NetworkService creation.
+    local_state->SetDefaultPrefValue(prefs::kBuiltInDnsClientEnabled,
+                                     base::Value(ShouldEnableAsyncDns()));
+  }
   base::RepeatingClosure pref_callback =
       base::BindRepeating(&StubResolverConfigReader::UpdateNetworkService,
                           base::Unretained(this), false /* record_metrics */);
+  default_doh_source_->SetDohChangeCallback(pref_callback);
 
   pref_change_registrar_.Init(local_state_);
-
-  // Update the DnsClient and DoH default preferences based on the corresponding
-  // features before registering change callbacks for these preferences.
-  // Changing prefs or defaults after registering change callbacks could result
-  // in reentrancy and mess up registration between this code and NetworkService
-  // creation.
-  if (set_up_pref_defaults) {
-    local_state_->SetDefaultPrefValue(prefs::kBuiltInDnsClientEnabled,
-                                      base::Value(ShouldEnableAsyncDns()));
-    net::SecureDnsMode default_secure_dns_mode = net::SecureDnsMode::kOff;
-    std::string default_doh_templates;
-    if (base::FeatureList::IsEnabled(features::kDnsOverHttps)) {
-      if (features::kDnsOverHttpsFallbackParam.Get()) {
-        default_secure_dns_mode = net::SecureDnsMode::kAutomatic;
-      } else {
-        default_secure_dns_mode = net::SecureDnsMode::kSecure;
-      }
-      default_doh_templates = features::kDnsOverHttpsTemplatesParam.Get();
-    }
-    local_state_->SetDefaultPrefValue(
-        prefs::kDnsOverHttpsMode,
-        base::Value(SecureDnsConfig::ModeToString(default_secure_dns_mode)));
-    local_state_->SetDefaultPrefValue(prefs::kDnsOverHttpsTemplates,
-                                      base::Value(default_doh_templates));
-
-    // If the user has explicitly enabled or disabled the DoH experiment in
-    // chrome://flags and the DoH UI setting is not visible, store that choice
-    // in the user prefs so that it can be persisted after the experiment ends.
-    // Also make sure to remove the stored prefs value if the user has changed
-    // their chrome://flags selection to the default.
-    if (!features::kDnsOverHttpsShowUiParam.Get()) {
-      flags_ui::PrefServiceFlagsStorage flags_storage(local_state_);
-      std::set<std::string> entries = flags_storage.GetFlags();
-      if (entries.count("dns-over-https@1")) {
-        // The user has "Enabled" selected.
-        local_state_->SetString(prefs::kDnsOverHttpsMode,
-                                SecureDnsConfig::kModeAutomatic);
-      } else if (entries.count("dns-over-https@2")) {
-        // The user has "Disabled" selected.
-        local_state_->SetString(prefs::kDnsOverHttpsMode,
-                                SecureDnsConfig::kModeOff);
-      } else {
-        // The user has "Default" selected.
-        local_state_->ClearPref(prefs::kDnsOverHttpsMode);
-      }
-    }
-  }
-
   pref_change_registrar_.Add(prefs::kBuiltInDnsClientEnabled, pref_callback);
-  pref_change_registrar_.Add(prefs::kDnsOverHttpsMode, pref_callback);
-  pref_change_registrar_.Add(prefs::kDnsOverHttpsTemplates, pref_callback);
   pref_change_registrar_.Add(prefs::kAdditionalDnsQueryTypesEnabled,
                              pref_callback);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  pref_change_registrar_.Add(prefs::kDnsOverHttpsTemplatesWithIdentifiers,
-                             pref_callback);
-  pref_change_registrar_.Add(prefs::kDnsOverHttpsSalt, pref_callback);
-#endif
+  pref_change_registrar_.Add(prefs::kHappyEyeballsV3Enabled, pref_callback);
 
   parental_controls_delay_timer_.Start(
       FROM_HERE, kParentalControlsCheckDelay,
@@ -178,7 +132,7 @@ StubResolverConfigReader::StubResolverConfigReader(PrefService* local_state,
                      base::Unretained(this)));
 
 #if BUILDFLAG(IS_ANDROID)
-  chrome::enterprise_util::AndroidEnterpriseInfo::GetInstance()
+  enterprise_util::AndroidEnterpriseInfo::GetInstance()
       ->GetAndroidEnterpriseInfoState(base::BindOnce(
           &StubResolverConfigReader::OnAndroidOwnedStateCheckComplete,
           weak_factory_.GetWeakPtr()));
@@ -196,14 +150,8 @@ void StubResolverConfigReader::RegisterPrefs(PrefRegistrySimple* registry) {
   // captured). Thus, the preference defaults are updated in the constructor
   // for SystemNetworkContextManager, at which point the feature list is ready.
   registry->RegisterBooleanPref(prefs::kBuiltInDnsClientEnabled, false);
-  registry->RegisterStringPref(prefs::kDnsOverHttpsMode, std::string());
-  registry->RegisterStringPref(prefs::kDnsOverHttpsTemplates, std::string());
   registry->RegisterBooleanPref(prefs::kAdditionalDnsQueryTypesEnabled, true);
-#if BUILDFLAG(IS_CHROMEOS)
-  registry->RegisterStringPref(prefs::kDnsOverHttpsTemplatesWithIdentifiers,
-                               std::string());
-  registry->RegisterStringPref(prefs::kDnsOverHttpsSalt, std::string());
-#endif
+  registry->RegisterBooleanPref(prefs::kHappyEyeballsV3Enabled, false);
 }
 
 SecureDnsConfig StubResolverConfigReader::GetSecureDnsConfiguration(
@@ -232,9 +180,9 @@ bool StubResolverConfigReader::ShouldDisableDohForManaged() {
   if (android_has_owner_.value_or(false))
     return true;
 #elif BUILDFLAG(IS_WIN)
-  // TODO(crbug.com/1339062): What is the correct function to use here? (This
+  // TODO(crbug.com/40229843): What is the correct function to use here? (This
   // may or may not obsolete the following TODO)
-  // TODO(crbug.com/1320766): For legacy compatibility, this uses
+  // TODO(crbug.com/40223626): For legacy compatibility, this uses
   // IsEnterpriseDevice() which effectively equates to a domain join check.
   // Consider whether this should use IsManagedDevice() instead.
   if (base::win::IsEnrolledToDomain())
@@ -256,6 +204,33 @@ bool StubResolverConfigReader::ShouldDisableDohForParentalControls() {
 #else
   return false;
 #endif
+}
+
+void StubResolverConfigReader::SetOverrideDnsOverHttpsConfigSource(
+    std::unique_ptr<DnsOverHttpsConfigSource> doh_source) {
+  override_doh_source_ = std::move(doh_source);
+
+  if (override_doh_source_) {
+    override_doh_source_->SetDohChangeCallback(base::BindRepeating(
+        &StubResolverConfigReader::UpdateNetworkService,
+        weak_factory_.GetWeakPtr(), /*record_metrics=*/false));
+  }
+  UpdateNetworkService(/*record_metrics=*/false);
+}
+
+const DnsOverHttpsConfigSource*
+StubResolverConfigReader::GetDnsOverHttpsConfigSource() const {
+  if (override_doh_source_) {
+    return override_doh_source_.get();
+  }
+  return default_doh_source_.get();
+}
+
+bool StubResolverConfigReader::GetHappyEyeballsV3Enabled() const {
+  if (local_state_->IsManagedPreference(prefs::kHappyEyeballsV3Enabled)) {
+    return local_state_->GetBoolean(prefs::kHappyEyeballsV3Enabled);
+  }
+  return base::FeatureList::IsEnabled(net::features::kHappyEyeballsV3);
 }
 
 void StubResolverConfigReader::OnParentalControlsDelayTimer() {
@@ -286,14 +261,13 @@ SecureDnsConfig StubResolverConfigReader::GetAndUpdateConfiguration(
   SecureDnsModeDetailsForHistogram mode_details;
   SecureDnsConfig::ManagementMode forced_management_mode =
       SecureDnsConfig::ManagementMode::kNoOverride;
-  bool is_managed =
-      local_state_->FindPreference(prefs::kDnsOverHttpsMode)->IsManaged();
+  bool is_managed = GetDnsOverHttpsConfigSource()->IsConfigManaged();
   if (!is_managed && ShouldDisableDohForManaged()) {
     secure_dns_mode = net::SecureDnsMode::kOff;
     forced_management_mode = SecureDnsConfig::ManagementMode::kDisabledManaged;
   } else {
     secure_dns_mode = SecureDnsConfig::ParseMode(
-                          local_state_->GetString(prefs::kDnsOverHttpsMode))
+                          GetDnsOverHttpsConfigSource()->GetDnsOverHttpsMode())
                           .value_or(net::SecureDnsMode::kOff);
   }
 
@@ -335,7 +309,6 @@ SecureDnsConfig StubResolverConfigReader::GetAndUpdateConfiguration(
         break;
       case SecureDnsConfig::ManagementMode::kDisabledParentalControls:
         NOTREACHED();
-        break;
       default:
         NOTREACHED();
     }
@@ -376,20 +349,13 @@ SecureDnsConfig StubResolverConfigReader::GetAndUpdateConfiguration(
 
   net::DnsOverHttpsConfig doh_config;
   if (secure_dns_mode != net::SecureDnsMode::kOff) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    ash::dns_over_https::TemplatesUriResolverImpl doh_template_uri_resolver;
-    doh_template_uri_resolver.UpdateFromPrefs(local_state_);
     doh_config = net::DnsOverHttpsConfig::FromStringLax(
-        doh_template_uri_resolver.GetEffectiveTemplates());
-#else
-    doh_config = net::DnsOverHttpsConfig::FromStringLax(
-        local_state_->GetString(prefs::kDnsOverHttpsTemplates));
-#endif
+        GetDnsOverHttpsConfigSource()->GetDnsOverHttpsTemplates());
   }
   if (update_network_service) {
     content::GetNetworkService()->ConfigureStubHostResolver(
-        GetInsecureStubResolverEnabled(), secure_dns_mode, doh_config,
-        additional_dns_query_types_enabled);
+        GetInsecureStubResolverEnabled(), GetHappyEyeballsV3Enabled(),
+        secure_dns_mode, doh_config, additional_dns_query_types_enabled);
   }
 
   return SecureDnsConfig(secure_dns_mode, std::move(doh_config),
@@ -405,18 +371,5 @@ void StubResolverConfigReader::OnAndroidOwnedStateCheckComplete(
   // update the network service if the actual result is "true" to save time.
   if (android_has_owner_.value())
     UpdateNetworkService(false /* record_metrics */);
-}
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-absl::optional<std::string>
-StubResolverConfigReader::GetDohWithIdentifiersDisplayServers() {
-  ash::dns_over_https::TemplatesUriResolverImpl doh_template_uri_resolver;
-  doh_template_uri_resolver.UpdateFromPrefs(local_state_);
-
-  if (doh_template_uri_resolver.GetDohWithIdentifiersActive())
-    return doh_template_uri_resolver.GetDisplayTemplates();
-
-  return absl::nullopt;
 }
 #endif

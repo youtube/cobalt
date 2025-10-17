@@ -6,20 +6,18 @@
 #define DEVICE_VR_ANDROID_MAILBOX_TO_SURFACE_BRIDGE_H_
 
 #include "base/functional/callback_forward.h"
+#include "gpu/command_buffer/common/shared_image_usage.h"
 
 namespace gfx {
+enum class BufferFormat : uint8_t;
 class ColorSpace;
 class GpuFence;
-class Transform;
+struct GpuMemoryBufferHandle;
+class Size;
 }  // namespace gfx
 
-namespace gl {
-class SurfaceTexture;
-}  // namespace gl
-
 namespace gpu {
-class GpuMemoryBufferImplAndroidHardwareBuffer;
-struct MailboxHolder;
+class ClientSharedImage;
 struct SyncToken;
 }  // namespace gpu
 
@@ -32,34 +30,12 @@ class MailboxToSurfaceBridge {
   // Equivalent to waiting for on_initialized to be called.
   virtual bool IsConnected() = 0;
 
-  // Checks if a workaround from "gpu/config/gpu_driver_bug_workaround_type.h"
-  // is active. Requires initialization to be complete.
-  virtual bool IsGpuWorkaroundEnabled(int32_t workaround) = 0;
-
-  // This call is needed for Surface transport, in that case it must be called
-  // on the GL thread with a valid local native GL context. If it's not used,
-  // only the SharedBuffer transport methods are available.
-  virtual void CreateSurface(gl::SurfaceTexture*) = 0;
-
-  // Asynchronously create the context using the surface provided by an earlier
-  // CreateSurface call, or an offscreen context if that wasn't called. Also
-  // binds the context provider to the current thread (making it the GL thread),
-  // and calls the callback on the GL thread.
+  // Asynchronously creates and binds context provider to the current thread
+  // (making it the GL thread) and calls the callback on the GL thread.
   virtual void CreateAndBindContextProvider(base::OnceClosure callback) = 0;
 
   // All other public methods below must be called on the GL thread
   // (except when marked otherwise).
-
-  virtual void ResizeSurface(int width, int height) = 0;
-
-  // Returns true if swapped successfully. This can fail if the GL
-  // context isn't ready for use yet, in that case the caller
-  // won't get a new frame on the SurfaceTexture.
-  virtual bool CopyMailboxToSurfaceAndSwap(
-      const gpu::MailboxHolder& mailbox) = 0;
-  virtual bool CopyMailboxToSurfaceAndSwap(
-      const gpu::MailboxHolder& mailbox,
-      const gfx::Transform& uv_transform) = 0;
 
   virtual void GenSyncToken(gpu::SyncToken* out_sync_token) = 0;
 
@@ -76,19 +52,24 @@ class MailboxToSurfaceBridge {
       const gpu::SyncToken& sync_token,
       base::OnceCallback<void(std::unique_ptr<gfx::GpuFence>)> callback) = 0;
 
-  // Creates a shared image bound to |buffer|. Returns a mailbox holder that
-  // references the shared image with a sync token representing a point after
-  // the creation. Caller must call DestroySharedImage to free the shared image.
-  // Does not take ownership of |buffer| or retain any references to it.
-  virtual gpu::MailboxHolder CreateSharedImage(
-      gpu::GpuMemoryBufferImplAndroidHardwareBuffer* buffer,
+  // Creates a shared image bound to |buffer_handle|. Returns the shared image
+  // and populates |sync_token|.
+  // Caller must call DestroySharedImage to free the shared image. Backing keeps
+  // reference to the |buffer_handle|.
+  virtual scoped_refptr<gpu::ClientSharedImage> CreateSharedImage(
+      gfx::GpuMemoryBufferHandle buffer_handle,
+      gfx::BufferFormat buffer_format,
+      const gfx::Size& size,
       const gfx::ColorSpace& color_space,
-      uint32_t usage) = 0;
+      gpu::SharedImageUsageSet usage,
+      gpu::SyncToken& sync_token) = 0;
 
-  // Destroys a shared image created by CreateSharedImage. The mailbox_holder's
-  // sync_token must have been updated to a sync token after the last use of the
+  // Destroys a shared image created by CreateSharedImage. The sync_token
+  // argument must have been updated to a sync token after the last use of the
   // shared image.
-  virtual void DestroySharedImage(const gpu::MailboxHolder& mailbox_holder) = 0;
+  virtual void DestroySharedImage(
+      const gpu::SyncToken& sync_token,
+      scoped_refptr<gpu::ClientSharedImage> shared_image) = 0;
 };
 
 class MailboxToSurfaceBridgeFactory {

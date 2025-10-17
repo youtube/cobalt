@@ -6,7 +6,7 @@
 #define COMPONENTS_POWER_BOOKMARKS_STORAGE_POWER_BOOKMARK_SYNC_BRIDGE_H_
 
 #include "base/uuid.h"
-#include "components/sync/model/model_type_sync_bridge.h"
+#include "components/sync/model/data_type_sync_bridge.h"
 
 namespace syncer {
 class ModelError;
@@ -19,7 +19,7 @@ class PowerBookmarkSyncMetadataDatabase;
 
 // Transaction wraps a database transaction. When it's out of scope the
 // underlying transaction will be cancelled if not committed.
-// TODO(crbug.com/1392502): Find a better layout for this class.
+// TODO(crbug.com/40247772): Find a better layout for this class.
 class Transaction {
  public:
   virtual bool Commit() = 0;
@@ -29,7 +29,7 @@ class Transaction {
 // PowerBookmarkSyncBridge is responsible for syncing all powers to different
 // devices. It runs on the same thread as the power bookmark database
 // implementation.
-class PowerBookmarkSyncBridge : public syncer::ModelTypeSyncBridge {
+class PowerBookmarkSyncBridge : public syncer::DataTypeSyncBridge {
  public:
   // Delegate interface PowerBookmarkSyncBridge needs from the backend.
   class Delegate {
@@ -64,7 +64,7 @@ class PowerBookmarkSyncBridge : public syncer::ModelTypeSyncBridge {
   PowerBookmarkSyncBridge(
       PowerBookmarkSyncMetadataDatabase* meta_db,
       Delegate* delegate,
-      std::unique_ptr<syncer::ModelTypeChangeProcessor> change_processor);
+      std::unique_ptr<syncer::DataTypeLocalChangeProcessor> change_processor);
 
   PowerBookmarkSyncBridge(const PowerBookmarkSyncBridge&) = delete;
   PowerBookmarkSyncBridge& operator=(const PowerBookmarkSyncBridge&) = delete;
@@ -73,22 +73,29 @@ class PowerBookmarkSyncBridge : public syncer::ModelTypeSyncBridge {
 
   void Init();
 
-  // syncer::ModelTypeSyncBridge:
+  // syncer::DataTypeSyncBridge:
   std::unique_ptr<syncer::MetadataChangeList> CreateMetadataChangeList()
       override;
-  absl::optional<syncer::ModelError> MergeFullSyncData(
+  std::optional<syncer::ModelError> MergeFullSyncData(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_changes) override;
-  absl::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
+  std::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_changes) override;
-  std::string GetStorageKey(const syncer::EntityData& entity_data) override;
-  std::string GetClientTag(const syncer::EntityData& entity_data) override;
-  void GetData(StorageKeyList storage_keys, DataCallback callback) override;
-  void GetAllDataForDebugging(DataCallback callback) override;
+  std::string GetStorageKey(
+      const syncer::EntityData& entity_data) const override;
+  std::string GetClientTag(
+      const syncer::EntityData& entity_data) const override;
+  bool IsEntityDataValid(const syncer::EntityData& entity_data) const override;
+  std::unique_ptr<syncer::DataBatch> GetDataForCommit(
+      StorageKeyList storage_keys) override;
+  std::unique_ptr<syncer::DataBatch> GetAllDataForDebugging() override;
 
   void SendPowerToSync(const Power& power);
   void NotifySyncForDeletion(const std::string& guid);
+
+  void ReportError(const syncer::ModelError& error);
+  bool initialized() { return initialized_; }
 
  private:
   // Create a change list to store metadata inside the power bookmark database.
@@ -103,13 +110,14 @@ class PowerBookmarkSyncBridge : public syncer::ModelTypeSyncBridge {
   // Helper function called by both `MergeFullSyncData` with
   // is_initial_merge=true and `ApplyIncrementalSyncChanges` with
   // is_initial_merge=false.
-  absl::optional<syncer::ModelError> ApplyChanges(
+  std::optional<syncer::ModelError> ApplyChanges(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList& entity_changes,
       bool is_initial_merge);
 
   const raw_ptr<PowerBookmarkSyncMetadataDatabase, DanglingUntriaged> meta_db_;
   const raw_ptr<Delegate> delegate_;
+  bool initialized_ = false;
 };
 
 }  // namespace power_bookmarks

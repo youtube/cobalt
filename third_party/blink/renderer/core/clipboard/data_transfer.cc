@@ -26,10 +26,9 @@
 #include "third_party/blink/renderer/core/clipboard/data_transfer.h"
 
 #include <memory>
+#include <optional>
 
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/blink/renderer/core/clipboard/clipboard_mime_types.h"
 #include "third_party/blink/renderer/core/clipboard/clipboard_utilities.h"
 #include "third_party/blink/renderer/core/clipboard/data_object.h"
 #include "third_party/blink/renderer/core/clipboard/data_transfer_access_policy.h"
@@ -58,7 +57,9 @@
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/network/mime/mime_type_registry.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/skia/include/core/SkSurface.h"
+#include "ui/base/clipboard/clipboard_constants.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-blink.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
@@ -107,17 +108,19 @@ class DraggedNodeImageBuilder {
     PaintLayer* layer = dragged_layout_object->EnclosingLayer();
     if (!layer->GetLayoutObject().IsStackingContext())
       layer = layer->AncestorStackingContext();
-
     gfx::Rect absolute_bounding_box =
         dragged_layout_object->AbsoluteBoundingBoxRectIncludingDescendants();
-    // TODO(chrishtr): consider using the root frame's visible rect instead
-    // of the local frame, to avoid over-clipping.
-    gfx::Rect visible_rect(gfx::Point(),
-                           layer->GetLayoutObject().GetFrameView()->Size());
-    // If the absolute bounding box is large enough to be possibly a memory
-    // or IPC payload issue, clip it to the visible content rect.
-    if (absolute_bounding_box.size().Area64() > visible_rect.size().Area64()) {
-      absolute_bounding_box.Intersect(visible_rect);
+
+    // Maximum reasonable dimension for a drag image which won't crash during
+    // memory allocation and DnD operation.
+    if (RuntimeEnabledFeatures::DnDScaleHeightAndWidthToMaxDimensionEnabled()) {
+      const int kMaxDimension = 64 * 128;
+      if (absolute_bounding_box.width() > kMaxDimension) {
+        absolute_bounding_box.set_width(kMaxDimension);
+      }
+      if (absolute_bounding_box.height() > kMaxDimension) {
+        absolute_bounding_box.set_height(kMaxDimension);
+      }
     }
 
     gfx::RectF bounding_box =
@@ -130,11 +133,11 @@ class DraggedNodeImageBuilder {
     OverriddenCullRectScope cull_rect_scope(
         *layer, CullRect(gfx::ToEnclosingRect(cull_rect)),
         /*disable_expansion*/ true);
-    auto* builder = MakeGarbageCollected<PaintRecordBuilder>();
+    PaintRecordBuilder builder;
 
     dragged_layout_object->GetDocument().Lifecycle().AdvanceTo(
         DocumentLifecycle::kInPaint);
-    PaintLayerPainter(*layer).Paint(builder->Context(),
+    PaintLayerPainter(*layer).Paint(builder.Context(),
                                     PaintFlag::kOmitCompositingInfo);
     dragged_layout_object->GetDocument().Lifecycle().AdvanceTo(
         DocumentLifecycle::kPaintClean);
@@ -150,7 +153,7 @@ class DraggedNodeImageBuilder {
         gfx::Vector2dF(layer->GetLayoutObject().FirstFragment().PaintOffset());
 
     return DataTransfer::CreateDragImageForFrame(
-        *local_frame_, 1.0f, bounding_box.size(), paint_offset, *builder,
+        *local_frame_, 1.0f, bounding_box.size(), paint_offset, builder,
         border_box_properties);
   }
 
@@ -162,7 +165,7 @@ class DraggedNodeImageBuilder {
 #endif
 };
 
-absl::optional<DragOperationsMask> ConvertEffectAllowedToDragOperationsMask(
+std::optional<DragOperationsMask> ConvertEffectAllowedToDragOperationsMask(
     const AtomicString& op) {
   // Values specified in
   // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-effectallowed
@@ -190,41 +193,46 @@ absl::optional<DragOperationsMask> ConvertEffectAllowedToDragOperationsMask(
   }
   if (op == "all")
     return kDragOperationEvery;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 AtomicString ConvertDragOperationsMaskToEffectAllowed(DragOperationsMask op) {
   if (((op & kDragOperationMove) && (op & kDragOperationCopy) &&
        (op & kDragOperationLink)) ||
       (op == kDragOperationEvery))
-    return "all";
+    return AtomicString("all");
   if ((op & kDragOperationMove) && (op & kDragOperationCopy))
-    return "copyMove";
+    return AtomicString("copyMove");
   if ((op & kDragOperationMove) && (op & kDragOperationLink))
-    return "linkMove";
+    return AtomicString("linkMove");
   if ((op & kDragOperationCopy) && (op & kDragOperationLink))
-    return "copyLink";
+    return AtomicString("copyLink");
   if (op & kDragOperationMove)
-    return "move";
+    return AtomicString("move");
   if (op & kDragOperationCopy)
-    return "copy";
+    return AtomicString("copy");
   if (op & kDragOperationLink)
-    return "link";
-  return "none";
+    return AtomicString("link");
+  return keywords::kNone;
 }
 
 // We provide the IE clipboard types (URL and Text), and the clipboard types
 // specified in the HTML spec. See
 // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface
 String NormalizeType(const String& type, bool* convert_to_url = nullptr) {
+  constexpr char kTypeText[] = "text";
+  constexpr char kTypeUrl[] = "url";
+  constexpr char kMimeTypePlainTextEtc[] = "text/plain;";
+
   String clean_type = type.StripWhiteSpace().LowerASCII();
-  if (clean_type == kMimeTypeText ||
-      clean_type.StartsWith(kMimeTypeTextPlainEtc))
-    return kMimeTypeTextPlain;
-  if (clean_type == kMimeTypeURL) {
-    if (convert_to_url)
+  if (clean_type == kTypeText || clean_type.StartsWith(kMimeTypePlainTextEtc)) {
+    return ui::kMimeTypePlainText;
+  }
+  if (clean_type == kTypeUrl) {
+    if (convert_to_url) {
       *convert_to_url = true;
-    return kMimeTypeTextURIList;
+    }
+    return ui::kMimeTypeUriList;
   }
   return clean_type;
 }
@@ -235,8 +243,8 @@ String NormalizeType(const String& type, bool* convert_to_url = nullptr) {
 DataTransfer* DataTransfer::Create() {
   DataTransfer* data = Create(
       kCopyAndPaste, DataTransferAccessPolicy::kWritable, DataObject::Create());
-  data->drop_effect_ = "none";
-  data->effect_allowed_ = "none";
+  data->drop_effect_ = keywords::kNone;
+  data->effect_allowed_ = keywords::kNone;
   return data;
 }
 
@@ -284,13 +292,17 @@ void DataTransfer::setEffectAllowed(const AtomicString& effect) {
 }
 
 void DataTransfer::clearData(const String& type) {
-  if (!CanWriteData())
+  if (!CanWriteData()) {
     return;
-
-  if (type.IsNull())
-    data_object_->ClearAll();
-  else
+  }
+  if (type.IsNull()) {
+    // As per spec
+    // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-cleardata,
+    // `clearData()` doesn't remove `kFileKind` objects from `item_list_`.
+    data_object_->ClearStringItems();
+  } else {
     data_object_->ClearData(NormalizeType(type));
+  }
 }
 
 String DataTransfer::getData(const String& type) const {
@@ -318,6 +330,19 @@ bool DataTransfer::hasDataStoreItemListChanged() const {
 void DataTransfer::OnItemListChanged() {
   data_store_item_list_changed_ = true;
   files_->clear();
+
+  if (!CanReadData()) {
+    return;
+  }
+
+  for (uint32_t i = 0; i < data_object_->length(); ++i) {
+    if (data_object_->Item(i)->Kind() == DataObjectItem::kFileKind) {
+      File* file = data_object_->Item(i)->GetAsFile();
+      if (file) {
+        files_->Append(file);
+      }
+    }
+  }
 }
 
 Vector<String> DataTransfer::types() {
@@ -331,21 +356,9 @@ Vector<String> DataTransfer::types() {
 FileList* DataTransfer::files() const {
   if (!CanReadData()) {
     files_->clear();
-    return files_;
+    return files_.Get();
   }
-
-  if (!files_->IsEmpty())
-    return files_;
-
-  for (uint32_t i = 0; i < data_object_->length(); ++i) {
-    if (data_object_->Item(i)->Kind() == DataObjectItem::kFileKind) {
-      Blob* blob = data_object_->Item(i)->GetAsFile();
-      if (auto* file = DynamicTo<File>(blob))
-        files_->Append(file);
-    }
-  }
-
-  return files_;
+  return files_.Get();
 }
 
 void DataTransfer::setDragImage(Element* image, int x, int y) {
@@ -355,11 +368,11 @@ void DataTransfer::setDragImage(Element* image, int x, int y) {
     return;
 
   // Convert `drag_loc_` from CSS px to physical pixels.
-  // `LocalFrame::PageZoomFactor` converts from CSS px to physical px by taking
-  // into account both device scale factor and page zoom.
+  // `LocalFrame::LayoutZoomFactor` converts from CSS px to physical px by
+  // taking into account both device scale factor and page zoom.
   LocalFrame* frame = image->GetDocument().GetFrame();
   gfx::Point location =
-      gfx::ScaleToRoundedPoint(gfx::Point(x, y), frame->PageZoomFactor());
+      gfx::ScaleToRoundedPoint(gfx::Point(x, y), frame->LayoutZoomFactor());
 
   auto* html_image_element = DynamicTo<HTMLImageElement>(image);
   if (html_image_element && !image->isConnected())
@@ -413,14 +426,15 @@ std::unique_ptr<DragImage> DataTransfer::CreateDragImageForFrame(
 
   // Rasterize upfront, since DragImage::create() is going to do it anyway
   // (SkImage::asLegacyBitmap).
-  SkSurfaceProps surface_props(0, kUnknown_SkPixelGeometry);
-  sk_sp<SkSurface> surface = SkSurface::MakeRasterN32Premul(
-      device_size.width(), device_size.height(), &surface_props);
+  SkSurfaceProps surface_props;
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(
+      SkImageInfo::MakeN32Premul(device_size.width(), device_size.height()),
+      &surface_props);
   if (!surface)
     return nullptr;
 
   SkiaPaintCanvas skia_paint_canvas(surface->getCanvas());
-  skia_paint_canvas.concat(AffineTransformToSkM44(transform));
+  skia_paint_canvas.concat(transform.ToSkM44());
   builder.EndRecording(skia_paint_canvas, property_tree_state);
 
   scoped_refptr<Image> image =
@@ -430,7 +444,7 @@ std::unique_ptr<DragImage> DataTransfer::CreateDragImageForFrame(
   // kDoNotRespectImageOrientation in order to avoid wasted work looking
   // at orientation.
   return DragImage::Create(image.get(), kDoNotRespectImageOrientation,
-                           kInterpolationDefault, opacity);
+                           GetDefaultInterpolationQuality(), opacity);
 }
 
 // static
@@ -501,7 +515,7 @@ void DataTransfer::DeclareAndWriteDragImage(Element* element,
   WriteImageToDataObject(data_object_.Get(), element, image_url);
 
   // Put img tag on the clipboard referencing the image
-  data_object_->SetData(kMimeTypeTextHTML,
+  data_object_->SetData(ui::kMimeTypeHtml,
                         CreateMarkup(element, kIncludeNode, kResolveAllURLs));
 }
 
@@ -513,7 +527,7 @@ void DataTransfer::WriteURL(Node* node, const KURL& url, const String& title) {
   data_object_->SetURLAndTitle(url, title);
 
   // The URL can also be used as plain text.
-  data_object_->SetData(kMimeTypeTextPlain, url.GetString());
+  data_object_->SetData(ui::kMimeTypePlainText, url.GetString());
 
   // The URL can also be used as an HTML fragment.
   data_object_->SetHTMLAndBaseURL(
@@ -525,7 +539,7 @@ void DataTransfer::WriteSelection(const FrameSelection& selection) {
     return;
 
   if (!EnclosingTextControl(
-          selection.ComputeVisibleSelectionInDOMTreeDeprecated().Start())) {
+          selection.ComputeVisibleSelectionInDOMTree().Start())) {
     data_object_->SetHTMLAndBaseURL(selection.SelectedHTMLForClipboard(),
                                     selection.GetFrame()->GetDocument()->Url());
   }
@@ -535,7 +549,7 @@ void DataTransfer::WriteSelection(const FrameSelection& selection) {
   ReplaceNewlinesWithWindowsStyleNewlines(str);
 #endif
   ReplaceNBSPWithSpace(str);
-  data_object_->SetData(kMimeTypeTextPlain, str);
+  data_object_->SetData(ui::kMimeTypePlainText, str);
 }
 
 void DataTransfer::SetAccessPolicy(DataTransferAccessPolicy policy) {
@@ -561,12 +575,11 @@ bool DataTransfer::CanWriteData() const {
 }
 
 bool DataTransfer::CanSetDragImage() const {
-  return policy_ == DataTransferAccessPolicy::kImageWritable ||
-         policy_ == DataTransferAccessPolicy::kWritable;
+  return policy_ == DataTransferAccessPolicy::kWritable;
 }
 
 DragOperationsMask DataTransfer::SourceOperation() const {
-  absl::optional<DragOperationsMask> op =
+  std::optional<DragOperationsMask> op =
       ConvertEffectAllowedToDragOperationsMask(effect_allowed_);
   DCHECK(op);
   return *op;
@@ -574,7 +587,7 @@ DragOperationsMask DataTransfer::SourceOperation() const {
 
 ui::mojom::blink::DragOperation DataTransfer::DestinationOperation() const {
   DCHECK(DropEffectIsInitialized());
-  absl::optional<DragOperationsMask> op =
+  std::optional<DragOperationsMask> op =
       ConvertEffectAllowedToDragOperationsMask(drop_effect_);
   return static_cast<ui::mojom::blink::DragOperation>(*op);
 }
@@ -589,15 +602,15 @@ void DataTransfer::SetDestinationOperation(ui::mojom::blink::DragOperation op) {
 }
 
 DataTransferItemList* DataTransfer::items() {
-  // TODO: According to the spec, we are supposed to return the same collection
-  // of items each time. We now return a wrapper that always wraps the *same*
-  // set of items, so JS shouldn't be able to tell, but we probably still want
-  // to fix this.
+  // TODO(crbug.com/331320416): According to the spec, we are supposed to
+  // return the same collection of items each time. We now return a wrapper
+  // that always wraps the *same* set of items, so JS shouldn't be able to
+  // tell, but we probably still want to fix this.
   return MakeGarbageCollected<DataTransferItemList>(this, data_object_);
 }
 
 DataObject* DataTransfer::GetDataObject() const {
-  return data_object_;
+  return data_object_.Get();
 }
 
 DataTransfer::DataTransfer(DataTransferType type,
@@ -610,6 +623,7 @@ DataTransfer::DataTransfer(DataTransferType type,
       data_store_item_list_changed_(true),
       files_(MakeGarbageCollected<FileList>()) {
   data_object_->AddObserver(this);
+  OnItemListChanged();
 }
 
 void DataTransfer::setDragImage(ImageResourceContent* image,

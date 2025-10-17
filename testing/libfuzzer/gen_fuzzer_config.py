@@ -10,12 +10,8 @@ Invoked by GN from fuzzer_test.gni.
 
 import argparse
 import os
-import sys
 
-if sys.version_info.major == 2:
-    from ConfigParser import ConfigParser
-else:
-    from configparser import ConfigParser
+from configparser import ConfigParser
 
 
 def AddSectionOptions(config, section_name, options):
@@ -30,8 +26,8 @@ def AddSectionOptions(config, section_name, options):
 
   config.add_section(section_name)
   for option_and_value in options:
-    assert len(option_and_value) == 2, (
-        '%s is not an option, value pair' % option_and_value)
+    assert len(option_and_value) == 2, ('%s is not an option, value pair' %
+                                        option_and_value)
 
     config.set(section_name, *option_and_value)
 
@@ -41,21 +37,21 @@ def main():
   parser.add_argument('--config', required=True)
   parser.add_argument('--dict')
   parser.add_argument('--libfuzzer_options', nargs='+', default=[])
+  parser.add_argument('--centipede_options', nargs='+', default=[])
   parser.add_argument('--asan_options', nargs='+', default=[])
   parser.add_argument('--msan_options', nargs='+', default=[])
   parser.add_argument('--ubsan_options', nargs='+', default=[])
   parser.add_argument('--grammar_options', nargs='+', default=[])
-  parser.add_argument(
-      '--environment_variables',
-      nargs='+',
-      default=[],
-      choices=['AFL_DRIVER_DONT_DEFER=1'])
+  parser.add_argument('--environment_variables',
+                      nargs='+',
+                      default=[],
+                      choices=['AFL_DRIVER_DONT_DEFER=1'])
   args = parser.parse_args()
 
   # Script shouldn't be invoked without any arguments, but just in case.
-  if not (args.dict or args.libfuzzer_options or args.environment_variables or
-          args.asan_options or args.msan_options or args.ubsan_options or
-          args.grammar_options):
+  if not (args.dict or args.libfuzzer_options or args.environment_variables
+          or args.asan_options or args.msan_options or args.ubsan_options
+          or args.grammar_options):
     return
 
   config = ConfigParser()
@@ -66,6 +62,13 @@ def main():
       option.split('=') for option in args.libfuzzer_options)
 
   AddSectionOptions(config, 'libfuzzer', libfuzzer_options)
+
+  centipede_options = []
+  if args.dict:
+    centipede_options.append(('dictionary', os.path.basename(args.dict)))
+  centipede_options.extend(
+      option.split('=') for option in args.centipede_options)
+  AddSectionOptions(config, 'centipede', centipede_options)
 
   AddSectionOptions(config, 'asan',
                     [option.split('=') for option in args.asan_options])

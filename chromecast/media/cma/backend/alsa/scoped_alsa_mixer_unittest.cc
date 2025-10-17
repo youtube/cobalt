@@ -1,6 +1,11 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
 
 #include "chromecast/media/cma/backend/alsa/scoped_alsa_mixer.h"
 
@@ -72,13 +77,13 @@ class ScopedAlsaMixerEventTest : public ::testing::Test {
 
   void ReadByte() {
     char buffer;
-    ASSERT_TRUE(base::ReadFromFD(pipe_fds_[0], &buffer, sizeof(buffer)));
+    ASSERT_TRUE(base::ReadFromFD(pipe_fds_[0], base::span_from_ref(buffer)));
   }
 
   void WriteByte() {
     constexpr char kByte = '!';
-    ASSERT_TRUE(base::WriteFileDescriptor(
-        pipe_fds_[1], as_bytes(base::make_span(&kByte, 1u))));
+    ASSERT_TRUE(base::WriteFileDescriptor(pipe_fds_[1],
+                                          base::byte_span_from_ref(kByte)));
   }
 
   base::test::TaskEnvironment task_environment_;
@@ -164,14 +169,14 @@ TEST(ScopedAlsaMixerTest, MixerOpenFailure) {
 
   EXPECT_CALL(alsa, MixerOpen(_, 0))
       .WillOnce(DoAll(SetArgPointee<0>(mixer), Return(kFailure)));
-  EXPECT_CALL(mock_log, Log(logging::LOG_INFO,
+  EXPECT_CALL(mock_log, Log(logging::LOGGING_INFO,
                             ::testing::EndsWith("/scoped_alsa_mixer.cc"),
                             /*line=*/_,
                             /*message_start=*/_, /*str=*/_));
   EXPECT_CALL(alsa, StrError(kFailure)).WillOnce(Return(""));
   EXPECT_CALL(
       mock_log,
-      Log(logging::LOG_ERROR, ::testing::EndsWith("/scoped_alsa_mixer.cc"),
+      Log(logging::LOGGING_ERROR, ::testing::EndsWith("/scoped_alsa_mixer.cc"),
           /*line=*/_,
           /*message_start=*/_, /*str=*/HasSubstr("MixerOpen error")));
 
@@ -191,14 +196,14 @@ TEST(ScopedAlsaMixerTest, MixerAttachFailure) {
       .WillOnce(DoAll(SetArgPointee<0>(mixer), Return(kSuccess)));
   EXPECT_CALL(alsa, MixerAttach(mixer, StrEq(kMixerDeviceName)))
       .WillOnce(Return(kFailure));
-  EXPECT_CALL(mock_log, Log(logging::LOG_INFO,
+  EXPECT_CALL(mock_log, Log(logging::LOGGING_INFO,
                             ::testing::EndsWith("/scoped_alsa_mixer.cc"),
                             /*line=*/_,
                             /*message_start=*/_, /*str=*/_));
   EXPECT_CALL(alsa, StrError(kFailure)).WillOnce(Return(""));
   EXPECT_CALL(
       mock_log,
-      Log(logging::LOG_ERROR, ::testing::EndsWith("/scoped_alsa_mixer.cc"),
+      Log(logging::LOGGING_ERROR, ::testing::EndsWith("/scoped_alsa_mixer.cc"),
           /*line=*/_,
           /*message_start=*/_, HasSubstr("MixerAttach error")));
   EXPECT_CALL(alsa, MixerClose(mixer));
@@ -222,12 +227,12 @@ TEST(ScopedAlsaMixerTest, MixerLoadFailure) {
   EXPECT_CALL(alsa, MixerElementRegister(mixer, nullptr, nullptr))
       .WillOnce(Return(kSuccess));
   EXPECT_CALL(alsa, MixerLoad(mixer)).WillOnce(Return(kFailure));
-  EXPECT_CALL(mock_log, Log(logging::LOG_INFO,
+  EXPECT_CALL(mock_log, Log(logging::LOGGING_INFO,
                             ::testing::EndsWith("/scoped_alsa_mixer.cc"),
                             /*line=*/_,
                             /*message_start=*/_, /*str=*/_));
   EXPECT_CALL(alsa, StrError(kFailure)).WillOnce(Return(""));
-  EXPECT_CALL(mock_log, Log(logging::LOG_ERROR,
+  EXPECT_CALL(mock_log, Log(logging::LOGGING_ERROR,
                             ::testing::EndsWith("/scoped_alsa_mixer.cc"),
                             /*line=*/_,
                             /*message_start=*/_, HasSubstr("MixerLoad error")));
@@ -261,11 +266,11 @@ TEST(ScopedAlsaMixerTest, MixerFindSelemFailure) {
               MixerSelemIdSetName(mixer_selem_id, StrEq(kMixerElementName)));
   EXPECT_CALL(alsa, MixerFindSelem(mixer, mixer_selem_id))
       .WillOnce(Return(nullptr));
-  EXPECT_CALL(mock_log, Log(logging::LOG_INFO,
+  EXPECT_CALL(mock_log, Log(logging::LOGGING_INFO,
                             ::testing::EndsWith("/scoped_alsa_mixer.cc"),
                             /*line=*/_,
                             /*message_start=*/_, /*str=*/_));
-  EXPECT_CALL(mock_log, Log(logging::LOG_ERROR,
+  EXPECT_CALL(mock_log, Log(logging::LOGGING_ERROR,
                             ::testing::EndsWith("/scoped_alsa_mixer.cc"),
                             /*line=*/_,
                             /*message_start=*/_, /*str=*/_));
@@ -293,12 +298,12 @@ TEST(ScopedAlsaMixerDeathTest, MixerElementRegisterFailure) {
             .WillOnce(Return(kSuccess));
         EXPECT_CALL(alsa, MixerElementRegister(mixer, nullptr, nullptr))
             .WillOnce(Return(kFailure));
-        EXPECT_CALL(mock_log, Log(logging::LOG_INFO,
+        EXPECT_CALL(mock_log, Log(logging::LOGGING_INFO,
                                   ::testing::EndsWith("/scoped_alsa_mixer.cc"),
                                   /*line=*/_,
                                   /*message_start=*/_, /*str=*/_));
         EXPECT_CALL(alsa, StrError(kFailure)).WillOnce(Return(""));
-        EXPECT_CALL(mock_log, Log(logging::LOG_FATAL,
+        EXPECT_CALL(mock_log, Log(logging::LOGGING_FATAL,
                                   ::testing::EndsWith("/scoped_alsa_mixer.cc"),
                                   /*line=*/_,
                                   /*message_start=*/_,
@@ -330,12 +335,12 @@ TEST(ScopedAlsaMixerDeathTest, MixerSelemIdMallocFailure) {
         EXPECT_CALL(alsa, MixerSelemIdMalloc(_))
             .WillOnce(
                 DoAll(SetArgPointee<0>(mixer_selem_id), Return(kFailure)));
-        EXPECT_CALL(mock_log, Log(logging::LOG_INFO,
+        EXPECT_CALL(mock_log, Log(logging::LOGGING_INFO,
                                   ::testing::EndsWith("/scoped_alsa_mixer.cc"),
                                   /*line=*/_,
                                   /*message_start=*/_, /*str=*/_));
         EXPECT_CALL(alsa, StrError(kFailure)).WillOnce(Return(""));
-        EXPECT_CALL(mock_log, Log(logging::LOG_FATAL,
+        EXPECT_CALL(mock_log, Log(logging::LOGGING_FATAL,
                                   ::testing::EndsWith("/scoped_alsa_mixer.cc"),
                                   /*line=*/_,
                                   /*message_start=*/_,

@@ -36,7 +36,6 @@
 #include "third_party/blink/renderer/platform/audio/audio_bus.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
-#include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace base {
@@ -48,7 +47,6 @@ namespace blink {
 class AudioBuffer;
 class BaseAudioContext;
 class SharedAudioBuffer;
-class WaitableEvent;
 
 // ScriptProcessorNode is an AudioNode which allows for arbitrary synthesis or
 // processing directly using JavaScript.  The API allows for a variable number

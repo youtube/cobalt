@@ -10,22 +10,25 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/time/time.h"
-#include "chrome/android/chrome_jni_headers/UsageStatsBridge_jni.h"
 #include "chrome/browser/android/usage_stats/usage_stats_database.h"
 #include "chrome/browser/android/usage_stats/website_event.pb.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_android.h"
 #include "chrome/common/pref_names.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 
-using base::android::AttachCurrentThread;
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/UsageStatsBridge_jni.h"
+
+using base::android::AppendJavaStringArrayToStringVector;
+using base::android::JavaArrayOfByteArrayToStringVector;
 using base::android::JavaParamRef;
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaArrayOfByteArray;
 using base::android::ToJavaArrayOfStrings;
+using jni_zero::AttachCurrentThread;
 
 namespace usage_stats {
 
@@ -39,9 +42,7 @@ bool isSuccess(UsageStatsDatabase::Error error) {
 
 static jlong JNI_UsageStatsBridge_Init(JNIEnv* env,
                                        const JavaParamRef<jobject>& j_this,
-                                       const JavaParamRef<jobject>& j_profile) {
-  Profile* profile = ProfileAndroid::FromProfileAndroid(j_profile);
-
+                                       Profile* profile) {
   std::unique_ptr<UsageStatsDatabase> usage_stats_database =
       std::make_unique<UsageStatsDatabase>(profile);
 
@@ -89,7 +90,8 @@ void UsageStatsBridge::QueryEventsInRange(JNIEnv* j_env,
   ScopedJavaGlobalRef<jobject> callback(j_callback);
 
   usage_stats_database_->QueryEventsInRange(
-      base::Time::FromJavaTime(j_start), base::Time::FromJavaTime(j_end),
+      base::Time::FromMillisecondsSinceUnixEpoch(j_start),
+      base::Time::FromMillisecondsSinceUnixEpoch(j_end),
       base::BindOnce(&UsageStatsBridge::OnGetEventsDone,
                      weak_ptr_factory_.GetWeakPtr(), callback));
 }
@@ -136,7 +138,8 @@ void UsageStatsBridge::DeleteEventsInRange(JNIEnv* j_env,
   ScopedJavaGlobalRef<jobject> callback(j_callback);
 
   usage_stats_database_->DeleteEventsInRange(
-      base::Time::FromJavaTime(j_start), base::Time::FromJavaTime(j_end),
+      base::Time::FromMillisecondsSinceUnixEpoch(j_start),
+      base::Time::FromMillisecondsSinceUnixEpoch(j_end),
       base::BindOnce(&UsageStatsBridge::OnUpdateDone,
                      weak_ptr_factory_.GetWeakPtr(), callback));
 }
@@ -256,7 +259,7 @@ void UsageStatsBridge::OnGetAllSuspensionsDone(
       isSuccess(error) ? ToJavaArrayOfStrings(env, suspensions)
                        : ToJavaArrayOfStrings(env, std::vector<std::string>());
 
-  RunObjectCallbackAndroid(callback, j_suspensions);
+  base::android::RunObjectCallbackAndroid(callback, j_suspensions);
 }
 
 void UsageStatsBridge::OnGetAllTokenMappingsDone(
@@ -293,7 +296,7 @@ void UsageStatsBridge::OnGetAllTokenMappingsDone(
 
 void UsageStatsBridge::OnUpdateDone(ScopedJavaGlobalRef<jobject> callback,
                                     UsageStatsDatabase::Error error) {
-  RunBooleanCallbackAndroid(callback, isSuccess(error));
+  base::android::RunBooleanCallbackAndroid(callback, isSuccess(error));
 }
 
 // static
@@ -302,7 +305,7 @@ void UsageStatsBridge::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kUsageStatsEnabled, false);
 }
 
-void UsageStatsBridge::OnURLsDeleted(
+void UsageStatsBridge::OnHistoryDeletions(
     history::HistoryService* history_service,
     const history::DeletionInfo& deletion_info) {
   // We ignore expirations since they're not user-initiated.
@@ -319,7 +322,7 @@ void UsageStatsBridge::OnURLsDeleted(
 
   history::DeletionTimeRange time_range = deletion_info.time_range();
   if (time_range.IsValid()) {
-    const absl::optional<std::set<GURL>>& urls = deletion_info.restrict_urls();
+    const std::optional<std::set<GURL>>& urls = deletion_info.restrict_urls();
     if (urls.has_value() && urls.value().size() > 0) {
       std::vector<std::string> domains;
       domains.reserve(urls.value().size());
@@ -329,8 +332,8 @@ void UsageStatsBridge::OnURLsDeleted(
       Java_UsageStatsBridge_onHistoryDeletedForDomains(
           env, j_this_, ToJavaArrayOfStrings(env, domains));
     } else {
-      int64_t startTimeMs = time_range.begin().ToJavaTime();
-      int64_t endTimeMs = time_range.end().ToJavaTime();
+      int64_t startTimeMs = time_range.begin().InMillisecondsSinceUnixEpoch();
+      int64_t endTimeMs = time_range.end().InMillisecondsSinceUnixEpoch();
 
       Java_UsageStatsBridge_onHistoryDeletedInRange(env, j_this_, startTimeMs,
                                                     endTimeMs);

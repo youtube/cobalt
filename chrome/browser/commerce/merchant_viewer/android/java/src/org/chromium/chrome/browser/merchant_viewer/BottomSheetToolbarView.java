@@ -14,6 +14,7 @@ import android.widget.TextView;
 
 import androidx.annotation.DrawableRes;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.widget.FadingShadow;
 import org.chromium.components.browser_ui.widget.FadingShadowView;
@@ -22,6 +23,7 @@ import org.chromium.components.url_formatter.UrlFormatter;
 import org.chromium.url.GURL;
 
 /** BottomSheetToolbar UI. */
+@NullMarked
 public class BottomSheetToolbarView {
     private final View mToolbarView;
 
@@ -65,17 +67,19 @@ public class BottomSheetToolbarView {
     /** Sets the security icon click callback. */
     public void setSecurityIconClickCallback(Runnable callback) {
         ImageView securityIcon = mToolbarView.findViewById(R.id.security_icon);
-        securityIcon.setOnClickListener(v -> {
-            if (callback != null) callback.run();
-        });
+        securityIcon.setOnClickListener(
+                v -> {
+                    if (callback != null) callback.run();
+                });
     }
 
     /** Sets the close button click callback. */
     public void setCloseButtonClickCallback(Runnable callback) {
         ImageView closeButton = mToolbarView.findViewById(R.id.close);
-        closeButton.setOnClickListener(v -> {
-            if (callback != null) callback.run();
-        });
+        closeButton.setOnClickListener(
+                v -> {
+                    if (callback != null) callback.run();
+                });
     }
 
     /** Sets the progress on the progress bar. */

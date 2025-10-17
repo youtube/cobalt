@@ -3,15 +3,15 @@
 // found in the LICENSE file.
 
 import 'chrome://personalization/strings.m.js';
-import 'chrome://webui-test/mojo_webui_test_support.js';
 
-import {AmbientActionName, AmbientModeAlbum, AmbientObserver, emptyState, SetAlbumsAction, TopicSource} from 'chrome://personalization/js/personalization_app.js';
+import type {AmbientModeAlbum, SetAlbumsAction} from 'chrome://personalization/js/personalization_app.js';
+import {AmbientActionName, AmbientObserver, emptyState, TopicSource} from 'chrome://personalization/js/personalization_app.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {baseSetup} from './personalization_app_test_utils.js';
-import {TestAmbientProvider} from './test_ambient_interface_provider.js';
-import {TestPersonalizationStore} from './test_personalization_store.js';
+import type {TestAmbientProvider} from './test_ambient_interface_provider.js';
+import type {TestPersonalizationStore} from './test_personalization_store.js';
 
 suite('AmbientObserverTest', function() {
   let ambientProvider: TestAmbientProvider;
@@ -124,15 +124,6 @@ suite('GooglePhotosPreviewLoadPerformance', () => {
         AmbientActionName.SET_AMBIENT_MODE_ENABLED);
     await personalizationStore.waitForAction(
         AmbientActionName.SET_AMBIENT_MODE_ENABLED);
-    assertFalse(AmbientObserver.shouldLogPreviewsLoadPerformance);
-  });
-
-  test('sets to false if topic source is not kGooglePhotos', async () => {
-    ambientProvider.ambientObserverRemote!.onTopicSourceChanged(
-        TopicSource.kArtGallery);
-    personalizationStore.expectAction(AmbientActionName.SET_TOPIC_SOURCE);
-    await personalizationStore.waitForAction(
-        AmbientActionName.SET_TOPIC_SOURCE);
     assertFalse(AmbientObserver.shouldLogPreviewsLoadPerformance);
   });
 

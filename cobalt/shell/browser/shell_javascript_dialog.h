@@ -19,6 +19,7 @@
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "content/public/browser/javascript_dialog_manager.h"
+#include "ui/gfx/native_widget_types.h"
 
 namespace content {
 

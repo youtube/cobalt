@@ -32,10 +32,11 @@
 
 #include <algorithm>
 #include <memory>
+
 #include "base/memory/scoped_refptr.h"
 #include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom-blink.h"
+#include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_data.h"
-#include "third_party/blink/renderer/core/svg/graphics/svg_image.h"
 #include "third_party/blink/renderer/core/svg/graphics/svg_image_for_container.h"
 #include "third_party/blink/renderer/platform/graphics/image.h"
 #include "third_party/blink/renderer/platform/image-decoders/image_decoder.h"
@@ -50,7 +51,8 @@ SkBitmap WebImage::FromData(const WebData& data,
   const bool data_complete = true;
   std::unique_ptr<ImageDecoder> decoder(ImageDecoder::Create(
       data, data_complete, ImageDecoder::kAlphaPremultiplied,
-      ImageDecoder::kDefaultBitDepth, ColorBehavior::Ignore()));
+      ImageDecoder::kDefaultBitDepth, ColorBehavior::kIgnore,
+      cc::AuxImage::kDefault, Platform::GetMaxDecodedImageBytes()));
   if (!decoder || !decoder->IsSizeAvailable())
     return {};
 
@@ -78,11 +80,13 @@ SkBitmap WebImage::FromData(const WebData& data,
   }
 
   ImageFrame* frame = decoder->DecodeFrameBufferAtIndex(index);
-  if (!frame || decoder->Failed())
+  if (!frame || decoder->Failed() || frame->Bitmap().drawsNothing()) {
     return {};
+  }
 
-  if (decoder->Orientation().Orientation() == ImageOrientationEnum::kDefault)
+  if (decoder->Orientation() == ImageOrientationEnum::kDefault) {
     return frame->Bitmap();
+  }
 
   cc::PaintImage paint_image(Image::ResizeAndOrientImage(
       cc::PaintImage::CreateFromBitmap(frame->Bitmap()),
@@ -109,12 +113,14 @@ SkBitmap WebImage::DecodeSVG(const WebData& data,
   // expect/want. If the desired size is empty, then use the intrinsic size of
   // image.
   gfx::SizeF container_size(desired_size);
-  if (container_size.IsEmpty())
-    container_size = svg_image->ConcreteObjectSize(gfx::SizeF());
+  if (container_size.IsEmpty()) {
+    container_size = SVGImageForContainer::ConcreteObjectSize(
+        *svg_image, nullptr, gfx::SizeF());
+  }
   // TODO(chrishtr): perhaps the downloaded image should be decoded in dark
   // mode if the preferred color scheme is dark.
   scoped_refptr<Image> svg_container =
-      SVGImageForContainer::Create(svg_image.get(), container_size, 1, KURL());
+      SVGImageForContainer::Create(*svg_image, container_size, 1, nullptr);
   if (PaintImage image = svg_container->PaintImageForCurrentFrame()) {
     image.GetSwSkImage()->asLegacyBitmap(&bitmap,
                                          SkImage::kRO_LegacyBitmapMode);
@@ -122,7 +128,7 @@ SkBitmap WebImage::DecodeSVG(const WebData& data,
   return bitmap;
 }
 
-WebVector<SkBitmap> WebImage::FramesFromData(const WebData& data) {
+std::vector<SkBitmap> WebImage::FramesFromData(const WebData& data) {
   // This is to protect from malicious images. It should be big enough that it's
   // never hit in practice.
   const wtf_size_t kMaxFrameCount = 8;
@@ -130,7 +136,8 @@ WebVector<SkBitmap> WebImage::FramesFromData(const WebData& data) {
   const bool data_complete = true;
   std::unique_ptr<ImageDecoder> decoder(ImageDecoder::Create(
       data, data_complete, ImageDecoder::kAlphaPremultiplied,
-      ImageDecoder::kDefaultBitDepth, ColorBehavior::Ignore()));
+      ImageDecoder::kDefaultBitDepth, ColorBehavior::kIgnore,
+      cc::AuxImage::kDefault, Platform::GetMaxDecodedImageBytes()));
   if (!decoder || !decoder->IsSizeAvailable())
     return {};
 
@@ -139,7 +146,7 @@ WebVector<SkBitmap> WebImage::FramesFromData(const WebData& data) {
   const wtf_size_t frame_count = decoder->FrameCount();
   gfx::Size last_size;
 
-  WebVector<SkBitmap> frames;
+  std::vector<SkBitmap> frames;
   for (wtf_size_t i = 0; i < std::min(frame_count, kMaxFrameCount); ++i) {
     const gfx::Size frame_size = decoder->FrameSizeAtIndex(i);
     if (frame_size == last_size)
@@ -158,19 +165,20 @@ WebVector<SkBitmap> WebImage::FramesFromData(const WebData& data) {
   return frames;
 }
 
-WebVector<WebImage::AnimationFrame> WebImage::AnimationFromData(
+std::vector<WebImage::AnimationFrame> WebImage::AnimationFromData(
     const WebData& data) {
   const bool data_complete = true;
   std::unique_ptr<ImageDecoder> decoder(ImageDecoder::Create(
       data, data_complete, ImageDecoder::kAlphaPremultiplied,
-      ImageDecoder::kDefaultBitDepth, ColorBehavior::Ignore()));
+      ImageDecoder::kDefaultBitDepth, ColorBehavior::kIgnore,
+      cc::AuxImage::kDefault, Platform::GetMaxDecodedImageBytes()));
   if (!decoder || !decoder->IsSizeAvailable() || decoder->FrameCount() == 0)
     return {};
 
   const wtf_size_t frame_count = decoder->FrameCount();
   gfx::Size last_size = decoder->FrameSizeAtIndex(0);
 
-  WebVector<WebImage::AnimationFrame> frames;
+  std::vector<WebImage::AnimationFrame> frames;
   frames.reserve(frame_count);
   for (wtf_size_t i = 0; i < frame_count; ++i) {
     // If frame size changes, this is most likely not an animation and is

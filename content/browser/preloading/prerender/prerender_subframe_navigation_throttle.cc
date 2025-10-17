@@ -61,26 +61,19 @@ NavigationThrottle::ThrottleCheckResult
 PrerenderSubframeNavigationThrottle::WillProcessResponse() {
   auto* navigation_request = NavigationRequest::From(navigation_handle());
   FrameTreeNode* frame_tree_node = navigation_request->frame_tree_node();
-  absl::optional<PrerenderFinalStatus> cancel_reason;
-
   if (!frame_tree_node->frame_tree().is_prerendering())
     return NavigationThrottle::PROCEED;
 
-  // TODO(crbug.com/1318739): Delay until activation instead of cancellation.
+  // TODO(crbug.com/40222993): Delay until activation instead of cancellation.
   if (navigation_handle()->IsDownload()) {
     // Disallow downloads during prerendering and cancel the prerender.
-    cancel_reason = PrerenderFinalStatus::kDownload;
-  }
-
-  if (cancel_reason.has_value()) {
     PrerenderHostRegistry* prerender_host_registry =
         frame_tree_node->current_frame_host()
             ->delegate()
             ->GetPrerenderHostRegistry();
-
     prerender_host_registry->CancelHost(
         frame_tree_node->frame_tree().root()->frame_tree_node_id(),
-        cancel_reason.value());
+        PrerenderFinalStatus::kDownload);
     return CANCEL;
   }
 
@@ -149,6 +142,20 @@ void PrerenderSubframeNavigationThrottle::DidFinishNavigation(
   is_deferred_ = false;
   Resume();
   // Resume() may have deleted `this`.
+}
+
+NavigationThrottle::ThrottleCheckResult
+PrerenderSubframeNavigationThrottle::WillCommitWithoutUrlLoader() {
+  auto* navigation_request = NavigationRequest::From(navigation_handle());
+  if (navigation_request->GetUrlInfo().is_sandboxed) {
+    FrameTreeNode* frame_tree_node = navigation_request->frame_tree_node();
+    // Although main frames can be in sandboxed SiteInfo's, we don't encounter
+    // that here since this throttle check should never occur for a mainframe.
+    CHECK(!frame_tree_node->IsMainFrame());
+    return DeferOrCancelCrossOriginSubframeNavigation(*frame_tree_node);
+  }
+
+  return NavigationThrottle::PROCEED;
 }
 
 NavigationThrottle::ThrottleCheckResult

@@ -37,12 +37,14 @@ class SVGPathElement final : public SVGGeometryElement {
   explicit SVGPathElement(Document&);
 
   Path AsPath() const override;
+  PathBuilder AsMutablePath() const override;
   Path AttributePath() const;
 
   float getTotalLength(ExceptionState&) override;
   SVGPointTearOff* getPointAtLength(float distance, ExceptionState&) override;
 
   SVGAnimatedPath* GetPath() const { return path_.Get(); }
+
   float ComputePathLength() const override;
   const SVGPathByteStream& PathByteStream() const;
 
@@ -55,15 +57,16 @@ class SVGPathElement final : public SVGGeometryElement {
 
   void SvgAttributeChanged(const SvgAttributeChangedParams&) override;
 
-  void CollectStyleForPresentationAttribute(
-      const QualifiedName&,
-      const AtomicString&,
-      MutableCSSPropertyValueSet*) override;
-
   Node::InsertionNotificationRequest InsertedInto(ContainerNode&) override;
   void RemovedFrom(ContainerNode&) override;
 
   void InvalidateMPathDependencies();
+
+  SVGAnimatedPropertyBase* PropertyFromAttribute(
+      const QualifiedName& attribute_name) const override;
+  void SynchronizeAllSVGAttributes() const override;
+  void CollectExtraStyleForPresentationAttribute(
+      HeapVector<CSSPropertyValue, 8>& style) override;
 
   Member<SVGAnimatedPath> path_;
 };

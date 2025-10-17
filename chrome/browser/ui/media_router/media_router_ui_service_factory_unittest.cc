@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/media_router/media_router_ui_service_factory.h"
+
 #include <memory>
 
 #include "base/functional/bind.h"
@@ -10,7 +12,6 @@
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/media_router/media_router_ui_service.h"
-#include "chrome/browser/ui/media_router/media_router_ui_service_factory.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model_factory.h"
 #include "chrome/common/pref_names.h"
@@ -26,7 +27,7 @@ namespace {
 class MockMediaRouterUIServiceObserver
     : public media_router::MediaRouterUIService::Observer {
  public:
-  MOCK_METHOD0(OnServiceDisabled, void());
+  MOCK_METHOD(void, OnServiceDisabled, ());
 };
 
 }  // namespace
@@ -35,13 +36,13 @@ namespace media_router {
 
 class MediaRouterUIServiceFactoryUnitTest : public testing::Test {
  public:
-  MediaRouterUIServiceFactoryUnitTest() {}
-  ~MediaRouterUIServiceFactoryUnitTest() override {}
+  MediaRouterUIServiceFactoryUnitTest() = default;
+  ~MediaRouterUIServiceFactoryUnitTest() override = default;
 
   void SetUp() override {
     TestingProfile::Builder builder;
     ClearMediaRouterStoredPrefsForTesting();
-    // MediaRouterUIService instantiates MediaRouterActionController, which
+    // MediaRouterUIService instantiates CastToolbarButtonController, which
     // requires ToolbarActionsModel.
     builder.AddTestingFactory(
         ToolbarActionsModelFactory::GetInstance(),
@@ -65,13 +66,14 @@ class MediaRouterUIServiceFactoryUnitTest : public testing::Test {
 };
 
 TEST_F(MediaRouterUIServiceFactoryUnitTest, CreateService) {
-  // We call BuildServiceInstanceFor() directly because
+  // We call BuildServiceInstanceForBrowserContext() directly because
   // MediaRouterUIServiceFactory::GetForBrowserContext() is set to return a
   // nullptr for a test profile.
   std::unique_ptr<MediaRouterUIService> service(
       static_cast<MediaRouterUIService*>(
-          MediaRouterUIServiceFactory::GetInstance()->BuildServiceInstanceFor(
-              profile_.get())));
+          MediaRouterUIServiceFactory::GetInstance()
+              ->BuildServiceInstanceForBrowserContext(profile_.get())
+              .release()));
   ASSERT_TRUE(service);
   ASSERT_TRUE(service->action_controller());
 }
@@ -82,8 +84,9 @@ TEST_F(MediaRouterUIServiceFactoryUnitTest,
       ::prefs::kEnableMediaRouter, std::make_unique<base::Value>(false));
   std::unique_ptr<MediaRouterUIService> service(
       static_cast<MediaRouterUIService*>(
-          MediaRouterUIServiceFactory::GetInstance()->BuildServiceInstanceFor(
-              profile_.get())));
+          MediaRouterUIServiceFactory::GetInstance()
+              ->BuildServiceInstanceForBrowserContext(profile_.get())
+              .release()));
   ASSERT_TRUE(service);
   EXPECT_EQ(nullptr, service->action_controller());
 }
@@ -91,8 +94,9 @@ TEST_F(MediaRouterUIServiceFactoryUnitTest,
 TEST_F(MediaRouterUIServiceFactoryUnitTest, DisablingMediaRouting) {
   std::unique_ptr<MediaRouterUIService> service(
       static_cast<MediaRouterUIService*>(
-          MediaRouterUIServiceFactory::GetInstance()->BuildServiceInstanceFor(
-              profile_.get())));
+          MediaRouterUIServiceFactory::GetInstance()
+              ->BuildServiceInstanceForBrowserContext(profile_.get())
+              .release()));
   ASSERT_TRUE(service);
   ASSERT_TRUE(service->action_controller());
 

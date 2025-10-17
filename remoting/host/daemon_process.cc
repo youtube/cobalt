@@ -17,6 +17,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "remoting/base/auto_thread_task_runner.h"
 #include "remoting/base/constants.h"
@@ -181,6 +182,11 @@ DaemonProcess::DaemonProcess(
   // TODO(sammc): On OSX, mojo::core::SetMachPortProvider() should be called
   // with a base::PortProvider implementation. Add it here when this code is
   // used on OSX.
+
+  // Tests may use their own thread pool so create one if needed.
+  if (!base::ThreadPoolInstance::Get()) {
+    base::ThreadPoolInstance::CreateAndStartWithDefaultParams("Daemon");
+  }
 }
 
 void DaemonProcess::CreateDesktopSession(int terminal_id,
@@ -265,6 +271,8 @@ void DaemonProcess::Initialize() {
   config_watcher_->Watch(this);
   host_event_logger_ =
       HostEventLogger::Create(status_monitor_, kApplicationName);
+
+  StartChromotingHostServices();
 
   // Launch the process.
   LaunchNetworkProcess();

@@ -7,11 +7,14 @@
 
 #include <vector>
 
+#include "gpu/command_buffer/service/feature_info.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing_factory.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
+#include "gpu/command_buffer/service/texture_manager.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
+#include "gpu/config/gpu_feature_info.h"
 #include "gpu/config/gpu_preferences.h"
 #include "gpu/vulkan/buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -50,6 +53,10 @@ class SharedImageTestBase : public testing::Test {
 
   bool use_passthrough() const;
   GrDirectContext* gr_context();
+  GrContextType gr_context_type();
+
+  // Returns true if graphite/dawn is supported for running tests.
+  bool IsGraphiteDawnSupported();
 
   // Initializes `context_state_` for `context_type`. Expected to be called as
   // part of test SetUp(). Note this function can fail with an assertion error
@@ -57,10 +64,22 @@ class SharedImageTestBase : public testing::Test {
   // exits on error.
   void InitializeContext(GrContextType context_type);
 
-  // Reads back pixels for each plane using skia and verifies that pixels
-  // match corresponding bitmap from `expected_bitmaps`.
+  // Reads back pixels for each plane and verifies that pixels match
+  // corresponding bitmap from `expected_bitmaps`.
   void VerifyPixelsWithReadback(const Mailbox& mailbox,
                                 const std::vector<SkBitmap>& expect_bitmaps);
+
+  // Reads back pixels for each plane using skia ganesh and verifies that pixels
+  // match corresponding bitmap from `expected_bitmaps`.
+  void VerifyPixelsWithReadbackGanesh(
+      const Mailbox& mailbox,
+      const std::vector<SkBitmap>& expect_bitmaps);
+
+  // Reads back pixels for each plane using skia graphite and verifies that
+  // pixels match corresponding bitmap from `expected_bitmaps`.
+  void VerifyPixelsWithReadbackGraphite(
+      const Mailbox& mailbox,
+      const std::vector<SkBitmap>& expect_bitmaps);
 
   GpuPreferences gpu_preferences_;
   GpuDriverBugWorkarounds gpu_workarounds_;
@@ -68,6 +87,16 @@ class SharedImageTestBase : public testing::Test {
 #if BUILDFLAG(ENABLE_VULKAN)
   std::unique_ptr<VulkanImplementation> vulkan_implementation_;
   scoped_refptr<viz::VulkanInProcessContextProvider> vulkan_context_provider_;
+#endif
+#if BUILDFLAG(SKIA_USE_METAL)
+  std::unique_ptr<viz::MetalContextProvider> metal_context_provider_;
+#endif
+#if BUILDFLAG(SKIA_USE_DAWN)
+  // Subclass can customize this method to configure a specific Dawn backend
+  // when InitializeContext()
+  virtual wgpu::BackendType GetDawnBackendType() const;
+  virtual bool DawnForceFallbackAdapter() const;
+  std::unique_ptr<DawnContextProvider> dawn_context_provider_;
 #endif
 
   scoped_refptr<gl::GLSurface> gl_surface_;
@@ -82,6 +111,8 @@ class SharedImageTestBase : public testing::Test {
   // To be initialized by the test implementation.
   std::unique_ptr<SharedImageBackingFactory> backing_factory_;
 };
+
+void PrintTo(GrContextType type, std::ostream* os);
 
 }  // namespace gpu
 

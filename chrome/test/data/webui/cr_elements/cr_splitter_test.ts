@@ -4,7 +4,7 @@
 
 import 'chrome://resources/cr_elements/cr_splitter/cr_splitter.js';
 
-import {CrSplitterElement} from 'chrome://resources/cr_elements/cr_splitter/cr_splitter.js';
+import type {CrSplitterElement} from 'chrome://resources/cr_elements/cr_splitter/cr_splitter.js';
 import {getTrustedHTML} from 'chrome://resources/js/static_types.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
@@ -55,7 +55,7 @@ suite('cr-splitter', function() {
     crSplitter.dispatchEvent(up);
 
     const afterWidth = previousElement.getBoundingClientRect().width;
-    assertEquals(100, afterWidth - beforeWidth);
+    assertEquals(100, Math.round(afterWidth - beforeWidth));
   });
 
   test('resize next element', function() {
@@ -81,6 +81,6 @@ suite('cr-splitter', function() {
     crSplitter.dispatchEvent(up);
 
     const afterWidth = nextElement.getBoundingClientRect().width;
-    assertEquals(100, afterWidth - beforeWidth);
+    assertEquals(100, Math.round(afterWidth - beforeWidth));
   });
 });

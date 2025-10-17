@@ -19,7 +19,6 @@
 #include "skia/ext/legacy_display_globals.h"
 #include "skia/ext/platform_canvas.h"
 #include "third_party/skia/include/core/SkCanvas.h"
-#include "third_party/skia/include/core/SkColorPriv.h"
 #include "third_party/skia/include/core/SkPixmap.h"
 #include "ui/surface/transport_dib.h"
 
@@ -234,7 +233,9 @@ void* ImageDataSimpleBackend::Map() {
     if (!shm_mapping_.IsValid())
       return nullptr;
 
-    skia_bitmap_.setPixels(shm_mapping_.memory());
+    base::span<uint8_t> mem(shm_mapping_);
+    CHECK_GE(mem.size(), skia_bitmap_.computeByteSize());
+    skia_bitmap_.setPixels(mem.data());
     // Our platform bitmaps are set to opaque by default, which we don't want.
     skia_bitmap_.setAlphaType(kPremul_SkAlphaType);
     skia_canvas_ = std::make_unique<SkCanvas>(

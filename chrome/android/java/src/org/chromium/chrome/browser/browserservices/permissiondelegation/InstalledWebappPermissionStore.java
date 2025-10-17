@@ -8,13 +8,12 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Base64;
 
-import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.annotation.WorkerThread;
 import androidx.browser.trusted.Token;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.StrictModeContext;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.content_settings.ContentSettingValues;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.embedder_support.util.Origin;
@@ -52,6 +51,7 @@ import java.util.Set;
  *
  * TODO(peconn): Unify this and WebappDataStorage?
  */
+@NullMarked
 public class InstalledWebappPermissionStore {
     private static final String SHARED_PREFS_FILE = "twa_permission_registry";
 
@@ -86,23 +86,21 @@ public class InstalledWebappPermissionStore {
     public InstalledWebappPermissionStore() {
         // On some versions of Android, creating the Preferences object involves a disk read (to
         // check if the Preferences directory exists, not even to read the actual Preferences).
-        try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
-            mPreferences = ContextUtils.getApplicationContext().getSharedPreferences(
-                    SHARED_PREFS_FILE, Context.MODE_PRIVATE);
-        }
+        mPreferences =
+                ContextUtils.getApplicationContext()
+                        .getSharedPreferences(SHARED_PREFS_FILE, Context.MODE_PRIVATE);
     }
 
     /**
      * Retrieves the permission setting of {@link ContentSettingsType} for the origin due to
      * delegation to an app. Returns {@code null} if the origin is not linked to an app.
      */
-    @Nullable
-    public @ContentSettingValues Integer getPermission(
-            @ContentSettingsType int type, Origin origin) {
+    public @Nullable @ContentSettingValues Integer getPermission(
+            @ContentSettingsType.EnumType int type, Origin origin) {
         String key = createPermissionSettingKey(type, origin);
 
         if (!mPreferences.contains(key)) {
-            // TODO(crbug.com/1323183): Clean up this fallback.
+            // TODO(crbug.com/40838462): Clean up this fallback.
             String fallbackKey = createPermissionKey(type, origin);
             if (!mPreferences.contains(fallbackKey)) return null;
             boolean enabled = mPreferences.getBoolean(fallbackKey, false);
@@ -112,18 +110,15 @@ public class InstalledWebappPermissionStore {
         return mPreferences.getInt(key, ContentSettingValues.ASK);
     }
 
-    @Nullable
-    String getDelegateAppName(Origin origin) {
+    public @Nullable String getDelegateAppName(Origin origin) {
         return mPreferences.getString(createAppNameKey(origin), null);
     }
 
-    @Nullable
-    String getDelegatePackageName(Origin origin) {
+    public @Nullable String getDelegatePackageName(Origin origin) {
         return mPreferences.getString(createPackageNameKey(origin), null);
     }
 
-    @Nullable
-    Set<Token> getAllDelegateApps(Origin origin) {
+    public @Nullable Set<Token> getAllDelegateApps(Origin origin) {
         Set<String> tokens = mPreferences.getStringSet(createAllDelegateAppsKey(origin), null);
         if (tokens == null) return null;
 
@@ -134,7 +129,7 @@ public class InstalledWebappPermissionStore {
         return result;
     }
 
-    void addDelegateApp(Origin origin, Token token) {
+    public void addDelegateApp(Origin origin, Token token) {
         String key = createAllDelegateAppsKey(origin);
         Set<String> allDelegateApps =
                 new HashSet<>(mPreferences.getStringSet(key, Collections.emptySet()));
@@ -146,27 +141,30 @@ public class InstalledWebappPermissionStore {
     public Set<String> getStoredOrigins() {
         // In case the pre-emptive disk read in initStorage hasn't occurred by the time we actually
         // need the value.
-        try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
-            // The set returned by getStringSet must not be modified. The consistency of the stored
-            // data is not guaranteed if you do, nor is your ability to modify the instance at all.
-            return new HashSet<>(mPreferences.getStringSet(KEY_ALL_ORIGINS, new HashSet<>()));
-        }
+        // The set returned by getStringSet must not be modified. The consistency of the stored
+        // data is not guaranteed if you do, nor is your ability to modify the instance at all.
+        return new HashSet<>(mPreferences.getStringSet(KEY_ALL_ORIGINS, new HashSet<>()));
     }
 
     /**
-     * Sets the permission state for the origin.
-     * Returns whether {@code true} if state was changed, {@code false} if the provided state was
-     * the same as the state beforehand.
+     * Sets the permission state for the origin. Returns whether {@code true} if state was changed,
+     * {@code false} if the provided state was the same as the state beforehand.
      */
-    boolean setStateForOrigin(Origin origin, String packageName, String appName,
-            @ContentSettingsType int type, @ContentSettingValues int settingValue) {
+    public boolean setStateForOrigin(
+            Origin origin,
+            String packageName,
+            String appName,
+            @ContentSettingsType.EnumType int type,
+            @ContentSettingValues int settingValue) {
         boolean modified = !getStoredOrigins().contains(origin.toString());
 
         if (!modified) {
             // Don't bother with these extra checks if we have a brand new origin.
-            boolean settingChanged = settingValue
-                    != mPreferences.getInt(
-                            createPermissionSettingKey(type, origin), ContentSettingValues.ASK);
+            boolean settingChanged =
+                    settingValue
+                            != mPreferences.getInt(
+                                    createPermissionSettingKey(type, origin),
+                                    ContentSettingValues.ASK);
             boolean packageChanged =
                     !packageName.equals(mPreferences.getString(createPackageNameKey(origin), null));
             boolean appNameChanged =
@@ -176,7 +174,8 @@ public class InstalledWebappPermissionStore {
 
         addOrigin(origin);
 
-        mPreferences.edit()
+        mPreferences
+                .edit()
                 .putInt(createPermissionSettingKey(type, origin), settingValue)
                 .putString(createPackageNameKey(origin), packageName)
                 .putString(createAppNameKey(origin), appName)
@@ -186,11 +185,12 @@ public class InstalledWebappPermissionStore {
     }
 
     /** Removes the origin from the store. */
-    void removeOrigin(Origin origin) {
+    public void removeOrigin(Origin origin) {
         Set<String> origins = getStoredOrigins();
         origins.remove(origin.toString());
 
-        mPreferences.edit()
+        mPreferences
+                .edit()
                 .putStringSet(KEY_ALL_ORIGINS, origins)
                 .remove(createPermissionKey(ContentSettingsType.NOTIFICATIONS, origin))
                 .remove(createPermissionSettingKey(ContentSettingsType.NOTIFICATIONS, origin))
@@ -203,17 +203,19 @@ public class InstalledWebappPermissionStore {
     }
 
     /** Reset permission {@type} from the store. */
-    void resetPermission(Origin origin, @ContentSettingsType int type) {
-        mPreferences.edit()
+    public void resetPermission(Origin origin, @ContentSettingsType.EnumType int type) {
+        mPreferences
+                .edit()
                 .remove(createPermissionKey(type, origin))
                 .remove(createPermissionSettingKey(type, origin))
                 .apply();
     }
 
     /** Stores the notification permission setting the origin had before the app was installed. */
-    void setPreInstallNotificationPermission(
+    public void setPreInstallNotificationPermission(
             Origin origin, @ContentSettingValues int settingValue) {
-        mPreferences.edit()
+        mPreferences
+                .edit()
                 .putInt(createPreInstallNotificationPermissionSettingKey(origin), settingValue)
                 .apply();
     }
@@ -223,13 +225,12 @@ public class InstalledWebappPermissionStore {
      * {@code null} if no setting is stored. If a setting was stored, calling this method removes
      * it.
      */
-    @Nullable
-    @ContentSettingValues
-    Integer getAndRemovePreInstallNotificationPermission(Origin origin) {
+    public @Nullable @ContentSettingValues Integer getAndRemovePreInstallNotificationPermission(
+            Origin origin) {
         String key = createPreInstallNotificationPermissionSettingKey(origin);
 
         if (!mPreferences.contains(key)) {
-            // TODO(crbug.com/1323183): Clean up this fallback.
+            // TODO(crbug.com/40838462): Clean up this fallback.
             String fallbackKey = createNotificationPreInstallPermissionKey(origin);
             if (!mPreferences.contains(fallbackKey)) return null;
             boolean enabled = mPreferences.getBoolean(fallbackKey, false);
@@ -237,14 +238,12 @@ public class InstalledWebappPermissionStore {
             return enabled ? ContentSettingValues.ALLOW : ContentSettingValues.BLOCK;
         }
 
-        @ContentSettingValues
-        int settingValue = mPreferences.getInt(key, ContentSettingValues.ASK);
+        @ContentSettingValues int settingValue = mPreferences.getInt(key, ContentSettingValues.ASK);
         mPreferences.edit().remove(key).apply();
         return settingValue;
     }
 
     /** Clears the store, for testing. */
-    @VisibleForTesting
     public void clearForTesting() {
         mPreferences.edit().clear().apply();
     }
@@ -256,7 +255,7 @@ public class InstalledWebappPermissionStore {
         mPreferences.edit().putStringSet(KEY_ALL_ORIGINS, origins).apply();
     }
 
-    private static String getKeyPermissionPrefix(@ContentSettingsType int type) {
+    private static String getKeyPermissionPrefix(@ContentSettingsType.EnumType int type) {
         switch (type) {
             case ContentSettingsType.NOTIFICATIONS:
                 return KEY_NOTIFICATION_PERMISSION_PREFIX;
@@ -267,7 +266,7 @@ public class InstalledWebappPermissionStore {
         }
     }
 
-    private static String getPermissionSettingKeyPrefix(@ContentSettingsType int type) {
+    private static String getPermissionSettingKeyPrefix(@ContentSettingsType.EnumType int type) {
         switch (type) {
             case ContentSettingsType.NOTIFICATIONS:
                 return KEY_NOTIFICATION_PERMISSION_SETTING_PREFIX;
@@ -278,11 +277,13 @@ public class InstalledWebappPermissionStore {
         }
     }
 
-    private static String createPermissionKey(@ContentSettingsType int type, Origin origin) {
+    private static String createPermissionKey(
+            @ContentSettingsType.EnumType int type, Origin origin) {
         return getKeyPermissionPrefix(type) + origin.toString();
     }
 
-    private static String createPermissionSettingKey(@ContentSettingsType int type, Origin origin) {
+    private static String createPermissionSettingKey(
+            @ContentSettingsType.EnumType int type, Origin origin) {
         return getPermissionSettingKeyPrefix(type) + origin.toString();
     }
 

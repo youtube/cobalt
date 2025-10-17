@@ -8,6 +8,8 @@
 #include <stdint.h>
 
 #include "base/time/time.h"
+#include "components/attribution_reporting/constants.h"
+#include "components/attribution_reporting/privacy_math.h"
 #include "content/common/content_export.h"
 
 namespace content {
@@ -17,6 +19,9 @@ namespace content {
 struct CONTENT_EXPORT AttributionConfig {
   // Controls rate limits for the API.
   struct CONTENT_EXPORT RateLimitConfig {
+    RateLimitConfig();
+    ~RateLimitConfig();
+
     // Returns true if this config is valid.
     [[nodiscard]] bool Validate() const;
 
@@ -32,56 +37,33 @@ struct CONTENT_EXPORT AttributionConfig {
     int64_t max_attribution_reporting_origins = 10;
 
     // Maximum number of attributions for a given <source site, destination
-    // site, reporting origin> in `time_window`.
+    // site, reporting site> in `time_window`.
     int64_t max_attributions = 100;
 
-    // When adding new members, the corresponding `Validate()` definition and
-    // `operator==()` definition in `attribution_interop_parser_unittest.cc`
+    // Maximum number of distinct reporting origins for a given <source site,
+    // reporting site> in `origins_per_site_window`.
+    int max_reporting_origins_per_source_reporting_site = 1;
+
+    // Controls the time window for reporting origins per site limit.
+    base::TimeDelta origins_per_site_window = base::Days(1);
+
+    friend bool operator==(const RateLimitConfig&,
+                           const RateLimitConfig&) = default;
+
+    // When adding new members, the corresponding `Validate()` definition
     // should also be updated.
   };
 
-  struct EventLevelLimit {
-    // Returns true if this config is valid.
-    [[nodiscard]] bool Validate() const;
+  struct CONTENT_EXPORT EventLevelLimit {
+    EventLevelLimit();
 
-    // Controls the valid range of trigger data.
-    uint64_t navigation_source_trigger_data_cardinality = 8;
-    uint64_t event_source_trigger_data_cardinality = 2;
+    EventLevelLimit(const EventLevelLimit&);
+    EventLevelLimit(EventLevelLimit&&);
+    ~EventLevelLimit();
 
-    // Controls randomized response rates for the API: when a source is
-    // registered, this parameter is used to determine the probability that any
-    // subsequent attributions for the source are handled truthfully, or whether
-    // the source is immediately attributed with zero or more fake reports and
-    // real attributions are dropped. Must be non-negative and non-NaN, but may
-    // be infinite.
-    double randomized_response_epsilon = 14;
+    EventLevelLimit& operator=(const EventLevelLimit&);
+    EventLevelLimit& operator=(EventLevelLimit&&);
 
-    // Controls how many reports can be in the storage per attribution
-    // destination.
-    int max_reports_per_destination = 1024;
-
-    // Controls how many times a single source can create an event-level report.
-    int max_attributions_per_navigation_source = 3;
-    int max_attributions_per_event_source = 1;
-
-    // Default constants for report window deadlines.
-    static constexpr base::TimeDelta kDefaultFirstReportWindowDeadline =
-        base::Days(2);
-    static constexpr base::TimeDelta kDefaultSecondReportWindowDeadline =
-        base::Days(7);
-
-    // Controls the report window deadlines for scheduling report times.
-    base::TimeDelta first_report_window_deadline =
-        kDefaultFirstReportWindowDeadline;
-    base::TimeDelta second_report_window_deadline =
-        kDefaultSecondReportWindowDeadline;
-
-    // When adding new members, the corresponding `Validate()` definition and
-    // `operator==()` definition in `attribution_interop_parser_unittest.cc`
-    // should also be updated.
-  };
-
-  struct AggregateLimit {
     // Returns true if this config is valid.
     [[nodiscard]] bool Validate() const;
 
@@ -89,44 +71,109 @@ struct CONTENT_EXPORT AttributionConfig {
     // destination.
     int max_reports_per_destination = 1024;
 
-    // Controls the maximum sum of the contributions (values) across all buckets
-    // per source.
-    // When updating the value, the corresponding BUDGET_PER_SOURCE value in
-    // //content/browser/resources/attribution_reporting/attribution_internals.ts
-    // should also be updated.
-    int64_t aggregatable_budget_per_source = 65536;
+    friend bool operator==(const EventLevelLimit&,
+                           const EventLevelLimit&) = default;
 
-    // Default constants for the report delivery time to be used when declaring
-    // field trial params.
-    static constexpr base::TimeDelta kDefaultMinDelay = base::Minutes(10);
-    static constexpr base::TimeDelta kDefaultDelaySpan = base::Minutes(50);
+    // When adding new members, the corresponding `Validate()` definition
+    // should also be updated.
+  };
+
+  struct CONTENT_EXPORT AggregateLimit {
+    AggregateLimit();
+
+    // Returns true if this config is valid.
+    [[nodiscard]] bool Validate() const;
+
+    // Controls how many reports can be in the storage per attribution
+    // destination.
+    int max_reports_per_destination = 1024;
 
     // Controls the report delivery time.
-    base::TimeDelta min_delay = kDefaultMinDelay;
-    base::TimeDelta delay_span = kDefaultDelaySpan;
+    base::TimeDelta min_delay;
+    base::TimeDelta delay_span = base::Minutes(10);
 
-    // When adding new members, the corresponding `Validate()` definition and
-    // `operator==()` definition in `attribution_interop_parser_unittest.cc`
+    double null_reports_rate_include_source_registration_time =
+        attribution_reporting::kNullReportsRateIncludeSourceRegistrationTime;
+    double null_reports_rate_exclude_source_registration_time =
+        attribution_reporting::kNullReportsRateExcludeSourceRegistrationTime;
+
+    int max_aggregatable_reports_per_source = 20;
+
+    friend bool operator==(const AggregateLimit&,
+                           const AggregateLimit&) = default;
+
+    // When adding new members, the corresponding `Validate()` definition
     // should also be updated.
   };
+
+  struct CONTENT_EXPORT DestinationRateLimit {
+    // Returns true if this config is valid.
+    [[nodiscard]] bool Validate() const;
+
+    static constexpr base::TimeDelta kPerDayRateLimitWindow = base::Days(1);
+
+    int max_total = 200;
+    int max_per_reporting_site = 50;
+    base::TimeDelta rate_limit_window = base::Minutes(1);
+
+    int max_per_reporting_site_per_day = 100;
+
+    friend bool operator==(const DestinationRateLimit&,
+                           const DestinationRateLimit&) = default;
+
+    // When adding new members, the corresponding `Validate()` definition
+    // should also be updated.
+  };
+
+  struct CONTENT_EXPORT AggregatableDebugRateLimit {
+    // Returns true if this config is valid.
+    [[nodiscard]] bool Validate() const;
+
+    int max_budget_per_context_site = 1048576;
+    int max_budget_per_context_reporting_site = 65536;
+
+    static constexpr base::TimeDelta kRateLimitWindow = base::Days(1);
+
+    int max_reports_per_source = 5;
+
+    friend bool operator==(const AggregatableDebugRateLimit&,
+                           const AggregatableDebugRateLimit&) = default;
+
+    // When adding new members, the corresponding `Validate()` definition
+    // should also be updated.
+  };
+
+  AttributionConfig();
+
+  AttributionConfig(const AttributionConfig&);
+  AttributionConfig(AttributionConfig&&);
+  ~AttributionConfig();
+
+  AttributionConfig& operator=(const AttributionConfig&);
+  AttributionConfig& operator=(AttributionConfig&&);
 
   // Returns true if this config is valid.
   [[nodiscard]] bool Validate() const;
 
   // Controls how many sources can be in the storage per source origin.
-  int max_sources_per_origin = 1024;
+  int max_sources_per_origin = 4096;
 
   // Controls the maximum number of distinct attribution destinations that can
   // be in storage at any time for sources with the same <source site, reporting
-  // origin>.
-  int max_destinations_per_source_site_reporting_origin = 100;
+  // site>.
+  int max_destinations_per_source_site_reporting_site = 100;
 
   RateLimitConfig rate_limit;
   EventLevelLimit event_level_limit;
   AggregateLimit aggregate_limit;
+  DestinationRateLimit destination_rate_limit;
+  AggregatableDebugRateLimit aggregatable_debug_rate_limit;
+  attribution_reporting::PrivacyMathConfig privacy_math_config;
 
-  // When adding new members, the corresponding `Validate()` definition and
-  // `operator==()` definition in `attribution_interop_parser_unittest.cc`
+  friend bool operator==(const AttributionConfig&,
+                         const AttributionConfig&) = default;
+
+  // When adding new members, the corresponding `Validate()` definition
   // should also be updated.
 };
 

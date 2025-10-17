@@ -11,9 +11,7 @@
 #include "chrome/common/extensions/api/file_system_provider.h"
 #include "chrome/common/extensions/api/file_system_provider_internal.h"
 
-namespace ash {
-namespace file_system_provider {
-namespace operations {
+namespace ash::file_system_provider::operations {
 namespace {
 
 // Convert the request |value| into a list of actions.
@@ -45,8 +43,7 @@ GetActions::GetActions(RequestDispatcher* dispatcher,
       entry_paths_(entry_paths),
       callback_(std::move(callback)) {}
 
-GetActions::~GetActions() {
-}
+GetActions::~GetActions() = default;
 
 bool GetActions::Execute(int request_id) {
   using extensions::api::file_system_provider::GetActionsRequestedOptions;
@@ -65,7 +62,7 @@ bool GetActions::Execute(int request_id) {
           options));
 }
 
-void GetActions::OnSuccess(int /* request_id */,
+void GetActions::OnSuccess(/*request_id=*/int,
                            const RequestValue& result,
                            bool has_more) {
   DCHECK(callback_);
@@ -73,13 +70,11 @@ void GetActions::OnSuccess(int /* request_id */,
                            base::File::FILE_OK);
 }
 
-void GetActions::OnError(int /* request_id */,
-                         const RequestValue& /* result */,
+void GetActions::OnError(/*request_id=*/int,
+                         /*result=*/const RequestValue&,
                          base::File::Error error) {
   DCHECK(callback_);
   std::move(callback_).Run(Actions(), error);
 }
 
-}  // namespace operations
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider::operations

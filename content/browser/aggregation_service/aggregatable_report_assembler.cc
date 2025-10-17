@@ -4,9 +4,10 @@
 
 #include "content/browser/aggregation_service/aggregatable_report_assembler.h"
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <utility>
-#include <vector>
 
 #include "base/check.h"
 #include "base/check_op.h"
@@ -15,7 +16,6 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
 #include "base/time/default_clock.h"
 #include "content/browser/aggregation_service/aggregatable_report.h"
 #include "content/browser/aggregation_service/aggregation_service_key_fetcher.h"
@@ -24,7 +24,6 @@
 #include "content/browser/aggregation_service/public_key.h"
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
@@ -72,12 +71,9 @@ AggregatableReportAssembler::~AggregatableReportAssembler() = default;
 
 AggregatableReportAssembler::PendingRequest::PendingRequest(
     AggregatableReportRequest report_request,
-    AggregatableReportAssembler::AssemblyCallback callback,
-    size_t num_processing_urls)
-    : report_request(std::move(report_request)),
-      callback(std::move(callback)),
-      processing_url_keys(num_processing_urls) {
-  DCHECK(this->callback);
+    AggregatableReportAssembler::AssemblyCallback callback)
+    : report_request(std::move(report_request)), callback(std::move(callback)) {
+  CHECK(this->callback);
 }
 
 AggregatableReportAssembler::PendingRequest::PendingRequest(
@@ -111,89 +107,63 @@ AggregatableReportAssembler::CreateForTesting(
 void AggregatableReportAssembler::AssembleReport(
     AggregatableReportRequest report_request,
     AssemblyCallback callback) {
-  DCHECK(base::ranges::is_sorted(report_request.processing_urls()));
-  const size_t num_processing_urls = report_request.processing_urls().size();
-  DCHECK(AggregatableReport::IsNumberOfProcessingUrlsValid(
-      num_processing_urls, report_request.payload_contents().aggregation_mode));
-
   const AggregationServicePayloadContents& contents =
       report_request.payload_contents();
 
   // Currently, this is the only supported operation.
-  DCHECK_EQ(contents.operation,
-            AggregationServicePayloadContents::Operation::kHistogram);
+  CHECK_EQ(contents.operation,
+           AggregationServicePayloadContents::Operation::kHistogram);
 
   if (pending_requests_.size() >= kMaxSimultaneousRequests) {
     RecordAssemblyStatus(AssemblyStatus::kTooManySimultaneousRequests);
 
-    std::move(callback).Run(std::move(report_request), absl::nullopt,
+    std::move(callback).Run(std::move(report_request), std::nullopt,
                             AssemblyStatus::kTooManySimultaneousRequests);
     return;
   }
 
   int64_t id = unique_id_counter_++;
-  DCHECK(!base::Contains(pending_requests_, id));
+  CHECK(!base::Contains(pending_requests_, id));
 
   const PendingRequest& pending_request =
       pending_requests_
           .emplace(id, PendingRequest(std::move(report_request),
-                                      std::move(callback), num_processing_urls))
+                                      std::move(callback)))
           .first->second;
 
-  for (size_t i = 0; i < num_processing_urls; ++i) {
-    // `fetcher_` is owned by `this`, so `base::Unretained()` is safe.
-    fetcher_->GetPublicKey(
-        pending_request.report_request.processing_urls()[i],
-        base::BindOnce(&AggregatableReportAssembler::OnPublicKeyFetched,
-                       base::Unretained(this), /*report_id=*/id,
-                       /*processing_url_index=*/i));
-  }
+  // `fetcher_` is owned by `this`, so `base::Unretained()` is safe.
+  fetcher_->GetPublicKey(
+      pending_request.report_request.processing_url(),
+      base::BindOnce(&AggregatableReportAssembler::OnPublicKeyFetched,
+                     base::Unretained(this), /*report_id=*/id));
 }
 
 void AggregatableReportAssembler::OnPublicKeyFetched(
     int64_t report_id,
-    size_t processing_url_index,
-    absl::optional<PublicKey> key,
+    std::optional<PublicKey> key,
     AggregationServiceKeyFetcher::PublicKeyFetchStatus status) {
-  DCHECK_EQ(key.has_value(),
-            status == AggregationServiceKeyFetcher::PublicKeyFetchStatus::kOk);
+  CHECK_EQ(key.has_value(),
+           status == AggregationServiceKeyFetcher::PublicKeyFetchStatus::kOk);
   auto pending_request_it = pending_requests_.find(report_id);
-  DCHECK(pending_request_it != pending_requests_.end());
+  CHECK(pending_request_it != pending_requests_.end());
 
   PendingRequest& pending_request = pending_request_it->second;
 
-  // TODO(crbug.com/1254792): Consider implementing some retry logic.
+  // TODO(crbug.com/40199738): Consider implementing some retry logic.
 
-  ++pending_request.num_returned_key_fetches;
-  pending_request.processing_url_keys[processing_url_index] = std::move(key);
+  if (!key.has_value()) {
+    RecordAssemblyStatus(AssemblyStatus::kPublicKeyFetchFailed);
 
-  if (pending_request.num_returned_key_fetches ==
-      pending_request.report_request.processing_urls().size()) {
-    OnAllPublicKeysFetched(report_id, pending_request);
-  }
-}
-
-void AggregatableReportAssembler::OnAllPublicKeysFetched(
-    int64_t report_id,
-    PendingRequest& pending_request) {
-  std::vector<PublicKey> public_keys;
-  for (absl::optional<PublicKey> elem : pending_request.processing_url_keys) {
-    if (!elem.has_value()) {
-      RecordAssemblyStatus(AssemblyStatus::kPublicKeyFetchFailed);
-
-      std::move(pending_request.callback)
-          .Run(std::move(pending_request.report_request), absl::nullopt,
-               AssemblyStatus::kPublicKeyFetchFailed);
-      pending_requests_.erase(report_id);
-      return;
-    }
-
-    public_keys.push_back(std::move(elem.value()));
+    std::move(pending_request.callback)
+        .Run(std::move(pending_request.report_request), std::nullopt,
+             AssemblyStatus::kPublicKeyFetchFailed);
+    pending_requests_.erase(report_id);
+    return;
   }
 
-  absl::optional<AggregatableReport> assembled_report =
-      report_provider_->CreateFromRequestAndPublicKeys(
-          pending_request.report_request, std::move(public_keys));
+  std::optional<AggregatableReport> assembled_report =
+      report_provider_->CreateFromRequestAndPublicKey(
+          pending_request.report_request, *std::move(key));
   AssemblyStatus assembly_status =
       assembled_report ? AssemblyStatus::kOk : AssemblyStatus::kAssemblyFailed;
   RecordAssemblyStatus(assembly_status);

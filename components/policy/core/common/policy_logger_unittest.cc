@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/policy/core/common/policy_logger.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_mock_time_task_runner.h"
@@ -28,25 +29,15 @@ void AddLogs(const std::string& message, PolicyLogger* policy_logger) {
 
 class PolicyLoggerTest : public PlatformTest {
  public:
-  PolicyLoggerTest() {
-#if BUILDFLAG(IS_ANDROID)
-    scoped_feature_list_.InitWithFeatureState(
-        policy::features::kPolicyLogsPageAndroid, true);
-#elif BUILDFLAG(IS_IOS)
-    scoped_feature_list_.InitWithFeatureState(
-        policy::features::kPolicyLogsPageIOS, true);
-#endif
-  }
-
+  PolicyLoggerTest() = default;
   ~PolicyLoggerTest() override = default;
 
  protected:
   // Clears the logs list and resets the deletion flag before the test and its
   // tasks are deleted. This is important to prevent tests from affecting each
   // other's results.
-  void TearDown() override {
-    policy::PolicyLogger::GetInstance()->ResetLoggerAfterTest();
-    PlatformTest::TearDown();
+  void SetUp() override {
+    policy::PolicyLogger::GetInstance()->ResetLoggerForTesting();
   }
 
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -99,23 +90,33 @@ TEST_F(PolicyLoggerTest, DeleteOldLogs) {
   EXPECT_EQ(policy_logger->GetAsList().size(), size_t(0));
 }
 
-// Checks that no logs are added when the feature is disabled.
-TEST(PolicyLoggerDisabledTest, PolicyLoggingDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list_;
-#if BUILDFLAG(IS_ANDROID)
-  scoped_feature_list_.InitWithFeatureState(
-      policy::features::kPolicyLogsPageAndroid, false);
-#elif BUILDFLAG(IS_IOS)
-  scoped_feature_list_.InitWithFeatureState(
-      policy::features::kPolicyLogsPageIOS, false);
-#endif
-
+// Checks that the first log  added is deleted when `PolicyLogger::kMaxLogSize`
+// is exceeded.
+TEST_F(PolicyLoggerTest, MaxSizeExceededDeletesOldestLog) {
   PolicyLogger* policy_logger = policy::PolicyLogger::GetInstance();
 
-  size_t logs_size_before_adding = policy_logger->GetPolicyLogsSizeForTesting();
-  AddLogs("when the feature is disabled.", policy_logger);
+  AddLogs("First log that will be removed.", policy_logger);
+
+  // Adds kMaxLogsSize` - 1 more elements until `kMaxLogsSize` is reached.
+  for (int i = 0; i < static_cast<int>(policy::PolicyLogger::kMaxLogsSize) - 1;
+       i++) {
+    AddLogs(base::NumberToString(i + 1), policy_logger);
+  }
   EXPECT_EQ(policy_logger->GetPolicyLogsSizeForTesting(),
-            logs_size_before_adding);
+            policy::PolicyLogger::kMaxLogsSize);
+
+  AddLogs("Last log added and size is exceeded.", policy_logger);
+
+  size_t current_size = policy_logger->GetPolicyLogsSizeForTesting();
+  base::Value::List current_logs = policy_logger->GetAsList();
+
+  EXPECT_EQ(current_size, policy::PolicyLogger::kMaxLogsSize);
+
+  EXPECT_EQ(*(current_logs[0].GetDict().FindString("message")),
+            "Element added: 1");
+
+  EXPECT_EQ(*(current_logs[current_size - 1].GetDict().FindString("message")),
+            "Element added: Last log added and size is exceeded.");
 }
 
 }  // namespace policy

@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_MIRRORING_SERVICE_VIDEO_CAPTURE_CLIENT_H_
 #define COMPONENTS_MIRRORING_SERVICE_VIDEO_CAPTURE_CLIENT_H_
 
+#include <variant>
+
 #include "base/component_export.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
@@ -12,11 +14,11 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
+#include "media/base/video_frame_converter.h"
 #include "media/capture/mojom/video_capture.mojom.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 
 namespace media {
 class VideoFrame;
@@ -64,11 +66,11 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) VideoCaptureClient
   void OnStateChanged(media::mojom::VideoCaptureResultPtr result) override;
   void OnNewBuffer(int32_t buffer_id,
                    media::mojom::VideoBufferHandlePtr buffer_handle) override;
-  void OnBufferReady(
-      media::mojom::ReadyBufferPtr buffer,
-      std::vector<media::mojom::ReadyBufferPtr> scaled_buffers) override;
+  void OnBufferReady(media::mojom::ReadyBufferPtr buffer) override;
   void OnBufferDestroyed(int32_t buffer_id) override;
-  void OnNewCropVersion(uint32_t crop_version) override;
+  void OnFrameDropped(media::VideoCaptureFrameDropReason reason) override;
+  void OnNewSubCaptureTargetVersion(
+      uint32_t sub_capture_target_version) override;
 
   void SwitchVideoCaptureHost(
       mojo::PendingRemote<media::mojom::VideoCaptureHost> host);
@@ -79,9 +81,9 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) VideoCaptureClient
   static void DidFinishConsumingFrame(BufferFinishedCallback callback);
 
   // Reports the utilization to release the buffer for potential reuse.
-  using MappingKeepAlive = absl::variant<absl::monostate,
-                                         base::WritableSharedMemoryMapping,
-                                         base::ReadOnlySharedMemoryMapping>;
+  using MappingKeepAlive = std::variant<std::monostate,
+                                        base::WritableSharedMemoryMapping,
+                                        base::ReadOnlySharedMemoryMapping>;
   void OnClientBufferFinished(int buffer_id,
                               MappingKeepAlive mapping_keep_alive);
 
@@ -93,9 +95,9 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) VideoCaptureClient
 
   mojo::Receiver<media::mojom::VideoCaptureObserver> receiver_{this};
 
-  // TODO(crbug.com/843117): Store the base::ReadOnlySharedMemoryRegion instead
-  // after migrating the media::VideoCaptureDeviceClient to the new shared
-  // memory API.
+  // TODO(crbug.com/40576409): Store the base::ReadOnlySharedMemoryRegion
+  // instead after migrating the media::VideoCaptureDeviceClient to the new
+  // shared memory API.
   using ClientBufferMap =
       base::flat_map<int32_t, media::mojom::VideoBufferHandlePtr>;
   // Stores the buffer handler on OnBufferCreated(). |buffer_id| is the key.
@@ -115,7 +117,7 @@ class COMPONENT_EXPORT(MIRRORING_SERVICE) VideoCaptureClient
   // these structures are used to convert them to I420 on the CPU.
   // https://crbug.com/1206325
   std::unique_ptr<media::VideoFramePool> nv12_to_i420_pool_;
-  std::vector<uint8_t> nv12_to_i420_tmp_buf_;
+  media::VideoFrameConverter frame_converter_;
 
   // Indicates whether we're in the middle of switching video capture host.
   bool switching_video_capture_host_ = false;

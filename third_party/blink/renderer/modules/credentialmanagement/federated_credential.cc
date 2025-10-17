@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/modules/credentialmanagement/credential_manager_proxy.h"
 #include "third_party/blink/renderer/modules/credentialmanagement/credential_manager_type_converters.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/wtf/wtf.h"
 
 namespace blink {
 
@@ -78,14 +79,21 @@ bool FederatedCredential::IsFederatedCredential() const {
   return true;
 }
 
-void SetIdpSigninStatus(WebLocalFrame* frame,
+void SetIdpSigninStatus(const blink::LocalFrameToken& local_frame_token,
                         const url::Origin& origin,
                         mojom::blink::IdpSigninStatus status) {
-  LocalFrame* local_frame = To<LocalFrame>(WebFrame::ToCoreFrame(*frame));
+  CHECK(WTF::IsMainThread());
+  LocalFrame* local_frame = LocalFrame::FromFrameToken(local_frame_token);
+  // Null checking DomWindow() and GetFrame() for detached frame case. See
+  // https://crbug.com/382646175 for details.
+  if (!local_frame || !local_frame->DomWindow() ||
+      !local_frame->DomWindow()->GetFrame()) {
+    return;
+  }
   auto* auth_request = CredentialManagerProxy::From(local_frame->DomWindow())
                            ->FederatedAuthRequest();
   auth_request->SetIdpSigninStatus(SecurityOrigin::CreateFromUrlOrigin(origin),
-                                   status);
+                                   status, /*options=*/nullptr);
 }
 
 }  // namespace blink

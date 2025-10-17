@@ -2,21 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import 'chrome://shortcut-customization/js/search/search_box.js';
-import 'chrome://webui-test/mojo_webui_test_support.js';
+import 'chrome://webui-test/chromeos/mojo_webui_test_support.js';
 
+import {CrToolbarSearchFieldElement} from 'chrome://resources/ash/common/cr_elements/cr_toolbar/cr_toolbar_search_field.js';
 import {strictQuery} from 'chrome://resources/ash/common/typescript_utils/strict_query.js';
-import {CrToolbarSearchFieldElement} from 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar_search_field.js';
-import {IronDropdownElement} from 'chrome://resources/polymer/v3_0/iron-dropdown/iron-dropdown.js';
-import {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {IronDropdownElement} from 'chrome://resources/polymer/v3_0/iron-dropdown/iron-dropdown.js';
+import type {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {CycleTabsTextSearchResult, fakeSearchResults, TakeScreenshotSearchResult} from 'chrome://shortcut-customization/js/fake_data.js';
+import {AcceleratorLookupManager} from 'chrome://shortcut-customization/js/accelerator_lookup_manager.js';
+import {CycleTabsTextSearchResult, fakeAcceleratorConfig, fakeLayoutInfo, fakeSearchResults, TakeScreenshotSearchResult} from 'chrome://shortcut-customization/js/fake_data.js';
 import {FakeShortcutSearchHandler} from 'chrome://shortcut-customization/js/search/fake_shortcut_search_handler.js';
-import {SearchBoxElement} from 'chrome://shortcut-customization/js/search/search_box.js';
+import type {SearchBoxElement} from 'chrome://shortcut-customization/js/search/search_box.js';
 import {SearchResultRowElement} from 'chrome://shortcut-customization/js/search/search_result_row.js';
 import {setShortcutSearchHandlerForTesting} from 'chrome://shortcut-customization/js/search/shortcut_search_handler.js';
-import {AcceleratorState, MojoSearchResult} from 'chrome://shortcut-customization/js/shortcut_types.js';
+import type {MojoSearchResult} from 'chrome://shortcut-customization/js/shortcut_types.js';
+import {AcceleratorState} from 'chrome://shortcut-customization/js/shortcut_types.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {flushTasks, waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 
 suite('searchBoxTest', function() {
@@ -26,15 +28,24 @@ suite('searchBoxTest', function() {
   let resultsListElement: IronListElement|null = null;
 
   let handler: FakeShortcutSearchHandler;
+  let manager: AcceleratorLookupManager|null = null;
 
   setup(() => {
     // Set up SearchHandler.
     handler = new FakeShortcutSearchHandler();
     handler.setFakeSearchResult(fakeSearchResults);
     setShortcutSearchHandlerForTesting(handler);
+
+    // Set up manager.
+    manager = AcceleratorLookupManager.getInstance();
+    manager.setAcceleratorLookup(fakeAcceleratorConfig);
+    manager.setAcceleratorLayoutLookup(fakeLayoutInfo);
   });
 
   teardown(() => {
+    if (manager) {
+      manager.reset();
+    }
     if (searchBoxElement) {
       searchBoxElement.remove();
     }
@@ -91,6 +102,7 @@ suite('searchBoxTest', function() {
 
     // Setting the value of the search field searches for the query after a
     // short period of time.
+    searchFieldElement.$.searchInput.focus();
     searchFieldElement.setValue(query);
 
     if (query) {
@@ -120,21 +132,9 @@ suite('searchBoxTest', function() {
         input.selectionEnd === input.value.length;
   }
 
-  test('SearchBoxLoaded', async () => {
+  test('SearchBoxLoaded', () => {
     [searchBoxElement] = initSearchBoxElement();
     assertTrue(!!searchBoxElement);
-  });
-
-  test('Focus search input on open', async () => {
-    [searchBoxElement, searchFieldElement] = initSearchBoxElement();
-
-    waitAfterNextRender(searchBoxElement);
-    await flushTasks();
-
-    // The search input should be focused after the first render.
-    assertEquals(
-        searchFieldElement.shadowRoot?.activeElement,
-        searchFieldElement.getSearchInput());
   });
 
   test('SearchResultsPopulated', async () => {
@@ -381,62 +381,182 @@ suite('searchBoxTest', function() {
         selectedItem.acceleratorLayoutInfo.description);
   });
 
-  test('Filter disabled search results', async () => {
+  test(
+      'Filter partially disabled search results', async () => {
+        [searchBoxElement, searchFieldElement, dropdownElement,
+         resultsListElement] = initSearchBoxElement();
+
+        const disabledFirstAcceleratorInfo =
+            TakeScreenshotSearchResult.acceleratorInfos[0]!;
+        disabledFirstAcceleratorInfo.state =
+            AcceleratorState.kDisabledByUnavailableKeys;
+
+        // This SearchResult is of standard layout, and contains two
+        // AcceleratorInfos. We disable one of them to verify that the disabled
+        // AcceleratorInfo is not shown.
+        const partiallyDisabledSearchResult: MojoSearchResult = {
+          ...TakeScreenshotSearchResult,
+          acceleratorInfos: [
+            disabledFirstAcceleratorInfo,
+            TakeScreenshotSearchResult.acceleratorInfos[1]!,
+          ],
+        };
+
+        // Set search results: one is partially disabled, the other is enabled.
+        handler.setFakeSearchResult(
+            [partiallyDisabledSearchResult, CycleTabsTextSearchResult]);
+
+        await simulateSearch('query');
+
+        assertTrue(dropdownElement.opened);
+        assertEquals(2, searchBoxElement.searchResults.length);
+
+        // Check that the disabled AcceleratorInfo is not present in the
+        // acceleratorInfos list of the partially disabled search result.
+        assertEquals(
+            1, searchBoxElement.searchResults[0]?.acceleratorInfos.length);
+        assertEquals(
+            TakeScreenshotSearchResult.acceleratorInfos[1],
+            searchBoxElement.searchResults[0]?.acceleratorInfos[0]);
+      });
+
+  test(
+      'Filter fully disabled search results when customization is allowed',
+      async () => {
+        loadTimeData.overrideValues({isCustomizationAllowed: true});
+
+        [searchBoxElement, searchFieldElement, dropdownElement,
+         resultsListElement] = initSearchBoxElement();
+
+        const disabledFirstAcceleratorInfo =
+            TakeScreenshotSearchResult.acceleratorInfos[0]!;
+        const disabledSecondAcceleratorInfo =
+            TakeScreenshotSearchResult.acceleratorInfos[1]!;
+        disabledFirstAcceleratorInfo.state =
+            AcceleratorState.kDisabledByUnavailableKeys;
+        disabledSecondAcceleratorInfo.state = AcceleratorState.kDisabledByUser;
+
+        // Create a SearchResult that doesn't have any enabled AcceleratorInfos,
+        // one is disabled by unavailable keys, the other is disabled by user.
+        const fullyDisabledSearchResult: MojoSearchResult = {
+          ...TakeScreenshotSearchResult,
+          acceleratorInfos:
+              [disabledFirstAcceleratorInfo, disabledSecondAcceleratorInfo],
+        };
+
+        handler.setFakeSearchResult([fullyDisabledSearchResult]);
+
+        searchBoxElement.onSearchResultsAvailabilityChanged();
+        await simulateSearch('query');
+
+        assertTrue(dropdownElement.opened);
+        // Verify fully disabled search result is not filtered out.
+        assertEquals(1, searchBoxElement.searchResults.length);
+
+        const searchResultRowElement = strictQuery(
+            'search-result-row', searchBoxElement.shadowRoot,
+            SearchResultRowElement);
+        assertTrue(!!searchResultRowElement);
+
+        // Verify description is shown.
+        assertEquals(
+            'Take full screenshot or screen recording',
+            strictQuery(
+                '#description', searchResultRowElement.shadowRoot,
+                HTMLDivElement)
+                .innerText);
+
+        // Verify 'No shortcut assigned' message is shown.
+        assertEquals(
+            'No shortcut assigned',
+            strictQuery(
+                '#noShortcutAssignedMessage', searchResultRowElement.shadowRoot,
+                HTMLDivElement)
+                .innerText);
+      });
+
+  test(
+      'Filter fully disabled search results when customization is not allowed',
+      async () => {
+        loadTimeData.overrideValues({isCustomizationAllowed: false});
+        [searchBoxElement, searchFieldElement, dropdownElement,
+         resultsListElement] = initSearchBoxElement();
+
+        const disabledFirstAcceleratorInfo =
+            TakeScreenshotSearchResult.acceleratorInfos[0]!;
+        const disabledSecondAcceleratorInfo =
+            TakeScreenshotSearchResult.acceleratorInfos[1]!;
+        disabledFirstAcceleratorInfo.state =
+            AcceleratorState.kDisabledByUnavailableKeys;
+        disabledSecondAcceleratorInfo.state = AcceleratorState.kDisabledByUser;
+
+        // Create a SearchResult that doesn't have any enabled AcceleratorInfos,
+        // one is disabled by unavailable keys, the other is disabled by user.
+        const fullyDisabledSearchResult: MojoSearchResult = {
+          ...TakeScreenshotSearchResult,
+          acceleratorInfos:
+              [disabledFirstAcceleratorInfo, disabledSecondAcceleratorInfo],
+        };
+
+        handler.setFakeSearchResult([fullyDisabledSearchResult]);
+
+        searchBoxElement.onSearchResultsAvailabilityChanged();
+        await simulateSearch('query');
+
+        assertTrue(dropdownElement.opened);
+        // Verify fully disabled search result is hidden when customization is
+        // not allowed.
+        assertEquals(0, searchBoxElement.searchResults.length);
+      });
+
+  test(
+      'Filter disabled + ensure extra results are present when customization' +
+          'is not allowed',
+      async () => {
+        loadTimeData.overrideValues({isCustomizationAllowed: false});
+        [searchBoxElement, searchFieldElement, dropdownElement,
+         resultsListElement] = initSearchBoxElement();
+        // Create a SearchResult that doesn't have any enabled AcceleratorInfos.
+        const disabledFirstAcceleratorInfo =
+            TakeScreenshotSearchResult.acceleratorInfos[0]!;
+        disabledFirstAcceleratorInfo.state =
+            AcceleratorState.kDisabledByUnavailableKeys;
+        const disabledSecondAcceleratorInfo =
+            TakeScreenshotSearchResult.acceleratorInfos[1]!;
+        disabledSecondAcceleratorInfo.state = AcceleratorState.kDisabledByUser;
+        const fullyDisabledSearchResult: MojoSearchResult = {
+          ...TakeScreenshotSearchResult,
+          acceleratorInfos:
+              [disabledFirstAcceleratorInfo, disabledSecondAcceleratorInfo],
+        };
+
+        handler.setFakeSearchResult([
+          fullyDisabledSearchResult,
+          CycleTabsTextSearchResult,
+          CycleTabsTextSearchResult,
+          CycleTabsTextSearchResult,
+          CycleTabsTextSearchResult,
+          CycleTabsTextSearchResult,
+          CycleTabsTextSearchResult,
+        ]);
+
+        searchBoxElement.onSearchResultsAvailabilityChanged();
+        await simulateSearch('query');
+
+        assertTrue(dropdownElement.opened);
+        // After filtering, at most 5 of the non-disabled elements should be
+        // shown.
+        assertEquals(5, searchBoxElement.searchResults.length);
+        assertEquals(
+            CycleTabsTextSearchResult.acceleratorLayoutInfo.description,
+            searchBoxElement.searchResults[0]
+                ?.acceleratorLayoutInfo.description);
+      });
+
+  test('Max query length has been set', () => {
     [searchBoxElement, searchFieldElement, dropdownElement,
      resultsListElement] = initSearchBoxElement();
 
-    // This SearchResult is of standard layout, and contains two
-    // AcceleratorInfos. We disable one of them to verify that the disabled
-    // AcceleratorInfo is not shown.
-    const disabledFirstAcceleratorInfo =
-        TakeScreenshotSearchResult.acceleratorInfos[0]!;
-    disabledFirstAcceleratorInfo.state =
-        AcceleratorState.kDisabledByUnavailableKeys;
-
-    const partiallyDisabledSearchResult: MojoSearchResult = {
-      ...TakeScreenshotSearchResult,
-      acceleratorInfos: [
-        disabledFirstAcceleratorInfo,
-        TakeScreenshotSearchResult.acceleratorInfos[1]!,
-      ],
-    };
-
-    handler.setFakeSearchResult(
-        [partiallyDisabledSearchResult, CycleTabsTextSearchResult]);
-
-    await simulateSearch('query');
-
-    assertTrue(dropdownElement.opened);
-    assertEquals(2, searchBoxElement.searchResults.length);
-
-    // Check that the disabled AcceleratorInfo is not present in the
-    // acceleratorInfos list of the search result.
-    assertEquals(1, searchBoxElement.searchResults[0]?.acceleratorInfos.length);
-    assertEquals(
-        TakeScreenshotSearchResult.acceleratorInfos[1],
-        searchBoxElement.searchResults[0]?.acceleratorInfos[0]);
-
-    // Create a SearchResult that doesn't have any enabled AcceleratorInfos.
-    const disabledSecondAcceleratorInfo =
-        TakeScreenshotSearchResult.acceleratorInfos[1]!;
-    disabledSecondAcceleratorInfo.state =
-        AcceleratorState.kDisabledByUnavailableKeys;
-    const fullyDisabledSearchResult: MojoSearchResult = {
-      ...TakeScreenshotSearchResult,
-      acceleratorInfos:
-          [disabledFirstAcceleratorInfo, disabledSecondAcceleratorInfo],
-    };
-
-    handler.setFakeSearchResult(
-        [fullyDisabledSearchResult, CycleTabsTextSearchResult]);
-
-    searchBoxElement.onSearchResultsAvailabilityChanged();
-    await simulateSearch('query');
-
-    assertTrue(dropdownElement.opened);
-    assertEquals(1, searchBoxElement.searchResults.length);
-    assertEquals(
-        CycleTabsTextSearchResult.acceleratorLayoutInfo.description,
-        searchBoxElement.searchResults[0]?.acceleratorLayoutInfo.description);
+    assertTrue(!!searchFieldElement.getSearchInput().maxLength);
   });
 });

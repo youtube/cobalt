@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "services/network/public/cpp/content_security_policy/csp_source.h"
+
 #include "net/http/http_response_headers.h"
 #include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -673,13 +674,7 @@ TEST_P(CSPSourceTest, CustomSchemeWithHost) {
   auto csp_source = CSPSource(uri);
   auto url = GURL(uri);
 
-  // Most URI schemes do not define a host part. As a result, contrary to
-  // CSPSource, the GURL do not populate the host when the scheme is unknown.
-  // See also: https://crbug.com/1236651
-  EXPECT_EQ("", url.host());
   EXPECT_EQ("a", csp_source->host);
-
-  // ... as a result the URL doesn't match the CSPSource.
   EXPECT_FALSE(Allow(*csp_source, url));
 
   // It is still possible for developers to use a scheme-only CSPSource.

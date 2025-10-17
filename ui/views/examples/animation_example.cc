@@ -10,6 +10,8 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animation_element.h"
 #include "ui/compositor/layer_animation_sequence.h"
@@ -44,6 +46,8 @@ AnimationExample::AnimationExample() : ExampleBase("Animation") {}
 AnimationExample::~AnimationExample() = default;
 
 class AnimatingSquare : public View {
+  METADATA_HEADER(AnimatingSquare, View)
+
  public:
   explicit AnimatingSquare(size_t index);
   AnimatingSquare(const AnimatingSquare&) = delete;
@@ -58,10 +62,12 @@ class AnimatingSquare : public View {
   int index_;
   int paint_counter_ = 0;
   gfx::FontList font_list_ =
-      LayoutProvider::Get()->GetTypographyProvider().GetFont(
-          style::CONTEXT_DIALOG_TITLE,
-          style::STYLE_PRIMARY);
+      TypographyProvider::Get().GetFont(style::CONTEXT_DIALOG_TITLE,
+                                        style::STYLE_PRIMARY);
 };
+
+BEGIN_METADATA(AnimatingSquare)
+END_METADATA
 
 AnimatingSquare::AnimatingSquare(size_t index) : index_(index) {
   SetPaintToLayer();
@@ -72,7 +78,7 @@ AnimatingSquare::AnimatingSquare(size_t index) : index_(index) {
 void AnimatingSquare::OnPaint(gfx::Canvas* canvas) {
   View::OnPaint(canvas);
   const SkColor color = SkColorSetRGB((5 - index_) * 51, 0, index_ * 51);
-  // TODO(crbug/1308932): Remove this FromColor and make all SkColor4f.
+  // TODO(crbug.com/40219248): Remove this FromColor and make all SkColor4f.
   const SkColor4f colors[2] = {
       SkColor4f::FromColor(color),
       SkColor4f::FromColor(color_utils::HSLShift(color, {-1.0, -1.0, 0.75}))};
@@ -140,7 +146,7 @@ ProposedLayout SquaresLayoutManager::CalculateProposedLayout(
     const gfx::Point origin(kPadding + column * item_width,
                             kPadding + row * item_height);
     layout.child_layouts.push_back(
-        {children[i], true, gfx::Rect(origin, kSize), SizeBounds(kSize)});
+        {children[i].get(), true, gfx::Rect(origin, kSize), SizeBounds(kSize)});
   }
 
   const size_t num_rows = (children.size() + views_per_row - 1) / views_per_row;
@@ -169,21 +175,22 @@ void AnimationExample::CreateExampleView(View* container) {
       BoxLayout::Orientation::kVertical, gfx::Insets(), 10));
 
   View* squares_container = container->AddChildView(std::make_unique<View>());
-  squares_container->SetBackground(CreateThemedSolidBackground(
+  squares_container->SetBackground(CreateSolidBackground(
       ExamplesColorIds::kColorAnimationExampleBackground));
   squares_container->SetPaintToLayer();
   squares_container->layer()->SetMasksToBounds(true);
   squares_container->layer()->SetFillsBoundsOpaquely(true);
 
   squares_container->SetLayoutManager(std::make_unique<SquaresLayoutManager>());
-  for (size_t i = 0; i < 5; ++i)
+  for (size_t i = 0; i < 5; ++i) {
     squares_container->AddChildView(std::make_unique<AnimatingSquare>(i));
+  }
 
   {
     gfx::RoundedCornersF rounded_corners(12.0f, 12.0f, 12.0f, 12.0f);
     AnimationBuilder b;
     abort_handle_ = b.GetAbortHandle();
-    for (auto* view : squares_container->children()) {
+    for (views::View* view : squares_container->children()) {
       b.Once()
           .SetDuration(base::Seconds(10))
           .SetRoundedCorners(view, rounded_corners);

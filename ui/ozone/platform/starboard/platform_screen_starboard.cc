@@ -14,9 +14,10 @@
 
 #include "ui/ozone/platform/starboard/platform_screen_starboard.h"
 
+#include <string_view>
+
 #include "base/command_line.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "ui/display/display.h"
 
@@ -46,7 +47,7 @@ gfx::Rect GetWindowSizeFromCommandLine() {
     int width, height;
     std::string screen_size =
         command_line.GetSwitchValueASCII(switches::kContentShellHostWindowSize);
-    std::vector<base::StringPiece> width_and_height = base::SplitStringPiece(
+    std::vector<std::string_view> width_and_height = base::SplitStringPiece(
         screen_size, "x", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
     if (!(width_and_height.size() == 2 &&
           base::StringToInt(width_and_height[0], &width) &&

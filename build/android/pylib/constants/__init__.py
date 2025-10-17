@@ -114,13 +114,13 @@ DEVICE_PERF_OUTPUT_DIR = (
 
 SCREENSHOTS_DIR = os.path.join(DIR_SOURCE_ROOT, 'out_screenshots')
 
-ANDROID_SDK_BUILD_TOOLS_VERSION = '34.0.0'
+ANDROID_SDK_BUILD_TOOLS_VERSION = '36.0.0'
 ANDROID_SDK_ROOT = os.path.join(DIR_SOURCE_ROOT, 'third_party', 'android_sdk',
                                 'public')
 ANDROID_SDK_TOOLS = os.path.join(ANDROID_SDK_ROOT,
                                  'build-tools', ANDROID_SDK_BUILD_TOOLS_VERSION)
-ANDROID_NDK_ROOT = os.path.join(DIR_SOURCE_ROOT,
-                                'third_party', 'android_ndk')
+ANDROID_NDK_ROOT = os.path.join(DIR_SOURCE_ROOT, 'third_party',
+                                'android_toolchain', 'ndk')
 
 BAD_DEVICES_JSON = os.path.join(DIR_SOURCE_ROOT,
                                 os.environ.get('CHROMIUM_OUT_DIR', 'out'),
@@ -147,7 +147,7 @@ PYTHON_UNIT_TEST_SUITES = {
         os.path.join(DIR_SOURCE_ROOT, 'build', 'android'),
         'test_modules': [
             'devil.android.device_utils_test',
-            'devil.android.md5sum_test',
+            'devil.android.devil_util_test',
             'devil.utils.cmd_helper_test',
             'pylib.results.json_results_test',
         ]
@@ -165,10 +165,10 @@ PYTHON_UNIT_TEST_SUITES = {
     },
 }
 
-LOCAL_MACHINE_TESTS = ['junit', 'python']
+LOCAL_MACHINE_TESTS = ['hostside', 'junit', 'python']
 VALID_ENVIRONMENTS = ['local']
-VALID_TEST_TYPES = ['gtest', 'instrumentation', 'junit', 'linker', 'monkey',
-                    'perf', 'python']
+VALID_TEST_TYPES = ['gtest', 'hostside', 'instrumentation', 'junit', 'linker',
+                    'monkey', 'perf', 'python']
 VALID_DEVICE_TYPES = ['Android', 'iOS']
 
 

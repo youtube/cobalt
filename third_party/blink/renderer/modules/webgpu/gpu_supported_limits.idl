@@ -5,7 +5,7 @@
 // https://gpuweb.github.io/gpuweb/
 
 [
-    Exposed(Window WebGPU, DedicatedWorker WebGPU),
+    Exposed=(Window, Worker),
     SecureContext
 ] interface GPUSupportedLimits {
     readonly attribute unsigned long maxTextureDimension1D;
@@ -13,6 +13,7 @@
     readonly attribute unsigned long maxTextureDimension3D;
     readonly attribute unsigned long maxTextureArrayLayers;
     readonly attribute unsigned long maxBindGroups;
+    readonly attribute unsigned long maxBindGroupsPlusVertexBuffers;
     readonly attribute unsigned long maxBindingsPerBindGroup;
     readonly attribute unsigned long maxDynamicUniformBuffersPerPipelineLayout;
     readonly attribute unsigned long maxDynamicStorageBuffersPerPipelineLayout;
@@ -29,7 +30,6 @@
     readonly attribute unsigned long long maxBufferSize;
     readonly attribute unsigned long maxVertexAttributes;
     readonly attribute unsigned long maxVertexBufferArrayStride;
-    readonly attribute unsigned long maxInterStageShaderComponents;
     readonly attribute unsigned long maxInterStageShaderVariables;
     readonly attribute unsigned long maxColorAttachments;
     readonly attribute unsigned long maxColorAttachmentBytesPerSample;
@@ -39,4 +39,8 @@
     readonly attribute unsigned long maxComputeWorkgroupSizeY;
     readonly attribute unsigned long maxComputeWorkgroupSizeZ;
     readonly attribute unsigned long maxComputeWorkgroupsPerDimension;
+    [RuntimeEnabled=WebGPUCompatibilityMode] readonly attribute unsigned long maxStorageBuffersInFragmentStage;
+    [RuntimeEnabled=WebGPUCompatibilityMode] readonly attribute unsigned long maxStorageTexturesInFragmentStage;
+    [RuntimeEnabled=WebGPUCompatibilityMode] readonly attribute unsigned long maxStorageBuffersInVertexStage;
+    [RuntimeEnabled=WebGPUCompatibilityMode] readonly attribute unsigned long maxStorageTexturesInVertexStage;
 };

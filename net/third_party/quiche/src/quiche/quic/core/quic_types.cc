@@ -5,6 +5,9 @@
 #include "quiche/quic/core/quic_types.h"
 
 #include <cstdint>
+#include <ostream>
+#include <string>
+#include <type_traits>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -157,6 +160,8 @@ std::string QuicFrameTypeToString(QuicFrameType t) {
     RETURN_STRING_LITERAL(NEW_TOKEN_FRAME)
     RETURN_STRING_LITERAL(RETIRE_CONNECTION_ID_FRAME)
     RETURN_STRING_LITERAL(ACK_FREQUENCY_FRAME)
+    RETURN_STRING_LITERAL(IMMEDIATE_ACK_FRAME)
+    RETURN_STRING_LITERAL(RESET_STREAM_AT_FRAME)
     RETURN_STRING_LITERAL(NUM_FRAME_TYPES)
   }
   return absl::StrCat("Unknown(", static_cast<int>(t), ")");
@@ -261,6 +266,7 @@ std::string MessageStatusToString(MessageStatus message_status) {
     RETURN_STRING_LITERAL(MESSAGE_STATUS_UNSUPPORTED);
     RETURN_STRING_LITERAL(MESSAGE_STATUS_BLOCKED);
     RETURN_STRING_LITERAL(MESSAGE_STATUS_TOO_LARGE);
+    RETURN_STRING_LITERAL(MESSAGE_STATUS_SETTINGS_NOT_RECEIVED);
     RETURN_STRING_LITERAL(MESSAGE_STATUS_INTERNAL_ERROR);
     default:
       return absl::StrCat("Unknown(", static_cast<int>(message_status), ")");
@@ -320,6 +326,8 @@ std::string CongestionControlTypeToString(CongestionControlType cc_type) {
       return "PCC";
     case kGoogCC:
       return "GoogCC";
+    case kPragueCubic:
+      return "PRAGUE_CUBIC";
   }
   return absl::StrCat("Unknown(", static_cast<int>(cc_type), ")");
 }
@@ -416,9 +424,17 @@ std::ostream& operator<<(std::ostream& os, const KeyUpdateReason reason) {
   return os;
 }
 
+std::string ParsedClientHello::ToString() const {
+  std::ostringstream oss;
+  oss << *this;
+  return oss.str();
+}
+
 bool operator==(const ParsedClientHello& a, const ParsedClientHello& b) {
-  return a.sni == b.sni && a.uaid == b.uaid && a.alpns == b.alpns &&
-         a.retry_token == b.retry_token &&
+  return a.sni == b.sni && a.uaid == b.uaid &&
+         a.supported_groups == b.supported_groups &&
+         a.cert_compression_algos == b.cert_compression_algos &&
+         a.alpns == b.alpns && a.retry_token == b.retry_token &&
          a.resumption_attempted == b.resumption_attempted &&
          a.early_data_attempted == b.early_data_attempted;
 }
@@ -427,6 +443,12 @@ std::ostream& operator<<(std::ostream& os,
                          const ParsedClientHello& parsed_chlo) {
   os << "{ sni:" << parsed_chlo.sni << ", uaid:" << parsed_chlo.uaid
      << ", alpns:" << quiche::PrintElements(parsed_chlo.alpns)
+     << ", supported_groups:"
+     << quiche::PrintElements(parsed_chlo.supported_groups)
+     << ", cert_compression_algos:"
+     << quiche::PrintElements(parsed_chlo.cert_compression_algos)
+     << ", resumption_attempted:" << parsed_chlo.resumption_attempted
+     << ", early_data_attempted:" << parsed_chlo.early_data_attempted
      << ", len(retry_token):" << parsed_chlo.retry_token.size() << " }";
   return os;
 }
@@ -440,8 +462,8 @@ QUICHE_EXPORT std::string QuicPriorityTypeToString(QuicPriorityType type) {
   }
   return "(unknown)";
 }
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             QuicPriorityType type) {
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       QuicPriorityType type) {
   os << QuicPriorityTypeToString(type);
   return os;
 }
@@ -458,6 +480,15 @@ std::string EcnCodepointToString(QuicEcnCodepoint ecn) {
       return "CE";
   }
   return "";  // Handle compilation on windows for invalid enums
+}
+
+bool operator==(const QuicSSLConfig& lhs, const QuicSSLConfig& rhs) {
+  return lhs.early_data_enabled == rhs.early_data_enabled &&
+         lhs.disable_ticket_support == rhs.disable_ticket_support &&
+         lhs.signing_algorithm_prefs == rhs.signing_algorithm_prefs &&
+         lhs.client_cert_mode == rhs.client_cert_mode &&
+         lhs.ech_config_list == rhs.ech_config_list &&
+         lhs.ech_grease_enabled == rhs.ech_grease_enabled;
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

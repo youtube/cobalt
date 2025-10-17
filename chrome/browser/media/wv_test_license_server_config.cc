@@ -18,7 +18,7 @@
 #include "net/test/python_utils.h"
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #endif
 
 namespace {
@@ -46,8 +46,9 @@ bool GetPyProtoPath(base::FilePath* dir) {
   }
 
 #if BUILDFLAG(IS_APPLE)
-  if (base::mac::AmIBundled())
+  if (base::apple::AmIBundled()) {
     generated_code_dir = generated_code_dir.DirName().DirName().DirName();
+  }
 #endif
 
   const base::FilePath kPyProto(FILE_PATH_LITERAL("pyproto"));
@@ -61,11 +62,9 @@ bool GetPyProtoPath(base::FilePath* dir) {
 
 }  // namespace
 
-WVTestLicenseServerConfig::WVTestLicenseServerConfig() {
-}
+WVTestLicenseServerConfig::WVTestLicenseServerConfig() = default;
 
-WVTestLicenseServerConfig::~WVTestLicenseServerConfig() {
-}
+WVTestLicenseServerConfig::~WVTestLicenseServerConfig() = default;
 
 bool WVTestLicenseServerConfig::GetServerCommandLine(
     base::CommandLine* command_line) {
@@ -103,9 +102,10 @@ bool WVTestLicenseServerConfig::GetServerCommandLine(
   std::unique_ptr<base::Environment> env(base::Environment::Create());
   const char kLibraryPathEnvVarName[] = "LD_LIBRARY_PATH";
   std::string library_paths(license_server_path.DirName().value());
-  std::string old_path;
-  if (env->GetVar(kLibraryPathEnvVarName, &old_path))
-    library_paths.append(":").append(old_path);
+  std::optional<std::string> old_path = env->GetVar(kLibraryPathEnvVarName);
+  if (old_path.has_value()) {
+    library_paths.append(":").append(*old_path);
+  }
   env->SetVar(kLibraryPathEnvVarName, library_paths);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
@@ -123,13 +123,13 @@ bool WVTestLicenseServerConfig::GetServerCommandLine(
   return true;
 }
 
-absl::optional<base::EnvironmentMap>
+std::optional<base::EnvironmentMap>
 WVTestLicenseServerConfig::GetServerEnvironment() {
   // Add the Python protocol buffers files directory to Python path.
   base::FilePath pyproto_dir;
   if (!GetPyProtoPath(&pyproto_dir)) {
     LOG(WARNING) << "Cannot find pyproto directory required by license server.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   base::EnvironmentMap map;
@@ -147,7 +147,7 @@ bool WVTestLicenseServerConfig::SelectServerPort() {
     net::NetLogSource source;
     net::TCPServerSocket sock(nullptr, source);
     if (sock.Listen(net::IPEndPoint(net::IPAddress::IPv4Localhost(), try_port),
-                    1, /*ipv6_only=*/absl::nullopt) == net::OK) {
+                    1, /*ipv6_only=*/std::nullopt) == net::OK) {
       port_ = try_port;
       return true;
     }
@@ -158,7 +158,7 @@ bool WVTestLicenseServerConfig::SelectServerPort() {
 }
 
 bool WVTestLicenseServerConfig::IsPlatformSupported() {
-// TODO(crbug.com/1175344): Reenable OS_LINUX once license server
+// TODO(crbug.com/40167923): Reenable OS_LINUX once license server
 // (or Widevine CDM) updated.
 #if BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_X86_64)
   return true;
@@ -187,7 +187,7 @@ void WVTestLicenseServerConfig::GetLicenseServerPath(base::FilePath *path) {
 void WVTestLicenseServerConfig::GetLicenseServerRootPath(
     base::FilePath* path) {
   base::FilePath source_root;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root);
   *path = source_root.Append(FILE_PATH_LITERAL("third_party"))
                      .Append(FILE_PATH_LITERAL("widevine"))
                      .Append(FILE_PATH_LITERAL("test"))

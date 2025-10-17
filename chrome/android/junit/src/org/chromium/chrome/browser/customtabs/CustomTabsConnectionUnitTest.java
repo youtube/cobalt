@@ -4,19 +4,22 @@
 
 package org.chromium.chrome.browser.customtabs;
 
+import static androidx.browser.customtabs.CustomTabsCallback.ACTIVITY_LAYOUT_STATE_BOTTOM_SHEET;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.refEq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.robolectric.Shadows.shadowOf;
 
-import static org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.ACTIVITY_LAYOUT_STATE_BOTTOM_SHEET;
 import static org.chromium.chrome.browser.customtabs.CustomTabsConnection.ON_ACTIVITY_LAYOUT_BOTTOM_EXTRA;
 import static org.chromium.chrome.browser.customtabs.CustomTabsConnection.ON_ACTIVITY_LAYOUT_CALLBACK;
 import static org.chromium.chrome.browser.customtabs.CustomTabsConnection.ON_ACTIVITY_LAYOUT_LEFT_EXTRA;
@@ -25,22 +28,21 @@ import static org.chromium.chrome.browser.customtabs.CustomTabsConnection.ON_ACT
 import static org.chromium.chrome.browser.customtabs.CustomTabsConnection.ON_ACTIVITY_LAYOUT_TOP_EXTRA;
 
 import android.app.PendingIntent;
-import android.content.Intent;
 import android.os.Bundle;
-import android.os.Process;
 
 import androidx.browser.customtabs.CustomTabsCallback;
 import androidx.browser.customtabs.CustomTabsSessionToken;
 import androidx.browser.customtabs.EngagementSignalsCallback;
+import androidx.browser.customtabs.PostMessageServiceConnection;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
@@ -51,41 +53,38 @@ import org.chromium.base.task.TaskTraits;
 import org.chromium.base.task.test.ShadowPostTask;
 import org.chromium.base.task.test.ShadowPostTask.TestImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.ChromeApplicationImpl;
+import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.browserservices.PostMessageHandler;
+import org.chromium.chrome.browser.browserservices.SessionDataHolder;
 import org.chromium.chrome.browser.browserservices.SessionHandler;
+import org.chromium.chrome.browser.browserservices.intents.SessionHolder;
+import org.chromium.chrome.browser.customtabs.content.EngagementSignalsHandler;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.metrics.UmaSessionStats;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
-import org.chromium.chrome.test.util.browser.Features;
-import org.chromium.chrome.test.util.browser.Features.DisableFeatures;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.chromium.chrome.browser.tab.Tab;
 
 /** Tests for some parts of {@link CustomTabsConnection}. */
 @RunWith(BaseRobolectricTestRunner.class)
+@Batch(Batch.UNIT_TESTS)
 @Config(shadows = {CustomTabsConnectionUnitTest.ShadowUmaSessionStats.class, ShadowPostTask.class})
 public class CustomTabsConnectionUnitTest {
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
 
-    @Mock
-    private SessionHandler mSessionHandler;
-    @Mock
-    private CustomTabsSessionToken mSession;
-    @Mock
-    private CustomTabsCallback mCallback;
-    @Mock
-    private PrivacyPreferencesManagerImpl mPrivacyPreferencesManager;
-    @Mock
-    private EngagementSignalsCallback mEngagementSignalsCallback;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private SessionHandler mSessionHandler;
 
-    private static final ArrayList<String> REALTIME_SIGNALS_AND_BRANDING =
-            new ArrayList<String>(List.of(ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS,
-                    ChromeFeatureList.CCT_BRAND_TRANSPARENCY));
+    @Mock private CustomTabsCallback mCallback;
+    @Mock private PrivacyPreferencesManagerImpl mPrivacyPreferencesManager;
+    @Mock private EngagementSignalsCallback mEngagementSignalsCallback;
+    @Mock private Tab mTab;
+
     private CustomTabsConnection mConnection;
-    private int mUid = Process.myUid();
+    private SessionHolder<?> mSessionHolder;
+    private CustomTabsSessionToken mSession;
+    private PostMessageServiceConnection mPostMessageServiceConnection;
+    private PostMessageHandler mPostMessageHandler;
 
     @Implements(UmaSessionStats.class)
     public static class ShadowUmaSessionStats {
@@ -102,143 +101,35 @@ public class CustomTabsConnectionUnitTest {
 
     @Before
     public void setup() {
-        MockitoAnnotations.initMocks(this);
-        ShadowPostTask.setTestImpl(new TestImpl() {
-            @Override
-            public void postDelayedTask(@TaskTraits int taskTraits, Runnable task, long delay) {
-                task.run();
-            }
-        });
+        ShadowPostTask.setTestImpl(
+                new TestImpl() {
+                    @Override
+                    public void postDelayedTask(
+                            @TaskTraits int taskTraits, Runnable task, long delay) {
+                        task.run();
+                    }
+                });
+        CustomTabsConnection.setInstanceForTesting(null);
         mConnection = CustomTabsConnection.getInstance();
         mConnection.setIsDynamicFeaturesEnabled(true);
+        mSession = spy(CustomTabsSessionToken.createMockSessionTokenForTesting());
+        mSessionHolder = new SessionHolder<>(mSession);
         when(mSession.getCallback()).thenReturn(mCallback);
-        when(mSessionHandler.getSession()).thenReturn(mSession);
-        ChromeApplicationImpl.getComponent().resolveSessionDataHolder().setActiveHandler(
-                mSessionHandler);
+        doReturn(mSessionHolder).when(mSessionHandler).getSession();
+        SessionDataHolder.getInstance().setActiveHandler(mSessionHandler);
         PrivacyPreferencesManagerImpl.setInstanceForTesting(mPrivacyPreferencesManager);
+        mPostMessageServiceConnection = new PostMessageServiceConnection(mSession) {};
+        mPostMessageHandler = new PostMessageHandler(mPostMessageServiceConnection);
     }
 
     @After
     public void tearDown() {
-        CustomTabsConnection.setInstanceForTesting(null);
-        ChromeApplicationImpl.getComponent().resolveSessionDataHolder().removeActiveHandler(
-                mSessionHandler);
-        ShadowPostTask.reset();
-    }
-
-    @Test
-    @DisableFeatures({ChromeFeatureList.CCT_BRAND_TRANSPARENCY,
-            ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
-    public void resetDynamicFeatures() {
-        Intent intent = new Intent().putStringArrayListExtra(
-                CustomTabIntentDataProvider.EXPERIMENTS_DISABLE, REALTIME_SIGNALS_AND_BRANDING);
-        mConnection.setupDynamicFeaturesInternal(intent);
-        mConnection.resetDynamicFeatures();
-        assertFalse(mConnection.isDynamicFeatureEnabled(ChromeFeatureList.CCT_BRAND_TRANSPARENCY));
-        assertFalse(mConnection.isDynamicFeatureEnabled(
-                ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS));
-    }
-
-    @Test
-    @DisableFeatures({ChromeFeatureList.CCT_BRAND_TRANSPARENCY,
-            ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
-    public void agaEnableCase() {
-        Intent intent = new Intent().putStringArrayListExtra(
-                CustomTabIntentDataProvider.EXPERIMENTS_ENABLE, REALTIME_SIGNALS_AND_BRANDING);
-        mConnection.resetDynamicFeatures();
-        assertTrue(mConnection.setupDynamicFeaturesInternal(intent));
-        assertTrue(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertTrue(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-    }
-
-    @Test
-    @DisableFeatures({ChromeFeatureList.CCT_BRAND_TRANSPARENCY,
-            ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
-    public void canOverrideByEnabling() {
-        assertFalse(ChromeFeatureList.isEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertFalse(ChromeFeatureList.isEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-        Intent intent = new Intent().putStringArrayListExtra(
-                CustomTabIntentDataProvider.EXPERIMENTS_ENABLE, REALTIME_SIGNALS_AND_BRANDING);
-        assertTrue(mConnection.setupDynamicFeaturesInternal(intent));
-        assertTrue(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertTrue(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-    }
-
-    @Test
-    @EnableFeatures({ChromeFeatureList.CCT_BRAND_TRANSPARENCY,
-            ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
-    public void canOverrideByDisabling() {
-        assertTrue(ChromeFeatureList.isEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertTrue(ChromeFeatureList.isEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-        assertTrue(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertTrue(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-        Intent intent = new Intent().putStringArrayListExtra(
-                CustomTabIntentDataProvider.EXPERIMENTS_DISABLE, REALTIME_SIGNALS_AND_BRANDING);
-        mConnection.resetDynamicFeatures();
-        assertTrue(mConnection.setupDynamicFeaturesInternal(intent));
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-    }
-
-    @Test
-    @DisableFeatures({ChromeFeatureList.CCT_BRAND_TRANSPARENCY,
-            ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
-    public void setIsDynamicFeaturesEnabled() {
-        mConnection.setIsDynamicFeaturesEnabled(false);
-        // Same pattern as #canOverrideByEnabling, except now we've turned off that ability.
-        assertFalse(ChromeFeatureList.isEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertFalse(ChromeFeatureList.isEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-        Intent intent = new Intent().putStringArrayListExtra(
-                CustomTabIntentDataProvider.EXPERIMENTS_ENABLE, REALTIME_SIGNALS_AND_BRANDING);
-        mConnection.resetDynamicFeatures();
-        assertTrue(mConnection.setupDynamicFeaturesInternal(intent));
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-    }
-
-    @Test
-    @DisableFeatures({ChromeFeatureList.CCT_BRAND_TRANSPARENCY,
-            ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS,
-            ChromeFeatureList.CCT_INTENT_FEATURE_OVERRIDES})
-    public void setIsDynamicFeaturesEnabled_FalseDisablesOverrides() {
-        mConnection.setIsDynamicFeaturesEnabled(false);
-        assertFalse(mConnection.setupDynamicFeatures(null));
-        assertFalse(mConnection.setupDynamicFeatures(new Intent()));
-        assertFalse(mConnection.setupDynamicFeatures(new Intent().putStringArrayListExtra(
-                CustomTabIntentDataProvider.EXPERIMENTS_ENABLE, REALTIME_SIGNALS_AND_BRANDING)));
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-    }
-
-    @Test
-    @EnableFeatures({ChromeFeatureList.CCT_BRAND_TRANSPARENCY,
-            ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
-    public void featuresEnabledWithoutOverrides() {
-        assertTrue(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertTrue(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
-    }
-
-    @Test
-    @DisableFeatures({ChromeFeatureList.CCT_BRAND_TRANSPARENCY,
-            ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
-    public void featuresDisabledWithoutOverrides() {
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(0)));
-        assertFalse(mConnection.isDynamicFeatureEnabled(REALTIME_SIGNALS_AND_BRANDING.get(1)));
+        SessionDataHolder.getInstance().removeActiveHandler(mSessionHandler);
     }
 
     @Test
     public void areExperimentsSupported_NullInputs() {
         assertFalse(mConnection.areExperimentsSupported(null, null));
-    }
-
-    @Test
-    public void areExperimentsSupported_AgaInputs() {
-        assertTrue(mConnection.areExperimentsSupported(REALTIME_SIGNALS_AND_BRANDING, null));
-        assertTrue(mConnection.areExperimentsSupported(null, REALTIME_SIGNALS_AND_BRANDING));
     }
 
     @Test
@@ -252,21 +143,7 @@ public class CustomTabsConnectionUnitTest {
     }
 
     @Test
-    @DisableFeatures({ChromeFeatureList.CCT_BOTTOM_BAR_SWIPE_UP_GESTURE})
-    public void updateVisuals_BottomBarSwipeUpGesture_FeatureDisabled() {
-        var bundle = new Bundle();
-        var pendingIntent = mock(PendingIntent.class);
-        bundle.putParcelable(
-                CustomTabIntentDataProvider.EXTRA_SECONDARY_TOOLBAR_SWIPE_UP_ACTION, pendingIntent);
-        mConnection.updateVisuals(mSession, bundle);
-        verify(mSessionHandler, never())
-                .updateSecondaryToolbarSwipeUpPendingIntent(eq(pendingIntent));
-    }
-
-    @Test
-    @EnableFeatures({ChromeFeatureList.CCT_RESIZABLE_SIDE_SHEET})
     public void onActivityLayout_CallbackIsCalledForNamedMethod() {
-        int uid = 123;
         int left = 0;
         int top = 0;
         int right = 100;
@@ -281,7 +158,7 @@ public class CustomTabsConnectionUnitTest {
 
         initSession();
         mConnection.onActivityLayout(
-                mSession, left, top, right, bottom, ACTIVITY_LAYOUT_STATE_BOTTOM_SHEET);
+                mSessionHolder, left, top, right, bottom, ACTIVITY_LAYOUT_STATE_BOTTOM_SHEET);
 
         verify(mCallback).extraCallback(eq(ON_ACTIVITY_LAYOUT_CALLBACK), refEq(bundle));
     }
@@ -307,38 +184,40 @@ public class CustomTabsConnectionUnitTest {
     }
 
     @Test
-    public void getGreatestScrollPercentage() {
-        initSession();
-        when(mPrivacyPreferencesManager.isUsageAndCrashReportingPermitted()).thenReturn(true);
-        mConnection.setGreatestScrollPercentageSupplier(mSession, () -> 75);
-        assertEquals(75, mConnection.getGreatestScrollPercentage(mSession, Bundle.EMPTY));
-    }
-
-    @Test(expected = UnsupportedOperationException.class)
-    public void getGreatestScrollPercentage_ThrowsIfNotPermitted() {
-        initSession();
-        when(mPrivacyPreferencesManager.isUsageAndCrashReportingPermitted()).thenReturn(false);
-        mConnection.setGreatestScrollPercentageSupplier(mSession, () -> 75);
-        mConnection.getGreatestScrollPercentage(mSession, Bundle.EMPTY);
-    }
-
-    @Test
     public void setEngagementSignalsCallback_Available() {
         initSession();
         when(mPrivacyPreferencesManager.isUsageAndCrashReportingPermitted()).thenReturn(true);
-        assertTrue(mConnection.setEngagementSignalsCallback(
-                mSession, mEngagementSignalsCallback, Bundle.EMPTY));
-        assertEquals(mEngagementSignalsCallback,
-                mConnection.mClientManager.getEngagementSignalsCallbackForSession(mSession));
+        assertTrue(
+                mConnection.setEngagementSignalsCallback(
+                        mSession, mEngagementSignalsCallback, Bundle.EMPTY));
+        assertEquals(
+                mEngagementSignalsCallback,
+                mConnection.mClientManager.getEngagementSignalsCallbackForSession(mSessionHolder));
     }
 
     @Test
     public void setEngagementSignalsCallback_NotAvailable() {
         initSession();
         when(mPrivacyPreferencesManager.isUsageAndCrashReportingPermitted()).thenReturn(false);
-        assertFalse(mConnection.setEngagementSignalsCallback(
-                mSession, mEngagementSignalsCallback, Bundle.EMPTY));
-        assertNull(mConnection.mClientManager.getEngagementSignalsCallbackForSession(mSession));
+        assertFalse(
+                mConnection.setEngagementSignalsCallback(
+                        mSession, mEngagementSignalsCallback, Bundle.EMPTY));
+        assertNull(
+                mConnection.mClientManager.getEngagementSignalsCallbackForSession(mSessionHolder));
+    }
+
+    @Test
+    public void testOnMinimized() {
+        initSession();
+        mConnection.onMinimized(mSessionHolder);
+        verify(mCallback).onMinimized(any(Bundle.class));
+    }
+
+    @Test
+    public void testOnUnminimized() {
+        initSession();
+        mConnection.onUnminimized(mSessionHolder);
+        verify(mCallback).onUnminimized(any(Bundle.class));
     }
 
     private void initSession() {
@@ -346,7 +225,40 @@ public class CustomTabsConnectionUnitTest {
         ShadowProcess.setUid(uid);
         shadowOf(RuntimeEnvironment.getApplication().getApplicationContext().getPackageManager())
                 .setPackagesForUid(uid, "test.package.name");
-        mConnection.mClientManager.newSession(mSession, uid, null, null, null);
+        var handler = new EngagementSignalsHandler(mSession);
+        mConnection.mClientManager.newSession(
+                mSessionHolder,
+                uid,
+                null,
+                mPostMessageHandler,
+                mPostMessageServiceConnection,
+                handler);
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.SEARCH_IN_CCT)
+    public void shouldEnableOmniboxForIntent_featureDisabled() {
+        // The logic is currently expected to not even peek in the intent.
+        assertFalse(mConnection.shouldEnableOmniboxForIntent(null));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.SEARCH_IN_CCT)
+    public void shouldEnableOmniboxForIntent_featureEnabled() {
+        // The logic is currently expected to not even peek in the intent.
+        // Omnibox must remain disabled even if the feature flag is on.
+        assertFalse(mConnection.shouldEnableOmniboxForIntent(null));
+    }
+
+    @Test
+    public void notifyOpenInBrowser() {
+        initSession();
+
+        mConnection.notifyOpenInBrowser(mSessionHolder, mTab);
+
+        verify(mCallback)
+                .extraCallback(
+                        eq(CustomTabsConnection.OPEN_IN_BROWSER_CALLBACK), any(Bundle.class));
     }
 
     // TODO(https://crrev.com/c/4118209) Add more tests for Feature enabling/disabling.

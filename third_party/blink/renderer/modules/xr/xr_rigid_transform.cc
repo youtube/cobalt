@@ -33,8 +33,8 @@ XRRigidTransform::XRRigidTransform(const gfx::Transform& transformationMatrix)
 
 void XRRigidTransform::DecomposeMatrix() {
   // decompose matrix to position and orientation
-  absl::optional<gfx::DecomposedTransform> decomp = matrix_->Decompose();
-  DCHECK(decomp) << "Matrix decompose failed for " << matrix_->ToString();
+  std::optional<gfx::DecomposedTransform> decomp = matrix_->Decompose();
+  CHECK(decomp) << "Matrix decompose failed for " << matrix_->ToString();
 
   position_ = DOMPointReadOnly::Create(
       decomp->translate[0], decomp->translate[1], decomp->translate[2], 1.0);
@@ -106,7 +106,7 @@ XRRigidTransform* XRRigidTransform::Create(DOMPointInit* position,
   return MakeGarbageCollected<XRRigidTransform>(position, orientation);
 }
 
-DOMFloat32Array* XRRigidTransform::matrix() {
+NotShared<DOMFloat32Array> XRRigidTransform::matrix() {
   EnsureMatrix();
   if (!matrix_array_) {
     matrix_array_ = transformationMatrixToDOMFloat32Array(*matrix_);
@@ -114,9 +114,9 @@ DOMFloat32Array* XRRigidTransform::matrix() {
 
   if (!matrix_array_ || !matrix_array_->Data()) {
     // A page may take the matrix_array_ value and detach it so matrix_array_ is
-    // a detached array buffer.  This breaks the inspector, so return null
-    // instead.
-    return nullptr;
+    // a detached array buffer.  This breaks the inspector, so return an empty
+    // array instead.
+    return NotShared<DOMFloat32Array>(DOMFloat32Array::Create(0));
   }
 
   return matrix_array_;
@@ -124,7 +124,7 @@ DOMFloat32Array* XRRigidTransform::matrix() {
 
 XRRigidTransform* XRRigidTransform::inverse() {
   EnsureInverse();
-  return inverse_;
+  return inverse_.Get();
 }
 
 gfx::Transform XRRigidTransform::InverseTransformMatrix() {

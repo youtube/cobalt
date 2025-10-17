@@ -8,8 +8,10 @@
 #include <windows.h>
 
 #include <stddef.h>
+
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -21,11 +23,11 @@
 #include "base/scoped_observation.h"
 #include "base/win/scoped_gdi_object.h"
 #include "base/win/win_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/accessibility/platform/ax_fragment_root_delegate_win.h"
 #include "ui/base/ime/input_method.h"
 #include "ui/base/ime/input_method_observer.h"
-#include "ui/base/ui_base_types.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/base/win/window_event_target.h"
 #include "ui/events/event.h"
 #include "ui/gfx/geometry/point.h"
@@ -37,6 +39,7 @@
 #include "ui/views/views_export.h"
 #include "ui/views/win/pen_event_processor.h"
 #include "ui/views/win/scoped_enable_unadjusted_mouse_events_win.h"
+#include "ui/views/win/user_resize_detector.h"
 
 namespace gfx {
 class ImageSkia;
@@ -89,124 +92,167 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
                                         public ui::AXFragmentRootDelegateWin {
  public:
   // See WindowImpl for details on |debugging_id|.
-  HWNDMessageHandler(HWNDMessageHandlerDelegate* delegate,
-                     const std::string& debugging_id);
+  static std::unique_ptr<HWNDMessageHandler> Create(
+      HWNDMessageHandlerDelegate* delegate,
+      const std::string& debugging_id);
 
   HWNDMessageHandler(const HWNDMessageHandler&) = delete;
   HWNDMessageHandler& operator=(const HWNDMessageHandler&) = delete;
 
   ~HWNDMessageHandler() override;
 
-  void Init(HWND parent, const gfx::Rect& bounds, bool headless_mode);
-  void InitModalType(ui::ModalType modal_type);
+  virtual void Init(HWND parent, const gfx::Rect& bounds);
+  virtual void InitModalType(ui::mojom::ModalType modal_type);
 
-  void Close();
-  void CloseNow();
+  virtual void Close();
+  virtual void CloseNow();
 
-  gfx::Rect GetWindowBoundsInScreen() const;
-  gfx::Rect GetClientAreaBoundsInScreen() const;
-  gfx::Rect GetRestoredBounds() const;
+  virtual gfx::Rect GetWindowBoundsInScreen() const;
+  virtual gfx::Rect GetClientAreaBoundsInScreen() const;
+  virtual gfx::Rect GetRestoredBounds() const;
   // This accounts for the case where the widget size is the client size.
-  gfx::Rect GetClientAreaBounds() const;
+  virtual gfx::Rect GetClientAreaBounds() const;
 
-  void GetWindowPlacement(gfx::Rect* bounds,
-                          ui::WindowShowState* show_state) const;
+  virtual void GetWindowPlacement(gfx::Rect* bounds,
+                                  ui::mojom::WindowShowState* show_state) const;
 
   // Sets the bounds of the HWND to |bounds_in_pixels|. If the HWND size is not
   // changed, |force_size_changed| determines if we should pretend it is.
-  void SetBounds(const gfx::Rect& bounds_in_pixels, bool force_size_changed);
+  virtual void SetBounds(const gfx::Rect& bounds_in_pixels,
+                         bool force_size_changed);
 
-  void SetSize(const gfx::Size& size);
-  void CenterWindow(const gfx::Size& size);
+  virtual void SetSize(const gfx::Size& size);
+  virtual void CenterWindow(const gfx::Size& size);
 
-  void SetRegion(HRGN rgn);
+  virtual void SetRegion(HRGN rgn);
 
-  void StackAbove(HWND other_hwnd);
-  void StackAtTop();
+  virtual void StackAbove(HWND other_hwnd);
+  virtual void StackAtTop();
+
+  // Sets the parent of the HWND if it is a child window. Otherwise, sets the
+  // owner of the HWND.
+  virtual void SetParentOrOwner(HWND new_parent);
 
   // Shows the window. If |show_state| is maximized, |pixel_restore_bounds| is
   // the bounds to restore the window to when going back to normal.
-  void Show(ui::WindowShowState show_state,
-            const gfx::Rect& pixel_restore_bounds);
-  void Hide();
+  virtual void Show(ui::mojom::WindowShowState show_state,
+                    const gfx::Rect& pixel_restore_bounds);
+  virtual void Hide();
 
-  void Maximize();
-  void Minimize();
-  void Restore();
+  virtual void Maximize();
+  virtual void Minimize();
+  virtual void Restore();
 
-  void Activate();
-  void Deactivate();
+  virtual void Activate();
+  virtual void Deactivate();
 
-  void SetAlwaysOnTop(bool on_top);
+  virtual void SetAlwaysOnTop(bool on_top);
 
-  bool IsVisible() const;
-  bool IsActive() const;
-  bool IsMinimized() const;
-  bool IsMaximized() const;
-  bool IsFullscreen() const;
-  bool IsAlwaysOnTop() const;
-  bool IsHeadless() const;
+  virtual bool IsVisible() const;
+  virtual bool IsActive() const;
+  virtual bool IsMinimized() const;
+  virtual bool IsMaximized() const;
+  virtual bool IsFullscreen() const;
+  virtual bool IsAlwaysOnTop() const;
+  virtual bool IsHeadless() const;
 
-  bool RunMoveLoop(const gfx::Vector2d& drag_offset, bool hide_on_escape);
-  void EndMoveLoop();
+  virtual bool RunMoveLoop(const gfx::Vector2d& drag_offset,
+                           bool hide_on_escape);
+  virtual void EndMoveLoop();
 
   // Tells the HWND its client area has changed.
-  void SendFrameChanged();
+  virtual void SendFrameChanged();
 
-  void FlashFrame(bool flash);
+  virtual void FlashFrame(bool flash);
 
-  void ClearNativeFocus();
+  virtual void ClearNativeFocus();
 
-  void SetCapture();
-  void ReleaseCapture();
-  bool HasCapture() const;
+  virtual void SetCapture();
+  virtual void ReleaseCapture();
+  virtual bool HasCapture() const;
 
-  FullscreenHandler* fullscreen_handler() { return fullscreen_handler_.get(); }
+  virtual FullscreenHandler* fullscreen_handler();
 
-  void SetVisibilityChangedAnimationsEnabled(bool enabled);
+  virtual void SetVisibilityChangedAnimationsEnabled(bool enabled);
 
   // Returns true if the title changed.
-  bool SetTitle(const std::u16string& title);
+  virtual bool SetTitle(const std::u16string& title);
 
-  void SetCursor(scoped_refptr<ui::WinCursor> cursor);
+  virtual void SetCursor(scoped_refptr<ui::WinCursor> cursor);
 
-  void FrameTypeChanged();
+  virtual void FrameTypeChanged();
 
-  void PaintAsActiveChanged();
+  virtual void PaintAsActiveChanged();
 
-  void SetWindowIcons(const gfx::ImageSkia& window_icon,
-                      const gfx::ImageSkia& app_icon);
-
-  void set_use_system_default_icon(bool use_system_default_icon) {
-    use_system_default_icon_ = use_system_default_icon;
-  }
+  virtual void SetWindowIcons(const gfx::ImageSkia& window_icon,
+                              const gfx::ImageSkia& app_icon);
 
   // Set the fullscreen state. `target_display_id` indicates the display where
   // the window should be shown fullscreen; display::kInvalidDisplayId indicates
   // that no display was specified, so the current display may be used.
-  void SetFullscreen(bool fullscreen, int64_t target_display_id);
+  virtual void SetFullscreen(bool fullscreen, int64_t target_display_id);
 
   // Updates the aspect ratio of the window.
-  void SetAspectRatio(float aspect_ratio, const gfx::Size& excluded_mar);
+  virtual void SetAspectRatio(float aspect_ratio,
+                              const gfx::Size& excluded_mar);
 
   // Updates the window style to reflect whether it can be resized or maximized.
-  void SizeConstraintsChanged();
+  virtual void SizeConstraintsChanged();
+
+  // Lets pen events fall through to the default window handler until the next
+  // WM_POINTERUP event.
+  static void UseDefaultHandlerForPenEventsUntilPenUp();
 
   // Returns true if content is rendered to a child window instead of directly
   // to this window.
-  bool HasChildRenderingWindow();
+  virtual bool HasChildRenderingWindow();
 
-  void set_is_translucent(bool is_translucent) {
-    is_translucent_ = is_translucent;
+  virtual void set_is_translucent(bool is_translucent);
+  virtual bool is_translucent() const;
+
+  // Sets whether to use rounded corners. This uses DWMWCP_ROUND and is not
+  // effective on Windows 10.
+  void set_use_rounded_corner(bool use_rounded_corner) {
+    use_rounded_corner_ = use_rounded_corner;
   }
-  bool is_translucent() const { return is_translucent_; }
 
-  std::unique_ptr<aura::ScopedEnableUnadjustedMouseEvents>
+  virtual std::unique_ptr<aura::ScopedEnableUnadjustedMouseEvents>
   RegisterUnadjustedMouseEvent();
-  void set_using_wm_input(bool using_wm_input) {
-    using_wm_input_ = using_wm_input;
-  }
-  bool using_wm_input() { return using_wm_input_; }
+
+  virtual void set_using_wm_input(bool using_wm_input);
+  virtual bool using_wm_input() const;
+
+ protected:
+  HWNDMessageHandler(HWNDMessageHandlerDelegate* delegate,
+                     const std::string& debugging_id);
+
+  // Performs post initialization steps. Extracted from Init() so it could be
+  // shared with the subclasses.
+  void InitExtras();
+
+  // Returns true if |insets| was modified to define a custom client area for
+  // the window, false if the default client area should be used. If false is
+  // returned, |insets| is not modified.  |monitor| is the monitor this
+  // window is on.  Normally that would be determined from the HWND, but
+  // during WM_NCCALCSIZE Windows does not return the correct monitor for the
+  // HWND, so it must be passed in explicitly (see HWNDMessageHandler::
+  // OnNCCalcSize for more details).
+  bool GetClientAreaInsets(gfx::Insets* insets, HMONITOR monitor) const;
+
+  // Helper function for setting the bounds of the HWND. For more information
+  // please refer to the SetBounds() function.
+  virtual void SetBoundsInternal(const gfx::Rect& bounds_in_pixels,
+                                 bool force_size_changed);
+
+  // These are shared with subclasses.
+  static bool IsTopLevelWindow(HWND window);
+  static bool GetMonitorAndRects(const RECT& rect,
+                                 HMONITOR* monitor,
+                                 gfx::Rect* monitor_rect,
+                                 gfx::Rect* work_area);
+
+  // Returns true if IsFrameSystemDrawn() and there's actually a frame to draw.
+  bool HasSystemFrame() const;
 
  private:
   friend class ::views::test::DesktopWindowTreeHostWinTestApi;
@@ -255,7 +301,6 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
                                  WPARAM w_param,
                                  LPARAM l_param,
                                  bool* handled) override;
-  void HandleParentChanged() override;
   void ApplyPinchZoomScale(float scale) override;
   void ApplyPinchZoomBegin() override;
   void ApplyPinchZoomEnd() override;
@@ -310,24 +355,10 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   // or subsequently.
   void ClientAreaSizeChanged();
 
-  // Returns true if |insets| was modified to define a custom client area for
-  // the window, false if the default client area should be used. If false is
-  // returned, |insets| is not modified.  |monitor| is the monitor this
-  // window is on.  Normally that would be determined from the HWND, but
-  // during WM_NCCALCSIZE Windows does not return the correct monitor for the
-  // HWND, so it must be passed in explicitly (see HWNDMessageHandler::
-  // OnNCCalcSize for more details).
-  bool GetClientAreaInsets(gfx::Insets* insets, HMONITOR monitor) const;
-
   // Resets the window region for the current widget bounds if necessary.
   // If |force| is true, the window region is reset to NULL even for native
   // frame windows.
   void ResetWindowRegion(bool force, bool redraw);
-
-  // Enables or disables rendering of the non-client (glass) area by DWM,
-  // under Vista and above, depending on whether the caller has requested a
-  // custom frame.
-  void UpdateDwmNcRenderingPolicy();
 
   // Calls DefWindowProc, safely wrapping the call in a ScopedRedrawLock to
   // prevent frame flicker. DefWindowProc handling can otherwise render the
@@ -352,9 +383,6 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   // Returns whether Windows should help with frame rendering (i.e. we're using
   // the glass frame).
   bool IsFrameSystemDrawn() const;
-
-  // Returns true if IsFrameSystemDrawn() and there's actually a frame to draw.
-  bool HasSystemFrame() const;
 
   // Adds or removes the frame extension into client area with
   // DwmExtendFrameIntoClientArea.
@@ -594,11 +622,6 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
                                   WPARAM w_param,
                                   LPARAM l_param);
 
-  // Helper function for setting the bounds of the HWND. For more information
-  // please refer to the SetBounds() function.
-  void SetBoundsInternal(const gfx::Rect& bounds_in_pixels,
-                         bool force_size_changed);
-
   // Checks if there is a full screen window on the same monitor as the
   // |window| which is becoming active. If yes then we reduce the size of the
   // fullscreen window by 1 px to ensure that maximized windows on the same
@@ -621,19 +644,12 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   // Get the cursor position, which may be mocked if running a test
   POINT GetCursorPos() const;
 
-  // Sets headless window bounds which may be different from the platform window
-  // bounds and updates Aura window property that stores headless window bounds
-  // for upper layers to retrieve.
-  void SetHeadlessWindowBounds(const gfx::Rect& bounds);
-
   raw_ptr<HWNDMessageHandlerDelegate> delegate_;
 
   std::unique_ptr<FullscreenHandler> fullscreen_handler_;
 
   // Set to true in Close() and false is CloseNow().
   bool waiting_for_close_now_;
-
-  bool use_system_default_icon_;
 
   // Whether all ancestors have been enabled. This is only used if is_modal_ is
   // true.
@@ -643,14 +659,14 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   scoped_refptr<ui::WinCursor> current_cursor_;
 
   // The icon created from the bitmap image of the window icon.
-  base::win::ScopedHICON window_icon_;
+  base::win::ScopedGDIObject<HICON> window_icon_;
 
   // The icon created from the bitmap image of the app icon.
-  base::win::ScopedHICON app_icon_;
+  base::win::ScopedGDIObject<HICON> app_icon_;
 
   // The aspect ratio for the window. This is only used for sizing operations
   // for the non-client area.
-  absl::optional<float> aspect_ratio_;
+  std::optional<float> aspect_ratio_;
 
   // Size to exclude from aspect ratio calculation.
   gfx::Size excluded_margin_;
@@ -680,9 +696,6 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   // area. We need this so we can correctly show the context menu on mouse-up.
   bool is_right_mouse_pressed_on_caption_;
 
-  // The set of touch devices currently down.
-  TouchIDs touch_ids_;
-
   // ScopedRedrawLock ----------------------------------------------------------
 
   // Represents the number of ScopedRedrawLocks active against this widget.
@@ -702,13 +715,14 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   // The last-seen monitor containing us, and its rect and work area.  These are
   // used to catch updates to the rect and work area and react accordingly.
   HMONITOR last_monitor_;
-  gfx::Rect last_monitor_rect_, last_work_area_;
+  gfx::Rect last_monitor_rect_;
+  gfx::Rect last_work_area_;
 
   // True the first time nccalc is called on a sizable widget
   bool is_first_nccalc_;
 
   // Copy of custom window region specified via SetRegion(), if any.
-  base::win::ScopedRegion custom_window_region_;
+  base::win::ScopedGDIObject<HRGN> custom_window_region_;
 
   // If > 0 indicates a menu is running (we're showing a native menu).
   int menu_depth_;
@@ -717,6 +731,8 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   ui::SequentialIDGenerator id_generator_;
 
   PenEventProcessor pen_processor_;
+
+  UserResizeDetector user_resize_detector_;
 
   // Stores a pointer to the WindowEventTarget interface implemented by this
   // class. Allows callers to retrieve the interface pointer.
@@ -742,6 +758,12 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   // over the client area, where it is not in sync with the mouse position.
   // Reset to false when we get user mouse input again.
   static bool is_pen_active_in_client_area_;
+
+  // If true, all pen events in the client area should be handled. If false,
+  // unhandled pen events will be allowed to fall through to the default
+  // handler. This should only be false in limited cases, as the default handler
+  // generates duplicate WM_MOUSE compatibility events for pen events it sees.
+  static bool handle_pen_events_in_client_area_;
 
   // Time the last WM_MOUSEHWHEEL message is received. Please refer to the
   // HandleMouseEventInternal function as to why this is needed.
@@ -797,9 +819,9 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   // partially or fully transparent.
   bool is_translucent_ = false;
 
-  // True if the window should process WM_POINTER for touch events and
-  // not WM_TOUCH events.
-  bool pointer_events_for_touch_;
+  // True if the window uses rounded corners. This uses DWMWCP_ROUND style on
+  // Windows 11. Not effective on Windows 10.
+  bool use_rounded_corner_ = false;
 
   // True if DWM frame should be cleared on next WM_ERASEBKGND message.  This is
   // necessary to avoid white flashing in the titlebar area around the
@@ -831,24 +853,6 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   // in `SetCapture` to diagnose https://crbug.com/1386013.
   DWORD release_capture_errno_ = 0;
 
-  // This tracks headless window visibility, fullscreen and min/max states. In
-  // headless mode the platform window is never made visible or change its
-  // state, so this structure holds the requested state for reporting.
-  struct HeadlessModeWindow {
-    bool IsMinimized() const { return minmax_state == kMinimized; }
-    bool IsMaximized() const { return minmax_state == kMaximized; }
-
-    bool visibility_state = false;
-    bool fullscreen_state = false;
-    bool active_state = false;
-    enum { kNormal, kMinimized, kMaximized } minmax_state = kNormal;
-
-    gfx::Rect bounds;
-  };
-
-  // This is present iff the window has been created in headless mode.
-  absl::optional<HeadlessModeWindow> headless_mode_window_;
-
   // This is a map of the HMONITOR to full screeen window instance. It is safe
   // to keep a raw pointer to the HWNDMessageHandler instance as we track the
   // window destruction and ensure that the map is cleaned up.
@@ -862,7 +866,7 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   gfx::Size exposed_pixels_;
 
   // Populated if the cursor position is being mocked for testing purposes.
-  absl::optional<gfx::Point> mock_cursor_position_;
+  std::optional<gfx::Point> mock_cursor_position_;
 
   base::ScopedObservation<ui::InputMethod, ui::InputMethodObserver>
       observation_{this};

@@ -16,8 +16,9 @@ items:
 - caption: Disable boot on AC
   value: false
 owners:
-- lamzin@google.com
 - bkersting@google.com
+- chungsheng@google.com
+- byronlee@chromium.org
 - chromeos-oem-services@google.com
 schema:
   type: boolean
@@ -25,3 +26,4 @@ supported_on:
 - chrome_os:75-
 tags: []
 type: main
+generate_device_proto: False

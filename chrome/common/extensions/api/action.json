@@ -29,12 +29,23 @@
         "description": "The collection of user-specified settings relating to an extension's action."
       },
       {
+        "id": "UserSettingsChange",
+        "type": "object",
+        "properties": {
+          "isOnToolbar": {
+            "type": "boolean",
+            "description": "Whether the extension's action icon is visible on browser windows' top-level toolbar (i.e., whether the extension has been 'pinned' by the user).",
+            "optional": true
+          }
+        }
+      },
+      {
         "id": "OpenPopupOptions",
         "type": "object",
         "properties": {
           "windowId": {
             "type": "integer",
-            "description": "The id of the window to open the action popup in. Defaults to the currently-active window if unspecified.",
+            "description": "The ID of the window to open the action popup in. Defaults to the currently-active window if unspecified.",
             "optional": true
           }
         }
@@ -175,7 +186,8 @@
         "properties": {
           "text": {
             "type": "string",
-            "description": "Any number of characters can be passed, but only about four can fit in the space."
+            "optional": true,
+            "description": "Any number of characters can be passed, but only about four can fit in the space. If an empty string (<code>''</code>) is passed, the badge text is cleared.  If <code>tabId</code> is specified and <code>text</code> is null, the text for the specified tab is cleared and defaults to the global badge text."
           },
           "tabId": {
             "type": "integer",
@@ -193,7 +205,7 @@
     }, {
       "name": "getBadgeText",
       "type": "function",
-      "description": "Gets the badge text of the action. If no tab is specified, the non-tab-specific badge text is returned. If <a href='declarativeNetRequest#setExtensionActionOptions'>displayActionCountAsBadgeText</a> is enabled, a placeholder text will be returned unless the <a href='declare_permissions#declarativeNetRequestFeedback'>declarativeNetRequestFeedback</a> permission is present or tab-specific badge text was provided.",
+      "description": "Gets the badge text of the action. If no tab is specified, the non-tab-specific badge text is returned. If <a href='declarativeNetRequest#setExtensionActionOptions'>displayActionCountAsBadgeText</a> is enabled, a placeholder text will be returned unless the <a href='/docs/extensions/develop/concepts/declare-permissions#declarativeNetRequestFeedback'>declarativeNetRequestFeedback</a> permission is present or tab-specific badge text was provided.",
       "parameters": [{
         "name": "details",
         "$ref": "TabDetails"
@@ -310,7 +322,7 @@
         "optional": true,
         "name": "tabId",
         "minimum": 0,
-        "description": "The id of the tab for which you want to modify the action."
+        "description": "The ID of the tab for which you want to modify the action."
       }],
       "returns_async": {
         "name": "callback",
@@ -326,7 +338,7 @@
         "optional": true,
         "name": "tabId",
         "minimum": 0,
-        "description": "The id of the tab for which you want to modify the action."
+        "description": "The ID of the tab for which you want to modify the action."
       }],
       "returns_async": {
         "name": "callback",
@@ -343,7 +355,7 @@
           "optional": true,
           "name": "tabId",
           "minimum": 0,
-          "description": "The id of the tab for which you want check enabled status."
+          "description": "The ID of the tab for which you want check enabled status."
         }
       ],
       "returns_async": {
@@ -371,7 +383,7 @@
     }, {
       "name": "openPopup",
       "type": "function",
-      "description": "Opens the extension's popup.",
+      "description": "Opens the extension's popup. Between Chrome 118 and Chrome 126, this is only available to policy installed extensions.",
       "parameters": [{
         "$ref": "OpenPopupOptions",
         "name": "options",
@@ -390,6 +402,14 @@
       "parameters": [{
         "name": "tab",
         "$ref": "tabs.Tab"
+      }]
+    }, {
+      "name": "onUserSettingsChanged",
+      "type": "function",
+      "description": "Fired when user-specified settings relating to an extension's action change.",
+      "parameters": [{
+        "name": "change",
+        "$ref": "UserSettingsChange"
       }]
     }]
   }

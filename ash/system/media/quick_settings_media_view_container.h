@@ -6,6 +6,7 @@
 #define ASH_SYSTEM_MEDIA_QUICK_SETTINGS_MEDIA_VIEW_CONTAINER_H_
 
 #include "base/memory/raw_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
 namespace ash {
@@ -15,6 +16,8 @@ class UnifiedSystemTrayController;
 // Container view of QuickSettingsMediaView which manages the visibility of the
 // entire quick settings media view.
 class QuickSettingsMediaViewContainer : public views::View {
+  METADATA_HEADER(QuickSettingsMediaViewContainer, views::View)
+
  public:
   explicit QuickSettingsMediaViewContainer(
       UnifiedSystemTrayController* controller);
@@ -35,10 +38,11 @@ class QuickSettingsMediaViewContainer : public views::View {
   int GetExpandedHeight() const;
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
  private:
-  const raw_ptr<UnifiedSystemTrayController, ExperimentalAsh> controller_;
+  const raw_ptr<UnifiedSystemTrayController> controller_;
 
   bool show_media_view_ = false;
 };

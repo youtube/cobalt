@@ -6,7 +6,7 @@
 #define ASH_HUD_DISPLAY_HUD_HEADER_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
-#include "ui/views/view.h"
+#include "ui/views/layout/box_layout_view.h"
 
 namespace ash {
 namespace hud_display {
@@ -15,10 +15,10 @@ class HUDDisplayView;
 class HUDTabStrip;
 
 // HUDHeaderView renders header (with buttons and tabs) of the HUD.
-class HUDHeaderView : public views::View {
- public:
-  METADATA_HEADER(HUDHeaderView);
+class HUDHeaderView : public views::BoxLayoutView {
+  METADATA_HEADER(HUDHeaderView, views::BoxLayoutView)
 
+ public:
   explicit HUDHeaderView(HUDDisplayView* hud);
 
   HUDHeaderView(const HUDHeaderView&) = delete;
@@ -29,7 +29,7 @@ class HUDHeaderView : public views::View {
   HUDTabStrip* tab_strip() { return tab_strip_; }
 
  private:
-  raw_ptr<HUDTabStrip, ExperimentalAsh> tab_strip_ = nullptr;  // not owned
+  raw_ptr<HUDTabStrip> tab_strip_ = nullptr;  // not owned
 };
 
 }  // namespace hud_display

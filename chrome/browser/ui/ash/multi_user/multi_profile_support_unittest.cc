@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/ash/multi_user/multi_profile_support.h"
+
 #include <stddef.h>
 
 #include <memory>
 #include <set>
+#include <string_view>
 #include <vector>
 
 #include "ash/display/screen_orientation_controller.h"
@@ -23,7 +26,7 @@
 #include "ash/wm/desks/desks_controller.h"
 #include "ash/wm/desks/desks_test_util.h"
 #include "ash/wm/mru_window_tracker.h"
-#include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/tablet_mode/tablet_mode_controller_test_api.h"
 #include "ash/wm/tablet_mode/tablet_mode_window_manager.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/wm_event.h"
@@ -33,19 +36,17 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chrome/browser/ash/settings/cros_settings_holder.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
-#include "chrome/browser/ui/ash/chrome_new_window_client.h"
-#include "chrome/browser/ui/ash/multi_user/multi_profile_support.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
-#include "chrome/browser/ui/ash/session_controller_client_impl.h"
-#include "chrome/browser/ui/ash/session_util.h"
+#include "chrome/browser/ui/ash/new_window/chrome_new_window_client.h"
+#include "chrome/browser/ui/ash/session/session_controller_client_impl.h"
+#include "chrome/browser/ui/ash/session/session_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -57,12 +58,13 @@
 #include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/scoped_user_manager.h"
-#include "components/user_manager/user_info.h"
+#include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/test/env_test_helper.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/compositor/layer.h"
 #include "ui/display/manager/display_manager.h"
@@ -90,7 +92,7 @@ const content::BrowserContext* GetActiveContext() {
 
 class TestShellDelegateChromeOS : public ash::TestShellDelegate {
  public:
-  TestShellDelegateChromeOS() {}
+  TestShellDelegateChromeOS() = default;
 
   TestShellDelegateChromeOS(const TestShellDelegateChromeOS&) = delete;
   TestShellDelegateChromeOS& operator=(const TestShellDelegateChromeOS&) =
@@ -105,8 +107,9 @@ class TestShellDelegateChromeOS : public ash::TestShellDelegate {
 std::unique_ptr<Browser> CreateTestBrowser(aura::Window* window,
                                            const gfx::Rect& bounds,
                                            Browser::CreateParams* params) {
-  if (!bounds.IsEmpty())
+  if (!bounds.IsEmpty()) {
     window->SetBounds(bounds);
+  }
   std::unique_ptr<Browser> browser =
       chrome::CreateBrowserWithAuraTestWindowForParams(base::WrapUnique(window),
                                                        params);
@@ -123,7 +126,9 @@ class MultiProfileSupportTest : public ChromeAshTestBase {
  public:
   MultiProfileSupportTest()
       : fake_user_manager_(new FakeChromeUserManager),
-        user_manager_enabler_(base::WrapUnique(fake_user_manager_.get())) {}
+        user_manager_enabler_(base::WrapUnique(fake_user_manager_.get())) {
+    set_start_session(false);
+  }
 
   MultiProfileSupportTest(const MultiProfileSupportTest&) = delete;
   MultiProfileSupportTest& operator=(const MultiProfileSupportTest&) = delete;
@@ -131,11 +136,12 @@ class MultiProfileSupportTest : public ChromeAshTestBase {
   // ChromeAshTestBase:
   void SetUp() override;
   void TearDown() override;
+  void OnHelperWillBeDestroyed() override;
 
  protected:
   void SwitchActiveUser(const AccountId& id) {
     fake_user_manager_->SwitchActiveUser(id);
-    ash::MultiUserWindowManagerImpl::Get()->OnActiveUserSessionChanged(id);
+    GetSessionControllerClient()->SwitchActiveUser(id);
   }
 
   // Set up the test environment for this many windows.
@@ -149,9 +155,9 @@ class MultiProfileSupportTest : public ChromeAshTestBase {
 
   // Switch the user and wait until the animation is finished.
   void SwitchUserAndWaitForAnimation(const AccountId& account_id) {
-    EnsureTestUser(account_id);
-    ash::MultiUserWindowManagerImpl::Get()->OnActiveUserSessionChanged(
-        account_id);
+    CHECK(fake_user_manager_->FindUser(account_id));
+    fake_user_manager_->SwitchActiveUser(account_id);
+    GetSessionControllerClient()->SwitchActiveUser(account_id);
     base::TimeTicks now = base::TimeTicks::Now();
     while (
         ash::MultiUserWindowManagerImpl::Get()->IsAnimationRunningForTest()) {
@@ -181,25 +187,26 @@ class MultiProfileSupportTest : public ChromeAshTestBase {
 
   TestingProfileManager* profile_manager() { return profile_manager_.get(); }
 
-  // Ensures that a user with the given |account_id| exists.
-  const user_manager::User* EnsureTestUser(const AccountId& account_id) {
-    const user_manager::User* user = fake_user_manager_->FindUser(account_id);
-    if (user)
-      return user;
-
-    user = fake_user_manager_->AddUser(account_id);
-    ash_test_helper()->test_session_controller_client()->AddUserSession(
-        user->GetDisplayEmail());
-    return user;
-  }
-
-  const user_manager::User* AddTestUser(const AccountId& account_id) {
-    const user_manager::User* user = EnsureTestUser(account_id);
+  void LoginTestUser(const AccountId& account_id) {
+    CHECK(!fake_user_manager_->FindUser(account_id));
+    const auto* user = fake_user_manager_->AddUser(account_id);
     fake_user_manager_->LoginUser(account_id);
     TestingProfile* profile =
         profile_manager()->CreateTestingProfile(account_id.GetUserEmail());
     ProfileHelper::Get()->SetUserToProfileMappingForTesting(user, profile);
-    return user;
+
+    GetSessionControllerClient()->SetUnownedUserPrefService(
+        account_id, profile->GetPrefs());
+    GetSessionControllerClient()->AddUserSession(
+        {user->GetDisplayEmail(), user->GetType()}, account_id);
+    GetSessionControllerClient()->SetSessionState(
+        session_manager::SessionState::ACTIVE);
+  }
+
+  void LoginTestUsers(std::vector<AccountId> ids) {
+    for (auto& id : ids) {
+      LoginTestUser(id);
+    }
   }
 
   // Returns a list of all open windows in the following form:
@@ -247,9 +254,9 @@ class MultiProfileSupportTest : public ChromeAshTestBase {
 
   // Initiate a user transition.
   void StartUserTransitionAnimation(const AccountId& account_id) {
-    EnsureTestUser(account_id);
-    ash_test_helper()->test_session_controller_client()->SwitchActiveUser(
-        account_id);
+    CHECK(fake_user_manager_->FindUser(account_id));
+    fake_user_manager_->SwitchActiveUser(account_id);
+    GetSessionControllerClient()->SwitchActiveUser(account_id);
   }
 
   // Call next animation step.
@@ -278,8 +285,11 @@ class MultiProfileSupportTest : public ChromeAshTestBase {
   // TODO: convert to vector<std::unique_ptr<aura::Window>>.
   aura::Window::Windows windows_;
 
+  std::unique_ptr<ash::CrosSettingsHolder> cros_settings_holder_;
+
   // Owned by |user_manager_enabler_|.
-  raw_ptr<FakeChromeUserManager, ExperimentalAsh> fake_user_manager_ = nullptr;
+  raw_ptr<FakeChromeUserManager, DanglingUntriaged> fake_user_manager_ =
+      nullptr;
 
   std::unique_ptr<TestingProfileManager> profile_manager_;
 
@@ -291,18 +301,16 @@ class MultiProfileSupportTest : public ChromeAshTestBase {
 
 void MultiProfileSupportTest::SetUp() {
   ash::DeviceSettingsService::Initialize();
-  ash::CrosSettings::Initialize(
+  cros_settings_holder_ = std::make_unique<ash::CrosSettingsHolder>(
+      ash::DeviceSettingsService::Get(),
       TestingBrowserProcess::GetGlobal()->local_state());
-  ChromeAshTestBase::SetUp(std::make_unique<TestShellDelegateChromeOS>());
-  ash_test_helper()
-      ->test_session_controller_client()
-      ->set_use_lower_case_user_id(false);
+  set_shell_delegate(std::make_unique<TestShellDelegateChromeOS>());
+  ChromeAshTestBase::SetUp();
+  GetSessionControllerClient()->set_pref_service_must_exist(true);
+
   profile_manager_ = std::make_unique<TestingProfileManager>(
       TestingBrowserProcess::GetGlobal());
   ASSERT_TRUE(profile_manager_.get()->SetUp());
-  EnsureTestUser(AccountId::FromUserEmail("a"));
-  EnsureTestUser(AccountId::FromUserEmail("b"));
-  EnsureTestUser(AccountId::FromUserEmail("c"));
 }
 
 void MultiProfileSupportTest::SetUpForThisManyWindows(int windows) {
@@ -319,8 +327,9 @@ void MultiProfileSupportTest::SetUpForThisManyWindows(int windows) {
 
 std::vector<std::unique_ptr<views::Widget>>
 MultiProfileSupportTest::SetUpOneWindowEachDeskForUser(AccountId account_id) {
-  if (!windows_.empty())
+  if (!windows_.empty()) {
     return std::vector<std::unique_ptr<views::Widget>>();
+  }
   std::vector<std::unique_ptr<views::Widget>> widgets;
   std::vector<int> container_ids = desks_util::GetDesksContainersIds();
   TestShellDelegate* test_shell_delegate =
@@ -332,7 +341,8 @@ MultiProfileSupportTest::SetUpOneWindowEachDeskForUser(AccountId account_id) {
   const int kActiveDeskIndex = 0;
   for (int i = 0; i < desks_controller->GetNumberOfDesks(); i++) {
     widgets.push_back(
-        CreateTestWidget(nullptr, container_ids[i], gfx::Rect(700, 0, 50, 50)));
+        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+                         nullptr, container_ids[i], gfx::Rect(700, 0, 50, 50)));
     aura::Window* win = widgets[i]->GetNativeWindow();
     windows_.push_back(win);
     // `TargetVisibility` is the local visibility of the window
@@ -359,16 +369,24 @@ void MultiProfileSupportTest::TearDown() {
 
   ::MultiUserWindowManagerHelper::DeleteInstance();
   ChromeAshTestBase::TearDown();
-  profile_manager_.reset();
-  ash::CrosSettings::Shutdown();
+  // ProfileManager instance is destroyed in OnHelperWillBeDestroyed()
+  // invoked inside ChromeAshTestBase::TearDown().
+  EXPECT_FALSE(profile_manager_.get());
+  cros_settings_holder_.reset();
   ash::DeviceSettingsService::Shutdown();
+}
+
+void MultiProfileSupportTest::OnHelperWillBeDestroyed() {
+  ChromeAshTestBase::OnHelperWillBeDestroyed();
+  profile_manager_.reset();
 }
 
 std::string MultiProfileSupportTest::GetStatusImpl(bool follow_transients) {
   std::string s;
   for (size_t i = 0; i < windows_.size(); i++) {
-    if (i)
+    if (i) {
       s += ", ";
+    }
     if (!window(i)) {
       s += "D";
       continue;
@@ -395,9 +413,10 @@ std::string MultiProfileSupportTest::GetOwnersOfVisibleWindowsAsString() {
   std::set<AccountId> owners =
       multi_user_window_manager()->GetOwnersOfVisibleWindows();
 
-  std::vector<base::StringPiece> owner_list;
-  for (auto& owner : owners)
+  std::vector<std::string_view> owner_list;
+  for (auto& owner : owners) {
     owner_list.push_back(owner.GetUserEmail());
+  }
   return base::JoinString(owner_list, " ");
 }
 
@@ -464,6 +483,8 @@ TEST_F(MultiProfileSupportTest, OwnerTests) {
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
   const AccountId account_id_C(AccountId::FromUserEmail("c"));
+
+  LoginTestUsers({account_id_C, account_id_B, account_id_A});
 
   // Set some windows to the active owner.
   multi_user_window_manager()->SetWindowOwner(window(0), account_id_A);
@@ -534,6 +555,7 @@ TEST_F(MultiProfileSupportTest, SharedWindowTests) {
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
   const AccountId account_id_C(AccountId::FromUserEmail("c"));
+  LoginTestUsers({account_id_A, account_id_B, account_id_C});
 
   // Set some owners and make sure we got what we asked for.
   multi_user_window_manager()->SetWindowOwner(window(0), account_id_A);
@@ -599,6 +621,7 @@ TEST_F(MultiProfileSupportTest, DoubleSharedWindowTests) {
 
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_A, account_id_B});
 
   multi_user_window_manager()->SetWindowOwner(window(0), account_id_B);
 
@@ -624,6 +647,7 @@ TEST_F(MultiProfileSupportTest, PreserveWindowVisibilityTests) {
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
   const AccountId account_id_C(AccountId::FromUserEmail("c"));
+  LoginTestUsers({account_id_A, account_id_B, account_id_C});
 
   // Set some owners and make sure we got what we asked for.
   // Note that we try to cover all combinations in one go.
@@ -687,8 +711,7 @@ TEST_F(MultiProfileSupportTest, WindowVisibilityInMultipleDesksTests) {
   ::MultiUserWindowManagerHelper::CreateInstanceForTest(account_id_A);
   ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
       ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_DISABLED);
-  AddTestUser(account_id_A);
-  AddTestUser(account_id_B);
+  LoginTestUsers({account_id_B, account_id_A});
 
   // In the user A, setup two desks with one window each.
   SwitchActiveUser(account_id_A);
@@ -740,6 +763,7 @@ TEST_F(MultiProfileSupportTest, MinimizeChangesOwnershipBack) {
 
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_B, account_id_A});
 
   multi_user_window_manager()->SetWindowOwner(window(0), account_id_A);
   multi_user_window_manager()->SetWindowOwner(window(1), account_id_B);
@@ -769,6 +793,7 @@ TEST_F(MultiProfileSupportTest, MinimizeSuppressesViewTransfer) {
 
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_A, account_id_B});
 
   multi_user_window_manager()->SetWindowOwner(window(0), account_id_A);
   WindowState::Get(window(0))->Minimize();
@@ -786,6 +811,7 @@ TEST_F(MultiProfileSupportTest, ActiveWindowTests) {
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
   const AccountId account_id_C(AccountId::FromUserEmail("c"));
+  LoginTestUsers({account_id_A, account_id_B, account_id_C});
 
   // Set some windows to the active owner.
   multi_user_window_manager()->SetWindowOwner(window(0), account_id_A);
@@ -832,6 +858,7 @@ TEST_F(MultiProfileSupportTest, TransientWindows) {
 
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_A, account_id_B});
 
   // We create a hierarchy like this:
   //    0 (A)  4 (B)   7 (-)   - The top level owned/not owned windows
@@ -906,6 +933,9 @@ TEST_F(MultiProfileSupportTest, SetWindowOwnerOnTransientDialog) {
   aura::Window* parent = window(0);
   aura::Window* transient = window(1);
   const AccountId account_id(AccountId::FromUserEmail("a"));
+
+  LoginTestUser(account_id);
+
   multi_user_window_manager()->SetWindowOwner(parent, account_id);
 
   // Simulate chrome::ShowWebDialog() showing a transient dialog, which calls
@@ -926,6 +956,7 @@ TEST_F(MultiProfileSupportTest, PreserveInitialVisibility) {
 
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_A, account_id_B});
 
   // Set our initial show state before we assign an owner.
   window(0)->Show();
@@ -965,6 +996,7 @@ TEST_F(MultiProfileSupportTest, TabletModeInteraction) {
 
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_A, account_id_B});
 
   multi_user_window_manager()->SetWindowOwner(window(0), account_id_A);
   multi_user_window_manager()->SetWindowOwner(window(1), account_id_B);
@@ -972,14 +1004,14 @@ TEST_F(MultiProfileSupportTest, TabletModeInteraction) {
   EXPECT_FALSE(WindowState::Get(window(0))->IsMaximized());
   EXPECT_FALSE(WindowState::Get(window(1))->IsMaximized());
 
-  Shell::Get()->tablet_mode_controller()->SetEnabledForTest(true);
+  ash::TabletModeControllerTestApi().EnterTabletMode();
 
   EXPECT_TRUE(WindowState::Get(window(0))->IsMaximized());
   EXPECT_TRUE(WindowState::Get(window(1))->IsMaximized());
 
   // Tests that on exiting tablet mode, the window states return to not
   // maximized.
-  Shell::Get()->tablet_mode_controller()->SetEnabledForTest(false);
+  ash::TabletModeControllerTestApi().LeaveTabletMode();
   EXPECT_FALSE(WindowState::Get(window(0))->IsMaximized());
   EXPECT_FALSE(WindowState::Get(window(1))->IsMaximized());
 }
@@ -991,6 +1023,7 @@ TEST_F(MultiProfileSupportTest, SwitchUsersUponModalityChange) {
 
   const AccountId account_id_a(AccountId::FromUserEmail("a"));
   const AccountId account_id_b(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_b, account_id_a});
 
   StartUserTransitionAnimation(account_id_a);
 
@@ -1010,6 +1043,7 @@ TEST_F(MultiProfileSupportTest, DontSwitchUsersUponModalityChange) {
 
   const AccountId account_id_a(AccountId::FromUserEmail("a"));
   const AccountId account_id_b(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_b, account_id_a});
 
   StartUserTransitionAnimation(account_id_a);
 
@@ -1030,6 +1064,7 @@ TEST_F(MultiProfileSupportTest,
 
   const AccountId account_id_a(AccountId::FromUserEmail("a"));
   const AccountId account_id_b(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_b, account_id_a});
 
   StartUserTransitionAnimation(account_id_a);
 
@@ -1050,6 +1085,7 @@ TEST_F(MultiProfileSupportTest,
 
   const AccountId account_id_a(AccountId::FromUserEmail("a"));
   const AccountId account_id_b(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_b, account_id_a});
 
   StartUserTransitionAnimation(account_id_a);
 
@@ -1069,6 +1105,7 @@ TEST_F(MultiProfileSupportTest, FullUserSwitchAnimationTests) {
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
   const AccountId account_id_C(AccountId::FromUserEmail("c"));
+  LoginTestUsers({account_id_A, account_id_B, account_id_C});
 
   // Turn the use of delays and animation on.
   ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
@@ -1107,6 +1144,7 @@ TEST_F(MultiProfileSupportTest, SystemShutdownWithActiveAnimation) {
 
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_B, account_id_A});
 
   // Turn the use of delays and animation on.
   ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
@@ -1128,6 +1166,7 @@ TEST_F(MultiProfileSupportTest, AnimationSteps) {
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
   const AccountId account_id_C(AccountId::FromUserEmail("c"));
+  LoginTestUsers({account_id_A, account_id_B, account_id_C});
 
   // Turn the use of delays and animation on.
   ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
@@ -1164,6 +1203,8 @@ TEST_F(MultiProfileSupportTest, AnimationSteps) {
 // Test that the screen coverage is properly determined.
 TEST_F(MultiProfileSupportTest, AnimationStepsScreenCoverage) {
   SetUpForThisManyWindows(3);
+  LoginTestUser(AccountId::FromUserEmail("a"));
+
   // Maximizing, fully covering the screen by bounds or fullscreen mode should
   // make CoversScreen return true.
   WindowState::Get(window(0))->Maximize();
@@ -1186,6 +1227,7 @@ TEST_F(MultiProfileSupportTest, AnimationStepsMaximizeToNormal) {
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
   const AccountId account_id_C(AccountId::FromUserEmail("c"));
+  LoginTestUsers({account_id_A, account_id_B, account_id_C});
 
   // Turn the use of delays and animation on.
   ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
@@ -1231,6 +1273,7 @@ TEST_F(MultiProfileSupportTest, AnimationStepsNormalToMaximized) {
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
   const AccountId account_id_C(AccountId::FromUserEmail("c"));
+  LoginTestUsers({account_id_A, account_id_B, account_id_C});
 
   // Turn the use of delays and animation on.
   ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
@@ -1277,6 +1320,7 @@ TEST_F(MultiProfileSupportTest, AnimationStepsMaximizedToMaximized) {
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
   const AccountId account_id_C(AccountId::FromUserEmail("c"));
+  LoginTestUsers({account_id_A, account_id_B, account_id_C});
 
   // Turn the use of delays and animation on.
   ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
@@ -1344,6 +1388,7 @@ TEST_F(MultiProfileSupportTest, ShowForUserSwitchesDesktop) {
   const AccountId account_id_a(AccountId::FromUserEmail("a"));
   const AccountId account_id_b(AccountId::FromUserEmail("b"));
   const AccountId account_id_c(AccountId::FromUserEmail("c"));
+  LoginTestUsers({account_id_a, account_id_b, account_id_c});
 
   StartUserTransitionAnimation(account_id_a);
 
@@ -1384,7 +1429,7 @@ class TestWindowObserver : public aura::WindowObserver {
   TestWindowObserver(const TestWindowObserver&) = delete;
   TestWindowObserver& operator=(const TestWindowObserver&) = delete;
 
-  ~TestWindowObserver() override {}
+  ~TestWindowObserver() override = default;
 
   void OnWindowBoundsChanged(aura::Window* window,
                              const gfx::Rect& old_bounds,
@@ -1406,6 +1451,7 @@ TEST_F(MultiProfileSupportTest, TransientWindowActivationTest) {
 
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
+  LoginTestUsers({account_id_A, account_id_B});
 
   // Create a window hierarchy like this:
   // 0 (A)          - The normal windows
@@ -1417,10 +1463,12 @@ TEST_F(MultiProfileSupportTest, TransientWindowActivationTest) {
   multi_user_window_manager()->SetWindowOwner(window(0), account_id_A);
 
   ::wm::AddTransientChild(window(0), window(1));
-  window(1)->SetProperty(aura::client::kModalKey, ui::MODAL_TYPE_WINDOW);
+  window(1)->SetProperty(aura::client::kModalKey,
+                         ui::mojom::ModalType::kWindow);
 
   ::wm::AddTransientChild(window(1), window(2));
-  window(2)->SetProperty(aura::client::kModalKey, ui::MODAL_TYPE_WINDOW);
+  window(2)->SetProperty(aura::client::kModalKey,
+                         ui::mojom::ModalType::kWindow);
 
   ::wm::ActivationClient* activation_client =
       ::wm::GetActivationClient(window(0)->GetRootWindow());
@@ -1441,11 +1489,11 @@ TEST_F(MultiProfileSupportTest, TransientWindowActivationTest) {
   EXPECT_FALSE(::wm::CanActivateWindow(window(1)));
 
   // Test that switching user doesn't change the property of the windows.
-  EXPECT_EQ(ui::MODAL_TYPE_NONE,
+  EXPECT_EQ(ui::mojom::ModalType::kNone,
             window(0)->GetProperty(aura::client::kModalKey));
-  EXPECT_EQ(ui::MODAL_TYPE_WINDOW,
+  EXPECT_EQ(ui::mojom::ModalType::kWindow,
             window(1)->GetProperty(aura::client::kModalKey));
-  EXPECT_EQ(ui::MODAL_TYPE_WINDOW,
+  EXPECT_EQ(ui::mojom::ModalType::kWindow,
             window(2)->GetProperty(aura::client::kModalKey));
 
   ::wm::RemoveTransientChild(window(0), window(1));
@@ -1459,8 +1507,7 @@ TEST_F(MultiProfileSupportTest, MinimizedWindowActivatableTests) {
 
   const AccountId user1(AccountId::FromUserEmail("a@test.com"));
   const AccountId user2(AccountId::FromUserEmail("b@test.com"));
-  AddTestUser(user1);
-  AddTestUser(user2);
+  LoginTestUsers({user1, user2});
 
   multi_user_window_manager()->SetWindowOwner(window(0), user1);
   multi_user_window_manager()->SetWindowOwner(window(1), user1);
@@ -1488,18 +1535,11 @@ TEST_F(MultiProfileSupportTest, MinimizedWindowActivatableTests) {
 
 // Test that teleported window can be activated by the presenting user.
 TEST_F(MultiProfileSupportTest, TeleportedWindowActivatableTests) {
-  // The synchronously SwitchActiveUser of session controller (and client)
-  // breaks the test as it tests the transient state in middle of user
-  // switching. Since the test itself does user switching, disable the one
-  // in session controller by resetting the client.
-  Shell::Get()->session_controller()->SetClient(nullptr);
-
   SetUpForThisManyWindows(2);
 
   const AccountId user1(AccountId::FromUserEmail("a@test.com"));
   const AccountId user2(AccountId::FromUserEmail("b@test.com"));
-  AddTestUser(user1);
-  AddTestUser(user2);
+  LoginTestUsers({user1, user2});
 
   multi_user_window_manager()->SetWindowOwner(window(0), user1);
   multi_user_window_manager()->SetWindowOwner(window(1), user2);
@@ -1508,9 +1548,10 @@ TEST_F(MultiProfileSupportTest, TeleportedWindowActivatableTests) {
   EXPECT_TRUE(::wm::CanActivateWindow(window(0)));
   EXPECT_FALSE(::wm::CanActivateWindow(window(1)));
 
-  // Teleports window #0 to user2 desktop. Then window #0 can't be activated by
-  // user 1.
-  multi_user_window_manager()->ShowWindowForUser(window(0), user2);
+  // Teleports window #0 to user2 desktop, without switching to user 2.  Then
+  // window #0 can't be activated by user 1. This scenario doesn't happen on
+  // production but is kept instead of removed.
+  ShowWindowForUserNoUserTransition(window(0), user2);
   EXPECT_FALSE(::wm::CanActivateWindow(window(0)));
 
   // Test that window #0 can be activated by user2.
@@ -1525,8 +1566,7 @@ TEST_F(MultiProfileSupportTest, TeleportedWindowAvatarProperty) {
 
   const AccountId user1(AccountId::FromUserEmail("a@test.com"));
   const AccountId user2(AccountId::FromUserEmail("b@test.com"));
-  AddTestUser(user1);
-  AddTestUser(user2);
+  LoginTestUsers({user1, user2});
 
   multi_user_window_manager()->SetWindowOwner(window(0), user1);
 
@@ -1555,8 +1595,7 @@ TEST_F(MultiProfileSupportTest, WindowsOrderPreservedTests) {
 
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
-  AddTestUser(account_id_A);
-  AddTestUser(account_id_B);
+  LoginTestUsers({account_id_A, account_id_B});
   SwitchActiveUser(account_id_A);
 
   // Set the windows owner.
@@ -1602,8 +1641,7 @@ TEST_F(MultiProfileSupportTest, FindBrowserWithActiveWindow) {
 
   const AccountId account_id_A(AccountId::FromUserEmail("a"));
   const AccountId account_id_B(AccountId::FromUserEmail("b"));
-  AddTestUser(account_id_A);
-  AddTestUser(account_id_B);
+  LoginTestUsers({account_id_A, account_id_B});
   SwitchActiveUser(account_id_A);
 
   multi_user_window_manager()->SetWindowOwner(window(0), account_id_A);
@@ -1637,8 +1675,7 @@ TEST_F(MultiProfileSupportTest, WindowBoundsAfterTabletMode) {
   SetUpForThisManyWindows(2);
   const AccountId user1(AccountId::FromUserEmail("a"));
   const AccountId user2(AccountId::FromUserEmail("b"));
-  AddTestUser(user1);
-  AddTestUser(user2);
+  LoginTestUsers({user1, user2});
   SwitchActiveUser(user1);
   multi_user_window_manager()->SetWindowOwner(window(0), user1);
   multi_user_window_manager()->SetWindowOwner(window(1), user2);
@@ -1647,7 +1684,7 @@ TEST_F(MultiProfileSupportTest, WindowBoundsAfterTabletMode) {
   window(1)->SetBounds(bounds);
 
   // Enter tablet mode.
-  Shell::Get()->tablet_mode_controller()->SetEnabledForTest(true);
+  ash::TabletModeControllerTestApi().EnterTabletMode();
   // Tests that bounds of both windows are maximized.
   const gfx::Rect maximized_bounds(0, 0, 400,
                                    200 - ShelfConfig::Get()->shelf_size());
@@ -1661,7 +1698,7 @@ TEST_F(MultiProfileSupportTest, WindowBoundsAfterTabletMode) {
                               display::Display::RotationSource::ACTIVE);
   test_api.SetDisplayRotation(display::Display::ROTATE_0,
                               display::Display::RotationSource::ACTIVE);
-  Shell::Get()->tablet_mode_controller()->SetEnabledForTest(false);
+  ash::TabletModeControllerTestApi().LeaveTabletMode();
 
   // Tests that both windows have the same bounds as when they entered tablet
   // mode.
@@ -1675,8 +1712,7 @@ TEST_F(MultiProfileSupportTest, AccountIdChangesAfterSwitch) {
 
   const AccountId account1(AccountId::FromUserEmail("a"));
   const AccountId account2(AccountId::FromUserEmail("b"));
-  AddTestUser(account1);
-  AddTestUser(account2);
+  LoginTestUsers({account1, account2});
   SwitchActiveUser(account1);
   EXPECT_EQ(account1, multi_user_window_manager()->CurrentAccountId());
 

@@ -18,7 +18,10 @@ class BrowsingTopicsService;
 // Profiles.
 class BrowsingTopicsServiceFactory : public ProfileKeyedServiceFactory {
  public:
+  // Returns the topics service for the given profile, or nullptr if the Topics
+  // API or its dependencies are disabled.
   static BrowsingTopicsService* GetForProfile(Profile* profile);
+
   static BrowsingTopicsServiceFactory* GetInstance();
 
   BrowsingTopicsServiceFactory(const BrowsingTopicsServiceFactory&) = delete;
@@ -35,7 +38,7 @@ class BrowsingTopicsServiceFactory : public ProfileKeyedServiceFactory {
   ~BrowsingTopicsServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
   bool ServiceIsCreatedWithBrowserContext() const override;
 };

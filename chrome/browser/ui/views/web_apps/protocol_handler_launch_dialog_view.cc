@@ -8,11 +8,14 @@
 #include <string>
 #include <utility>
 
+#include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/gfx/native_widget_types.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/layout_provider.h"
 
@@ -21,8 +24,8 @@ namespace web_app {
 ProtocolHandlerLaunchDialogView::ProtocolHandlerLaunchDialogView(
     GURL url,
     Profile* profile,
-    const AppId& app_id,
-    chrome::WebAppLaunchAcceptanceCallback close_callback)
+    const webapps::AppId& app_id,
+    WebAppLaunchAcceptanceCallback close_callback)
     : LaunchAppUserChoiceDialogView(profile, app_id, std::move(close_callback)),
       url_(std::move(url)) {
   auto* layout_provider = views::LayoutProvider::Get();
@@ -30,12 +33,12 @@ ProtocolHandlerLaunchDialogView::ProtocolHandlerLaunchDialogView(
       views::DialogContentType::kText, views::DialogContentType::kControl));
   set_fixed_width(layout_provider->GetDistanceMetric(
       views::DISTANCE_BUBBLE_PREFERRED_WIDTH));
-  SetButtonLabel(ui::DIALOG_BUTTON_OK,
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
                  l10n_util::GetStringUTF16(IDS_PERMISSION_ALLOW));
   SetButtonLabel(
-      ui::DIALOG_BUTTON_CANCEL,
+      ui::mojom::DialogButton::kCancel,
       l10n_util::GetStringUTF16(IDS_WEB_APP_PERMISSION_NEGATIVE_BUTTON));
-  SetDefaultButton(ui::DIALOG_BUTTON_CANCEL);
+  SetDefaultButton(static_cast<int>(ui::mojom::DialogButton::kCancel));
 }
 
 ProtocolHandlerLaunchDialogView::~ProtocolHandlerLaunchDialogView() = default;
@@ -65,25 +68,21 @@ std::u16string ProtocolHandlerLaunchDialogView::GetRememberChoiceString() {
       IDS_INTENT_PICKER_BUBBLE_VIEW_REMEMBER_SELECTION);
 }
 
-BEGIN_METADATA(ProtocolHandlerLaunchDialogView, views::DialogDelegateView)
+BEGIN_METADATA(ProtocolHandlerLaunchDialogView)
 END_METADATA
-
-}  // namespace web_app
-
-namespace chrome {
 
 void ShowWebAppProtocolLaunchDialog(
     const GURL& url,
     Profile* profile,
-    const web_app::AppId& app_id,
+    const webapps::AppId& app_id,
     WebAppLaunchAcceptanceCallback close_callback) {
   auto view = std::make_unique<web_app::ProtocolHandlerLaunchDialogView>(
       url, profile, app_id, std::move(close_callback));
   view->Init();
   views::DialogDelegate::CreateDialogWidget(std::move(view),
-                                            /*context=*/nullptr,
-                                            /*parent=*/nullptr)
+                                            /*context=*/gfx::NativeWindow(),
+                                            /*parent=*/gfx::NativeView())
       ->Show();
 }
 
-}  // namespace chrome
+}  // namespace web_app

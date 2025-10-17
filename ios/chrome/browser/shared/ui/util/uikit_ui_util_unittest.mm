@@ -6,14 +6,12 @@
 
 #import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/test/scoped_feature_list.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "ui/base/device_form_factor.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -43,43 +41,23 @@ TEST_F(UIKitUIUtilTest, UIViewControllerSupportedOrientationsTest) {
 TEST_F(UIKitUIUtilTest, TestGreyImage) {
   // Create an image using the device's scale factor.
   const CGSize kSize = CGSizeMake(100, 100);
-  UIGraphicsBeginImageContextWithOptions(kSize, NO, 0.0);
-  UIImage* image = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
+  UIGraphicsImageRendererFormat* format =
+      [UIGraphicsImageRendererFormat preferredFormat];
+  format.scale = 0;
+  format.opaque = NO;
+
+  UIGraphicsImageRenderer* renderer =
+      [[UIGraphicsImageRenderer alloc] initWithSize:kSize format:format];
+
+  UIImage* image =
+      [renderer imageWithActions:^(UIGraphicsImageRendererContext* context){
+      }];
 
   // Verify the grey image's size and scale.
   UIImage* greyImage = GreyImage(image);
   EXPECT_EQ(kSize.width, greyImage.size.width);
   EXPECT_EQ(kSize.height, greyImage.size.height);
   EXPECT_EQ(1.0, greyImage.scale);
-}
-
-// Returns an image of random color in the same scale as the device main
-// screen.
-UIImage* testImage(CGSize imageSize) {
-  UIGraphicsBeginImageContextWithOptions(imageSize, NO, 0);
-  CGContextRef context = UIGraphicsGetCurrentContext();
-  CGContextSetRGBStrokeColor(context, 0, 0, 0, 1.0);
-  CGContextSetRGBFillColor(context, 0, 0, 0, 1.0);
-  CGContextFillRect(context,
-                    CGRectMake(0.0, 0.0, imageSize.width, imageSize.height));
-  UIImage* image = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
-  return image;
-}
-
-TEST_F(UIKitUIUtilTest, TintImageKeepsImageProperties) {
-  UIImage* image = testImage(CGSizeMake(100, 75));
-  UIImage* tintedImage = TintImage(image, [UIColor blueColor]);
-  EXPECT_EQ(image.size.width, tintedImage.size.width);
-  EXPECT_EQ(image.size.height, tintedImage.size.height);
-  EXPECT_EQ(image.scale, tintedImage.scale);
-  EXPECT_EQ(image.capInsets.top, tintedImage.capInsets.top);
-  EXPECT_EQ(image.capInsets.left, tintedImage.capInsets.left);
-  EXPECT_EQ(image.capInsets.bottom, tintedImage.capInsets.bottom);
-  EXPECT_EQ(image.capInsets.right, tintedImage.capInsets.right);
-  EXPECT_EQ(image.flipsForRightToLeftLayoutDirection,
-            tintedImage.flipsForRightToLeftLayoutDirection);
 }
 
 TEST_F(UIKitUIUtilTest, ViewHierarchyRootForView) {
@@ -99,6 +77,34 @@ TEST_F(UIKitUIUtilTest, ViewHierarchyRootForView) {
   [view1 removeFromSuperview];
   EXPECT_EQ(ViewHierarchyRootForView(view1), view1);
   EXPECT_EQ(ViewHierarchyRootForView(view2), view1);
+}
+
+// Tests that the NSArray of UITraits passed into `TraitCollectionSetForTraits`
+// is not the returned value when the `kTraitCollectionDidChangeRefactor`
+// feature flag is disabled.
+TEST_F(UIKitUIUtilTest, UITraitArrayIsReturnedWhenKillswitchIsEnabled) {
+  if (@available(iOS 17, *)) {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndDisableFeature(
+        kEnableTraitCollectionRegistration);
+
+    NSArray<UITrait>* traits = @[ UITraitForceTouchCapability.class ];
+    EXPECT_NE([TraitCollectionSetForTraits(traits) count], [traits count]);
+  }
+}
+
+// Tests that the NSArray of UITraits passed into `TraitCollectionSetForTraits`
+// is the returned value when the `kTraitCollectionDidChangeRefactor` feature
+// flag is enabled.
+TEST_F(UIKitUIUtilTest, UITraitArrayIsReturnedWhenKillswitchIsDisabled) {
+  if (@available(iOS 17, *)) {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeature(
+        kEnableTraitCollectionRegistration);
+
+    NSArray<UITrait>* traits = @[ UITraitForceTouchCapability.class ];
+    EXPECT_EQ([TraitCollectionSetForTraits(traits) count], [traits count]);
+  }
 }
 
 }  // namespace

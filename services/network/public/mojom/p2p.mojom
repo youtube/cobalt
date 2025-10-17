@@ -4,8 +4,10 @@
 
 module network.mojom;
 
+import "mojo/public/mojom/base/unguessable_token.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/read_only_buffer.mojom";
+import "services/network/public/mojom/address_family.mojom";
 import "services/network/public/mojom/network_interface.mojom";
 import "services/network/public/mojom/ip_address.mojom";
 import "services/network/public/mojom/ip_endpoint.mojom";
@@ -29,11 +31,26 @@ struct P2PSendPacketMetrics;
 [Native]
 enum P2PSocketOption;
 
+// This enums corresponds to rtc::EcnMarking.
+enum EcnMarking {
+  kNotEct = 0,  // Not ECN-Capable Transport
+  kEct1 = 1,    // ECN-Capable Transport
+  kEct0 = 2,    // Not used by L4s (or webrtc.)
+  kCe = 3,      // Congestion experienced
+};
+
 // Represents the packet received on the socket.
 struct P2PReceivedPacket {
   mojo_base.mojom.ReadOnlyBuffer data;
   IPEndPoint socket_address;
   mojo_base.mojom.TimeTicks timestamp;
+  EcnMarking ecn;
+};
+
+// Represents a packet sent through a socket.
+struct P2PSendPacket {
+  mojo_base.mojom.ReadOnlyBuffer data;
+  P2PPacketInfo packet_info;
 };
 
 interface P2PNetworkNotificationClient {
@@ -47,20 +64,20 @@ interface P2PSocketManager {
   StartNetworkNotifications(
       pending_remote<P2PNetworkNotificationClient> client);
 
-  // Performs DNS hostname resolution.
-  GetHostAddress(string host_name, bool enable_mdns)
+  // Performs DNS hostname resolution, optionally with a specific address
+  // family.
+  GetHostAddress(string host_name,
+                 AddressFamily? address_family,
+                 bool enable_mdns)
       => (array<IPAddress> addresses);
 
-  // Performs DNS hostname resolution for a specific IP address family.
-  GetHostAddressWithFamily(string host_name,
-                           int32 address_family,
-                           bool enable_mdns) => (array<IPAddress> addresses);
-
+  // Creates a P2PSocket
   CreateSocket(P2PSocketType type,
                IPEndPoint local_address,
                P2PPortRange port_range,
                P2PHostAndIPEndPoint remote_address,
                MutableNetworkTrafficAnnotationTag traffic_annotation,
+               mojo_base.mojom.UnguessableToken? devtools_token,
                pending_remote<P2PSocketClient> client,
                pending_receiver<P2PSocket> socket);
 };
@@ -68,6 +85,8 @@ interface P2PSocketManager {
 interface P2PSocket {
   Send(mojo_base.mojom.ReadOnlyBuffer data,
        P2PPacketInfo packet_info);
+  // Sends a batch of packets to the socket.
+  SendBatch(array<P2PSendPacket> packet_batch);
   SetOption(P2PSocketOption option, int32 value);
 };
 
@@ -77,6 +96,9 @@ interface P2PSocketClient {
 
   // Invoked once for each packet after the send is complete.
   SendComplete(P2PSendPacketMetrics send_metrics);
+
+  // Invoked once for each batch of sent packets after the send is complete.
+  SendBatchComplete(array<P2PSendPacketMetrics> send_metrics_batch);
 
   // Invoked when packets are received on the socket.
   DataReceived(array<P2PReceivedPacket> packets);

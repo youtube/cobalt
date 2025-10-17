@@ -20,8 +20,7 @@ FakeServerMatchStatusChecker::~FakeServerMatchStatusChecker() {
 }
 
 void FakeServerMatchStatusChecker::OnCommit(
-    const std::string& committer_invalidator_client_id,
-    syncer::ModelTypeSet committed_model_types) {
+    syncer::DataTypeSet committed_data_types) {
   CheckExitCondition();
 }
 

@@ -8,6 +8,7 @@
 #include "content/public/browser/xr_install_helper.h"
 #include "device/vr/public/cpp/vr_device_provider.h"
 #include "device/vr/public/mojom/vr_service.mojom-shared.h"
+#include "device/vr/public/mojom/xr_device.mojom-shared.h"
 
 namespace content {
 
@@ -25,12 +26,11 @@ XRProviderList XrIntegrationClient::GetAdditionalProviders() {
   return {};
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 std::unique_ptr<VrUiHost> XrIntegrationClient::CreateVrUiHost(
-    device::mojom::XRDeviceId device_id,
-    mojo::PendingRemote<device::mojom::XRCompositorHost> compositor) {
+    WebContents& contents,
+    const std::vector<device::mojom::XRViewPtr>& views,
+    mojo::PendingRemote<device::mojom::ImmersiveOverlay> overlay) {
   return nullptr;
 }
-#endif
 
 }  // namespace content

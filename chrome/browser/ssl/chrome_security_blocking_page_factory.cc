@@ -6,37 +6,38 @@
 
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notreached.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/interstitials/chrome_settings_page_helper.h"
 #include "chrome/browser/net/secure_dns_config.h"
 #include "chrome/browser/net/stub_resolver_config_reader.h"
+#include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/renderer_preferences_util.h"
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager.h"
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager_factory.h"
 #include "chrome/browser/safe_browsing/safe_browsing_metrics_collector_factory.h"
 #include "chrome/browser/ssl/https_only_mode_controller_client.h"
+#include "chrome/browser/ssl/https_upgrades_util.h"
 #include "chrome/browser/ssl/insecure_form/insecure_form_controller_client.h"
 #include "chrome/browser/ssl/ssl_error_controller_client.h"
-#include "chrome/browser/ssl/stateful_ssl_host_state_delegate_factory.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/common/channel_info.h"
+#include "chrome/common/chrome_features.h"
 #include "components/safe_browsing/core/browser/safe_browsing_metrics_collector.h"
 #include "components/security_interstitials/content/content_metrics_helper.h"
 #include "components/security_interstitials/content/settings_page_helper.h"
 #include "components/security_interstitials/content/ssl_blocking_page.h"
-#include "components/security_interstitials/content/stateful_ssl_host_state_delegate.h"
 #include "components/security_interstitials/core/controller_client.h"
 #include "components/security_interstitials/core/metrics_helper.h"
 #include "content/public/browser/web_contents.h"
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #include "base/enterprise_util.h"
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
+#elif BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #endif
@@ -74,29 +75,6 @@ enum EnterpriseManaged {
 EnterpriseManaged g_is_enterprise_managed_for_testing =
     ENTERPRISE_MANAGED_STATUS_NOT_SET;
 
-bool IsEnterpriseManaged() {
-  // Return the value of the testing flag if it's set.
-  if (g_is_enterprise_managed_for_testing == ENTERPRISE_MANAGED_STATUS_TRUE) {
-    return true;
-  }
-
-  if (g_is_enterprise_managed_for_testing == ENTERPRISE_MANAGED_STATUS_FALSE) {
-    return false;
-  }
-
-#if BUILDFLAG(IS_WIN)
-  if (base::IsManagedOrEnterpriseDevice()) {
-    return true;
-  }
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
-  if (g_browser_process->platform_part()->browser_policy_connector_ash()) {
-    return true;
-  }
-#endif  // BUILDFLAG(IS_WIN)
-
-  return false;
-}
-
 // Opens the login page for a captive portal. Passed in to
 // CaptivePortalBlockingPage to be invoked when the user has pressed the
 // connect button.
@@ -110,7 +88,7 @@ void OpenLoginPage(content::WebContents* web_contents) {
   content::OpenURLParams params(GURL(url), content::Referrer(),
                                 WindowOpenDisposition::NEW_FOREGROUND_TAB,
                                 ui::PAGE_TRANSITION_LINK, false);
-  web_contents->OpenURL(params);
+  web_contents->OpenURL(params, /*navigation_handle_callback=*/{});
 #else
   ChromeSecurityBlockingPageFactory::OpenLoginTabForWebContents(web_contents,
                                                                 true);
@@ -164,18 +142,12 @@ ChromeSecurityBlockingPageFactory::CreateSSLPage(
     const GURL& request_url,
     int options_mask,
     const base::Time& time_triggered,
-    const GURL& support_url,
-    std::unique_ptr<SSLCertReporter> ssl_cert_reporter) {
+    const GURL& support_url) {
   bool overridable = SSLBlockingPage::IsOverridable(options_mask);
   std::unique_ptr<ContentMetricsHelper> metrics_helper(
       CreateMetricsHelperAndStartRecording(
           web_contents, request_url,
           overridable ? "ssl_overridable" : "ssl_nonoverridable", overridable));
-
-  StatefulSSLHostStateDelegate* state =
-      StatefulSSLHostStateDelegateFactory::GetForProfile(
-          Profile::FromBrowserContext(web_contents->GetBrowserContext()));
-  state->DidDisplayErrorPage(cert_error);
 
   LogSafeBrowsingSecuritySensitiveAction(
       safe_browsing::SafeBrowsingMetricsCollectorFactory::GetForProfile(
@@ -189,11 +161,10 @@ ChromeSecurityBlockingPageFactory::CreateSSLPage(
 
   page = std::make_unique<SSLBlockingPage>(
       web_contents, cert_error, ssl_info, request_url, options_mask,
-      time_triggered, support_url, std::move(ssl_cert_reporter), overridable,
+      time_triggered, support_url, overridable,
       /*can_show_enhanced_protection_message=*/true,
       std::move(controller_client));
 
-  DoChromeSpecificSetup(page.get());
   return page;
 }
 
@@ -202,11 +173,10 @@ ChromeSecurityBlockingPageFactory::CreateCaptivePortalBlockingPage(
     content::WebContents* web_contents,
     const GURL& request_url,
     const GURL& login_url,
-    std::unique_ptr<SSLCertReporter> ssl_cert_reporter,
     const net::SSLInfo& ssl_info,
     int cert_error) {
   auto page = std::make_unique<CaptivePortalBlockingPage>(
-      web_contents, request_url, login_url, std::move(ssl_cert_reporter),
+      web_contents, request_url, login_url,
       /*can_show_enhanced_protection_message=*/true, ssl_info,
       std::make_unique<SSLErrorControllerClient>(
           web_contents, ssl_info, cert_error, request_url,
@@ -215,7 +185,6 @@ ChromeSecurityBlockingPageFactory::CreateCaptivePortalBlockingPage(
           CreateSettingsPageHelper()),
       base::BindRepeating(&OpenLoginPage));
 
-  DoChromeSpecificSetup(page.get());
   return page;
 }
 
@@ -226,19 +195,16 @@ ChromeSecurityBlockingPageFactory::CreateBadClockBlockingPage(
     const net::SSLInfo& ssl_info,
     const GURL& request_url,
     const base::Time& time_triggered,
-    ssl_errors::ClockState clock_state,
-    std::unique_ptr<SSLCertReporter> ssl_cert_reporter) {
+    ssl_errors::ClockState clock_state) {
   auto page = std::make_unique<BadClockBlockingPage>(
       web_contents, cert_error, ssl_info, request_url, time_triggered,
       /*can_show_enhanced_protection_message=*/true, clock_state,
-      std::move(ssl_cert_reporter),
       std::make_unique<SSLErrorControllerClient>(
           web_contents, ssl_info, cert_error, request_url,
           CreateMetricsHelperAndStartRecording(web_contents, request_url,
                                                "bad_clock", false),
           CreateSettingsPageHelper()));
 
-  ChromeSecurityBlockingPageFactory::DoChromeSpecificSetup(page.get());
   return page;
 }
 
@@ -247,24 +213,24 @@ ChromeSecurityBlockingPageFactory::CreateMITMSoftwareBlockingPage(
     content::WebContents* web_contents,
     int cert_error,
     const GURL& request_url,
-    std::unique_ptr<SSLCertReporter> ssl_cert_reporter,
     const net::SSLInfo& ssl_info,
     const std::string& mitm_software_name) {
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
   LogSafeBrowsingSecuritySensitiveAction(
       safe_browsing::SafeBrowsingMetricsCollectorFactory::GetForProfile(
-          Profile::FromBrowserContext(web_contents->GetBrowserContext())));
+          profile));
 
   auto page = std::make_unique<MITMSoftwareBlockingPage>(
-      web_contents, cert_error, request_url, std::move(ssl_cert_reporter),
+      web_contents, cert_error, request_url,
       /*can_show_enhanced_protection_message=*/true, ssl_info,
-      mitm_software_name, IsEnterpriseManaged(),
+      mitm_software_name, IsEnterpriseManaged(profile),
       std::make_unique<SSLErrorControllerClient>(
           web_contents, ssl_info, cert_error, request_url,
           CreateMetricsHelperAndStartRecording(web_contents, request_url,
                                                "mitm_software", false),
           CreateSettingsPageHelper()));
 
-  DoChromeSpecificSetup(page.get());
   return page;
 }
 
@@ -273,14 +239,13 @@ ChromeSecurityBlockingPageFactory::CreateBlockedInterceptionBlockingPage(
     content::WebContents* web_contents,
     int cert_error,
     const GURL& request_url,
-    std::unique_ptr<SSLCertReporter> ssl_cert_reporter,
     const net::SSLInfo& ssl_info) {
   LogSafeBrowsingSecuritySensitiveAction(
       safe_browsing::SafeBrowsingMetricsCollectorFactory::GetForProfile(
           Profile::FromBrowserContext(web_contents->GetBrowserContext())));
 
   auto page = std::make_unique<BlockedInterceptionBlockingPage>(
-      web_contents, cert_error, request_url, std::move(ssl_cert_reporter),
+      web_contents, cert_error, request_url,
       /*can_show_enhanced_protection_message=*/true, ssl_info,
       std::make_unique<SSLErrorControllerClient>(
           web_contents, ssl_info, cert_error, request_url,
@@ -288,7 +253,6 @@ ChromeSecurityBlockingPageFactory::CreateBlockedInterceptionBlockingPage(
                                                "blocked_interception", false),
           CreateSettingsPageHelper()));
 
-  ChromeSecurityBlockingPageFactory::DoChromeSpecificSetup(page.get());
   return page;
 }
 
@@ -307,57 +271,92 @@ ChromeSecurityBlockingPageFactory::CreateInsecureFormBlockingPage(
 std::unique_ptr<security_interstitials::HttpsOnlyModeBlockingPage>
 ChromeSecurityBlockingPageFactory::CreateHttpsOnlyModeBlockingPage(
     content::WebContents* web_contents,
-    const GURL& request_url) {
+    const GURL& request_url,
+    security_interstitials::https_only_mode::HttpInterstitialState
+        interstitial_state,
+    std::optional<std::string> url_type_param,
+    security_interstitials::HttpsOnlyModeBlockingPage::MetricsCallback
+        metrics_callback) {
   std::unique_ptr<HttpsOnlyModeControllerClient> client =
-      std::make_unique<HttpsOnlyModeControllerClient>(web_contents,
-                                                      request_url);
-
+      std::make_unique<HttpsOnlyModeControllerClient>(
+          web_contents, request_url, CreateSettingsPageHelper());
   Profile* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
-  bool is_under_advanced_protection =
-      profile &&
-      safe_browsing::AdvancedProtectionStatusManagerFactory::GetForProfile(
-          profile)
-          ->IsUnderAdvancedProtection();
+
+  if (url_type_param) {
+    if (*url_type_param == "advanced_protection") {
+      interstitial_state.enabled_by_advanced_protection = true;
+    } else if (*url_type_param == "site_engagement") {
+      interstitial_state.enabled_by_engagement_heuristic = true;
+    } else if (*url_type_param == "typically_secure") {
+      interstitial_state.enabled_by_typically_secure_browsing = true;
+    } else if (*url_type_param == "incognito") {
+      interstitial_state.enabled_by_incognito = true;
+    }
+  } else {
+    interstitial_state.enabled_by_advanced_protection =
+        profile &&
+        safe_browsing::AdvancedProtectionStatusManagerFactory::GetForProfile(
+            profile)
+            ->IsUnderAdvancedProtection();
+    // HFM interstitial with Site Engagement heuristic is only shown if the
+    // feature flag is enabled, so update the relevant flag here.
+    interstitial_state.enabled_by_engagement_heuristic =
+        interstitial_state.enabled_by_engagement_heuristic &&
+        base::FeatureList::IsEnabled(
+            features::kHttpsFirstModeV2ForEngagedSites);
+  }
+
   auto page =
       std::make_unique<security_interstitials::HttpsOnlyModeBlockingPage>(
-          web_contents, request_url, std::move(client),
-          is_under_advanced_protection);
+          web_contents, request_url, std::move(client), interstitial_state,
+          metrics_callback);
   return page;
 }
 
-// static
-void ChromeSecurityBlockingPageFactory::DoChromeSpecificSetup(
-    SSLBlockingPageBase* page) {
-  page->cert_report_helper()->set_client_details_callback(
-      base::BindRepeating([](CertificateErrorReport* report) {
-        report->AddChromeChannel(chrome::GetChannel());
+#if BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
 
-#if BUILDFLAG(IS_WIN)
-        report->SetIsEnterpriseManaged(IsEnterpriseManaged());
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
-        report->SetIsEnterpriseManaged(g_browser_process->platform_part()
-                                           ->browser_policy_connector_ash()
-                                           ->IsDeviceEnterpriseManaged());
-#endif
+// Open a login tab or popup for the captive portal login page.
+void OpenLoginTab(Browser* browser,
+                  captive_portal::CaptivePortalWindowType portal_type) {
+  // We only end up here when a captive portal result was received, so it's safe
+  // to assume profile has a captive_portal::CaptivePortalService.
+  NavigateParams params(
+      browser,
+      CaptivePortalServiceFactory::GetForProfile(browser->profile())
+          ->test_url(),
+      ui::PAGE_TRANSITION_TYPED);
+  WindowOpenDisposition disposition;
+  switch (portal_type) {
+    case captive_portal::CaptivePortalWindowType::kPopup:
+      disposition = WindowOpenDisposition::NEW_POPUP;
+      break;
+    case captive_portal::CaptivePortalWindowType::kTab:
+      disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+      break;
+    default:
+      NOTREACHED() << "Invalid captive portal window type";
+  }
+  params.captive_portal_window_type = portal_type;
+  params.disposition = disposition;
+  Navigate(&params);
 
-        // TODO(estade): this one is probably necessary for all clients, and
-        // should be enforced (e.g. via a pure virtual method) rather than
-        // optional.
-        report->AddNetworkTimeInfo(g_browser_process->network_time_tracker());
-      }));
+  content::WebContents* new_contents = params.navigated_or_inserted_contents;
+  captive_portal::CaptivePortalTabHelper* captive_portal_tab_helper =
+      captive_portal::CaptivePortalTabHelper::FromWebContents(new_contents);
+  captive_portal_tab_helper->SetIsLoginTab();
 }
 
-#if BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
 // static
 void ChromeSecurityBlockingPageFactory::OpenLoginTabForWebContents(
     content::WebContents* web_contents,
     bool focus) {
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
 
   // If the Profile doesn't have a tabbed browser window open, do nothing.
-  if (!browser)
+  if (!browser) {
     return;
+  }
 
   SecureDnsConfig secure_dns_config =
       SystemNetworkContextManager::GetStubResolverConfigReader()
@@ -372,8 +371,7 @@ void ChromeSecurityBlockingPageFactory::OpenLoginTabForWebContents(
       captive_portal::CaptivePortalTabHelper* captive_portal_tab_helper =
           captive_portal::CaptivePortalTabHelper::FromWebContents(contents);
       if (captive_portal_tab_helper->IsLoginTab()) {
-        Browser* browser_with_login_tab =
-            chrome::FindBrowserWithWebContents(contents);
+        Browser* browser_with_login_tab = chrome::FindBrowserWithTab(contents);
         browser_with_login_tab->window()->Show();
         browser_with_login_tab->tab_strip_model()->ActivateTabAt(
             browser_with_login_tab->tab_strip_model()->GetIndexOfWebContents(
@@ -383,18 +381,7 @@ void ChromeSecurityBlockingPageFactory::OpenLoginTabForWebContents(
     }
 
     // Otherwise, create a captive portal popup window.
-    NavigateParams params(
-        browser,
-        CaptivePortalServiceFactory::GetForProfile(browser->profile())
-            ->test_url(),
-        ui::PAGE_TRANSITION_TYPED);
-    params.disposition = WindowOpenDisposition::NEW_POPUP;
-    params.is_captive_portal_popup = true;
-    Navigate(&params);
-    content::WebContents* new_contents = params.navigated_or_inserted_contents;
-    captive_portal::CaptivePortalTabHelper* captive_portal_tab_helper =
-        captive_portal::CaptivePortalTabHelper::FromWebContents(new_contents);
-    captive_portal_tab_helper->SetIsLoginTab();
+    OpenLoginTab(browser, captive_portal::CaptivePortalWindowType::kPopup);
     return;
   }
 
@@ -408,26 +395,51 @@ void ChromeSecurityBlockingPageFactory::OpenLoginTabForWebContents(
     captive_portal::CaptivePortalTabHelper* captive_portal_tab_helper =
         captive_portal::CaptivePortalTabHelper::FromWebContents(contents);
     if (captive_portal_tab_helper->IsLoginTab()) {
-      if (focus)
+      if (focus) {
         browser->tab_strip_model()->ActivateTabAt(i);
+      }
       return;
     }
   }
 
-  // Otherwise, open a login tab.  Only end up here when a captive portal result
-  // was received, so it's safe to assume profile has a
-  // captive_portal::CaptivePortalService.
-  content::WebContents* new_contents = chrome::AddSelectedTabWithURL(
-      browser,
-      CaptivePortalServiceFactory::GetForProfile(browser->profile())
-          ->test_url(),
-      ui::PAGE_TRANSITION_TYPED);
-  captive_portal::CaptivePortalTabHelper* captive_portal_tab_helper =
-      captive_portal::CaptivePortalTabHelper::FromWebContents(new_contents);
-  captive_portal_tab_helper->SetIsLoginTab();
+  // Otherwise, open a login tab.
+  OpenLoginTab(browser, captive_portal::CaptivePortalWindowType::kTab);
 }
+
 #endif  // BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
 
+// static
+bool ChromeSecurityBlockingPageFactory::IsEnterpriseManaged(Profile* profile) {
+  // Return the value of the testing flag if it's set.
+  if (g_is_enterprise_managed_for_testing == ENTERPRISE_MANAGED_STATUS_TRUE) {
+    return true;
+  }
+  if (g_is_enterprise_managed_for_testing == ENTERPRISE_MANAGED_STATUS_FALSE) {
+    return false;
+  }
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  if (base::IsManagedOrEnterpriseDevice()) {
+    return true;
+  }
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_CHROMEOS)
+  auto* connector =
+      g_browser_process->platform_part()->browser_policy_connector_ash();
+  if (connector && connector->IsDeviceEnterpriseManaged()) {
+    return true;
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+  if (profile && profile->GetProfilePolicyConnector() &&
+      profile->GetProfilePolicyConnector()->IsManaged()) {
+    return true;
+  }
+  return false;
+}
+
+// static
 void ChromeSecurityBlockingPageFactory::SetEnterpriseManagedForTesting(
     bool enterprise_managed) {
   if (enterprise_managed) {

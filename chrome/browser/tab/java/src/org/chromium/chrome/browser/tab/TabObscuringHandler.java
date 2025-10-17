@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.tab;
 
 import org.chromium.base.ObserverList;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.util.TokenHolder;
 
 import java.lang.annotation.Retention;
@@ -14,6 +15,7 @@ import java.lang.annotation.RetentionPolicy;
  * Passes around the ability to set a view that is obscuring all tabs and optionally also the
  * toolbar.
  */
+@NullMarked
 public class TabObscuringHandler {
     @Retention(RetentionPolicy.SOURCE)
     public @interface Target {
@@ -24,9 +26,7 @@ public class TabObscuringHandler {
         int ALL_TABS_AND_TOOLBAR = 2;
     }
 
-    /**
-     * Represents a view that obscured a tab.
-     */
+    /** Represents a view that obscured a tab. */
     public static final class Token {
         private final @Target int mTarget;
         private final int mToken;
@@ -38,9 +38,7 @@ public class TabObscuringHandler {
         }
     }
 
-    /**
-     * Interface for the observers of the tab-obscuring state change.
-     */
+    /** Interface for the observers of the tab-obscuring state change. */
     public interface Observer {
         /**
          * @param obscureTabContent {@code true} if tabs are obscured by another view.
@@ -51,6 +49,7 @@ public class TabObscuringHandler {
 
     /** A mechanism for distributing unique tokens to users of this system. */
     private final TokenHolder mTabContentTokenHolder;
+
     private final TokenHolder mAllTabsAndToolbarTokenHolder;
 
     private final ObserverList<Observer> mVisibilityObservers = new ObserverList<>();
@@ -125,9 +124,7 @@ public class TabObscuringHandler {
         mVisibilityObservers.removeObserver(observer);
     }
 
-    /**
-     * Notify all the observers of the visibility update.
-     */
+    /** Notify all the observers of the visibility update. */
     private void notifyUpdate() {
         for (Observer observer : mVisibilityObservers) {
             observer.updateObscured(isTabContentObscured(), isToolbarObscured());

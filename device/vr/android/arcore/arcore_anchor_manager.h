@@ -6,6 +6,7 @@
 #define DEVICE_VR_ANDROID_ARCORE_ARCORE_ANCHOR_MANAGER_H_
 
 #include <map>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
 #include "base/types/id_type.h"
@@ -15,7 +16,6 @@
 #include "device/vr/android/arcore/arcore_sdk.h"
 #include "device/vr/android/arcore/scoped_arcore_objects.h"
 #include "device/vr/public/mojom/vr_service.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace device {
 
@@ -37,16 +37,16 @@ class ArCoreAnchorManager {
 
   bool AnchorExists(AnchorId id) const;
 
-  // Returns absl::nullopt if anchor with the given id does not exist.
-  absl::optional<gfx::Transform> GetMojoFromAnchor(AnchorId id) const;
+  // Returns std::nullopt if anchor with the given id does not exist.
+  std::optional<gfx::Transform> GetMojoFromAnchor(AnchorId id) const;
 
   // Creates Anchor object given a plane ID.
-  absl::optional<AnchorId> CreateAnchor(ArCorePlaneManager* plane_manager,
-                                        const device::mojom::Pose& pose,
-                                        PlaneId plane_id);
+  std::optional<AnchorId> CreateAnchor(ArCorePlaneManager* plane_manager,
+                                       const device::mojom::Pose& pose,
+                                       PlaneId plane_id);
 
   // Creates free-floating Anchor.
-  absl::optional<AnchorId> CreateAnchor(const device::mojom::Pose& pose);
+  std::optional<AnchorId> CreateAnchor(const device::mojom::Pose& pose);
 
   void DetachAnchor(AnchorId anchor_id);
 
@@ -93,7 +93,7 @@ class ArCoreAnchorManager {
   // if |Update()| was called twice in a row w/o a call to |GetAnchorsData()| in
   // between. Initially true since we expect the call to |Update()| to happen
   // next.
-  // TODO(https://crbug.com/1192844): remove the assumption that the calls to
+  // TODO(crbug.com/40757459): remove the assumption that the calls to
   // |Update()| will always be followed by at least one call to
   // |GetAnchorsData()| before the next call to |Update()| happens.
   mutable bool was_anchor_data_retrieved_in_current_frame_ = true;

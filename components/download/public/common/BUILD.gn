@@ -6,7 +6,8 @@ import("//mojo/public/tools/bindings/mojom.gni")
 
 if (is_android) {
   import("//build/config/android/config.gni")
-  import("//build/config/android/rules.gni")  # For generate_jni().
+  import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 config("components_download_implementation") {
@@ -16,10 +17,7 @@ config("components_download_implementation") {
 component("public") {
   sources = [
     "all_download_event_notifier.h",
-    "auto_resumption_handler.cc",
-    "auto_resumption_handler.h",
     "base_file.h",
-    "download_content.cc",
     "download_content.h",
     "download_create_info.h",
     "download_danger_type.cc",
@@ -28,26 +26,33 @@ component("public") {
     "download_destination_observer.h",
     "download_features.cc",
     "download_features.h",
+    "download_file.cc",
     "download_file.h",
     "download_file_factory.h",
     "download_file_impl.h",
     "download_interrupt_reason_values.h",
     "download_interrupt_reasons.h",
     "download_interrupt_reasons_utils.h",
+    "download_item.cc",
     "download_item.h",
     "download_item_factory.cc",
     "download_item_factory.h",
     "download_item_impl.h",
     "download_item_impl_delegate.h",
+    "download_item_rename_handler.h",
     "download_job.h",
     "download_job_factory.h",
     "download_path_reservation_tracker.h",
     "download_response_handler.h",
     "download_save_info.cc",
     "download_save_info.h",
+    "download_save_item_data.cc",
+    "download_save_item_data.h",
     "download_source.h",
     "download_start_observer.h",
     "download_stats.h",
+    "download_target_info.cc",
+    "download_target_info.h",
     "download_task_runner.h",
     "download_ukm_helper.h",
     "download_url_parameters.cc",
@@ -68,15 +73,20 @@ component("public") {
     "url_loader_factory_provider.h",
   ]
 
-  configs += [ ":components_download_implementation" ]
+  configs += [
+    ":components_download_implementation",
+    "//build/config/compiler:wexit_time_destructors",
+  ]
 
   public_deps = [
     ":interfaces",
     "//base",
     "//components/download/network",
     "//components/download/public/background_service:public",
+    "//components/keyed_service/core",
     "//components/services/quarantine/public/mojom",
     "//mojo/public/cpp/bindings",
+    "//services/device/public/mojom",
     "//services/network/public/cpp",
     "//services/network/public/mojom:url_loader_base",
   ]
@@ -90,7 +100,6 @@ component("public") {
     "//net",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/network/public/cpp",
-    "//storage/browser",
     "//ui/base",
   ]
 
@@ -103,12 +112,18 @@ component("public") {
     ldflags = [ "/IGNORE:4217" ]
   }
 
-  if (is_chromeos) {
+  if (is_android) {
     sources += [
-      "download_item_utils.cc",
-      "download_item_utils.h",
+      "android/auto_resumption_handler.cc",
+      "android/auto_resumption_handler.h",
     ]
-    deps += [ "//chromeos/crosapi/mojom" ]
+  }
+
+  if (is_win || is_mac) {
+    sources += [
+      "desktop/desktop_auto_resumption_handler.cc",
+      "desktop/desktop_auto_resumption_handler.h",
+    ]
   }
 }
 
@@ -124,6 +139,7 @@ if (is_android) {
 
   java_cpp_enum("jni_enums") {
     sources = [
+      "download_danger_type.h",
       "download_item.h",
       "resume_mode.h",
     ]
@@ -172,7 +188,15 @@ source_set("test_support") {
 source_set("unit_tests") {
   testonly = true
 
-  sources = [ "auto_resumption_handler_unittest.cc" ]
+  sources = []
+
+  if (is_android) {
+    sources += [ "android/auto_resumption_handler_unittest.cc" ]
+  }
+
+  if (is_win || is_mac) {
+    sources += [ "desktop/desktop_auto_resumption_handler_unittest.cc" ]
+  }
 
   deps = [
     ":public",

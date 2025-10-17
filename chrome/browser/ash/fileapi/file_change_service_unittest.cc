@@ -9,27 +9,30 @@
 #include "base/scoped_observation.h"
 #include "base/test/bind.h"
 #include "base/unguessable_token.h"
-#include "chrome/browser/ash/file_manager/app_id.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/fileapi/file_change_service_factory.h"
 #include "chrome/browser/ash/fileapi/file_change_service_observer.h"
-#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
+#include "chrome/browser/ash/fileapi/file_system_backend.h"
+#include "chrome/browser/file_system_access/chrome_file_system_access_permission_context.h"
+#include "chrome/browser/file_system_access/file_system_access_permission_context_factory.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile_manager.h"
-#include "components/user_manager/scoped_user_manager.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "mojo/public/cpp/system/data_pipe.h"
 #include "mojo/public/cpp/system/data_pipe_producer.h"
 #include "mojo/public/cpp/system/string_data_source.h"
 #include "storage/browser/blob/blob_storage_context.h"
 #include "storage/browser/file_system/external_mount_points.h"
-#include "storage/browser/file_system/file_system_backend.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "storage/browser/file_system/file_system_operation_runner.h"
+#include "storage/browser/file_system/file_system_url.h"
 #include "storage/browser/test/async_file_test_helper.h"
 #include "storage/browser/test/mock_blob_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
+#include "url/gurl.h"
 #include "url/origin.h"
 
 namespace ash {
@@ -76,14 +79,14 @@ class MockFileChangeServiceObserver : public FileChangeServiceObserver {
               (const storage::FileSystemURL& url),
               (override));
   MOCK_METHOD(void,
-              OnFileCopied,
+              OnFileMoved,
               (const storage::FileSystemURL& src,
                const storage::FileSystemURL& dst),
               (override));
   MOCK_METHOD(void,
-              OnFileMoved,
-              (const storage::FileSystemURL& src,
-               const storage::FileSystemURL& dst),
+              OnFileCreatedFromShowSaveFilePicker,
+              (const GURL& file_picker_binding_context,
+               const storage::FileSystemURL& url),
               (override));
 };
 
@@ -112,8 +115,9 @@ class TempFileSystem {
             name_, storage::kFileSystemTypeLocal,
             storage::FileSystemMountOption(), temp_dir_.GetPath()));
 
-    GetFileSystemContext(profile_)->external_backend()->GrantFileAccessToOrigin(
-        file_manager::util::GetFilesAppOrigin(), base::FilePath(name_));
+    ash::FileSystemBackend::Get(*GetFileSystemContext(profile_))
+        ->GrantFileAccessToOrigin(file_manager::util::GetFilesAppOrigin(),
+                                  base::FilePath(name_));
   }
 
   // Synchronously creates the file specified by `url`.
@@ -212,7 +216,7 @@ class TempFileSystem {
   }
 
  private:
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile> profile_;
   const url::Origin origin_;
   const std::string name_;
   base::ScopedTempDir temp_dir_;
@@ -222,31 +226,24 @@ class TempFileSystem {
 
 class FileChangeServiceTest : public BrowserWithTestWindowTest {
  public:
-  FileChangeServiceTest()
-      : fake_user_manager_(new FakeChromeUserManager),
-        user_manager_enabler_(base::WrapUnique(fake_user_manager_.get())) {}
+  FileChangeServiceTest() = default;
 
   FileChangeServiceTest(const FileChangeServiceTest& other) = delete;
   FileChangeServiceTest& operator=(const FileChangeServiceTest& other) = delete;
   ~FileChangeServiceTest() override = default;
 
   // Creates and returns a new profile for the specified `name`.
-  TestingProfile* CreateProfileWithName(const std::string& name) {
-    const AccountId account_id(AccountId::FromUserEmail(name));
-    fake_user_manager_->AddUser(account_id);
-    fake_user_manager_->LoginUser(account_id);
-    return profile_manager()->CreateTestingProfile(name);
+  TestingProfile* CreateLoggedInUserProfile(std::string_view name,
+                                            const GaiaId& gaia_id) {
+    LogIn(name, gaia_id);
+    return CreateProfile(std::string(name));
   }
 
  private:
   // BrowserWithTestWindowTest:
-  TestingProfile* CreateProfile() override {
-    constexpr char kPrimaryProfileName[] = "primary_profile@test";
-    return CreateProfileWithName(kPrimaryProfileName);
+  std::optional<std::string> GetDefaultProfileName() override {
+    return "promary_profile@test";
   }
-
-  raw_ptr<FakeChromeUserManager, ExperimentalAsh> fake_user_manager_;
-  user_manager::ScopedUserManager user_manager_enabler_;
 };
 
 }  // namespace
@@ -265,7 +262,9 @@ TEST_F(FileChangeServiceTest, CreatesServiceInstancesPerProfile) {
 
   // `FileChangeService` should be created as needed for additional profiles.
   constexpr char kSecondaryProfileName[] = "secondary_profile@test";
-  auto* secondary_profile = CreateProfileWithName(kSecondaryProfileName);
+  const GaiaId kFakeGaia2("fakegaia2");
+  auto* secondary_profile =
+      CreateLoggedInUserProfile(kSecondaryProfileName, kFakeGaia2);
   auto* secondary_profile_service = factory->GetService(secondary_profile);
   ASSERT_TRUE(secondary_profile_service);
 
@@ -328,83 +327,7 @@ TEST_F(FileChangeServiceTest, CreatesServiceInstanceForOTRGuestProfile) {
   ASSERT_NE(otr_guest_profile_service, guest_profile_service);
 }
 
-// Verifies `OnFileCopied` events are propagated to observers.
-TEST_F(FileChangeServiceTest, PropagatesOnFileCopiedEvents) {
-  auto* profile = GetProfile();
-  auto* service = FileChangeServiceFactory::GetInstance()->GetService(profile);
-  ASSERT_TRUE(service);
-
-  testing::NiceMock<MockFileChangeServiceObserver> mock_observer;
-  base::ScopedObservation<FileChangeService, FileChangeServiceObserver>
-      scoped_observation{&mock_observer};
-  scoped_observation.Observe(service);
-
-  TempFileSystem temp_file_system(profile);
-  temp_file_system.SetUp();
-
-  storage::FileSystemURL src = temp_file_system.CreateFileSystemURL("src");
-  storage::FileSystemURL dst = temp_file_system.CreateFileSystemURL("dst");
-
-  ASSERT_EQ(temp_file_system.CreateFile(src), base::File::FILE_OK);
-
-  EXPECT_CALL(mock_observer, OnFileModified)
-      .WillRepeatedly([&](const storage::FileSystemURL& propagated_url) {
-        EXPECT_EQ(dst, propagated_url);
-      });
-
-  {
-    base::RunLoop copy_run_loop;
-    EXPECT_CALL(mock_observer, OnFileCopied)
-        .WillOnce([&](const storage::FileSystemURL& propagated_src,
-                      const storage::FileSystemURL& propagated_dst) {
-          EXPECT_EQ(src, propagated_src);
-          EXPECT_EQ(dst, propagated_dst);
-          copy_run_loop.Quit();
-        })
-        .RetiresOnSaturation();
-
-    base::RunLoop modify_run_loop;
-    EXPECT_CALL(mock_observer, OnFileModified)
-        .WillOnce([&](const storage::FileSystemURL& propagated_url) {
-          EXPECT_EQ(dst, propagated_url);
-          modify_run_loop.Quit();
-        })
-        .RetiresOnSaturation();
-
-    ASSERT_EQ(temp_file_system.CopyFile(src, dst), base::File::FILE_OK);
-    copy_run_loop.Run();
-    modify_run_loop.Run();
-  }
-
-  ::testing::Mock::VerifyAndClearExpectations(&mock_observer);
-  ASSERT_EQ(temp_file_system.RemoveFile(dst), base::File::FILE_OK);
-
-  {
-    base::RunLoop copy_run_loop;
-    EXPECT_CALL(mock_observer, OnFileCopied)
-        .WillOnce([&](const storage::FileSystemURL& propagated_src,
-                      const storage::FileSystemURL& propagated_dst) {
-          EXPECT_EQ(src, propagated_src);
-          EXPECT_EQ(dst, propagated_dst);
-          copy_run_loop.Quit();
-        })
-        .RetiresOnSaturation();
-
-    base::RunLoop modify_run_loop;
-    EXPECT_CALL(mock_observer, OnFileModified)
-        .WillOnce([&](const storage::FileSystemURL& propagated_url) {
-          EXPECT_EQ(dst, propagated_url);
-          modify_run_loop.Quit();
-        })
-        .RetiresOnSaturation();
-
-    ASSERT_EQ(temp_file_system.CopyFileLocal(src, dst), base::File::FILE_OK);
-    copy_run_loop.Run();
-    modify_run_loop.Run();
-  }
-}
-
-// Verifies `OnFileMoved` events are propagated to observers.
+// Verifies `OnFileMoved()` events are propagated to observers.
 TEST_F(FileChangeServiceTest, PropagatesOnFileMovedEvents) {
   auto* profile = GetProfile();
   auto* service = FileChangeServiceFactory::GetInstance()->GetService(profile);
@@ -467,7 +390,7 @@ TEST_F(FileChangeServiceTest, PropagatesOnFileMovedEvents) {
   }
 }
 
-// Verifies `OnFileModified` events are propagated to observers.
+// Verifies `OnFileModified()` events are propagated to observers.
 TEST_F(FileChangeServiceTest, PropagatesOnFileModifiedEvents) {
   auto* profile = GetProfile();
   auto* service = FileChangeServiceFactory::GetInstance()->GetService(profile);
@@ -532,6 +455,30 @@ TEST_F(FileChangeServiceTest, PropagatesOnFileModifiedEvents) {
               base::File::FILE_OK);
     modify_run_loop.Run();
   }
+}
+
+// Verifies `OnFileCreatedFromShowSaveFilePicker()` events are propagated to
+// observers.
+TEST_F(FileChangeServiceTest,
+       PropagatesOnFileCreatedFromShowSaveFilePickerEvents) {
+  auto* profile = GetProfile();
+  auto* service = FileChangeServiceFactory::GetInstance()->GetService(profile);
+  ASSERT_TRUE(service);
+
+  testing::NiceMock<MockFileChangeServiceObserver> mock_observer;
+  base::ScopedObservation<FileChangeService, FileChangeServiceObserver>
+      scoped_observation(&mock_observer);
+  scoped_observation.Observe(service);
+
+  const GURL file_picker_binding_context;
+  const storage::FileSystemURL url;
+
+  EXPECT_CALL(mock_observer, OnFileCreatedFromShowSaveFilePicker(
+                                 testing::Ref(file_picker_binding_context),
+                                 testing::Ref(url)));
+
+  FileSystemAccessPermissionContextFactory::GetForProfile(profile)
+      ->OnFileCreatedFromShowSaveFilePicker(file_picker_binding_context, url);
 }
 
 }  // namespace ash

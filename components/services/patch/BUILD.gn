@@ -1,7 +1,6 @@
 # Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-import("//components/update_client/buildflags.gni")
 
 source_set("lib") {
   sources = [
@@ -10,19 +9,18 @@ source_set("lib") {
   ]
 
   deps = [
-    "//base",
     "//components/services/filesystem/public/mojom",
-    "//components/update_client:buildflags",
-    "//courgette:courgette_lib",
     "//mojo/public/cpp/bindings",
+    "//third_party/puffin:libpuffpatch",
   ]
 
-  if (enable_puffin_patches) {
-    include_dirs = [ "//third_party/puffin/src/include" ]
-    deps += [ "//third_party/puffin:libpuffpatch" ]
-  }
+  include_dirs = [ "//third_party/puffin/src/include" ]
 
-  public_deps = [ "//components/services/patch/public/mojom" ]
+  public_deps = [
+    "//base",
+    "//components/services/patch/public/mojom",
+    "//components/zucchini:zucchini_io",
+  ]
 }
 
 source_set("in_process") {
@@ -40,5 +38,31 @@ source_set("in_process") {
   public_deps = [
     "//components/services/patch/public/mojom",
     "//mojo/public/cpp/bindings",
+  ]
+}
+
+bundle_data("unit_tests_bundle_data") {
+  visibility = [ ":unit_tests" ]
+  testonly = true
+  sources = [
+    "//components/test/data/patch_service/new_file",
+    "//components/test/data/patch_service/old_file",
+    "//components/test/data/patch_service/patch_file",
+  ]
+  outputs = [ "{{bundle_resources_dir}}/" +
+              "{{source_root_relative_dir}}/{{source_file_part}}" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "file_patcher_unittest.cc" ]
+  deps = [
+    ":in_process",
+    ":lib",
+    ":unit_tests_bundle_data",
+    "//base",
+    "//base/test:test_support",
+    "//components/services/patch/public/cpp",
+    "//testing/gtest",
   ]
 }

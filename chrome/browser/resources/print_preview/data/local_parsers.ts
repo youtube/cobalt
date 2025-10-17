@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {isChromeOS, isLacros} from 'chrome://resources/js/platform.js';
+import {assertNotReached} from 'chrome://resources/js/assert.js';
+import {isChromeOS} from 'chrome://resources/js/platform.js';
 
-import {Destination, DestinationOptionalParams, DestinationOrigin, PrinterType} from './destination.js';
-// <if expr="is_chromeos">
-import {DestinationProvisionalType} from './destination.js';
-// </if>
+import type {DestinationOptionalParams} from './destination.js';
+import {Destination, DestinationOrigin, PrinterType} from './destination.js';
 
 interface ObjectMap {
   [k: string]: any;
@@ -71,10 +69,10 @@ function parseLocalDestination(destinationInfo: LocalDestinationInfo):
       }
     }
   }
+
   return new Destination(
       destinationInfo.deviceName,
-      (isChromeOS || isLacros) ? DestinationOrigin.CROS :
-                                 DestinationOrigin.LOCAL,
+      isChromeOS ? DestinationOrigin.CROS : DestinationOrigin.LOCAL,
       destinationInfo.printerName, options);
 }
 
@@ -84,19 +82,10 @@ function parseLocalDestination(destinationInfo: LocalDestinationInfo):
  */
 export function parseExtensionDestination(
     destinationInfo: ExtensionDestinationInfo): Destination {
-  // <if expr="is_chromeos">
-  const provisionalType = destinationInfo.provisional ?
-      DestinationProvisionalType.NEEDS_USB_PERMISSION :
-      DestinationProvisionalType.NONE;
-  // </if>
-
   return new Destination(
       destinationInfo.id, DestinationOrigin.EXTENSION, destinationInfo.name, {
         description: destinationInfo.description || '',
         extensionId: destinationInfo.extensionId,
         extensionName: destinationInfo.extensionName || '',
-        // <if expr="is_chromeos">
-        provisionalType: provisionalType,
-        // </if>
       });
 }

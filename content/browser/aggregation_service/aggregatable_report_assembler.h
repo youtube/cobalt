@@ -8,9 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <array>
 #include <memory>
-#include <vector>
+#include <optional>
 
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
@@ -18,7 +17,6 @@
 #include "content/browser/aggregation_service/aggregation_service_key_fetcher.h"
 #include "content/browser/aggregation_service/public_key.h"
 #include "content/common/content_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 template <class T>
 class scoped_refptr;
@@ -55,7 +53,7 @@ class CONTENT_EXPORT AggregatableReportAssembler {
 
   using AssemblyCallback =
       base::OnceCallback<void(AggregatableReportRequest,
-                              absl::optional<AggregatableReport>,
+                              std::optional<AggregatableReport>,
                               AssemblyStatus)>;
 
   // While we shouldn't hit these limits in typical usage, we protect against
@@ -99,8 +97,7 @@ class CONTENT_EXPORT AggregatableReportAssembler {
   // Represents a request to assemble a report that has not completed.
   struct PendingRequest {
     PendingRequest(AggregatableReportRequest report_request,
-                   AssemblyCallback callback,
-                   size_t num_processing_urls);
+                   AssemblyCallback callback);
     // Move-only.
     PendingRequest(PendingRequest&& other);
     PendingRequest& operator=(PendingRequest&& other);
@@ -108,15 +105,6 @@ class CONTENT_EXPORT AggregatableReportAssembler {
 
     AggregatableReportRequest report_request;
     AssemblyCallback callback;
-
-    // How many key fetches for this request have returned, including errors.
-    size_t num_returned_key_fetches = 0;
-
-    // The PublicKey returned for each key fetch request. Indices correspond to
-    // the ordering of `report_request.processing_urls`. Each element is
-    // `absl::nullopt` if that key fetch either has not yet returned or has
-    // returned an error.
-    std::vector<absl::optional<PublicKey>> processing_url_keys;
   };
 
   AggregatableReportAssembler(
@@ -124,21 +112,11 @@ class CONTENT_EXPORT AggregatableReportAssembler {
       std::unique_ptr<AggregatableReport::Provider> report_provider);
 
   // Called when a result is returned from the key fetcher. Handles throwing
-  // errors on a failed fetch, waiting for both results to return and calling
-  // into `OnAllPublicKeysFetched()` when appropriate. `processing_url_index` is
-  // an index into the corresponding AggregatableReportRequest's
-  // `processing_urls` vector, indicating which URL this fetch is for.
+  // errors on a failed fetch.
   void OnPublicKeyFetched(
       int64_t report_id,
-      size_t processing_url_index,
-      absl::optional<PublicKey> key,
+      std::optional<PublicKey> key,
       AggregationServiceKeyFetcher::PublicKeyFetchStatus status);
-
-  // Call when all results have been returned from the key fetcher. Handles
-  // calling into `AssembleReportUsingKeys()` when appropriate and returning
-  // any assembled report or throwing an error if assembly fails.
-  void OnAllPublicKeysFetched(int64_t report_id,
-                              PendingRequest& pending_request);
 
   // Keyed by a token for easier lookup.
   base::flat_map<int64_t, PendingRequest> pending_requests_;

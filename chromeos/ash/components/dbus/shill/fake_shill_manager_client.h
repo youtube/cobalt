@@ -80,11 +80,37 @@ class COMPONENT_EXPORT(SHILL_CLIENT) FakeShillManagerClient
   void SetTetheringEnabled(bool enabled,
                            StringCallback callback,
                            ErrorCallback error_callback) override;
+  void EnableTethering(const shill::WiFiInterfacePriority& priority,
+                       StringCallback callback,
+                       ErrorCallback error_callback) override;
+  void DisableTethering(StringCallback callback,
+                        ErrorCallback error_callback) override;
+  void OnDisableTetheringSuccess(const std::string& result);
   void CheckTetheringReadiness(StringCallback callback,
                                ErrorCallback error_callback) override;
   void SetLOHSEnabled(bool enabled,
                       base::OnceClosure callback,
                       ErrorCallback error_callback) override;
+
+  void CreateP2PGroup(
+      const CreateP2PGroupParameter& create_group_argument,
+      base::OnceCallback<void(base::Value::Dict result)> callback,
+      ErrorCallback error_callback) override;
+
+  void ConnectToP2PGroup(
+      const ConnectP2PGroupParameter& connect_group_argument,
+      base::OnceCallback<void(base::Value::Dict result)> callback,
+      ErrorCallback error_callback) override;
+
+  void DestroyP2PGroup(
+      const int shill_id,
+      base::OnceCallback<void(base::Value::Dict result)> callback,
+      ErrorCallback error_callback) override;
+
+  void DisconnectFromP2PGroup(
+      const int shill_id,
+      base::OnceCallback<void(base::Value::Dict result)> callback,
+      ErrorCallback error_callback) override;
 
   ShillManagerClient::TestInterface* GetTestInterface() override;
 
@@ -107,9 +133,11 @@ class COMPONENT_EXPORT(SHILL_CLIENT) FakeShillManagerClient
   void ClearProperties() override;
   void SetManagerProperty(const std::string& key,
                           const base::Value& value) override;
+  base::Value::Dict GetStubProperties() override;
   void AddManagerService(const std::string& service_path,
                          bool notify_observers) override;
   void RemoveManagerService(const std::string& service_path) override;
+  void RestartTethering() override;
   void ClearManagerServices() override;
   void ServiceStateChanged(const std::string& service_path,
                            const std::string& state) override;
@@ -122,22 +150,44 @@ class COMPONENT_EXPORT(SHILL_CLIENT) FakeShillManagerClient
   bool GetFastTransitionStatus() override;
   void SetSimulateConfigurationResult(
       FakeShillSimulatedResult configuration_result) override;
+  void SetSimulateConfigurationError(std::string_view error_name,
+                                     std::string_view error_message) override;
   void SetSimulateTetheringEnableResult(
       FakeShillSimulatedResult tethering_enable_result,
       const std::string& result_string) override;
   void SetSimulateCheckTetheringReadinessResult(
       FakeShillSimulatedResult tethering_readiness_result,
       const std::string& readiness_status) override;
+  void SetSimulateCreateP2PGroupResult(
+      FakeShillSimulatedResult operation_result,
+      const std::string& result_code) override;
+  void SetSimulateDestroyP2PGroupResult(
+      FakeShillSimulatedResult operation_result,
+      const std::string& result_code) override;
+  void SetSimulateConnectToP2PGroupResult(
+      FakeShillSimulatedResult operation_result,
+      const std::string& result_code) override;
+  void SetSimulateDisconnectFromP2PGroupResult(
+      FakeShillSimulatedResult operation_result,
+      const std::string& result_code) override;
   base::Value::List GetEnabledServiceList() const override;
   void ClearProfiles() override;
   void SetShouldReturnNullProperties(bool value) override;
   void SetWifiServicesVisibleByDefault(
       bool wifi_services_visible_by_default) override;
+  int GetRecentlyDestroyedP2PGroupId() override;
+  int GetRecentlyDisconnectedP2PGroupId() override;
 
   // Constants used for testing.
   static const char kFakeEthernetNetworkGuid[];
 
  private:
+  // Error message for configure service failure.
+  struct ConfigurationError {
+    std::string name;
+    std::string message;
+  };
+
   using ConnectToBestServicesCallbacks =
       std::tuple<base::OnceClosure, ErrorCallback>;
 
@@ -205,12 +255,28 @@ class COMPONENT_EXPORT(SHILL_CLIENT) FakeShillManagerClient
 
   FakeShillSimulatedResult simulate_configuration_result_ =
       FakeShillSimulatedResult::kSuccess;
+  ConfigurationError simulate_configuration_error_ = {"Error",
+                                                      "Simulated failure"};
   FakeShillSimulatedResult simulate_tethering_enable_result_ =
       FakeShillSimulatedResult::kSuccess;
   std::string simulate_enable_tethering_result_string_;
   FakeShillSimulatedResult simulate_check_tethering_readiness_result_ =
       FakeShillSimulatedResult::kSuccess;
   std::string simulate_tethering_readiness_status_;
+  FakeShillSimulatedResult simulate_create_p2p_group_result_ =
+      FakeShillSimulatedResult::kSuccess;
+  std::string simulate_create_p2p_group_result_code_;
+  FakeShillSimulatedResult simulate_destroy_p2p_group_result_ =
+      FakeShillSimulatedResult::kSuccess;
+  std::string simulate_destroy_p2p_group_result_code_;
+  int recent_destroyed_group_id = -1;
+  FakeShillSimulatedResult simulate_connect_p2p_group_result_ =
+      FakeShillSimulatedResult::kSuccess;
+  std::string simulate_connect_p2p_group_result_code_;
+  int recent_disconnected_group_id = -1;
+  FakeShillSimulatedResult simulate_disconnect_p2p_group_result_ =
+      FakeShillSimulatedResult::kSuccess;
+  std::string simulate_disconnect_p2p_group_result_code_;
 
   bool return_null_properties_ = false;
   bool wifi_services_visible_by_default_ = true;
@@ -221,11 +287,8 @@ class COMPONENT_EXPORT(SHILL_CLIENT) FakeShillManagerClient
   // For testing dynamic WEP networks (uses wifi2).
   bool dynamic_wep_ = false;
 
-  // For testing proxy-auth case for shill service state.
-  bool proxy_auth_ = false;
-
   // Caches the last-passed callbacks for ScanAndConnectToBestServices.
-  absl::optional<ConnectToBestServicesCallbacks>
+  std::optional<ConnectToBestServicesCallbacks>
       connect_to_best_services_callbacks_;
 
   // Note: This should remain the last member so it'll be destroyed and

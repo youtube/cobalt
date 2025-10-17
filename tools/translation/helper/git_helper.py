@@ -4,6 +4,7 @@
 
 import subprocess
 import sys
+import os
 
 if sys.platform.startswith('win'):
   # Use the |git.bat| in the depot_tools/ on Windows.

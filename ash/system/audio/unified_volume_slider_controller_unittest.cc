@@ -116,12 +116,4 @@ TEST_F(UnifiedVolumeSliderControllerTest, RecordOutputVolumeChangedSource) {
       CrasAudioHandler::AudioSettingsChangeSource::kSystemTray, 2);
 }
 
-// Verify pressing the mute button is recorded to metrics.
-TEST_F(UnifiedVolumeSliderControllerTest, RecordOuptputVolumeMuteSource) {
-  PressSliderButton();
-  histogram_tester_.ExpectBucketCount(
-      CrasAudioHandler::kOutputVolumeMuteSourceHistogramName,
-      CrasAudioHandler::AudioSettingsChangeSource::kSystemTray, 1);
-}
-
 }  // namespace ash

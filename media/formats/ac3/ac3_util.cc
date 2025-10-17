@@ -2,7 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/ac3/ac3_util.h"
+
+#include <array>
 
 #include "base/logging.h"
 #include "media/base/bit_reader.h"
@@ -19,17 +26,20 @@ const int kAudioSamplesPerAudioBlock = 256;
 const int kAudioSamplePerAc3SyncFrame = 6 * kAudioSamplesPerAudioBlock;
 // Number of audio blocks per E-AC3 synchronization frame, indexed by
 // numblkscod.
-const int kBlocksPerSyncFrame[] = {1, 2, 3, 6};
+constexpr auto kBlocksPerSyncFrame = std::to_array<int>({1, 2, 3, 6});
 // Sample rates, indexed by fscod.
-const int kSampleRate[] = {48000, 44100, 32000};
+constexpr auto kSampleRate = std::to_array<int>({48000, 44100, 32000});
 // Nominal bitrates in kbps, indexed by frmsizecod / 2.
-const int kBitrate[] = {32,  40,  48,  56,  64,  80,  96,  112, 128, 160,
-                        192, 224, 256, 320, 384, 448, 512, 576, 640};
+constexpr auto kBitrate = std::to_array<int>({
+    32,  40,  48,  56,  64,  80,  96,  112, 128, 160,
+    192, 224, 256, 320, 384, 448, 512, 576, 640,
+});
 // 16-bit words per synchronization frame, indexed by frmsizecod.
-const int kSyncFrameSizeInWordsFor44kHz[] = {
-    69,  70,  87,  88,  104, 105, 121,  122,  139,  140,  174,  175, 208,
-    209, 243, 244, 278, 279, 348, 349,  417,  418,  487,  488,  557, 558,
-    696, 697, 835, 836, 975, 976, 1114, 1115, 1253, 1254, 1393, 1394};
+constexpr auto kSyncFrameSizeInWordsFor44kHz = std::to_array<int>({
+    69,  70,  87,  88,  104, 105, 121,  122,  139,  140,  174,  175,  208,
+    209, 243, 244, 278, 279, 348, 349,  417,  418,  487,  488,  557,  558,
+    696, 697, 835, 836, 975, 976, 1114, 1115, 1253, 1254, 1393, 1394,
+});
 
 // Utility for unpacking (E-)AC3 header. Note that all fields are encoded.
 class Ac3Header {
@@ -73,7 +83,7 @@ Ac3Header::Ac3Header(const uint8_t* data, int size) {
   eac3_number_of_audio_block_code_ = ac3_frame_size_code_ >> 4;
 }
 
-// Search for next synchronization word, wihch is 0x0B-0x77.
+// Search for next synchronization word, which is 0x0B-0x77.
 const uint8_t* FindNextSyncWord(const uint8_t* const begin,
                                 const uint8_t* const end) {
   DCHECK(begin);

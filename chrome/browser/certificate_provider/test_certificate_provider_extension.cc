@@ -5,6 +5,8 @@
 #include "chrome/browser/certificate_provider/test_certificate_provider_extension.h"
 
 #include <cstdint>
+#include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -16,27 +18,21 @@
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/extensions/api/certificate_provider.h"
 #include "content/public/browser/browser_context.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_source.h"
 #include "crypto/rsa_private_key.h"
 #include "extensions/browser/api/test/test_api.h"
 #include "extensions/browser/event_router.h"
-#include "extensions/browser/notification_types.h"
 #include "extensions/common/api/test.h"
 #include "net/cert/asn1_util.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/test_data_directory.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/rsa.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 
@@ -54,10 +50,10 @@ constexpr base::FilePath::CharType kExtensionPemPath[] =
 // List of algorithms that the extension claims to support for the returned
 // certificates.
 constexpr extensions::api::certificate_provider::Algorithm
-    kSupportedAlgorithms[] = {extensions::api::certificate_provider::Algorithm::
-                                  ALGORITHM_RSASSA_PKCS1_V1_5_SHA256,
-                              extensions::api::certificate_provider::Algorithm::
-                                  ALGORITHM_RSASSA_PKCS1_V1_5_SHA1};
+    kSupportedAlgorithms[] = {
+        extensions::api::certificate_provider::Algorithm::
+            kRsassaPkcs1V1_5Sha256,
+        extensions::api::certificate_provider::Algorithm::kRsassaPkcs1V1_5Sha1};
 
 base::Value ConvertBytesToValue(base::span<const uint8_t> bytes) {
   base::Value::List value;
@@ -74,8 +70,8 @@ std::vector<uint8_t> ExtractBytesFromValue(const base::Value& value) {
 }
 
 base::span<const uint8_t> GetCertDer(const net::X509Certificate& certificate) {
-  return base::as_bytes(base::make_span(
-      net::x509_util::CryptoBufferAsStringPiece(certificate.cert_buffer())));
+  return base::as_byte_span(
+      net::x509_util::CryptoBufferAsStringPiece(certificate.cert_buffer()));
 }
 
 base::Value MakeClientCertificateInfoValue(
@@ -101,7 +97,7 @@ std::string ConvertValueToJson(const base::Value& value) {
 }
 
 base::Value ParseJsonToValue(const std::string& json) {
-  absl::optional<base::Value> value = base::JSONReader::Read(json);
+  std::optional<base::Value> value = base::JSONReader::Read(json);
   CHECK(value);
   return std::move(*value);
 }
@@ -149,7 +145,7 @@ std::unique_ptr<crypto::RSAPrivateKey> LoadPrivateKeyFromFile(
     EXPECT_TRUE(base::ReadFileToString(path, &key_pk8));
   }
   return crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(
-      base::as_bytes(base::make_span(key_pk8)));
+      base::as_byte_span(key_pk8));
 }
 
 }  // namespace
@@ -180,7 +176,7 @@ TestCertificateProviderExtension::GetCertificate() {
 // static
 std::string TestCertificateProviderExtension::GetCertificateSpki() {
   const scoped_refptr<net::X509Certificate> certificate = GetCertificate();
-  base::StringPiece spki_bytes;
+  std::string_view spki_bytes;
   if (!net::asn1::ExtractSPKIFromDERCert(
           net::x509_util::CryptoBufferAsStringPiece(certificate->cert_buffer()),
           &spki_bytes)) {
@@ -281,13 +277,14 @@ void TestCertificateProviderExtension::HandleSignatureRequest(
           *sign_request.GetDict().FindString("algorithm"));
   int openssl_signature_algorithm = 0;
   if (algorithm == extensions::api::certificate_provider::Algorithm::
-                       ALGORITHM_RSASSA_PKCS1_V1_5_SHA256) {
+                       kRsassaPkcs1V1_5Sha256) {
     openssl_signature_algorithm = SSL_SIGN_RSA_PKCS1_SHA256;
   } else if (algorithm == extensions::api::certificate_provider::Algorithm::
-                              ALGORITHM_RSASSA_PKCS1_V1_5_SHA1) {
+                              kRsassaPkcs1V1_5Sha1) {
     openssl_signature_algorithm = SSL_SIGN_RSA_PKCS1_SHA1;
   } else {
-    LOG(FATAL) << "Unexpected signature request algorithm: " << algorithm;
+    LOG(FATAL) << "Unexpected signature request algorithm: "
+               << extensions::api::certificate_provider::ToString(algorithm);
   }
 
   if (should_fail_sign_digest_requests_) {

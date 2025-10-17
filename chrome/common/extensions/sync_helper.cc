@@ -60,7 +60,6 @@ bool IsSyncable(const Extension* extension) {
       NOTREACHED();
   }
   NOTREACHED();
-  return false;
 }
 
 bool IsSyncableComponentExtension(const Extension* extension) {

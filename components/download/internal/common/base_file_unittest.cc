@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "components/download/public/common/base_file.h"
 
 #include <stddef.h>
@@ -360,7 +365,7 @@ TEST_F(BaseFileTest, RenameWhileInProgress) {
 }
 
 #if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1314064): Re-enable when RenameWithError works on Fuchsia.
+// TODO(crbug.com/40221266): Re-enable when RenameWithError works on Fuchsia.
 #define MAYBE_RenameWithError DISABLED_RenameWithError
 #else
 #define MAYBE_RenameWithError RenameWithError
@@ -387,7 +392,7 @@ TEST_F(BaseFileTest, MAYBE_RenameWithError) {
 }
 
 #if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1314064): Re-enable when RenameWithErrorInProgress works on
+// TODO(crbug.com/40221266): Re-enable when RenameWithErrorInProgress works on
 // Fuchsia.
 #define MAYBE_RenameWithErrorInProgress DISABLED_RenameWithErrorInProgress
 #else
@@ -435,7 +440,7 @@ TEST_F(BaseFileTest, MAYBE_RenameWithErrorInProgress) {
 }
 
 #if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1314068): Re-enable when WriteWithError works on Fuchsia.
+// TODO(crbug.com/40221270): Re-enable when WriteWithError works on Fuchsia.
 #define MAYBE_WriteWithError DISABLED_WriteWithError
 #else
 #define MAYBE_WriteWithError WriteWithError
@@ -510,7 +515,7 @@ TEST_F(BaseFileTest, AppendToBaseFile) {
 }
 
 #if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1314062): Re-enable when ReadonlyBaseFile works on Fuchsia.
+// TODO(crbug.com/40221265): Re-enable when ReadonlyBaseFile works on Fuchsia.
 #define MAYBE_ReadonlyBaseFile DISABLED_ReadonlyBaseFile
 #else
 #define MAYBE_ReadonlyBaseFile ReadonlyBaseFile

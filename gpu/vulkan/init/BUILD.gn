@@ -17,6 +17,8 @@ component("init") {
 
   defines = [ "IS_VULKAN_INIT_IMPL" ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   public_deps = [
     "//base",
     "//gpu/vulkan",
@@ -38,23 +40,4 @@ component("init") {
   if (is_apple) {
     deps += [ "//gpu/vulkan/mac" ]
   }
-}
-
-component("skia") {
-  output_name = "vulkan_init_skia"
-
-  sources = [
-    "gr_vk_memory_allocator_impl.cc",
-    "gr_vk_memory_allocator_impl.h",
-  ]
-
-  defines = [ "IS_VULKAN_INIT_IMPL" ]
-
-  public_deps = [
-    "//base",
-    "//gpu/vulkan",
-    "//skia",
-  ]
-
-  deps = [ "//third_party/vulkan_memory_allocator" ]
 }

@@ -20,13 +20,11 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/media_galleries/fileapi/media_file_validator_factory.h"
 #include "chrome/browser/media_galleries/fileapi/media_path_filter.h"
 #include "chrome/browser/media_galleries/fileapi/native_media_file_util.h"
 #include "chrome/browser/media_galleries/media_file_system_registry.h"
-#include "chrome/browser/media_galleries/media_galleries_histograms.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/download/public/common/quarantine_connection.h"
 #include "components/prefs/pref_service.h"
@@ -47,7 +45,7 @@
 #include "storage/common/file_system/file_system_types.h"
 #include "storage/common/file_system/file_system_util.h"
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/media_galleries/fileapi/device_media_async_file_util.h"
 #endif
 
@@ -96,8 +94,7 @@ void AttemptAutoMountOnUIThread(
     extensions::ExtensionRegistry* extension_registry =
         extensions::ExtensionRegistry::Get(profile);
     const extensions::Extension* extension =
-        extension_registry->GetExtensionById(
-            storage_domain, extensions::ExtensionRegistry::ENABLED);
+        extension_registry->enabled_extensions().GetByID(storage_domain);
     std::string expected_mount_prefix =
         MediaFileSystemBackend::ConstructMountName(
             profile->GetPath(), storage_domain, kInvalidMediaGalleryPrefId);
@@ -126,7 +123,7 @@ void AttemptAutoMountOnUIThread(
 }
 
 content::WebContents* GetWebContentsFromFrameTreeNodeID(
-    int frame_tree_node_id) {
+    content::FrameTreeNodeId frame_tree_node_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   return content::WebContents::FromFrameTreeNodeId(frame_tree_node_id);
 }
@@ -142,7 +139,7 @@ MediaFileSystemBackend::MediaFileSystemBackend(
               std::move(quarantine_connection_callback))),
       native_media_file_util_(
           std::make_unique<NativeMediaFileUtil>(g_media_task_runner.Get()))
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
       ,
       device_media_async_file_util_(
           DeviceMediaAsyncFileUtil::Create(profile_path_,
@@ -151,8 +148,7 @@ MediaFileSystemBackend::MediaFileSystemBackend(
 {
 }
 
-MediaFileSystemBackend::~MediaFileSystemBackend() {
-}
+MediaFileSystemBackend::~MediaFileSystemBackend() = default;
 
 // static
 void MediaFileSystemBackend::AssertCurrentlyOnMediaSequence() {
@@ -206,8 +202,9 @@ bool MediaFileSystemBackend::AttemptAutoMountForURLRequest(
                         base::CompareCase::SENSITIVE))
     return false;
 
-  content::WebContents::Getter web_contents_getter = base::BindRepeating(
-      &GetWebContentsFromFrameTreeNodeID, request_info.content_id);
+  content::WebContents::Getter web_contents_getter =
+      base::BindRepeating(&GetWebContentsFromFrameTreeNodeID,
+                          content::FrameTreeNodeId(request_info.content_id));
 
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
@@ -246,14 +243,13 @@ storage::AsyncFileUtil* MediaFileSystemBackend::GetAsyncFileUtil(
   switch (type) {
     case storage::kFileSystemTypeLocalMedia:
       return native_media_file_util_.get();
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
     case storage::kFileSystemTypeDeviceMedia:
       return device_media_async_file_util_.get();
 #endif
     default:
       NOTREACHED();
   }
-  return nullptr;
 }
 
 storage::WatcherManager* MediaFileSystemBackend::GetWatcherManager(
@@ -278,24 +274,24 @@ MediaFileSystemBackend::GetCopyOrMoveFileValidatorFactory(
     default:
       NOTREACHED();
   }
-  return nullptr;
 }
 
 std::unique_ptr<storage::FileSystemOperation>
 MediaFileSystemBackend::CreateFileSystemOperation(
+    storage::OperationType type,
     const FileSystemURL& url,
     FileSystemContext* context,
     base::File::Error* error_code) const {
   std::unique_ptr<storage::FileSystemOperationContext> operation_context(
       std::make_unique<storage::FileSystemOperationContext>(
           context, MediaTaskRunner().get()));
-  return storage::FileSystemOperation::Create(url, context,
+  return storage::FileSystemOperation::Create(type, url, context,
                                               std::move(operation_context));
 }
 
 bool MediaFileSystemBackend::SupportsStreaming(
     const storage::FileSystemURL& url) const {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
   if (url.type() == storage::kFileSystemTypeDeviceMedia)
     return device_media_async_file_util_->SupportsStreaming(url);
 #endif
@@ -319,7 +315,7 @@ MediaFileSystemBackend::CreateFileStreamReader(
     FileSystemContext* context,
     file_access::ScopedFileAccessDelegate::
         RequestFilesAccessIOCallback /*file_access*/) const {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
   if (url.type() == storage::kFileSystemTypeDeviceMedia) {
     std::unique_ptr<storage::FileStreamReader> reader =
         device_media_async_file_util_->GetFileStreamReader(

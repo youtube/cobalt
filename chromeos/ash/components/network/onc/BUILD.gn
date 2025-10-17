@@ -2,10 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 
-assert(is_chromeos_ash, "Non-ChromeOS builds cannot depend on //chromeos/ash")
+assert(is_chromeos, "Non-ChromeOS builds cannot depend on //chromeos/ash")
 
 source_set("onc") {
   # Due to circular dependency, others should depend on via
@@ -29,6 +28,10 @@ source_set("onc") {
     "//components/url_formatter",
     "//components/user_manager",
     "//net",
+
+    # TODO(b/354839582): Use targets having headers included from
+    # chrome/browser/ash/arc/extensions/arc_support_message_host.cc.
+    "//chromeos/services/network_config/public/mojom",
   ]
   sources = [
     "network_onc_utils.cc",
@@ -55,11 +58,14 @@ source_set("unit_tests") {
   deps = [
     "//ash/constants",
     "//base/test:test_support",
-    "//chromeos:test_utils",
+    "//chromeos:test_support",
     "//chromeos/ash/components/network",
+    "//chromeos/ash/components/network:test_support",
     "//chromeos/components/onc",
     "//chromeos/components/onc:test_support",
     "//components/onc",
+    "//components/prefs:test_support",
+    "//components/user_manager:test_support",
     "//crypto:test_support",
     "//net:test_support",
     "//testing/gmock",

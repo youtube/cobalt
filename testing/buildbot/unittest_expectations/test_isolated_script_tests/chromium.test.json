@@ -4,17 +4,16 @@
   "Fake Tester": {
     "isolated_scripts": [
       {
-        "isolate_name": "foo_test",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "name": "foo_test",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "os": "Linux"
           }
-        }
+        },
+        "test": "foo_test"
       }
     ]
   }

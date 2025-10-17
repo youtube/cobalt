@@ -3,18 +3,19 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/public/common/origin_trials/trial_token.h"
+
 #include <memory>
+#include <optional>
+#include <string_view>
 
 #include "base/base64.h"
-#include "base/big_endian.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/numerics/byte_conversions.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/origin_trials/origin_trials.h"
 #include "third_party/boringssl/src/include/openssl/curve25519.h"
 #include "url/gurl.h"
@@ -67,7 +68,7 @@ TrialToken::~TrialToken() = default;
 
 // static
 std::unique_ptr<TrialToken> TrialToken::From(
-    base::StringPiece token_text,
+    std::string_view token_text,
     const OriginTrialPublicKey& public_key,
     OriginTrialTokenStatus* out_status) {
   DCHECK(out_status);
@@ -110,7 +111,7 @@ OriginTrialTokenStatus TrialToken::IsValid(const url::Origin& origin,
 
 // static
 OriginTrialTokenStatus TrialToken::Extract(
-    base::StringPiece token_text,
+    std::string_view token_text,
     const OriginTrialPublicKey& public_key,
     std::string* out_token_payload,
     std::string* out_token_signature,
@@ -146,11 +147,11 @@ OriginTrialTokenStatus TrialToken::Extract(
     return OriginTrialTokenStatus::kMalformed;
   }
 
+  auto token_bytes = base::as_byte_span(token_contents);
+
   // Extract the length of the signed data (Big-endian).
-  uint32_t payload_length;
-  base::ReadBigEndian(
-      reinterpret_cast<const uint8_t*>(&(token_contents[kPayloadLengthOffset])),
-      &payload_length);
+  uint32_t payload_length = base::U32FromBigEndian(
+      token_bytes.subspan(kPayloadLengthOffset).first<4>());
 
   // Validate that the stated length matches the actual payload length.
   if (payload_length != token_contents.length() - kPayloadOffset) {
@@ -158,11 +159,12 @@ OriginTrialTokenStatus TrialToken::Extract(
   }
 
   // Extract the version-specific contents of the token.
-  const char* token_bytes = token_contents.data();
-  base::StringPiece version_piece(token_bytes + kVersionOffset, kVersionSize);
-  base::StringPiece signature(token_bytes + kSignatureOffset, kSignatureSize);
-  base::StringPiece payload_piece(token_bytes + kPayloadLengthOffset,
-                                  kPayloadLengthSize + payload_length);
+  std::string_view version_piece(
+      base::as_string_view(token_bytes.subspan(kVersionOffset, kVersionSize)));
+  std::string_view signature(base::as_string_view(
+      token_bytes.subspan(kSignatureOffset, kSignatureSize)));
+  std::string_view payload_piece(base::as_string_view(token_bytes.subspan(
+      kPayloadLengthOffset, kPayloadLengthSize + payload_length)));
 
   // The data which is covered by the signature is (version + length + payload).
   std::string signed_data = base::StrCat({version_piece, payload_piece});
@@ -190,14 +192,14 @@ std::unique_ptr<TrialToken> TrialToken::Parse(const std::string& token_payload,
     return nullptr;
   }
 
-  absl::optional<base::Value> data = base::JSONReader::Read(token_payload);
-  if (!data || !data->is_dict()) {
+  std::optional<base::Value::Dict> data =
+      base::JSONReader::ReadDict(token_payload);
+  if (!data) {
     return nullptr;
   }
-  base::Value::Dict& datadict = data->GetDict();
 
   // Ensure that the origin is a valid (non-opaque) origin URL.
-  std::string* origin_string = datadict.FindString("origin");
+  std::string* origin_string = data->FindString("origin");
   if (!origin_string) {
     return nullptr;
   }
@@ -208,7 +210,7 @@ std::unique_ptr<TrialToken> TrialToken::Parse(const std::string& token_payload,
 
   // The |isSubdomain| flag is optional. If found, ensure it is a valid boolean.
   bool is_subdomain = false;
-  base::Value* is_subdomain_value = datadict.Find("isSubdomain");
+  base::Value* is_subdomain_value = data->Find("isSubdomain");
   if (is_subdomain_value) {
     if (!is_subdomain_value->is_bool()) {
       return nullptr;
@@ -217,13 +219,13 @@ std::unique_ptr<TrialToken> TrialToken::Parse(const std::string& token_payload,
   }
 
   // Ensure that the feature name is a valid string.
-  std::string* feature_name = datadict.FindString("feature");
+  std::string* feature_name = data->FindString("feature");
   if (!feature_name || feature_name->empty()) {
     return nullptr;
   }
 
   // Ensure that the expiry timestamp is a valid (positive) integer.
-  int expiry_timestamp = datadict.FindInt("expiry").value_or(0);
+  int expiry_timestamp = data->FindInt("expiry").value_or(0);
   if (expiry_timestamp <= 0) {
     return nullptr;
   }
@@ -235,7 +237,7 @@ std::unique_ptr<TrialToken> TrialToken::Parse(const std::string& token_payload,
   if (version == kVersion3) {
     // The |isThirdParty| flag is optional. If found, ensure it is a valid
     // boolean.
-    base::Value* is_third_party_value = datadict.Find("isThirdParty");
+    base::Value* is_third_party_value = data->Find("isThirdParty");
     if (is_third_party_value) {
       if (!is_third_party_value->is_bool()) {
         return nullptr;
@@ -245,7 +247,7 @@ std::unique_ptr<TrialToken> TrialToken::Parse(const std::string& token_payload,
 
     // The |usage| field is optional. If found, ensure its value is either empty
     // or "subset".
-    std::string* usage_value = datadict.FindString("usage");
+    std::string* usage_value = data->FindString("usage");
     if (usage_value) {
       if (usage_value->empty()) {
         usage = UsageRestriction::kNone;
@@ -257,9 +259,10 @@ std::unique_ptr<TrialToken> TrialToken::Parse(const std::string& token_payload,
     }
   }
 
-  return base::WrapUnique(new TrialToken(
-      origin, is_subdomain, *feature_name,
-      base::Time::FromDoubleT(expiry_timestamp), is_third_party, usage));
+  return base::WrapUnique(
+      new TrialToken(origin, is_subdomain, *feature_name,
+                     base::Time::FromSecondsSinceUnixEpoch(expiry_timestamp),
+                     is_third_party, usage));
 }
 
 bool TrialToken::ValidateOrigin(const url::Origin& origin) const {
@@ -272,6 +275,10 @@ bool TrialToken::ValidateOrigin(const url::Origin& origin) const {
     return true;
   }
 
+  // TODO(crbug.com/1227440): `OriginTrials::MatchesTokenOrigin()` is meant to
+  // mirror the logic used in this method (below). Find a way to share/reuse
+  // this logic. Otherwise, the logic could change in one place and not the
+  // other.
   if (match_subdomains_) {
     return origin.scheme() == origin_.scheme() &&
            origin.DomainIs(origin_.host()) && origin.port() == origin_.port();
@@ -279,7 +286,7 @@ bool TrialToken::ValidateOrigin(const url::Origin& origin) const {
   return origin == origin_;
 }
 
-bool TrialToken::ValidateFeatureName(base::StringPiece feature_name) const {
+bool TrialToken::ValidateFeatureName(std::string_view feature_name) const {
   return feature_name == feature_name_;
 }
 
@@ -288,7 +295,7 @@ bool TrialToken::ValidateDate(const base::Time& now) const {
 }
 
 // static
-bool TrialToken::ValidateSignature(base::StringPiece signature,
+bool TrialToken::ValidateSignature(std::string_view signature,
                                    const std::string& data,
                                    const OriginTrialPublicKey& public_key) {
   // Signature must be 64 bytes long.

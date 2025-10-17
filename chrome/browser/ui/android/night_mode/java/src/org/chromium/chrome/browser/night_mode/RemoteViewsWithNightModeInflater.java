@@ -13,16 +13,17 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RemoteViews;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * Performs inflation of {@link RemoteViews} taking into account the local night mode.
  * {@link RemoteViews#apply} always uses resource configuration corresponding to system
  *  settings, see https://buganizer.corp.google.com/issues/133424086, http://crbug.com/1626864.
  */
+@NullMarked
 public class RemoteViewsWithNightModeInflater {
     private static final String TAG = "RemoteViewsInflater";
 
@@ -35,9 +36,11 @@ public class RemoteViewsWithNightModeInflater {
      * @param isInSystemNightMode Whether night mode is enabled in system settings.
      * @return Inflated View or null in case of failure.
      */
-    @Nullable
-    public static View inflate(RemoteViews remoteViews, @Nullable ViewGroup parent,
-            boolean isInLocalNightMode, boolean isInSystemNightMode) {
+    public static @Nullable View inflate(
+            RemoteViews remoteViews,
+            @Nullable ViewGroup parent,
+            boolean isInLocalNightMode,
+            boolean isInSystemNightMode) {
         if (isInLocalNightMode == isInSystemNightMode) {
             // RemoteViews#apply will use the resource configuration corresponding to system
             // settings.
@@ -51,8 +54,8 @@ public class RemoteViewsWithNightModeInflater {
         return view;
     }
 
-    @Nullable
-    private static View inflateNormally(RemoteViews remoteViews, ViewGroup parent) {
+    private static @Nullable View inflateNormally(
+            RemoteViews remoteViews, @Nullable ViewGroup parent) {
         try {
             return remoteViews.apply(ContextUtils.getApplicationContext(), parent);
         } catch (RuntimeException e) {
@@ -63,9 +66,8 @@ public class RemoteViewsWithNightModeInflater {
         }
     }
 
-    @Nullable
-    private static View inflateWithEnforcedDarkMode(
-            RemoteViews remoteViews, ViewGroup parent, boolean isInLocalNightMode) {
+    private static @Nullable View inflateWithEnforcedDarkMode(
+            RemoteViews remoteViews, @Nullable ViewGroup parent, boolean isInLocalNightMode) {
         // This is a modified version of RemoteViews#apply. RemoteViews#apply performs two steps:
         // 1. Inflate the View using the context of the remote app.
         // 2. Apply the Actions to the inflated View (actions are requested by remote app using
@@ -100,8 +102,9 @@ public class RemoteViewsWithNightModeInflater {
         }
     }
 
-    private static Context getContextForResources(RemoteViews remoteViews,
-            boolean isInLocalNightMode) throws PackageManager.NameNotFoundException {
+    private static Context getContextForResources(
+            RemoteViews remoteViews, boolean isInLocalNightMode)
+            throws PackageManager.NameNotFoundException {
         Context appContext = ContextUtils.getApplicationContext();
         String remotePackage = remoteViews.getPackage();
         if (appContext.getPackageName().equals(remotePackage)) return appContext;
@@ -110,8 +113,9 @@ public class RemoteViewsWithNightModeInflater {
                 appContext.createPackageContext(remotePackage, Context.CONTEXT_RESTRICTED);
 
         // This line is what makes the difference with RemoteViews#apply.
-        Context contextWithEnforcedNightMode = NightModeUtils.wrapContextWithNightModeConfig(
-                remoteContext, 0 /*themeResId*/, isInLocalNightMode);
+        Context contextWithEnforcedNightMode =
+                NightModeUtils.wrapContextWithNightModeConfig(
+                        remoteContext, /* themeResId= */ 0, isInLocalNightMode);
 
         return contextWithEnforcedNightMode;
     }

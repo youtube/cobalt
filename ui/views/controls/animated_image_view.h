@@ -6,11 +6,11 @@
 #define UI_VIEWS_CONTROLS_ANIMATED_IMAGE_VIEW_H_
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/compositor/compositor_animation_observer.h"
 #include "ui/gfx/geometry/vector2d.h"
@@ -40,9 +40,9 @@ namespace views {
 /////////////////////////////////////////////////////////////////////////////
 class VIEWS_EXPORT AnimatedImageView : public ImageViewBase,
                                        public ui::CompositorAnimationObserver {
- public:
-  METADATA_HEADER(AnimatedImageView);
+  METADATA_HEADER(AnimatedImageView, ImageViewBase)
 
+ public:
   enum class State {
     kPlaying,  // The animation is currently playing.
     kStopped   // The animation is stopped and paint will raster the first
@@ -58,12 +58,10 @@ class VIEWS_EXPORT AnimatedImageView : public ImageViewBase,
   // will result in stopping the current animation.
   void SetAnimatedImage(std::unique_ptr<lottie::Animation> animated_image);
 
-  // Plays the animation and must only be called when this view has
-  // access to a widget.
-  //
-  // If a null |playback_config| is provided, the default one is used.
-  void Play(absl::optional<lottie::Animation::PlaybackConfig> playback_config =
-                absl::nullopt);
+  // Plays the animation. If a null |playback_config| is provided, the default
+  // one is used.
+  void Play(std::optional<lottie::Animation::PlaybackConfig> playback_config =
+                std::nullopt);
 
   // Stops any animation and resets it to the start frame.
   void Stop();
@@ -83,10 +81,17 @@ class VIEWS_EXPORT AnimatedImageView : public ImageViewBase,
     additional_translation_ = std::move(additional_translation);
   }
 
+  State state() const { return state_; }
+
+  lottie::Animation* GetAnimatedImageForTesting() {
+    return animated_image_.get();
+  }
+
  private:
   // Overridden from View:
   void OnPaint(gfx::Canvas* canvas) override;
   void NativeViewHierarchyChanged() override;
+  void AddedToWidget() override;
   void RemovedFromWidget() override;
 
   // Overridden from ui::CompositorAnimationObserver:
@@ -96,11 +101,16 @@ class VIEWS_EXPORT AnimatedImageView : public ImageViewBase,
   // Overridden from ImageViewBase:
   gfx::Size GetImageSize() const override;
 
+  void DoPlay(lottie::Animation::PlaybackConfig playback_config);
   void SetCompositorFromWidget();
   void ClearCurrentCompositor();
 
   // The current state of the animation.
   State state_ = State::kStopped;
+
+  // playback_config_ stores the config while the object is waiting to be added
+  // to a widget.
+  std::unique_ptr<lottie::Animation::PlaybackConfig> playback_config_;
 
   // The compositor associated with the widget of this view.
   raw_ptr<ui::Compositor> compositor_ = nullptr;

@@ -10,9 +10,9 @@
 #import "components/breadcrumbs/core/breadcrumb_manager.h"
 #import "components/breadcrumbs/core/crash_reporter_breadcrumb_observer.h"
 #import "components/content_settings/core/common/content_settings_pattern.h"
-#import "ios/chrome/browser/browser_state/browser_state_keyed_service_factories.h"
-#import "ios/chrome/browser/paths/paths.h"
-#import "ios/chrome/browser/url/chrome_url_constants.h"
+#import "ios/chrome/browser/profile/model/keyed_service_factories.h"
+#import "ios/chrome/browser/shared/model/paths/paths.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/test/testing_application_context.h"
 #import "ios/components/webui/web_ui_url_constants.h"
 #import "ios/public/provider/chrome/browser/app_utils/app_utils_api.h"
@@ -21,10 +21,6 @@
 #import "ui/base/resource/resource_bundle.h"
 #import "ui/base/ui_base_paths.h"
 #import "url/url_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -79,9 +75,9 @@ void IOSChromeUnitTestSuite::Initialize() {
   // Call the superclass Initialize() method after adding the listener.
   web::WebTestSuite::Initialize();
 
-  // Ensure that all BrowserStateKeyedServiceFactories are built before any
-  // test is run so that the dependencies are correctly resolved.
-  EnsureBrowserStateKeyedServiceFactoriesBuilt();
+  // Ensure that all KeyedServiceFactories are built before any test is run so
+  // that the dependencies are correctly resolved.
+  EnsureProfileKeyedServiceFactoriesBuilt();
 
   // Register a SingleThreadTaskRunner for base::RecordAction as overridding
   // it in individual tests is unsafe (as there is no way to unregister).

@@ -31,17 +31,19 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_SHAPES_SHAPE_H_
 
 #include <memory>
+
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/layout/geometry/logical_rect.h"
 #include "third_party/blink/renderer/core/style/basic_shapes.h"
 #include "third_party/blink/renderer/core/style/style_image.h"
-#include "third_party/blink/renderer/platform/geometry/layout_rect.h"
+#include "third_party/blink/renderer/platform/geometry/path.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
-#include "third_party/blink/renderer/platform/graphics/path.h"
 #include "third_party/blink/renderer/platform/text/writing_mode.h"
 
 namespace blink {
 
-class FloatRoundedRect;
+class ContouredRect;
+struct LogicalSize;
 
 struct LineSegment {
   STACK_ALLOCATED();
@@ -77,23 +79,25 @@ class CORE_EXPORT Shape {
     Path margin_shape;
   };
   static std::unique_ptr<Shape> CreateShape(const BasicShape*,
-                                            const LayoutSize& logical_box_size,
+                                            const LogicalSize& logical_box_size,
                                             WritingMode,
                                             float margin);
-  static std::unique_ptr<Shape> CreateRasterShape(Image*,
-                                                  float threshold,
-                                                  const LayoutRect& image_rect,
-                                                  const LayoutRect& margin_rect,
-                                                  WritingMode,
-                                                  float margin,
-                                                  RespectImageOrientationEnum);
-  static std::unique_ptr<Shape> CreateLayoutBoxShape(const FloatRoundedRect&,
+  static std::unique_ptr<Shape> CreateRasterShape(
+      Image*,
+      float threshold,
+      int content_block_size,
+      const gfx::Rect& image_rect,
+      const gfx::Rect& margin_logical_rect,
+      WritingMode,
+      float margin,
+      RespectImageOrientationEnum);
+  static std::unique_ptr<Shape> CreateLayoutBoxShape(const ContouredRect&,
                                                      WritingMode,
                                                      float margin);
 
   virtual ~Shape() = default;
 
-  virtual LayoutRect ShapeMarginLogicalBoundingBox() const = 0;
+  virtual LogicalRect ShapeMarginLogicalBoundingBox() const = 0;
   virtual bool IsEmpty() const = 0;
   virtual LineSegment GetExcludedInterval(LayoutUnit logical_top,
                                           LayoutUnit logical_height) const = 0;
@@ -116,11 +120,13 @@ class CORE_EXPORT Shape {
 
   bool LineOverlapsBoundingBox(LayoutUnit line_top,
                                LayoutUnit line_height,
-                               const LayoutRect& rect) const {
+                               const LogicalRect& rect) const {
     if (rect.IsEmpty())
       return false;
-    return (line_top < rect.MaxY() && line_top + line_height > rect.Y()) ||
-           (!line_height && line_top == rect.Y());
+    const LayoutUnit rect_line_top = rect.offset.block_offset;
+    return (line_top < rect.BlockEndOffset() &&
+            line_top + line_height > rect_line_top) ||
+           (!line_height && line_top == rect_line_top);
   }
 
   WritingMode writing_mode_ = WritingMode::kHorizontalTb;

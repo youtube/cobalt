@@ -47,7 +47,6 @@
 #include "src/tracing/core/null_trace_writer.h"
 #include "src/tracing/internal/tracing_muxer_fake.h"
 
-#include "protos/perfetto/config/chrome/chrome_config.gen.h"
 #include "protos/perfetto/config/interceptor_config.gen.h"
 
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
@@ -137,44 +136,8 @@ class FlushArgsImpl : public DataSourceBase::FlushArgs {
   mutable std::function<void()> async_flush_closure;
 };
 
-uint64_t ComputeConfigHash(const DataSourceConfig& config) {
-  base::Hasher hasher;
-  std::string config_bytes = config.SerializeAsString();
-  hasher.Update(config_bytes.data(), config_bytes.size());
-  return hasher.digest();
-}
-
 // Holds an earlier TracingMuxerImpl instance after ResetForTesting() is called.
 static TracingMuxerImpl* g_prev_instance{};
-
-uint64_t ComputeStartupConfigHash(DataSourceConfig config) {
-  // Clear target buffer and tracing-service provided fields for comparison of
-  // configs for startup tracing, since these fields are not available when
-  // setting up data sources for startup tracing.
-  config.set_target_buffer(0);
-  config.set_tracing_session_id(0);
-  config.set_session_initiator(DataSourceConfig::SESSION_INITIATOR_UNSPECIFIED);
-  config.set_trace_duration_ms(0);
-  config.set_stop_timeout_ms(0);
-  config.set_enable_extra_guardrails(false);
-  // Clear some fields inside Chrome config:
-  // * client_priority, because Chrome always sets the priority to
-  // USER_INITIATED when setting up startup tracing.
-  // * convert_to_legacy_json, because Telemetry initiates tracing with proto
-  // format, but in some cases adopts the tracing session later via devtools
-  // which expect json format.
-  // TODO(khokhlov): Don't clear client_priority when Chrome correctly sets it
-  // for startup tracing (and propagates it to all child processes).
-  if (config.has_chrome_config()) {
-    config.mutable_chrome_config()->set_client_priority(
-        perfetto::protos::gen::ChromeConfig::UNKNOWN);
-    config.mutable_chrome_config()->set_convert_to_legacy_json(false);
-  }
-  base::Hasher hasher;
-  std::string config_bytes = config.SerializeAsString();
-  hasher.Update(config_bytes.data(), config_bytes.size());
-  return hasher.digest();
-}
 
 template <typename RegisteredBackend>
 struct CompareBackendByType {
@@ -198,16 +161,39 @@ struct CompareBackendByType {
   }
 };
 
+BufferExhaustedPolicy ComputeBufferExhaustedPolicy(
+    const DataSourceConfig& cfg,
+    const DataSourceParams& params) {
+  if (!params.buffer_exhausted_policy_configurable) {
+    return params.default_buffer_exhausted_policy;
+  }
+
+  switch (cfg.buffer_exhausted_policy()) {
+    case DataSourceConfig::BUFFER_EXHAUSTED_UNSPECIFIED:
+      return params.default_buffer_exhausted_policy;
+    case DataSourceConfig::BUFFER_EXHAUSTED_DROP:
+      return BufferExhaustedPolicy::kDrop;
+    case DataSourceConfig::BUFFER_EXHAUSTED_STALL_THEN_ABORT:
+      return BufferExhaustedPolicy::kStall;
+    case DataSourceConfig::BUFFER_EXHAUSTED_STALL_THEN_DROP:
+      return BufferExhaustedPolicy::kStallThenDrop;
+  }
+
+  return params.default_buffer_exhausted_policy;
+}
+
 }  // namespace
 
 // ----- Begin of TracingMuxerImpl::ProducerImpl
 TracingMuxerImpl::ProducerImpl::ProducerImpl(
     TracingMuxerImpl* muxer,
     TracingBackendId backend_id,
-    uint32_t shmem_batch_commits_duration_ms)
+    uint32_t shmem_batch_commits_duration_ms,
+    bool shmem_direct_patching_enabled)
     : muxer_(muxer),
       backend_id_(backend_id),
-      shmem_batch_commits_duration_ms_(shmem_batch_commits_duration_ms) {}
+      shmem_batch_commits_duration_ms_(shmem_batch_commits_duration_ms),
+      shmem_direct_patching_enabled_(shmem_direct_patching_enabled) {}
 
 TracingMuxerImpl::ProducerImpl::~ProducerImpl() {
   muxer_ = nullptr;
@@ -297,6 +283,9 @@ void TracingMuxerImpl::ProducerImpl::OnTracingSetup() {
   did_setup_tracing_ = true;
   service_->MaybeSharedMemoryArbiter()->SetBatchCommitsDuration(
       shmem_batch_commits_duration_ms_);
+  if (shmem_direct_patching_enabled_) {
+    service_->MaybeSharedMemoryArbiter()->EnableDirectSMBPatching();
+  }
 }
 
 void TracingMuxerImpl::ProducerImpl::OnStartupTracingSetup() {
@@ -333,14 +322,15 @@ void TracingMuxerImpl::ProducerImpl::StopDataSource(DataSourceInstanceID id) {
 void TracingMuxerImpl::ProducerImpl::Flush(
     FlushRequestID flush_id,
     const DataSourceInstanceID* instances,
-    size_t instance_count) {
+    size_t instance_count,
+    FlushFlags flush_flags) {
   PERFETTO_DCHECK_THREAD(thread_checker_);
   bool all_handled = true;
   if (muxer_) {
     for (size_t i = 0; i < instance_count; i++) {
       DataSourceInstanceID ds_id = instances[i];
-      bool handled =
-          muxer_->FlushDataSource_AsyncBegin(backend_id_, ds_id, flush_id);
+      bool handled = muxer_->FlushDataSource_AsyncBegin(backend_id_, ds_id,
+                                                        flush_id, flush_flags);
       if (!handled) {
         pending_flushes_[flush_id].insert(ds_id);
         all_handled = false;
@@ -473,6 +463,11 @@ void TracingMuxerImpl::ConsumerImpl::OnConnect() {
     query_service_state_callback_ = nullptr;
     muxer_->QueryServiceState(session_id_, std::move(callback));
   }
+  if (session_to_clone_) {
+    service_->CloneSession(*session_to_clone_);
+    session_to_clone_ = std::nullopt;
+  }
+
   if (stop_pending_)
     muxer_->StopTracingSession(session_id_);
 }
@@ -644,10 +639,17 @@ void TracingMuxerImpl::ConsumerImpl::OnObservableEvents(
 }
 
 void TracingMuxerImpl::ConsumerImpl::OnSessionCloned(
-    bool /*success*/,
-    const std::string& /*error*/) {
-  // CloneSession is not exposed in the SDK. This should never happen.
-  PERFETTO_DCHECK(false);
+    const OnSessionClonedArgs& args) {
+  if (!clone_trace_callback_)
+    return;
+  TracingSession::CloneTraceCallbackArgs callback_arg{};
+  callback_arg.success = args.success;
+  callback_arg.error = std::move(args.error);
+  callback_arg.uuid_msb = args.uuid.msb();
+  callback_arg.uuid_lsb = args.uuid.lsb();
+  muxer_->task_runner_->PostTask(
+      std::bind(std::move(clone_trace_callback_), std::move(callback_arg)));
+  clone_trace_callback_ = nullptr;
 }
 
 void TracingMuxerImpl::ConsumerImpl::OnTraceStats(
@@ -718,6 +720,15 @@ void TracingMuxerImpl::TracingSessionImpl::Start() {
   auto session_id = session_id_;
   muxer->task_runner_->PostTask(
       [muxer, session_id] { muxer->StartTracingSession(session_id); });
+}
+
+void TracingMuxerImpl::TracingSessionImpl::CloneTrace(CloneTraceArgs args,
+                                                      CloneTraceCallback cb) {
+  auto* muxer = muxer_;
+  auto session_id = session_id_;
+  muxer->task_runner_->PostTask([muxer, session_id, args, cb] {
+    muxer->CloneTracingSession(session_id, args, std::move(cb));
+  });
 }
 
 // Can be called from any thread.
@@ -993,14 +1004,16 @@ void TracingMuxerImpl::AddProducerBackend(TracingProducerBackend* backend,
   rb.backend = backend;
   rb.id = backend_id;
   rb.type = type;
-  rb.producer.reset(
-      new ProducerImpl(this, backend_id, args.shmem_batch_commits_duration_ms));
+  rb.producer.reset(new ProducerImpl(this, backend_id,
+                                     args.shmem_batch_commits_duration_ms,
+                                     args.shmem_direct_patching_enabled));
   rb.producer_conn_args.producer = rb.producer.get();
   rb.producer_conn_args.producer_name = platform_->GetCurrentProcessName();
   rb.producer_conn_args.task_runner = task_runner_.get();
   rb.producer_conn_args.shmem_size_hint_bytes = args.shmem_size_hint_kb * 1024;
   rb.producer_conn_args.shmem_page_size_hint_bytes =
       args.shmem_page_size_hint_kb * 1024;
+  rb.producer_conn_args.create_socket_async = args.create_socket_async;
   rb.producer->Initialize(rb.backend->ConnectProducer(rb.producer_conn_args));
 }
 
@@ -1088,6 +1101,7 @@ bool TracingMuxerImpl::RegisterDataSource(
     const DataSourceDescriptor& descriptor,
     DataSourceFactory factory,
     DataSourceParams params,
+    bool no_flush,
     DataSourceStaticState* static_state) {
   // Ignore repeated registrations.
   if (static_state->index != kMaxDataSources)
@@ -1114,19 +1128,21 @@ bool TracingMuxerImpl::RegisterDataSource(
   hash.Update(base::GetWallTimeNs().count());
   static_state->id = hash.digest() ? hash.digest() : 1;
 
-  task_runner_->PostTask([this, descriptor, factory, static_state, params] {
-    data_sources_.emplace_back();
-    RegisteredDataSource& rds = data_sources_.back();
-    rds.descriptor = descriptor;
-    rds.factory = factory;
-    rds.supports_multiple_instances =
-        supports_multiple_data_source_instances_ &&
-        params.supports_multiple_instances;
-    rds.requires_callbacks_under_lock = params.requires_callbacks_under_lock;
-    rds.static_state = static_state;
+  task_runner_->PostTask(
+      [this, descriptor, factory, static_state, params, no_flush] {
+        data_sources_.emplace_back();
+        RegisteredDataSource& rds = data_sources_.back();
+        rds.descriptor = descriptor;
+        rds.factory = factory;
+        rds.params = params;
+        if (!supports_multiple_data_source_instances_) {
+          rds.params.supports_multiple_instances = false;
+        }
+        rds.static_state = static_state;
+        rds.no_flush = no_flush;
 
-    UpdateDataSourceOnAllBackends(rds, /*is_changed=*/false);
-  });
+        UpdateDataSourceOnAllBackends(rds, /*is_changed=*/false);
+      });
   return true;
 }
 
@@ -1153,33 +1169,33 @@ void TracingMuxerImpl::RegisterInterceptor(
     InterceptorFactory factory,
     InterceptorBase::TLSFactory tls_factory,
     InterceptorBase::TracePacketCallback packet_callback) {
-  task_runner_->PostTask(
-      [this, descriptor, factory, tls_factory, packet_callback] {
-        // Ignore repeated registrations.
-        for (const auto& interceptor : interceptors_) {
-          if (interceptor.descriptor.name() == descriptor.name()) {
-            PERFETTO_DCHECK(interceptor.tls_factory == tls_factory);
-            PERFETTO_DCHECK(interceptor.packet_callback == packet_callback);
-            return;
-          }
-        }
-        // Only allow certain interceptors for now.
-        if (descriptor.name() != "test_interceptor" &&
-            descriptor.name() != "console") {
-          PERFETTO_ELOG(
-              "Interceptors are experimental. If you want to use them, please "
-              "get in touch with the project maintainers "
-              "(https://perfetto.dev/docs/contributing/"
-              "getting-started#community).");
-          return;
-        }
-        interceptors_.emplace_back();
-        RegisteredInterceptor& interceptor = interceptors_.back();
-        interceptor.descriptor = descriptor;
-        interceptor.factory = factory;
-        interceptor.tls_factory = tls_factory;
-        interceptor.packet_callback = packet_callback;
-      });
+  task_runner_->PostTask([this, descriptor, factory, tls_factory,
+                          packet_callback] {
+    // Ignore repeated registrations.
+    for (const auto& interceptor : interceptors_) {
+      if (interceptor.descriptor.name() == descriptor.name()) {
+        PERFETTO_DCHECK(interceptor.tls_factory == tls_factory);
+        PERFETTO_DCHECK(interceptor.packet_callback == packet_callback);
+        return;
+      }
+    }
+    // Only allow certain interceptors for now.
+    if (descriptor.name() != "test_interceptor" &&
+        descriptor.name() != "console" && descriptor.name() != "etwexport") {
+      PERFETTO_ELOG(
+          "Interceptors are experimental. If you want to use them, please "
+          "get in touch with the project maintainers "
+          "(https://perfetto.dev/docs/contributing/"
+          "getting-started#community).");
+      return;
+    }
+    interceptors_.emplace_back();
+    RegisteredInterceptor& interceptor = interceptors_.back();
+    interceptor.descriptor = descriptor;
+    interceptor.factory = factory;
+    interceptor.tls_factory = tls_factory;
+    interceptor.packet_callback = packet_callback;
+  });
 }
 
 void TracingMuxerImpl::ActivateTriggers(
@@ -1210,22 +1226,20 @@ static bool MaybeAdoptStartupTracingInDataSource(
     DataSourceInstanceID instance_id,
     const DataSourceConfig& cfg,
     const std::vector<RegisteredDataSource>& data_sources) {
-  uint64_t startup_config_hash = ComputeStartupConfigHash(cfg);
-
   for (const auto& rds : data_sources) {
     DataSourceStaticState* static_state = rds.static_state;
     for (uint32_t i = 0; i < kMaxDataSourceInstances; i++) {
       auto* internal_state = static_state->TryGet(i);
 
-      // TODO(eseckler): Instead of comparing config_hashes here, should we ask
-      // the data source instance for a compat check of the config?
       if (internal_state &&
           internal_state->startup_target_buffer_reservation.load(
               std::memory_order_relaxed) &&
           internal_state->data_source_instance_id == 0 &&
           internal_state->backend_id == backend_id &&
           internal_state->backend_connection_id == backend_connection_id &&
-          internal_state->startup_config_hash == startup_config_hash) {
+          internal_state->config &&
+          internal_state->data_source->CanAdoptStartupSession(
+              *internal_state->config, cfg)) {
         PERFETTO_DLOG("Setting up data source %" PRIu64
                       " %s by adopting it from a startup tracing session",
                       instance_id, cfg.name().c_str());
@@ -1236,9 +1250,11 @@ static bool MaybeAdoptStartupTracingInDataSource(
         internal_state->data_source_instance_id = instance_id;
         internal_state->buffer_id =
             static_cast<internal::BufferId>(cfg.target_buffer());
-        internal_state->config_hash = ComputeConfigHash(cfg);
+        internal_state->buffer_exhausted_policy =
+            ComputeBufferExhaustedPolicy(cfg, rds.params);
+        internal_state->config.reset(new DataSourceConfig(cfg));
 
-        // TODO(eseckler): Should the data souce config provided by the service
+        // TODO(eseckler): Should the data source config provided by the service
         // be allowed to specify additional interceptors / additional data
         // source params?
 
@@ -1263,7 +1279,6 @@ void TracingMuxerImpl::SetupDataSource(TracingBackendId backend_id,
                                            instance_id, cfg, data_sources_)) {
     return;
   }
-  uint64_t config_hash = ComputeConfigHash(cfg);
 
   for (const auto& rds : data_sources_) {
     if (rds.descriptor.name() != cfg.name())
@@ -1284,7 +1299,8 @@ void TracingMuxerImpl::SetupDataSource(TracingBackendId backend_id,
       auto* internal_state =
           reinterpret_cast<DataSourceState*>(&static_state.instances[i]);
       if (internal_state->backend_id == backend_id &&
-          internal_state->config_hash == config_hash) {
+          internal_state->backend_connection_id == backend_connection_id &&
+          internal_state->config && *internal_state->config == cfg) {
         active_for_config = true;
         break;
       }
@@ -1297,8 +1313,7 @@ void TracingMuxerImpl::SetupDataSource(TracingBackendId backend_id,
     }
 
     SetupDataSourceImpl(rds, backend_id, backend_connection_id, instance_id,
-                        cfg, config_hash, /*startup_config_hash=*/0,
-                        /*startup_session_id=*/0);
+                        cfg, /*startup_session_id=*/0);
     return;
   }
 }
@@ -1309,15 +1324,13 @@ TracingMuxerImpl::FindDataSourceRes TracingMuxerImpl::SetupDataSourceImpl(
     uint32_t backend_connection_id,
     DataSourceInstanceID instance_id,
     const DataSourceConfig& cfg,
-    uint64_t config_hash,
-    uint64_t startup_config_hash,
     TracingSessionGlobalID startup_session_id) {
   PERFETTO_DCHECK_THREAD(thread_checker_);
   DataSourceStaticState& static_state = *rds.static_state;
 
   // If any bit is set in `static_state.valid_instances` then at least one
   // other instance of data source is running.
-  if (!rds.supports_multiple_instances &&
+  if (!rds.params.supports_multiple_instances &&
       static_state.valid_instances.load(std::memory_order_acquire) != 0) {
     PERFETTO_ELOG(
         "Failed to setup data source because some another instance of this "
@@ -1338,9 +1351,9 @@ TracingMuxerImpl::FindDataSourceRes TracingMuxerImpl::SetupDataSourceImpl(
                      DataSourceInstanceID>::value,
         "data_source_instance_id type mismatch");
     internal_state->muxer_id_for_testing = muxer_id_for_testing_;
+    RegisteredProducerBackend& backend = *FindProducerBackendById(backend_id);
 
     if (startup_session_id) {
-      RegisteredProducerBackend& backend = *FindProducerBackendById(backend_id);
       uint16_t& last_reservation =
           backend.producer->last_startup_target_buffer_reservation_;
       if (last_reservation == std::numeric_limits<uint16_t>::max()) {
@@ -1360,12 +1373,14 @@ TracingMuxerImpl::FindDataSourceRes TracingMuxerImpl::SetupDataSourceImpl(
     internal_state->data_source_instance_id = instance_id;
     internal_state->buffer_id =
         static_cast<internal::BufferId>(cfg.target_buffer());
-    internal_state->config_hash = config_hash;
+    internal_state->buffer_exhausted_policy =
+        ComputeBufferExhaustedPolicy(cfg, rds.params);
+    internal_state->config.reset(new DataSourceConfig(cfg));
     internal_state->startup_session_id = startup_session_id;
-    internal_state->startup_config_hash = startup_config_hash;
     internal_state->data_source = rds.factory();
     internal_state->interceptor = nullptr;
     internal_state->interceptor_id = 0;
+    internal_state->will_notify_on_stop = rds.descriptor.will_notify_on_stop();
 
     if (cfg.has_interceptor_config()) {
       for (size_t j = 0; j < interceptors_.size(); j++) {
@@ -1393,14 +1408,15 @@ TracingMuxerImpl::FindDataSourceRes TracingMuxerImpl::SetupDataSourceImpl(
 
     DataSourceBase::SetupArgs setup_args;
     setup_args.config = &cfg;
+    setup_args.backend_type = backend.type;
     setup_args.internal_instance_index = i;
 
-    if (!rds.requires_callbacks_under_lock)
+    if (!rds.params.requires_callbacks_under_lock)
       lock.unlock();
     internal_state->data_source->OnSetup(setup_args);
 
     return FindDataSourceRes(&static_state, internal_state, i,
-                             rds.requires_callbacks_under_lock);
+                             rds.params.requires_callbacks_under_lock);
   }
   PERFETTO_ELOG(
       "Maximum number of data source instances exhausted. "
@@ -1532,6 +1548,12 @@ void TracingMuxerImpl::StopDataSource_AsyncBeginImpl(
 
   {
     std::unique_lock<std::recursive_mutex> lock(ds.internal_state->lock);
+
+    // Don't call OnStop again if the datasource is already stopping.
+    if (ds.internal_state->async_stop_in_progress)
+      return;
+    ds.internal_state->async_stop_in_progress = true;
+
     if (ds.internal_state->interceptor)
       ds.internal_state->interceptor->OnStop({});
 
@@ -1568,9 +1590,10 @@ void TracingMuxerImpl::StopDataSource_AsyncEnd(TracingBackendId backend_id,
     return;
   }
 
-  const uint32_t mask = ~(1 << ds.instance_idx);
+  const uint32_t mask = ~(1U << ds.instance_idx);
   ds.static_state->valid_instances.fetch_and(mask, std::memory_order_acq_rel);
 
+  bool will_notify_on_stop;
   // Take the mutex to prevent that the data source is in the middle of
   // a Trace() execution where it called GetDataSourceLocked() while we
   // destroy it.
@@ -1582,6 +1605,9 @@ void TracingMuxerImpl::StopDataSource_AsyncEnd(TracingBackendId backend_id,
                                                   std::memory_order_relaxed);
     ds.internal_state->data_source.reset();
     ds.internal_state->interceptor.reset();
+    ds.internal_state->config.reset();
+    ds.internal_state->async_stop_in_progress = false;
+    will_notify_on_stop = ds.internal_state->will_notify_on_stop;
     startup_buffer_reservation =
         ds.internal_state->startup_target_buffer_reservation.load(
             std::memory_order_relaxed);
@@ -1630,11 +1656,13 @@ void TracingMuxerImpl::StopDataSource_AsyncEnd(TracingBackendId backend_id,
     }
   }
 
-  if (producer->connected_) {
+  if (producer->connected_ &&
+      backend.producer->connection_id_.load(std::memory_order_relaxed) ==
+          backend_connection_id) {
     // Flush any commits that might have been batched by SharedMemoryArbiter.
     producer->service_->MaybeSharedMemoryArbiter()
         ->FlushPendingCommitDataRequests();
-    if (instance_id)
+    if (instance_id && will_notify_on_stop)
       producer->service_->NotifyDataSourceStopped(instance_id);
   }
   producer->SweepDeadServices();
@@ -1664,14 +1692,15 @@ void TracingMuxerImpl::ClearDataSourceIncrementalState(
 
   // Make DataSource::TraceContext::GetIncrementalState() eventually notice that
   // the incremental state should be cleared.
-  ds.static_state->incremental_state_generation.fetch_add(
-      1, std::memory_order_relaxed);
+  ds.static_state->GetUnsafe(ds.instance_idx)
+      ->incremental_state_generation.fetch_add(1, std::memory_order_relaxed);
 }
 
 bool TracingMuxerImpl::FlushDataSource_AsyncBegin(
     TracingBackendId backend_id,
     DataSourceInstanceID instance_id,
-    FlushRequestID flush_id) {
+    FlushRequestID flush_id,
+    FlushFlags flush_flags) {
   PERFETTO_DLOG("Flushing data source %" PRIu64, instance_id);
   auto ds = FindDataSource(backend_id, instance_id);
   if (!ds) {
@@ -1682,6 +1711,7 @@ bool TracingMuxerImpl::FlushDataSource_AsyncBegin(
   uint32_t backend_connection_id = ds.internal_state->backend_connection_id;
 
   FlushArgsImpl flush_args;
+  flush_args.flush_flags = flush_flags;
   flush_args.internal_instance_index = ds.instance_idx;
   flush_args.async_flush_closure = [this, backend_id, backend_connection_id,
                                     instance_id, ds, flush_id] {
@@ -1739,7 +1769,12 @@ void TracingMuxerImpl::FlushDataSource_AsyncEnd(
   if (!producer)
     return;
 
-  if (producer->connected_) {
+  // If the tracing service disconnects and reconnects while a data source is
+  // handling a flush request, there's no point is sending the flush reply to
+  // the newly reconnected producer.
+  if (producer->connected_ &&
+      backend.producer->connection_id_.load(std::memory_order_relaxed) ==
+          backend_connection_id) {
     producer->NotifyFlushForDataSourceDone(instance_id, flush_id);
   }
 }
@@ -1866,8 +1901,14 @@ void TracingMuxerImpl::UpdateDataSourceOnAllBackends(RegisteredDataSource& rds,
     if (is_registered && !is_changed)
       continue;
 
+    if (!rds.descriptor.no_flush()) {
+      rds.descriptor.set_no_flush(rds.no_flush);
+    }
     rds.descriptor.set_will_notify_on_start(true);
-    rds.descriptor.set_will_notify_on_stop(true);
+    if (!rds.descriptor.has_will_notify_on_stop()) {
+      rds.descriptor.set_will_notify_on_stop(true);
+    }
+
     rds.descriptor.set_handles_incremental_state_clear(true);
     rds.descriptor.set_id(rds.static_state->id);
     if (is_registered) {
@@ -1933,6 +1974,32 @@ void TracingMuxerImpl::StartTracingSession(TracingSessionGlobalID session_id) {
   // TODO implement support for the deferred-start + fast-triggering case.
 }
 
+void TracingMuxerImpl::CloneTracingSession(
+    TracingSessionGlobalID session_id,
+    TracingSession::CloneTraceArgs args,
+    TracingSession::CloneTraceCallback callback) {
+  PERFETTO_DCHECK_THREAD(thread_checker_);
+  auto* consumer = FindConsumer(session_id);
+  if (!consumer) {
+    TracingSession::CloneTraceCallbackArgs callback_arg{};
+    callback_arg.success = false;
+    callback_arg.error = "Tracing session not found";
+    callback(callback_arg);
+    return;
+  }
+  // Multiple concurrent cloning isn't supported.
+  PERFETTO_DCHECK(!consumer->clone_trace_callback_);
+  consumer->clone_trace_callback_ = std::move(callback);
+  ConsumerEndpoint::CloneSessionArgs consumer_args{};
+  consumer_args.unique_session_name = args.unique_session_name;
+  if (!consumer->connected_) {
+    consumer->session_to_clone_ = std::move(consumer_args);
+    return;
+  }
+  consumer->session_to_clone_ = std::nullopt;
+  consumer->service_->CloneSession(consumer_args);
+}
+
 void TracingMuxerImpl::ChangeTracingSessionConfig(
     TracingSessionGlobalID session_id,
     const TraceConfig& trace_config) {
@@ -1966,7 +2033,11 @@ void TracingMuxerImpl::FlushTracingSession(TracingSessionGlobalID session_id,
     return;
   }
 
-  consumer->service_->Flush(timeout_ms, std::move(callback));
+  // For now we don't want to expose the flush reason to the consumer-side SDK
+  // users to avoid misuses until there is a strong need.
+  consumer->service_->Flush(timeout_ms, std::move(callback),
+                            FlushFlags(FlushFlags::Initiator::kConsumerSdk,
+                                       FlushFlags::Reason::kExplicit));
 }
 
 void TracingMuxerImpl::StopTracingSession(TracingSessionGlobalID session_id) {
@@ -2086,7 +2157,7 @@ void TracingMuxerImpl::QueryServiceState(
     callback_arg.service_state_data = state.SerializeAsArray();
     callback(std::move(callback_arg));
   };
-  consumer->service_->QueryServiceState(std::move(callback_wrapper));
+  consumer->service_->QueryServiceState({}, std::move(callback_wrapper));
 }
 
 void TracingMuxerImpl::SetBatchCommitsDurationForTesting(
@@ -2184,7 +2255,7 @@ void TracingMuxerImpl::OnProducerDisconnected(ProducerImpl* producer) {
                     std::memory_order_relaxed)) {
           StopDataSource_AsyncBeginImpl(
               FindDataSourceRes(static_state, internal_state, i,
-                                rds.requires_callbacks_under_lock));
+                                rds.params.requires_callbacks_under_lock));
         }
       }
     }
@@ -2234,7 +2305,7 @@ TracingMuxerImpl::FindDataSourceRes TracingMuxerImpl::FindDataSource(
                   std::memory_order_relaxed) &&
           internal_state->data_source_instance_id == instance_id) {
         return FindDataSourceRes(static_state, internal_state, i,
-                                 rds.requires_callbacks_under_lock);
+                                 rds.params.requires_callbacks_under_lock);
       }
     }
   }
@@ -2333,7 +2404,7 @@ std::unique_ptr<TracingSession> TracingMuxerImpl::CreateTracingSession(
       // backend without a valid type.
       if (!backend.type) {
         PERFETTO_ELOG(
-            "No tracing backend ready for type=%d, consumer will disconnect",
+            "No tracing backend ready for type=%u, consumer will disconnect",
             requested_backend_type);
         InitializeConsumer(session_id);
         return;
@@ -2357,7 +2428,7 @@ std::unique_ptr<TracingSession> TracingMuxerImpl::CreateTracingSession(
           }
 
           PERFETTO_ELOG(
-              "Consumer session for backend type type=%d forbidden, "
+              "Consumer session for backend type type=%u forbidden, "
               "consumer will disconnect",
               type);
 
@@ -2406,7 +2477,7 @@ TracingMuxerImpl::CreateStartupTracingSession(
       // backend without a valid type.
       if (!backend.type) {
         PERFETTO_ELOG(
-            "No tracing backend initialized for type=%d, startup tracing "
+            "No tracing backend initialized for type=%u, startup tracing "
             "failed",
             backend_type);
         if (opts.on_setup)
@@ -2458,8 +2529,6 @@ TracingMuxerImpl::CreateStartupTracingSession(
               rds, backend_id,
               backend.producer->connection_id_.load(std::memory_order_relaxed),
               /*instance_id=*/0, ds_cfg.config(),
-              ComputeConfigHash(ds_cfg.config()),
-              ComputeStartupConfigHash(ds_cfg.config()),
               /*startup_session_id=*/session_id);
           if (ds) {
             StartDataSourceImpl(ds);
@@ -2564,7 +2633,7 @@ void TracingMuxerImpl::AbortStartupTracingSession(
           session_it->num_aborting_data_sources++;
           StopDataSource_AsyncBeginImpl(
               FindDataSourceRes(static_state, internal_state, i,
-                                rds.requires_callbacks_under_lock));
+                                rds.params.requires_callbacks_under_lock));
         }
       }
     }

@@ -5,6 +5,7 @@
 #include "media/capture/video/fake_video_capture_device_factory.h"
 
 #include <array>
+#include <string_view>
 
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -12,8 +13,9 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "media/base/media_switches.h"
+#include "media/base/video_facing.h"
+#include "media/capture/capture_switches.h"
 
 namespace {
 
@@ -26,7 +28,7 @@ static const int kFakeCaptureMinDeviceCount = 0;
 static const int kFakeCaptureMaxDeviceCount = 10;
 static const int kDefaultDeviceCount = 1;
 
-static const char* kDefaultDeviceIdMask = "/dev/video%d";
+constexpr char kDefaultDeviceIdMask[] = "/dev/video%d";
 static const media::FakeVideoCaptureDevice::DeliveryMode kDefaultDeliveryMode =
     media::FakeVideoCaptureDevice::DeliveryMode::USE_DEVICE_INTERNAL_BUFFERS;
 static constexpr std::array<gfx::Size, 6> kDefaultResolutions{
@@ -42,7 +44,7 @@ static const double kInitialFocusDistance = 50.0;
 
 static const media::VideoPixelFormat kSupportedPixelFormats[] = {
     media::PIXEL_FORMAT_I420, media::PIXEL_FORMAT_Y16,
-    media::PIXEL_FORMAT_MJPEG};
+    media::PIXEL_FORMAT_MJPEG, media::PIXEL_FORMAT_NV12};
 
 template <typename TElement, size_t TSize>
 std::vector<TElement> ArrayToVector(const std::array<TElement, TSize>& arr) {
@@ -54,7 +56,16 @@ media::VideoPixelFormat GetPixelFormatFromDeviceIndex(int device_index) {
     return media::PIXEL_FORMAT_Y16;
   if (device_index == 2)
     return media::PIXEL_FORMAT_MJPEG;
+#if BUILDFLAG(IS_WIN)
+  if (media::IsMediaFoundationD3D11VideoCaptureEnabled() &&
+      switches::IsVideoCaptureUseGpuMemoryBufferEnabled()) {
+    return media::PIXEL_FORMAT_NV12;
+  } else {
+    return media::PIXEL_FORMAT_I420;
+  }
+#else
   return media::PIXEL_FORMAT_I420;
+#endif
 }
 
 void AppendAllCombinationsToFormatsContainer(
@@ -108,6 +119,12 @@ FakeVideoCaptureDeviceFactory::FakeVideoCaptureDeviceFactory() {
   // The default |devices_config_| is the one obtained from an empty options
   // string.
   ParseFakeDevicesConfigFromOptionsString("", &devices_config_);
+#if BUILDFLAG(IS_WIN)
+  if (media::IsMediaFoundationD3D11VideoCaptureEnabled() &&
+      switches::IsVideoCaptureUseGpuMemoryBufferEnabled()) {
+    dxgi_device_manager_ = DXGIDeviceManager::Create(luid_);
+  }
+#endif
 }
 
 FakeVideoCaptureDeviceFactory::~FakeVideoCaptureDeviceFactory() = default;
@@ -115,8 +132,7 @@ FakeVideoCaptureDeviceFactory::~FakeVideoCaptureDeviceFactory() = default;
 // static
 std::unique_ptr<VideoCaptureDevice>
 FakeVideoCaptureDeviceFactory::CreateDeviceWithSettings(
-    const FakeVideoCaptureDeviceSettings& settings,
-    std::unique_ptr<gpu::GpuMemoryBufferSupport> gmb_support) {
+    const FakeVideoCaptureDeviceSettings& settings) {
   if (settings.supported_formats.empty())
     return CreateErrorDevice();
 
@@ -149,8 +165,8 @@ FakeVideoCaptureDeviceFactory::CreateDeviceWithSettings(
 
   return std::make_unique<FakeVideoCaptureDevice>(
       settings.supported_formats,
-      std::make_unique<FrameDelivererFactory>(
-          settings.delivery_mode, device_state.get(), std::move(gmb_support)),
+      std::make_unique<FrameDelivererFactory>(settings.delivery_mode,
+                                              device_state.get()),
       std::move(photo_device), std::move(device_state));
 }
 
@@ -159,14 +175,13 @@ std::unique_ptr<VideoCaptureDevice>
 FakeVideoCaptureDeviceFactory::CreateDeviceWithDefaultResolutions(
     VideoPixelFormat pixel_format,
     FakeVideoCaptureDevice::DeliveryMode delivery_mode,
-    float frame_rate,
-    std::unique_ptr<gpu::GpuMemoryBufferSupport> gmb_support) {
+    float frame_rate) {
   FakeVideoCaptureDeviceSettings settings;
   settings.delivery_mode = delivery_mode;
   for (const gfx::Size& resolution : kDefaultResolutions)
     settings.supported_formats.emplace_back(resolution, frame_rate,
                                             pixel_format);
-  return CreateDeviceWithSettings(settings, std::move(gmb_support));
+  return CreateDeviceWithSettings(settings);
 }
 
 // static
@@ -230,9 +245,11 @@ void FakeVideoCaptureDeviceFactory::GetDevicesInfo(
 #endif
 
     devices_info.emplace_back(VideoCaptureDeviceDescriptor(
-        base::StringPrintf("fake_device_%d", entry_index), entry.device_id, api,
+        base::StringPrintf("fake_device_%d", entry_index), entry.device_id,
+        /*model_id=*/std::string(), api,
         entry.photo_device_config.control_support,
-        VideoCaptureTransportType::OTHER_TRANSPORT));
+        VideoCaptureTransportType::OTHER_TRANSPORT,
+        media::MEDIA_VIDEO_FACING_NONE, entry.availability));
 
     devices_info.back().supported_formats =
         GetSupportedFormats(entry.device_id);
@@ -274,7 +291,7 @@ void FakeVideoCaptureDeviceFactory::ParseFakeDevicesConfigFromOptionsString(
       FakeVideoCaptureDevice::DisplayMediaType::ANY;
 
   while (option_tokenizer.GetNext()) {
-    std::vector<base::StringPiece> param = base::SplitStringPiece(
+    std::vector<std::string_view> param = base::SplitStringPiece(
         option_tokenizer.token_piece(), "=", base::TRIM_WHITESPACE,
         base::SPLIT_WANT_NONEMPTY);
 
@@ -379,5 +396,19 @@ void FakeVideoCaptureDeviceFactory::ParseFakeDevicesConfigFromOptionsString(
     config->push_back(settings);
   }
 }
+
+#if BUILDFLAG(IS_WIN)
+void FakeVideoCaptureDeviceFactory::OnGpuInfoUpdate(const CHROME_LUID& luid) {
+  luid_ = luid;
+  if (dxgi_device_manager_) {
+    dxgi_device_manager_->OnGpuInfoUpdate(luid_);
+  }
+}
+
+scoped_refptr<DXGIDeviceManager>
+FakeVideoCaptureDeviceFactory::GetDxgiDeviceManager() {
+  return dxgi_device_manager_;
+}
+#endif
 
 }  // namespace media

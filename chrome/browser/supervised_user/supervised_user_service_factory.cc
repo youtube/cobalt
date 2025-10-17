@@ -5,19 +5,19 @@
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 
 #include "base/functional/bind.h"
+#include "base/version_info/channel.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/supervised_user/kids_chrome_management/kids_chrome_management_client_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
 #include "chrome/browser/supervised_user/supervised_user_settings_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/variations/service/variations_service.h"
+#include "components/sync/service/sync_service.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/storage_partition.h"
 #include "extensions/buildflags/buildflags.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -25,77 +25,79 @@
 #include "extensions/browser/extensions_browser_client.h"
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/supervised_user/android/supervised_user_service_platform_delegate.h"
+#else
+#include "chrome/browser/supervised_user/desktop/supervised_user_service_platform_delegate.h"
+#endif
+
 class FilterDelegateImpl
     : public supervised_user::SupervisedUserURLFilter::Delegate {
  public:
-  std::string GetCountryCode() override {
-    std::string country;
-    variations::VariationsService* variations_service =
-        g_browser_process->variations_service();
-    if (variations_service) {
-      country = variations_service->GetStoredPermanentCountry();
-      if (country.empty()) {
-        country = variations_service->GetLatestCountry();
-      }
-    }
-    return country;
+  bool SupportsWebstoreURL(const GURL& url) const override {
+    return supervised_user::IsSupportedChromeExtensionURL(url);
   }
 };
 
 // static
-SupervisedUserService* SupervisedUserServiceFactory::GetForProfile(
-    Profile* profile) {
-  return static_cast<SupervisedUserService*>(
+supervised_user::SupervisedUserService*
+SupervisedUserServiceFactory::GetForProfile(Profile* profile) {
+  return static_cast<supervised_user::SupervisedUserService*>(
       GetInstance()->GetServiceForBrowserContext(profile, true));
 }
 
-SupervisedUserService* SupervisedUserServiceFactory::GetForBrowserContext(
+supervised_user::SupervisedUserService*
+SupervisedUserServiceFactory::GetForBrowserContext(
     content::BrowserContext* context) {
   return GetForProfile(Profile::FromBrowserContext(context));
 }
 
 // static
-SupervisedUserService* SupervisedUserServiceFactory::GetForProfileIfExists(
-    Profile* profile) {
-  return static_cast<SupervisedUserService*>(
+supervised_user::SupervisedUserService*
+SupervisedUserServiceFactory::GetForProfileIfExists(Profile* profile) {
+  return static_cast<supervised_user::SupervisedUserService*>(
       GetInstance()->GetServiceForBrowserContext(profile, /*create=*/false));
 }
 
 // static
 SupervisedUserServiceFactory* SupervisedUserServiceFactory::GetInstance() {
-  return base::Singleton<SupervisedUserServiceFactory>::get();
+  static base::NoDestructor<SupervisedUserServiceFactory> instance;
+  return instance.get();
 }
 
 // static
-KeyedService* SupervisedUserServiceFactory::BuildInstanceFor(Profile* profile) {
-  return new SupervisedUserService(
-      profile, IdentityManagerFactory::GetInstance()->GetForProfile(profile),
-      KidsChromeManagementClientFactory::GetInstance()->GetForProfile(profile),
+std::unique_ptr<KeyedService> SupervisedUserServiceFactory::BuildInstanceFor(
+    Profile* profile) {
+  return std::make_unique<supervised_user::SupervisedUserService>(
+      IdentityManagerFactory::GetForProfile(profile),
+      profile->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess(),
       *profile->GetPrefs(),
       *SupervisedUserSettingsServiceFactory::GetInstance()->GetForKey(
           profile->GetProfileKey()),
-      *SyncServiceFactory::GetInstance()->GetForProfile(profile),
-      base::BindRepeating(supervised_user::IsSupportedChromeExtensionURL),
-      std::make_unique<FilterDelegateImpl>());
+      SyncServiceFactory::GetInstance()->GetForProfile(profile),
+      std::make_unique<supervised_user::SupervisedUserURLFilter>(
+          *profile->GetPrefs(), std::make_unique<FilterDelegateImpl>()),
+      std::make_unique<SupervisedUserServicePlatformDelegate>(*profile));
 }
 
 SupervisedUserServiceFactory::SupervisedUserServiceFactory()
     : ProfileKeyedServiceFactory(
           "SupervisedUserService",
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          supervised_user::BuildProfileSelectionsForRegularAndGuest()) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   DependsOn(
       extensions::ExtensionsBrowserClient::Get()->GetExtensionSystemFactory());
 #endif
   DependsOn(IdentityManagerFactory::GetInstance());
-  DependsOn(KidsChromeManagementClientFactory::GetInstance());
   DependsOn(SyncServiceFactory::GetInstance());
   DependsOn(SupervisedUserSettingsServiceFactory::GetInstance());
 }
 
-SupervisedUserServiceFactory::~SupervisedUserServiceFactory() {}
+SupervisedUserServiceFactory::~SupervisedUserServiceFactory() = default;
 
-KeyedService* SupervisedUserServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+SupervisedUserServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* profile) const {
   return BuildInstanceFor(static_cast<Profile*>(profile));
 }

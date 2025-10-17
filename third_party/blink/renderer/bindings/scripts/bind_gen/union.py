@@ -153,11 +153,17 @@ class _UnionMemberSubunion(_UnionMember):
         assert isinstance(union, web_idl.Union)
         assert isinstance(subunion, web_idl.Union)
 
-        _UnionMember.__init__(self, base_name=blink_class_name(subunion))
+        class_name = blink_class_name(subunion)
+        _UnionMember.__init__(self, base_name=class_name)
         self._type_info = blink_type_info(subunion.idl_types[0])
+        # Filter out aliases that match our class name (this may happen due to
+        # union name mapping)
         self._typedef_aliases = tuple(
-            map(lambda typedef: _UnionMemberAlias(impl=self, typedef=typedef),
-                subunion.aliasing_typedefs))
+            map(
+                lambda typedef: _UnionMemberAlias(impl=self, typedef=typedef),
+                filter(
+                    lambda idl_type: blink_class_name(idl_type) != class_name,
+                    subunion.aliasing_typedefs)))
         self._blink_class_name = blink_class_name(subunion)
 
     @property
@@ -203,8 +209,6 @@ def make_check_assignment_value(cg_context, union_member, assignment_value):
     assert isinstance(union_member, _UnionMember)
     assert isinstance(assignment_value, str)
 
-    if union_member.idl_type and union_member.idl_type.is_object:
-        return TextNode("DCHECK({}.IsObject());".format(assignment_value))
     if union_member.type_info.is_gc_type:
         return TextNode("DCHECK({});".format(assignment_value))
 
@@ -305,7 +309,16 @@ def make_factory_methods(cg_context):
             target_node.append(CxxBlockNode(body=scope_node))
         else:
             target_node.append(
-                CxxUnlikelyIfNode(cond=cond_text, body=scope_node))
+                CxxUnlikelyIfNode(cond=cond_text,
+                                  attribute=None,
+                                  body=scope_node))
+
+    # 1. If the union type includes undefined and V is undefined, then return
+    # the unique undefined value.
+    member = find_by_type(lambda t: t.is_undefined)
+    if member:
+        dispatch_if("${v8_value}->IsUndefined()",
+                    S("blink_value", "ToV8UndefinedGenerator ${blink_value};"))
 
     # 2. If the union type includes a nullable type and V is null or undefined,
     #   ...
@@ -350,7 +363,7 @@ def make_factory_methods(cg_context):
             # Shortcut to reduce the binary size
             S("blink_value", (_format(
                 "auto&& ${blink_value} = "
-                "{}::ToWrappableUnsafe(${v8_value}.As<v8::Object>());",
+                "{}::ToWrappableUnsafe(${isolate}, ${v8_value}.As<v8::Object>());",
                 v8_bridge_name))))
 
     # 6. If Type(V) is Object and V has an [[ArrayBufferData]] internal slot,
@@ -379,7 +392,7 @@ def make_factory_methods(cg_context):
     typed_array_types = ("Int8Array", "Int16Array", "Int32Array",
                          "BigInt64Array", "Uint8Array", "Uint16Array",
                          "Uint32Array", "BigUint64Array", "Uint8ClampedArray",
-                         "Float32Array", "Float64Array")
+                         "Float16Array", "Float32Array", "Float64Array")
     for typed_array_type in typed_array_types:
         member = find_by_type(lambda t: t.keyword_typename == typed_array_type)
         if member:
@@ -408,14 +421,16 @@ def make_factory_methods(cg_context):
         # Create an IDL sequence from an iterable object.
         scope_node = SymbolScopeNode()
         body.append(
-            CxxUnlikelyIfNode(cond="${v8_value}->IsObject()", body=scope_node))
+            CxxUnlikelyIfNode(cond="${v8_value}->IsObject()",
+                              attribute=None,
+                              body=scope_node))
         scope_node.extend([
             T("ScriptIterator script_iterator = ScriptIterator::FromIterable("
               "${isolate}, ${v8_value}.As<v8::Object>(), "
-              "${exception_state});"),
-            CxxUnlikelyIfNode(
-                cond="UNLIKELY(${exception_state}.HadException())",
-                body=T("return nullptr;")),
+              "${exception_state}, ScriptIterator::Kind::kSync);"),
+            CxxUnlikelyIfNode(cond="${exception_state}.HadException()",
+                              attribute="[[unlikely]]",
+                              body=T("return nullptr;")),
         ])
 
         def blink_value_from_iterator(union_member):
@@ -428,9 +443,9 @@ def make_factory_methods(cg_context):
                        "${exception_state});"),
                       native_value_tag(
                           union_member.idl_type.unwrap().element_type)),
-                    CxxUnlikelyIfNode(
-                        cond="UNLIKELY(${exception_state}.HadException())",
-                        body=T("return nullptr;")),
+                    CxxUnlikelyIfNode(cond="${exception_state}.HadException()",
+                                      attribute="[[unlikely]]",
+                                      body=T("return nullptr;")),
                 ])
                 return node
 
@@ -470,7 +485,7 @@ def make_factory_methods(cg_context):
             # Shortcut to reduce the binary size
             S("blink_value",
               (_format("auto&& ${blink_value} = "
-                       "ScriptValue(${isolate}, ${v8_value});"))))
+                       "ScriptObject(${isolate}, ${v8_value});"))))
 
     # 11. If Type(V) is Boolean, then:
     # 11.1. If types includes boolean, ...
@@ -621,7 +636,8 @@ def make_accessor_functions(cg_context):
         func_def.set_base_template_vars(cg_context.template_bindings())
         func_def.body.extend([
             F("DCHECK_EQ(content_type_, {});", member.content_type()),
-            F("return {};", member.var_name),
+            F("return {};",
+              member.type_info.member_var_to_ref_expr(member.var_name)),
         ])
         return func_def, None
 
@@ -715,8 +731,7 @@ def make_accessor_functions(cg_context):
         func_def.set_base_template_vars(cg_context.template_bindings())
         node = CxxSwitchNode(cond="content_type_")
         node.append(case=None,
-                    body=[T("NOTREACHED();"),
-                          T("return nullptr;")],
+                    body=[T("NOTREACHED();")],
                     should_add_break=False)
         for member in subunion_members:
             node.append(case=member.content_type(),
@@ -800,18 +815,17 @@ def make_accessor_functions(cg_context):
     return decls, defs
 
 
-def make_tov8value_function(cg_context):
+def make_tov8_function(cg_context):
     assert isinstance(cg_context, CodeGenContext)
 
-    func_decl = CxxFuncDeclNode(name="ToV8Value",
+    func_decl = CxxFuncDeclNode(name="ToV8",
                                 arg_decls=["ScriptState* script_state"],
-                                return_type="v8::MaybeLocal<v8::Value>",
-                                const=True,
-                                override=True)
+                                return_type="v8::Local<v8::Value>",
+                                const=True)
 
-    func_def = CxxFuncDefNode(name="ToV8Value",
+    func_def = CxxFuncDefNode(name="ToV8",
                               arg_decls=["ScriptState* script_state"],
-                              return_type="v8::MaybeLocal<v8::Value>",
+                              return_type="v8::Local<v8::Value>",
                               class_name=cg_context.class_name,
                               const=True)
     func_def.set_base_template_vars(cg_context.template_bindings())
@@ -823,8 +837,10 @@ def make_tov8value_function(cg_context):
         if member.is_null:
             text = "return v8::Null(${script_state}->GetIsolate());"
         else:
-            text = _format("return ToV8Traits<{}>::ToV8(${script_state}, {});",
-                           native_value_tag(member.idl_type), member.var_name)
+            text = _format(
+                "return ToV8Traits<{}>::ToV8(${script_state}, {});",
+                native_value_tag(member.idl_type),
+                member.type_info.member_var_to_ref_expr(member.var_name))
         branches.append(case=member.content_type(),
                         body=TextNode(text),
                         should_add_break=False)
@@ -833,7 +849,6 @@ def make_tov8value_function(cg_context):
         branches,
         EmptyNode(),
         TextNode("NOTREACHED();"),
-        TextNode("return v8::MaybeLocal<v8::Value>();"),
     ])
 
     return func_decl, func_def
@@ -859,9 +874,9 @@ def make_trace_function(cg_context):
     for member in cg_context.union_members:
         if member.is_null:
             continue
-        body.append(
-            TextNode("TraceIfNeeded<{}>::Trace(visitor, {});".format(
-                member.type_info.member_t, member.var_name)))
+        if not member.type_info.is_traceable:
+            continue
+        body.append(TextNode("visitor->Trace({});".format(member.var_name)))
     body.append(TextNode("${base_class_name}::Trace(visitor);"))
 
     return func_decl, func_def
@@ -986,8 +1001,7 @@ def generate_union(union_identifier):
     factory_decls, factory_defs = make_factory_methods(cg_context)
     ctor_decls, ctor_defs = make_constructors(cg_context)
     accessor_decls, accessor_defs = make_accessor_functions(cg_context)
-    tov8value_func_decls, tov8value_func_defs = make_tov8value_function(
-        cg_context)
+    tov8_func_decls, tov8_func_defs = make_tov8_function(cg_context)
     trace_func_decls, trace_func_defs = make_trace_function(cg_context)
     clear_func_decls, clear_func_defs = make_clear_function(cg_context)
     name_func_decls, name_func_defs = make_name_function(cg_context)
@@ -1023,11 +1037,10 @@ def generate_union(union_identifier):
     ])
 
     # Assemble the parts.
-    header_node.accumulator.add_class_decls([
-        "ExceptionState",
-    ])
+    header_node.accumulator.add_class_decls(["ExceptionState", "ScriptState"])
     header_node.accumulator.add_include_headers([
         component_export_header(api_component, for_testing),
+        "base/check_op.h",
         "third_party/blink/renderer/platform/bindings/union_base.h",
     ])
     source_node.accumulator.add_include_headers([
@@ -1045,11 +1058,14 @@ def generate_union(union_identifier):
         PathManager(idl_type.type_definition_object).api_path(ext="h")
         for idl_type in union.flattened_member_types if idl_type.is_interface
     ])
-    (header_forward_decls, header_include_headers, source_forward_decls,
+    (header_forward_decls, header_include_headers,
+     header_stdcpp_include_headers, source_forward_decls,
      source_include_headers) = collect_forward_decls_and_include_headers(
          union.flattened_member_types)
     header_node.accumulator.add_class_decls(header_forward_decls)
     header_node.accumulator.add_include_headers(header_include_headers)
+    header_node.accumulator.add_stdcpp_include_headers(
+        header_stdcpp_include_headers)
     source_node.accumulator.add_class_decls(source_forward_decls)
     source_node.accumulator.add_include_headers(source_include_headers)
 
@@ -1074,10 +1090,11 @@ def generate_union(union_identifier):
     source_blink_ns.body.append(accessor_defs)
     source_blink_ns.body.append(EmptyNode())
 
-    class_def.public_section.append(tov8value_func_decls)
-    class_def.public_section.append(EmptyNode())
-    source_blink_ns.body.append(tov8value_func_defs)
-    source_blink_ns.body.append(EmptyNode())
+    if union.usage & web_idl.idl_type.UnionType.Usage.OUTPUT:
+        class_def.public_section.append(tov8_func_decls)
+        class_def.public_section.append(EmptyNode())
+        source_blink_ns.body.append(tov8_func_defs)
+        source_blink_ns.body.append(EmptyNode())
 
     class_def.public_section.append(trace_func_decls)
     class_def.public_section.append(EmptyNode())

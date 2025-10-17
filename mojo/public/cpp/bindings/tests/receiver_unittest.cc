@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "mojo/public/cpp/bindings/receiver.h"
+
 #include <stdint.h>
+
+#include <optional>
 #include <utility>
 
 #include "base/check_op.h"
@@ -23,17 +27,15 @@
 #include "mojo/public/cpp/bindings/lib/validation_errors.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "mojo/public/cpp/bindings/tests/bindings_test_base.h"
 #include "mojo/public/cpp/bindings/tests/receiver_unittest.test-mojom.h"
 #include "mojo/public/cpp/system/functions.h"
-#include "mojo/public/interfaces/bindings/tests/ping_service.mojom.h"
-#include "mojo/public/interfaces/bindings/tests/sample_interfaces.mojom.h"
-#include "mojo/public/interfaces/bindings/tests/sample_service.mojom.h"
+#include "mojo/public/interfaces/bindings/tests/ping_service.test-mojom.h"
+#include "mojo/public/interfaces/bindings/tests/sample_interfaces.test-mojom.h"
+#include "mojo/public/interfaces/bindings/tests/sample_service.test-mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace mojo {
 namespace test {
@@ -768,7 +770,7 @@ class TestGenericBinderImpl : public mojom::TestGenericBinder {
 
   Receiver<mojom::TestGenericBinder> receiver_;
   bool connected_ = true;
-  absl::optional<base::RunLoop> wait_loop_;
+  std::optional<base::RunLoop> wait_loop_;
   raw_ptr<GenericPendingReceiver> next_receiver_storage_ = nullptr;
   raw_ptr<GenericPendingAssociatedReceiver> next_associated_receiver_storage_ =
       nullptr;
@@ -1013,7 +1015,7 @@ TEST_F(MultiprocessReceiverTest, MultiprocessReceiver) {
     constexpr size_t kNumIterations = 1000;
     constexpr size_t kNumReceiversPerIteration = 10;
     for (size_t i = 0; i < kNumIterations; ++i) {
-      std::vector<absl::optional<Receiver<mojom::TestInterface1>>> receivers(
+      std::vector<std::optional<Receiver<mojom::TestInterface1>>> receivers(
           kNumReceiversPerIteration);
       for (auto& receiver : receivers) {
         receiver.emplace(this);

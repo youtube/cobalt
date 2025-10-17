@@ -27,6 +27,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/webui/ash/login/terms_of_service_screen_handler.h"
 #include "chrome/common/pref_names.h"
+#include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/storage_partition.h"
 #include "net/http/http_response_headers.h"
@@ -57,18 +58,19 @@ void SaveTosToFile(const std::string& tos, const base::FilePath& tos_path) {
   }
 }
 
-absl::optional<std::string> ReadFileToOptionalString(
+std::optional<std::string> ReadFileToOptionalString(
     const base::FilePath& file_path) {
   std::string content;
   if (base::ReadFileToString(file_path, &content))
-    return absl::make_optional<std::string>(content);
-  return absl::nullopt;
+    return std::make_optional<std::string>(content);
+  return std::nullopt;
 }
 
 }  // namespace
 
 // static
 std::string TermsOfServiceScreen::GetResultString(Result result) {
+  // LINT.IfChange(UsageMetrics)
   switch (result) {
     case Result::ACCEPTED:
       return "Accepted";
@@ -77,6 +79,7 @@ std::string TermsOfServiceScreen::GetResultString(Result result) {
     case Result::NOT_APPLICABLE:
       return BaseScreen::kNotApplicable;
   }
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/oobe/histograms.xml)
 }
 
 TermsOfServiceScreen::TermsOfServiceScreen(
@@ -129,8 +132,9 @@ bool TermsOfServiceScreen::MaybeSkip(WizardContext& context) {
     exit_callback_.Run(Result::NOT_APPLICABLE);
     return true;
   }
-  if (user_manager::UserManager::Get()->IsLoggedInAsPublicAccount())
+  if (user_manager::UserManager::Get()->IsLoggedInAsManagedGuestSession()) {
     return false;
+  }
 
   return false;
 }
@@ -144,9 +148,9 @@ void TermsOfServiceScreen::ShowImpl() {
       g_browser_process->platform_part()->browser_policy_connector_ash();
   // Show the screen.
   view_->Show(
-      connector->IsDeviceEnterpriseManaged()
+      ash::InstallAttributes::Get()->IsEnterpriseManaged()
           ? connector->GetEnterpriseDomainManager()
-          : chrome::enterprise_util::GetDomainFromEmail(
+          : enterprise_util::GetDomainFromEmail(
                 ProfileManager::GetActiveUserProfile()->GetProfileUserName()));
 
   // Start downloading the Terms of Service.
@@ -271,8 +275,7 @@ void TermsOfServiceScreen::LoadFromFileOrShowError() {
                      weak_factory_.GetWeakPtr()));
 }
 
-void TermsOfServiceScreen::OnTosLoadedFromFile(
-    absl::optional<std::string> tos) {
+void TermsOfServiceScreen::OnTosLoadedFromFile(std::optional<std::string> tos) {
   if (!view_)
     return;
   if (!tos.has_value()) {

@@ -46,11 +46,11 @@ class SqlStoreBase {
   using ResultCallback = base::OnceCallback<void(T)>;
 
   // Defines inactivity time of DB after which it is going to be closed.
-  // TODO(crbug.com/933369): Derive appropriate value in a scientific way.
+  // TODO(crbug.com/40614502): Derive appropriate value in a scientific way.
   static constexpr base::TimeDelta kClosingDelay = base::Seconds(20);
 
   // If |file_path| is empty, this constructs an in-memory database.
-  SqlStoreBase(const std::string& histogram_tag,
+  SqlStoreBase(sql::Database::Tag histogram_tag,
                scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
                const base::FilePath& file_path);
 
@@ -163,7 +163,7 @@ class SqlStoreBase {
   scoped_refptr<base::SequencedTaskRunner> background_task_runner_;
 
   // Histogram tag for the sqlite database.
-  std::string histogram_tag_;
+  sql::Database::Tag histogram_tag_;
 
   // Path to the database on disk. If empty, the database is in memory only.
   base::FilePath db_file_path_;

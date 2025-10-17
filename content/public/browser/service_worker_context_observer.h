@@ -9,6 +9,7 @@
 
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/service_worker_client_info.h"
+#include "content/public/browser/service_worker_registration_information.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -44,8 +45,10 @@ class ServiceWorkerContextObserver {
   // registration ID |registration_id| and scope |scope|.
   //
   // This happens after OnRegistrationCompleted().
-  virtual void OnRegistrationStored(int64_t registration_id,
-                                    const GURL& scope) {}
+  virtual void OnRegistrationStored(
+      int64_t registration_id,
+      const GURL& scope,
+      const ServiceWorkerRegistrationInformation& service_worker_info) {}
 
   // Called when the service worker with id |version_id| changes status to
   // activated.
@@ -55,21 +58,36 @@ class ServiceWorkerContextObserver {
   // redundant.
   virtual void OnVersionRedundant(int64_t version_id, const GURL& scope) {}
 
-  // Called when the service worker with id |version_id| starts or stops
-  // running.
+  // Called when the service worker with id |version_id| is starting, started,
+  // stopping, or stopped running.
   //
-  // These functions are currently only called after a worker finishes
-  // starting/stopping or the version is destroyed before finishing
-  // stopping. That is, a worker in the process of starting is not yet
-  // considered running, even if it's executing JavaScript.
+  // OnVersionStartedRunning()/OnVersionStoppedRunning(): called after a worker
+  //   finishes starting/stopping or the version is destroyed before finishing
+  //   stopping.
+  // OnVersionStartingRunning()/OnVersionStoppingRunning(): called before a
+  //   worker finishes starting/stopping.
+  //
+  // That is, a worker in the process of starting is not yet considered running,
+  // and a worker in the process of starting/stopping is not yet considered
+  // running/stopped -- even if it's executing JavaScript.
   //
   // TODO(minggang): Create a new observer to listen to the events when the
   // process of the service worker is allocated/released, instead of using the
   // running status of the embedded worker.
+  virtual void OnVersionStartingRunning(int64_t version_id) {}
   virtual void OnVersionStartedRunning(
       int64_t version_id,
       const ServiceWorkerRunningInfo& running_info) {}
+  virtual void OnVersionStoppingRunning(int64_t version_id) {}
   virtual void OnVersionStoppedRunning(int64_t version_id) {}
+
+  // Called when the service worker with id |version_id| begins starting or
+  // stopping running.
+  //
+  // These functions are currently called before a worker finishes
+  // starting/stopping or the version is destroyed before finishing
+  // stopping. That is, a worker in the process of starting/stopping is not yet
+  // considered running/stopped, even if it's executing JavaScript.
 
   // Called when a controllee is added/removed for the service worker with id
   // |version_id|.
@@ -106,6 +124,16 @@ class ServiceWorkerContextObserver {
 
   // Called when |context| is destroyed. Observers must no longer use |context|.
   virtual void OnDestruct(ServiceWorkerContext* context) {}
+
+  // Called when a Service Worker opens a new window.
+  // |script_url| is the URL of the service worker.
+  // |url| is the destination URL.
+  virtual void OnWindowOpened(const GURL& script_url, const GURL& url) {}
+
+  // Called when a Service Worker navigates an existing tab.
+  // |script_url| is the URL of the service worker.
+  // |url| is the destination URL.
+  virtual void OnClientNavigated(const GURL& script_url, const GURL& url) {}
 
  protected:
   virtual ~ServiceWorkerContextObserver() {}

@@ -9,9 +9,10 @@ The pipeline module orchestrates the entire signing process, which includes:
     4. Signing and packaging the installer tools.
 """
 
+import asyncio
 import os.path
 
-from . import commands, model, modification, notarize, parts, signing
+from signing import commands, model, modification, notarize, parts, signing
 
 
 def _include_branding_code_in_app(dist):
@@ -163,6 +164,7 @@ def _create_pkgbuild_scripts(paths, dist_config):
 
     def do_substitutions(script):
         substitutions = {
+            '@SHEBANG_GUARD@': '',
             '@APP_DIR@': dist_config.app_dir,
             '@APP_PRODUCT@': dist_config.app_product,
             '@BRAND_CODE@': dist_config.distribution.branding_code or '',
@@ -372,7 +374,7 @@ def _package_and_sign_pkg(paths, dist_config):
             distribution_path, '--package-path', pkg_paths.work, '--sign',
             dist_config.installer_identity
         ]
-        if dist_config.notary_user:
+        if dist_config.notarize.should_notarize():
             # Assume if the config has notary authentication information that
             # the products will be notarized, which requires a secure
             # timestamp.
@@ -452,12 +454,12 @@ def _package_dmg(paths, dist, config):
         '--tempdir', paths.work,
         '--source', empty_dir,
         '--target', dmg_path,
-        '--format', 'UDBZ',
+        '--format', 'ULMO',
         '--volname', config.app_product,
         '--copy', '{}:/'.format(app_path),
-        '--symlink', '/Applications:/ ',
     ]
     # yapf: enable
+    pkg_dmg += ['--symlink', '/Applications:/ ']
 
     if dist.inflation_kilobytes:
         pkg_dmg += [
@@ -466,6 +468,7 @@ def _package_dmg(paths, dist, config):
         ]
 
     if config.is_chrome_branded():
+        background_image = '{}/chrome_dmg_background.png'.format(packaging_dir)
         # yapf: disable
         pkg_dmg += [
             '--icon', os.path.join(packaging_dir, icon_file),
@@ -473,15 +476,58 @@ def _package_dmg(paths, dist, config):
                 '{}/keystone_install.sh:/.keystone_install'.format(packaging_dir),
             '--mkdir', '.background',
             '--copy',
-                '{}/chrome_dmg_background.png:/.background/background.png'.format(
-                    packaging_dir),
+                '{}:/.background/background.png'.format(background_image),
             '--copy', '{}/{}:/.DS_Store'.format(packaging_dir, dsstore_file),
         ]
         # yapf: enable
-
     commands.run_command(pkg_dmg)
 
     return dmg_path
+
+
+def _package_zip(paths, config):
+    """Packages a Chrome application bundle into a zip.
+
+    Args:
+        paths: A |model.Paths| object.
+        config: The |config.CodeSignConfig| object.
+
+    Returns:
+        A path to the produced ZIP file.
+    """
+    zip_path = os.path.join(paths.output,
+                            '{}.zip'.format(config.packaging_basename))
+
+    zip_command = [
+        'zip',
+        '-9',
+        '--recurse-paths',
+        '--symlinks',
+        '--quiet',
+        zip_path,
+        config.app_dir,
+    ]
+
+    # If this distribution is chrome branded, the `.keystone_install`
+    # script must be added.
+    if config.is_chrome_branded():
+        # Copy and rename `keystone_install.sh`->`.keystone_install`
+        # into the work dir, as this is the filename it must have
+        # when it is eventually executed.
+        packaging_dir = paths.packaging_dir(config)
+        ks_install_path = os.path.join(packaging_dir, 'keystone_install.sh')
+        dotted_ks_install_work_path = os.path.join(paths.work,
+                                                   '.keystone_install')
+        commands.copy_files(ks_install_path, dotted_ks_install_work_path)
+        zip_command.append('.keystone_install')
+
+    # If the file already exists, delete it so we avoid updating an old file
+    # rather than creating a new one as intended.
+    commands.delete_file_if_exists(zip_path)
+
+    commands.run_command(zip_command, cwd=paths.work)
+
+    return zip_path
 
 
 def _package_installer_tools(paths, config):
@@ -642,12 +688,11 @@ def _filter_distributions(distributions, skip_brands, channels):
     return filtered_distributions
 
 
-def sign_all(orig_paths,
-             config,
-             disable_packaging=False,
-             notarization=model.NotarizeAndStapleLevel.STAPLE,
-             skip_brands=[],
-             channels=[]):
+async def sign_all(orig_paths,
+                   config,
+                   disable_packaging=False,
+                   skip_brands=[],
+                   channels=[]):
     """For each distribution in |config|, performs customization, signing, and
     DMG packaging and places the resulting signed DMG in |orig_paths.output|.
     The |paths.input| must contain the products to customize and sign.
@@ -659,9 +704,6 @@ def sign_all(orig_paths,
             unpackaged signed app bundle will be copied to |paths.output|. If
             False, the packaging specified in the distribution will be
             performed.
-        notarization: The level of notarization to be performed. If
-            |disable_packaging| is False, the packages (dmg/pkg) will undergo
-            the same notarization.
         skip_brands: A list of brand code strings. If a distribution has a brand
             code in this list, or if a distribution has a brand code and
             |skip_brands| contains *, that distribution will be skipped.
@@ -670,24 +712,68 @@ def sign_all(orig_paths,
             produced. The string 'stable' matches the None channel.
     """
     with commands.WorkDirectory(orig_paths) as notary_paths:
-        # First, sign all the distributions and optionally submit the
-        # notarization requests.
-        uuids_to_config = {}
-        signed_frameworks = {}
-        created_app_bundles = set()
-
         distributions = _filter_distributions(config.distributions, skip_brands,
                                               channels)
 
+        # First, sign all the distributions and optionally submit the
+        # notarization requests.
+        dist_configs = await asyncio.wait_for(
+            _sign_and_maybe_notarize_distributions(config, distributions,
+                                                   notary_paths,
+                                                   disable_packaging),
+            timeout=60 * 60 * 2)
+
+        # Staple if required.
+        if config.notarize.should_staple():
+            for dist_config in dist_configs:
+                dest_dir = os.path.join(
+                    notary_paths.work,
+                    _intermediate_work_dir_name(dist_config.distribution))
+                _staple_chrome(notary_paths.replace_work(dest_dir), dist_config)
+
+        # After all apps are optionally notarized, package as required.
+        if not disable_packaging:
+            await asyncio.wait_for(
+                _package_and_maybe_notarize_distributions(
+                    config, distributions, notary_paths),
+                timeout=60 * 60 * 2)
+
+    _package_installer_tools(orig_paths, config)
+
+
+async def _sign_and_maybe_notarize_distributions(config, distributions,
+                                                 notary_paths,
+                                                 disable_packaging):
+    """Iterates each distribution in |distributions|, codesigns it according to
+    the |config|, and potentially uploads it for notarization.
+
+    Args:
+        config: The |config.CodeSignConfig| object.
+        distributions: The |model.Distribution|s to sign.
+        notary_paths: A |model.Paths| object where artifacts will be placed when
+            notarizing.
+        disable_packaging: Whether all packaging is disabled.
+
+    Returns:
+        A dict mapping the notarization submission UUID to the
+        |config.CodeSignConfig.dist_config| for the |model.Distribution|. If
+        notarization is not performed, returns an empty dict.
+    """
+    dist_configs = []
+    signed_frameworks = {}
+    created_app_bundles = set()
+
+    async with asyncio.TaskGroup() as tasks:
         for dist in distributions:
-            with commands.WorkDirectory(orig_paths) as paths:
+            with commands.WorkDirectory(notary_paths) as paths:
                 dist_config = dist.to_config(config)
-                do_packaging = (dist.package_as_dmg or
-                                dist.package_as_pkg) and not disable_packaging
+                dist_configs.append(dist_config)
+                do_packaging = (dist.package_as_dmg or dist.package_as_pkg or
+                                dist.package_as_zip) and not disable_packaging
 
                 # If not packaging and not notarizing, then simply drop the
                 # signed bundle in the output directory when done signing.
-                if not do_packaging and not notarization.should_notarize():
+                if not do_packaging and not config.notarize.should_notarize():
                     dest_dir = paths.output
                 else:
                     dest_dir = notary_paths.work
@@ -708,7 +794,7 @@ def sign_all(orig_paths,
 
                 # If the build products are to be notarized, ZIP the app bundle
                 # and submit it for notarization.
-                if notarization.should_notarize():
+                if config.notarize.should_notarize():
                     zip_file = os.path.join(
                         notary_paths.work,
                         dist_config.packaging_basename + '.zip')
@@ -717,61 +803,64 @@ def sign_all(orig_paths,
                         zip_file, dist_config.app_dir
                     ],
                                          cwd=dest_dir)
-                    uuid = notarize.submit(zip_file, dist_config)
-                    uuids_to_config[uuid] = dist_config
+                    tasks.create_task(notarize.submit(zip_file, dist_config))
 
-        # If needed, wait for app notarization results to come back, and staple
-        # if required.
-        if notarization.should_wait():
-            for result in notarize.wait_for_results(uuids_to_config.keys(),
-                                                    config):
-                if notarization.should_staple():
-                    dist_config = uuids_to_config[result]
-                    dest_dir = os.path.join(
-                        notary_paths.work,
-                        _intermediate_work_dir_name(dist_config.distribution))
-                    _staple_chrome(
-                        notary_paths.replace_work(dest_dir), dist_config)
+            # Yield the event loop to let the notarization subprocesses start
+            # before continuing to the next distribution.
+            await asyncio.sleep(0)
+    return dist_configs
 
-        # After all apps are optionally notarized, package as required.
-        if not disable_packaging:
-            uuids_to_package_path = {}
-            for dist in distributions:
-                dist_config = dist.to_config(config)
-                paths = orig_paths.replace_work(
-                    os.path.join(
-                        notary_paths.work,
-                        _intermediate_work_dir_name(dist_config.distribution)))
 
-                if dist.inflation_kilobytes:
-                    inflation_path = os.path.join(
-                        paths.packaging_dir(config), 'inflation.bin')
-                    commands.run_command([
-                        'dd', 'if=/dev/urandom', 'of=' + inflation_path,
-                        'bs=1000', 'count={}'.format(dist.inflation_kilobytes)
-                    ])
+async def _package_and_maybe_notarize_distributions(config, distributions,
+                                                    notary_paths):
+    """Iterates each |model.Distribution| in |distributions| and packages it
+    according to its specification. If notarization is requested, that is
+    performed on the assembled package.
 
-                if dist.package_as_dmg:
-                    dmg_path = _package_and_sign_dmg(paths, dist_config)
+    Args:
+        config: The |config.CodeSignConfig| object.
+        distributions: The |model.Distribution|s to sign.
+        notary_paths: A |model.Paths| object where artifacts will be placed when
+            notarizing.
+    """
+    staple_paths = []
+    async with asyncio.TaskGroup() as tasks:
+        for dist in distributions:
+            dist_config = dist.to_config(config)
+            paths = notary_paths.replace_work(
+                os.path.join(
+                    notary_paths.work,
+                    _intermediate_work_dir_name(dist_config.distribution)))
 
-                    if notarization.should_notarize():
-                        uuid = notarize.submit(dmg_path, dist_config)
-                        uuids_to_package_path[uuid] = dmg_path
+            if dist.inflation_kilobytes:
+                inflation_path = os.path.join(
+                    paths.packaging_dir(config), 'inflation.bin')
+                commands.run_command([
+                    'dd', 'if=/dev/urandom', 'of=' + inflation_path, 'bs=1000',
+                    'count={}'.format(dist.inflation_kilobytes)
+                ])
 
-                if dist.package_as_pkg:
-                    pkg_path = _package_and_sign_pkg(paths, dist_config)
+            if dist.package_as_dmg:
+                dmg_path = _package_and_sign_dmg(paths, dist_config)
 
-                    if notarization.should_notarize():
-                        uuid = notarize.submit(pkg_path, dist_config)
-                        uuids_to_package_path[uuid] = pkg_path
+                if config.notarize.should_notarize():
+                    tasks.create_task(notarize.submit(dmg_path, dist_config))
+                    staple_paths.append(dmg_path)
 
-            # If needed, wait for package notarization results to come back, and
-            # staple if required.
-            if notarization.should_wait():
-                for result in notarize.wait_for_results(
-                        uuids_to_package_path.keys(), config):
-                    if notarization.should_staple():
-                        package_path = uuids_to_package_path[result]
-                        notarize.staple(package_path)
+            if dist.package_as_pkg:
+                pkg_path = _package_and_sign_pkg(paths, dist_config)
 
-    _package_installer_tools(orig_paths, config)
+                if config.notarize.should_notarize():
+                    tasks.create_task(notarize.submit(pkg_path, dist_config))
+                    staple_paths.append(pkg_path)
+
+            if dist.package_as_zip:
+                _package_zip(paths, dist_config)
+
+            # Yield the event loop to let the notarization subprocesses start
+            # before continuing to the next distribution.
+            await asyncio.sleep(0)
+
+    if config.notarize.should_staple():
+        for path in staple_paths:
+            notarize.staple(path)

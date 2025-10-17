@@ -36,8 +36,7 @@ namespace content {
 
 class CONTENT_EXPORT MidiHost : public midi::MidiManagerClient,
                                 public midi::mojom::MidiSessionProvider,
-                                public midi::mojom::MidiSession,
-                                public base::SupportsWeakPtr<MidiHost> {
+                                public midi::mojom::MidiSession {
  public:
   MidiHost(const MidiHost&) = delete;
   MidiHost& operator=(const MidiHost&) = delete;
@@ -79,6 +78,10 @@ class CONTENT_EXPORT MidiHost : public midi::MidiManagerClient,
  protected:
   MidiHost(int renderer_process_id, midi::MidiService* midi_service);
 
+  void SetHasMidiPermissionForTesting(bool value) {
+    has_midi_permission_ = value;
+  }
+
  private:
   // Use this to call methods on |midi_client_|. It makes sure that midi_client_
   // is only accessed on the IO thread.
@@ -89,9 +92,12 @@ class CONTENT_EXPORT MidiHost : public midi::MidiManagerClient,
 
   const int renderer_process_id_;
 
+  // Represents if the renderer has a permission to send/receive MIDI messages.
+  bool has_midi_permission_;
+
   // Represents if the renderer has a permission to send/receive MIDI SysEX
   // messages.
-  bool has_sys_ex_permission_;
+  bool has_midi_sysex_permission_;
 
   // |midi_service_| manages a MidiManager instance that talks to
   // platform-specific MIDI APIs.  It can be nullptr after detached.
@@ -131,6 +137,9 @@ class CONTENT_EXPORT MidiHost : public midi::MidiManagerClient,
   // Bound on the IO thread and should only be called there. Use CallClient to
   // call midi::mojom::MidiSessionClient methods.
   mojo::Remote<midi::mojom::MidiSessionClient> midi_client_;
+
+  // WeakPtr factory for CallClient callbacks.
+  base::WeakPtrFactory<MidiHost> weak_ptr_factory_{this};
 };
 
 }  // namespace content

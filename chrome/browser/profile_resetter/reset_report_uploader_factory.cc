@@ -4,14 +4,15 @@
 
 #include "chrome/browser/profile_resetter/reset_report_uploader_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profile_resetter/reset_report_uploader.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
 
 // static
 ResetReportUploaderFactory* ResetReportUploaderFactory::GetInstance() {
-  return base::Singleton<ResetReportUploaderFactory>::get();
+  static base::NoDestructor<ResetReportUploaderFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -26,15 +27,20 @@ ResetReportUploaderFactory::ResetReportUploaderFactory()
           "ResetReportUploaderFactory",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {}
 
-ResetReportUploaderFactory::~ResetReportUploaderFactory() {}
+ResetReportUploaderFactory::~ResetReportUploaderFactory() = default;
 
-KeyedService* ResetReportUploaderFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ResetReportUploaderFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new ResetReportUploader(context->GetDefaultStoragePartition()
-                                     ->GetURLLoaderFactoryForBrowserProcess());
+  return std::make_unique<ResetReportUploader>(
+      context->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess());
 }

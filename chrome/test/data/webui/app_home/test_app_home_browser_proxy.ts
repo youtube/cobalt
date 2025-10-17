@@ -1,8 +1,9 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {AppInfo, ClickEvent, PageCallbackRouter, PageHandlerInterface, PageRemote, RunOnOsLoginMode} from 'chrome://apps/app_home.mojom-webui.js';
-import {BrowserProxy} from 'chrome://apps/browser_proxy.js';
+import type {AppInfo, ClickEvent, PageHandlerInterface, PageRemote, RunOnOsLoginMode} from 'chrome://apps/app_home.mojom-webui.js';
+import {AppType, PageCallbackRouter} from 'chrome://apps/app_home.mojom-webui.js';
+import type {BrowserProxy} from 'chrome://apps/browser_proxy.js';
 import {UserDisplayMode} from 'chrome://apps/user_display_mode.mojom-webui.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
@@ -39,7 +40,7 @@ export class FakePageHandler extends TestBrowserProxy implements
   getDeprecationLinkString() {
     let deprecated: string = '';
     for (const app of this.apps_.appList) {
-      if (app.isDeprecatedApp) {
+      if (app.appType === AppType.kDeprecatedChromeApp) {
         deprecated = 'Remove X deprecated apps.';
       }
     }

@@ -9,6 +9,7 @@
 #include "third_party/blink/renderer/core/html/html_div_element.h"
 #include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
+#include "third_party/blink/renderer/core/layout/geometry/logical_rect.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observer.h"
@@ -33,8 +34,9 @@ void SetSegmentDivPosition(blink::HTMLDivElement* segment,
   // then it will be a nullptr so we should assume zero.
   blink::LayoutBox* box = segment->GetLayoutBox();
   if (box) {
-    current_width = box->LogicalWidth().ToInt();
-    current_left = box->LogicalLeft().ToInt();
+    blink::LogicalRect rect = box->LogicalRectInContainer();
+    current_width = rect.size.inline_size.ToInt();
+    current_left = rect.offset.inline_offset.ToInt();
   }
 
   // If the width and left has not changed then do not update the segment.
@@ -47,7 +49,8 @@ void SetSegmentDivPosition(blink::HTMLDivElement* segment,
   builder.Append("px; left: ");
   builder.AppendNumber(segment_left);
   builder.Append("px;");
-  segment->setAttribute("style", builder.ToAtomicString());
+  segment->setAttribute(blink::html_names::kStyleAttr,
+                        builder.ToAtomicString());
 }
 
 }  // namespace.
@@ -92,7 +95,7 @@ MediaControlSliderElement::MediaControlSliderElement(
           MakeGarbageCollected<MediaControlSliderElementResizeObserverDelegate>(
               this))) {
   setType(input_type_names::kRange);
-  setAttribute(html_names::kStepAttr, "any");
+  setAttribute(html_names::kStepAttr, AtomicString("any"));
   OnControlsShown();
 }
 
@@ -126,11 +129,11 @@ void MediaControlSliderElement::SetupBarSegments() {
   //   - div::internal-track-segment-highlight-before (blue highlight)
   //   - div::internal-track-segment-highlight-after (dark gray highlight)
   HTMLDivElement* background = MediaControlElementsHelper::CreateDiv(
-      "-internal-track-segment-background", &track);
+      AtomicString("-internal-track-segment-background"), &track);
   segment_highlight_before_ = MediaControlElementsHelper::CreateDiv(
-      "-internal-track-segment-highlight-before", background);
+      AtomicString("-internal-track-segment-highlight-before"), background);
   segment_highlight_after_ = MediaControlElementsHelper::CreateDiv(
-      "-internal-track-segment-highlight-after", background);
+      AtomicString("-internal-track-segment-highlight-after"), background);
 }
 
 void MediaControlSliderElement::SetBeforeSegmentPosition(
@@ -156,7 +159,7 @@ int MediaControlSliderElement::TrackWidth() {
 
 float MediaControlSliderElement::ZoomFactor() const {
   const LocalFrame* frame = GetDocument().GetFrame();
-  return frame ? frame->PageZoomFactor() : 1;
+  return frame ? frame->LayoutZoomFactor() : 1;
 }
 
 void MediaControlSliderElement::NotifyElementSizeChanged() {

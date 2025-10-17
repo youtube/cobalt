@@ -9,10 +9,12 @@
 
 #include <memory>
 
+#include "base/functional/callback_forward.h"
 #include "components/performance_manager/embedder/graph_features.h"
 #include "components/performance_manager/graph/graph_impl.h"
 
 namespace content {
+class BrowserContext;
 class WebContents;
 }  // namespace content
 
@@ -75,9 +77,17 @@ class PerformanceManagerTestHarnessHelper {
   // PM is initialized (ie, initialize an instance of this helper).
   void OnWebContentsCreated(content::WebContents* contents);
 
+  // Creates worker helpers for the provided `browser_context`. The helpers must
+  // be deleted with OnBrowserContextRemoved() before calling TearDown().
+  void OnBrowserContextAdded(content::BrowserContext* browser_context);
+
+  // Deletes the worker helpers for the provided `browser_context`. The helpers
+  // must have been created with OnBrowserContextAdded() before calling this.
+  void OnBrowserContextRemoved(content::BrowserContext* browser_context);
+
   // Allows configuring which Graph features are initialized during "SetUp".
   // This defaults to initializing no features.
-  GraphFeatures& GetGraphFeatures() { return graph_features_; }
+  GraphFeatures& GetGraphFeatures();
 
   // Allows configuring a Graph callback that will be invoked when the Graph
   // is initialized in "SetUp".

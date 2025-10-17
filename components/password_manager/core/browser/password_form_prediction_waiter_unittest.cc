@@ -4,6 +4,7 @@
 
 #include "components/password_manager/core/browser/password_form_prediction_waiter.h"
 
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -48,8 +49,25 @@ class PasswordFormPredictionWaiterTest : public testing::Test {
 
 TEST_F(PasswordFormPredictionWaiterTest, WaitCompletedOnTimeout) {
   prediction_waiter_.StartTimer();
+  EXPECT_TRUE(prediction_waiter_.IsActive());
   task_environment_.FastForwardBy(kMaxFillingDelayForAsyncPredictions);
+  EXPECT_FALSE(prediction_waiter_.IsActive());
   EXPECT_TRUE(client_.timed_out());
+}
+
+TEST_F(PasswordFormPredictionWaiterTest, Reset) {
+  prediction_waiter_.StartTimer();
+  auto closure = prediction_waiter_.CreateClosure();
+  EXPECT_TRUE(prediction_waiter_.IsActive());
+
+  prediction_waiter_.Reset();
+  EXPECT_FALSE(prediction_waiter_.IsActive());
+  std::move(closure).Run();
+
+  // No calls happen to the client.
+  task_environment_.FastForwardBy(kMaxFillingDelayForAsyncPredictions);
+  EXPECT_FALSE(client_.timed_out());
+  EXPECT_EQ(client_.wait_completed_count(), 0);
 }
 
 TEST_F(PasswordFormPredictionWaiterTest,
@@ -81,6 +99,7 @@ TEST_F(PasswordFormPredictionWaiterTest, WaitCompletedOnMultipleCallbacks) {
   std::move(closure2).Run();
   std::move(closure3).Run();
 
+  EXPECT_FALSE(prediction_waiter_.IsActive());
   EXPECT_EQ(client_.wait_completed_count(), 1);
   EXPECT_FALSE(client_.timed_out());
 }
@@ -91,6 +110,7 @@ TEST_F(PasswordFormPredictionWaiterTest,
   auto closure1 = prediction_waiter_.CreateClosure();
 
   task_environment_.FastForwardBy(kMaxFillingDelayForAsyncPredictions);
+  EXPECT_FALSE(prediction_waiter_.IsActive());
   EXPECT_TRUE(client_.timed_out());
   EXPECT_EQ(client_.wait_completed_count(), 0);
   std::move(closure1).Run();
@@ -109,6 +129,54 @@ TEST_F(PasswordFormPredictionWaiterTest,
   std::move(closure1).Run();
   std::move(closure2).Run();
   EXPECT_EQ(client_.wait_completed_count(), 2);
+}
+
+TEST_F(PasswordFormPredictionWaiterTest, WaitResultMetricsEmitted) {
+  {
+    base::HistogramTester histogram_tester;
+    prediction_waiter_.StartTimer();
+    auto closure1 = prediction_waiter_.CreateClosure();
+    auto closure2 = prediction_waiter_.CreateClosure();
+    std::move(closure1).Run();
+    std::move(closure2).Run();
+    histogram_tester.ExpectUniqueSample(
+        "PasswordManager.PredictionWaitResult",
+        PasswordFormPredictionWaiter::WaitResult::kNoTimeout, 1);
+
+    prediction_waiter_.Reset();
+    client_.Reset();
+  }
+
+  {
+    base::HistogramTester histogram_tester;
+    prediction_waiter_.StartTimer();
+    auto closure1 = prediction_waiter_.CreateClosure();
+    auto closure2 = prediction_waiter_.CreateClosure();
+    std::move(closure1).Run();
+    task_environment_.FastForwardBy(kMaxFillingDelayForAsyncPredictions);
+    EXPECT_TRUE(client_.timed_out());
+    histogram_tester.ExpectUniqueSample(
+        "PasswordManager.PredictionWaitResult",
+        PasswordFormPredictionWaiter::WaitResult::kTimeoutWaitingForOneClosure,
+        1);
+
+    prediction_waiter_.Reset();
+    client_.Reset();
+  }
+
+  {
+    base::HistogramTester histogram_tester;
+    prediction_waiter_.StartTimer();
+    auto closure1 = prediction_waiter_.CreateClosure();
+    auto closure2 = prediction_waiter_.CreateClosure();
+    task_environment_.FastForwardBy(kMaxFillingDelayForAsyncPredictions);
+    EXPECT_TRUE(client_.timed_out());
+    histogram_tester.ExpectUniqueSample(
+        "PasswordManager.PredictionWaitResult",
+        PasswordFormPredictionWaiter::WaitResult::
+            kTimeoutWaitingForTwoOrMoreClosures,
+        1);
+  }
 }
 
 }  // namespace

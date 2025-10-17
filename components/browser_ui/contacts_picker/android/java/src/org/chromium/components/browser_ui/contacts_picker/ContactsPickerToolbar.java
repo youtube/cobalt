@@ -4,32 +4,30 @@
 
 package org.chromium.components.browser_ui.contacts_picker;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.util.AttributeSet;
 
-import org.chromium.base.ApiCompatibilityUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectableListToolbar;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate;
 import org.chromium.ui.widget.ButtonCompat;
 
 import java.util.List;
 
-/**
- * Handles toolbar functionality for the {@ContactsPickerDialog}.
- */
+/** Handles toolbar functionality for the {@ContactsPickerDialog}. */
+@NullMarked
 public class ContactsPickerToolbar extends SelectableListToolbar<ContactDetails> {
-    /**
-     * A delegate that handles dialog actions.
-     */
+    /** A delegate that handles dialog actions. */
     public interface ContactsToolbarDelegate {
-        /**
-         * Called when the back arrow is clicked in the toolbar.
-         */
+        /** Called when the back arrow is clicked in the toolbar. */
         void onNavigationBackCallback();
     }
 
     // A delegate to notify when the dialog should close.
-    private ContactsToolbarDelegate mDelegate;
+    private @Nullable ContactsToolbarDelegate mDelegate;
 
     // Whether any filter chips are selected. Default to true because all filter chips are selected
     // by default when opening the dialog.
@@ -39,42 +37,41 @@ public class ContactsPickerToolbar extends SelectableListToolbar<ContactDetails>
         super(context, attrs);
     }
 
-    /**
-     * Set the {@ContactToolbarDelegate} for this toolbar.
-     */
+    /** Set the {@ContactToolbarDelegate} for this toolbar. */
     public void setDelegate(ContactsToolbarDelegate delegate) {
         mDelegate = delegate;
     }
 
-    /**
-     * Shows the Back arrow navigation button in the upper left corner.
-     */
+    /** Shows the Back arrow navigation button in the upper left corner. */
     public void showBackArrow() {
-        setNavigationButton(NavigationButton.BACK);
+        setNavigationButton(NavigationButton.SEARCH_BACK);
     }
 
-    /**
-     * Sets whether any filter chips are |selected| in the dialog.
-     */
+    /** Sets whether any filter chips are |selected| in the dialog. */
     public void setFilterChipsSelected(boolean selected) {
         mFilterChipsSelected = selected;
-        updateToolbarUI();
+        updateToolbarUi();
     }
 
     // SelectableListToolbar:
 
     @Override
-    public void onNavigationBack() {
+    public void onSearchNavigationBack() {
         if (isSearching()) {
-            super.onNavigationBack();
+            super.onSearchNavigationBack();
         } else {
+            assumeNonNull(mDelegate);
             mDelegate.onNavigationBackCallback();
         }
     }
 
     @Override
-    public void initialize(SelectionDelegate<ContactDetails> delegate, int titleResId,
-            int normalGroupResId, int selectedGroupResId, boolean updateStatusBarColor) {
+    public void initialize(
+            SelectionDelegate<ContactDetails> delegate,
+            int titleResId,
+            int normalGroupResId,
+            int selectedGroupResId,
+            boolean updateStatusBarColor) {
         super.initialize(
                 delegate, titleResId, normalGroupResId, selectedGroupResId, updateStatusBarColor);
 
@@ -84,13 +81,13 @@ public class ContactsPickerToolbar extends SelectableListToolbar<ContactDetails>
     @Override
     public void onSelectionStateChange(List<ContactDetails> selectedItems) {
         super.onSelectionStateChange(selectedItems);
-        updateToolbarUI();
+        updateToolbarUi();
     }
 
     /**
      * Update the UI elements of the toolbar, based on whether contacts & filter chips are selected.
      */
-    private void updateToolbarUI() {
+    private void updateToolbarUi() {
         boolean contactsSelected = !mSelectionDelegate.getSelectedItems().isEmpty();
 
         boolean doneEnabled = contactsSelected && mFilterChipsSelected;
@@ -98,11 +95,9 @@ public class ContactsPickerToolbar extends SelectableListToolbar<ContactDetails>
         done.setEnabled(doneEnabled);
 
         if (doneEnabled) {
-            ApiCompatibilityUtils.setTextAppearance(
-                    done, R.style.TextAppearance_TextMedium_Secondary);
+            done.setTextAppearance(R.style.TextAppearance_TextMedium_Secondary);
         } else {
-            ApiCompatibilityUtils.setTextAppearance(
-                    done, R.style.TextAppearance_TextMedium_Disabled);
+            done.setTextAppearance(R.style.TextAppearance_TextMedium_Disabled);
             if (contactsSelected) {
                 setNavigationButton(NavigationButton.SELECTION_BACK);
             } else {

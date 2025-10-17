@@ -9,7 +9,7 @@
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }  // namespace base
 
 namespace content {
@@ -42,18 +42,16 @@ class NearbySharingServiceFactory : public ProfileKeyedServiceFactory {
       bool is_supported);
 
  private:
-  friend struct base::DefaultSingletonTraits<NearbySharingServiceFactory>;
+  friend base::NoDestructor<NearbySharingServiceFactory>;
 
   NearbySharingServiceFactory();
   ~NearbySharingServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory overrides:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
   void RegisterProfilePrefs(
       user_prefs::PrefRegistrySyncable* registry) override;
-  bool ServiceIsCreatedWithBrowserContext() const override;
-  bool ServiceIsNULLWhileTesting() const override;
 };
 
 #endif  // CHROME_BROWSER_NEARBY_SHARING_NEARBY_SHARING_SERVICE_FACTORY_H_

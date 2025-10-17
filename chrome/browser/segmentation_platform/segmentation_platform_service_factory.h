@@ -9,7 +9,7 @@
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }  // namespace base
 
 namespace content {
@@ -19,6 +19,11 @@ class BrowserContext;
 class Profile;
 
 namespace segmentation_platform {
+
+namespace home_modules {
+class HomeModulesCardRegistry;
+}
+
 class SegmentationPlatformService;
 
 // A factory to create a unique SegmentationPlatformService.
@@ -31,6 +36,9 @@ class SegmentationPlatformServiceFactory : public ProfileKeyedServiceFactory {
   // Gets the lazy singleton instance of SegmentationPlatformService.
   static SegmentationPlatformServiceFactory* GetInstance();
 
+  static home_modules::HomeModulesCardRegistry* GetHomeModulesCardRegistry(
+      content::BrowserContext* context);
+
   // Disallow copy/assign.
   SegmentationPlatformServiceFactory(
       const SegmentationPlatformServiceFactory&) = delete;
@@ -38,15 +46,17 @@ class SegmentationPlatformServiceFactory : public ProfileKeyedServiceFactory {
       const SegmentationPlatformServiceFactory&) = delete;
 
  private:
-  friend struct base::DefaultSingletonTraits<
-      SegmentationPlatformServiceFactory>;
+  friend base::NoDestructor<SegmentationPlatformServiceFactory>;
 
   SegmentationPlatformServiceFactory();
   ~SegmentationPlatformServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory overrides.
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
+
+  void RegisterProfilePrefs(
+      user_prefs::PrefRegistrySyncable* registry) override;
 };
 
 }  // namespace segmentation_platform

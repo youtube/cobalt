@@ -8,6 +8,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,7 +32,6 @@
 #include "chrome/install_static/install_util.h"
 #include "content/public/common/process_type.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -50,7 +50,7 @@ ModuleInfoData CreateLoadedModuleInfoData() {
   ModuleInfoData module_data;
   module_data.module_properties |= ModuleInfoData::kPropertyLoadedModule;
   module_data.process_types |= ProcessTypeToBit(content::PROCESS_TYPE_BROWSER);
-  module_data.inspection_result = absl::make_optional<ModuleInspectionResult>();
+  module_data.inspection_result = std::make_optional<ModuleInspectionResult>();
   return module_data;
 }
 
@@ -351,11 +351,11 @@ TEST_F(ModuleBlocklistCacheUpdaterTest, RegisteredModules) {
   third_party_dlls::PackedListModule expected;
   const std::string module_basename = base::UTF16ToUTF8(
       base::i18n::ToLower(module_key2.module_path.BaseName().AsUTF16Unsafe()));
-  base::SHA1HashBytes(reinterpret_cast<const uint8_t*>(module_basename.data()),
-                      module_basename.length(), &expected.basename_hash[0]);
+  base::span(expected.basename_hash)
+      .copy_from(base::SHA1Hash(base::as_byte_span(module_basename)));
   const std::string module_code_id = GenerateCodeId(module_key2);
-  base::SHA1HashBytes(reinterpret_cast<const uint8_t*>(module_code_id.data()),
-                      module_code_id.length(), &expected.code_id_hash[0]);
+  base::span(expected.code_id_hash)
+      .copy_from(base::SHA1Hash(base::as_byte_span(module_code_id)));
 
   EXPECT_TRUE(internal::ModuleEqual()(expected, blocklisted_modules[0]));
 }

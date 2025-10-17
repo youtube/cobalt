@@ -6,9 +6,10 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "components/download/public/common/download_item.h"
 #include "ui/gfx/image/image.h"
+#include "ui/gfx/native_widget_types.h"
 #include "ui/views/widget/widget.h"
 
 // Cocoa intends a smart dragging source, while `DragDownloadItem()` is a simple
@@ -49,13 +50,14 @@ void DragDownloadItem(const download::DownloadItem* download,
   // If this drag was initiated from a views::Widget, that widget may have
   // mouse capture. Drags via View::DoDrag() usually release it. The code below
   // bypasses that, so release manually. See https://crbug.com/863377.
-  views::Widget* widget = views::Widget::GetWidgetForNativeView(view);
+  views::Widget* widget =
+      views::Widget::GetWidgetForNativeView(gfx::NativeView(view));
   if (widget)
     widget->ReleaseCapture();
 
-  NSURL* file_url = base::mac::FilePathToNSURL(download->GetTargetFilePath());
+  NSURL* file_url = base::apple::FilePathToNSURL(download->GetTargetFilePath());
   NSDraggingItem* file_item =
-      [[[NSDraggingItem alloc] initWithPasteboardWriter:file_url] autorelease];
+      [[NSDraggingItem alloc] initWithPasteboardWriter:file_url];
   if (icon) {
     NSImage* file_image = icon->ToNSImage();
     NSSize image_size = file_image.size;

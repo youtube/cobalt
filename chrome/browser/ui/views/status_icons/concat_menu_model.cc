@@ -9,8 +9,8 @@ ConcatMenuModel::ConcatMenuModel(ui::MenuModel* m1, ui::MenuModel* m2)
 
 ConcatMenuModel::~ConcatMenuModel() = default;
 
-bool ConcatMenuModel::HasIcons() const {
-  return m1_->HasIcons() || m2_->HasIcons();
+base::WeakPtr<ui::MenuModel> ConcatMenuModel::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 size_t ConcatMenuModel::GetItemCount() const {
@@ -99,8 +99,9 @@ void ConcatMenuModel::MenuWillClose() {
 
 ui::MenuModel* ConcatMenuModel::GetMenuAndIndex(size_t* index) const {
   size_t m1_count = m1_->GetItemCount();
-  if (*index < m1_count)
+  if (*index < m1_count) {
     return m1_;
+  }
 
   *index -= m1_count;
   DCHECK_LT(*index, m2_->GetItemCount());

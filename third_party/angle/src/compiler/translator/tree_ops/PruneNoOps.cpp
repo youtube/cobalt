@@ -3,14 +3,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// PruneNoOps.cpp: The PruneNoOps function prunes:
-//   1. Empty declarations "int;". Empty declarators will be pruned as well, so for example:
-//        int , a;
-//      is turned into
-//        int a;
-//   2. Literal statements: "1.0;". The ESSL output doesn't define a default precision for float,
-//      so float literal statements would end up with no precision which is invalid ESSL.
-//   3. Statements after discard, return, break and continue.
+// PruneNoOps.cpp: The PruneNoOps function prunes no-op statements.
 
 #include "compiler/translator/tree_ops/PruneNoOps.h"
 
@@ -22,12 +15,78 @@ namespace sh
 
 namespace
 {
+uint32_t GetSwitchConstantAsUInt(const TConstantUnion *value)
+{
+    TConstantUnion asUInt;
+    if (value->getType() == EbtYuvCscStandardEXT)
+    {
+        asUInt.setUConst(value->getYuvCscStandardEXTConst());
+    }
+    else
+    {
+        bool valid = asUInt.cast(EbtUInt, *value);
+        ASSERT(valid);
+    }
+    return asUInt.getUConst();
+}
+
+bool IsNoOpSwitch(TIntermSwitch *node)
+{
+    if (node == nullptr)
+    {
+        return false;
+    }
+
+    TIntermConstantUnion *expr = node->getInit()->getAsConstantUnion();
+    if (expr == nullptr)
+    {
+        return false;
+    }
+
+    const uint32_t exprValue = GetSwitchConstantAsUInt(expr->getConstantValue());
+
+    // See if any block matches the constant value
+    const TIntermSequence &statements = *node->getStatementList()->getSequence();
+
+    for (TIntermNode *statement : statements)
+    {
+        TIntermCase *caseLabel = statement->getAsCaseNode();
+        if (caseLabel == nullptr)
+        {
+            continue;
+        }
+
+        // Default matches everything, consider it not a no-op.
+        if (!caseLabel->hasCondition())
+        {
+            return false;
+        }
+
+        TIntermConstantUnion *condition = caseLabel->getCondition()->getAsConstantUnion();
+        ASSERT(condition != nullptr);
+
+        // If any case matches the value, it's not a no-op.
+        const uint32_t caseValue = GetSwitchConstantAsUInt(condition->getConstantValue());
+        if (caseValue == exprValue)
+        {
+            return false;
+        }
+    }
+
+    // No case matched the constant value the switch was used on, so the entire switch is a no-op.
+    return true;
+}
 
 bool IsNoOp(TIntermNode *node)
 {
     bool isEmptyDeclaration = node->getAsDeclarationNode() != nullptr &&
                               node->getAsDeclarationNode()->getSequence()->empty();
     if (isEmptyDeclaration)
+    {
+        return true;
+    }
+
+    if (IsNoOpSwitch(node->getAsSwitchNode()))
     {
         return true;
     }
@@ -53,6 +112,7 @@ class PruneNoOpsTraverser : private TIntermTraverser
     bool visitBlock(Visit visit, TIntermBlock *node) override;
     bool visitLoop(Visit visit, TIntermLoop *loop) override;
     bool visitBranch(Visit visit, TIntermBranch *node) override;
+    TIntermTyped *pruneNoOpCommaExpressions(TIntermTyped *statement);
 
     bool mIsBranchVisited = false;
 };
@@ -162,6 +222,22 @@ bool PruneNoOpsTraverser::visitBlock(Visit visit, TIntermBlock *node)
             continue;
         }
 
+        // If the statement is a series of expressions delimited by comma, the resulting value is
+        // not used (because this is a block-level statement).  Prune the no-op statements, and put
+        // the ones with side effect back together with comma.
+        if (statement->getAsBinaryNode() != nullptr)
+        {
+            statement = pruneNoOpCommaExpressions(statement->getAsBinaryNode());
+            if (statement == nullptr)
+            {
+                TIntermSequence emptyReplacement;
+                mMultiReplacements.emplace_back(node, statement, std::move(emptyReplacement));
+                continue;
+            }
+
+            statements[statementIndex] = statement;
+        }
+
         // Visit the statement if not pruned.
         statement->traverse(this);
     }
@@ -175,6 +251,40 @@ bool PruneNoOpsTraverser::visitBlock(Visit visit, TIntermBlock *node)
     }
 
     return false;
+}
+
+TIntermTyped *PruneNoOpsTraverser::pruneNoOpCommaExpressions(TIntermTyped *statement)
+{
+    TIntermBinary *commaSeparatedExpressions = statement->getAsBinaryNode();
+    if (commaSeparatedExpressions == nullptr || commaSeparatedExpressions->getOp() != EOpComma)
+    {
+        return statement;
+    }
+
+    TIntermTyped *left  = commaSeparatedExpressions->getLeft();
+    TIntermTyped *right = commaSeparatedExpressions->getRight();
+
+    TIntermTyped *prunedLeft  = IsNoOp(left) ? nullptr : pruneNoOpCommaExpressions(left);
+    TIntermTyped *prunedRight = IsNoOp(right) ? nullptr : pruneNoOpCommaExpressions(right);
+
+    if (left == prunedLeft && right == prunedRight)
+    {
+        // Nothing got pruned.
+        return statement;
+    }
+
+    // If either side is pruned, return the other side.  Automatically returns nullptr if both sides
+    // are pruned.
+    if (prunedRight == nullptr)
+    {
+        return prunedLeft;
+    }
+    if (prunedLeft == nullptr)
+    {
+        return prunedRight;
+    }
+
+    return new TIntermBinary(EOpComma, prunedLeft, prunedRight);
 }
 
 bool PruneNoOpsTraverser::visitLoop(Visit visit, TIntermLoop *loop)

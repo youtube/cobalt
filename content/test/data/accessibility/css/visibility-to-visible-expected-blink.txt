@@ -7,5 +7,10 @@ rootWebArea
 ++++++++genericContainer
 ++++++++++checkBox name='checkbox' checkedState=false
 ++++++++genericContainer
-++++++++++staticText name='done'
-++++++++++++inlineTextBox name='done'
+++++++++++code
+++++++++++++staticText name='done'
+++++++++++++++inlineTextBox name='done'
+++++++group
+++++++++mark
+++++++++++staticText name='text'
+++++++++++++inlineTextBox name='text'

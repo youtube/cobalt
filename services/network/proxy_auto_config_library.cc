@@ -68,8 +68,6 @@ void MyIpAddressImpl::DoLoop() {
     switch (state) {
       case State::kNone:
         NOTREACHED() << "bad state";
-        rv = net::ERR_FAILED;
-        break;
       case State::kConnectSocketsPublicInternetRoutes:
         rv = DoConnectSocketsPublicInternetRoutes();
         break;

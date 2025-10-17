@@ -41,6 +41,16 @@ def build_test_result(driver_output, test_name, failures=None, **kwargs):
     failures = failures or []
     if not failures and driver_output.error:
         failures.append(test_failures.PassWithStderr(driver_output))
+    if driver_output.trace_file:
+        failures.append(
+            test_failures.TraceFileArtifact(driver_output,
+                                            driver_output.trace_file,
+                                            '-trace'))
+    if driver_output.startup_trace_file:
+        failures.append(
+            test_failures.TraceFileArtifact(driver_output,
+                                            driver_output.startup_trace_file,
+                                            '-startup-trace'))
     kwargs.setdefault('command', driver_output.command)
     kwargs.setdefault('image_diff_stats', driver_output.image_diff_stats)
     kwargs.setdefault('test_type', driver_output.test_type)
@@ -56,6 +66,7 @@ class TestResult(object):
                  test_name,
                  retry_attempt=0,
                  failures=None,
+                 expected=frozenset([ResultType.Pass]),
                  test_run_time=None,
                  reftest_type=None,
                  pid=None,
@@ -82,7 +93,10 @@ class TestResult(object):
         self.image_diff_stats = image_diff_stats
         self.test_type = test_type or set()
 
-        results = set([f.result for f in self.failures] or [ResultType.Pass])
+        results = set([
+            f.result
+            for f in self.failures if f.result != test_failures.IGNORE_RESULT
+        ] or [ResultType.Pass])
         assert len(results) <= 2, (
             'single_test_runner.py incorrectly reported results %s for test %s'
             % (', '.join(results), test_name))
@@ -124,6 +138,13 @@ class TestResult(object):
                                    retry_attempt,
                                    ARTIFACTS_SUB_DIR,
                                    repeat_tests=self.repeat_tests)
+        # Default can be overwritten by the `WebTestRunner` (i.e., manager
+        # process).
+        self.expected = expected
+
+    @property
+    def is_expected(self) -> bool:
+        return self.type in self.expected
 
     @property
     def actual_image_hash(self) -> Optional[str]:

@@ -5,8 +5,10 @@
 #ifndef PRINTING_BACKEND_PRINT_BACKEND_UTILS_H_
 #define PRINTING_BACKEND_PRINT_BACKEND_UTILS_H_
 
+#include <string>
+#include <string_view>
+
 #include "base/component_export.h"
-#include "base/strings/string_piece.h"
 #include "printing/buildflags/buildflags.h"
 
 #if BUILDFLAG(USE_CUPS)
@@ -30,21 +32,43 @@ enum class Unit {
 // name nor the dimension, or if `value` contains a prefix of
 // media sizes not meant for users' eyes.
 COMPONENT_EXPORT(PRINT_BACKEND)
-gfx::Size ParsePaperSize(base::StringPiece value);
+gfx::Size ParsePaperSize(std::string_view value);
 
 #if BUILDFLAG(USE_CUPS)
-// Parses the media name expressed by `value` into a Paper. Returns an
-// empty Paper if `value` does not contain the display name nor the dimension,
-// `value` contains a prefix of media sizes not meant for users' eyes, or if the
-// paper size is empty.
-// `margins` is used to calculate the Paper's printable area.
-// We don't handle l10n here. We do populate the display_name member with the
-// prettified vendor ID, but fully expect the caller to clobber this if a better
-// localization exists.
+// Helper functions to resolve display name, this is used on
+// multiple places to encapsulate differences in CUPS implementations on
+// various platforms.
 COMPONENT_EXPORT(PRINT_BACKEND)
-PrinterSemanticCapsAndDefaults::Paper ParsePaper(
-    base::StringPiece value,
-    const CupsPrinter::CupsMediaMargins& margins);
+std::string GetDisplayName(const std::string& printer_name,
+                           std::string_view info);
+
+// Helper functions to resolve printer description, this is used on
+// multiple places to encapsulate differences in CUPS implementations on
+// various platforms.
+COMPONENT_EXPORT(PRINT_BACKEND)
+std::string_view GetPrinterDescription(std::string_view drv_info,
+                                       std::string_view info);
+
+// Calculates a paper's printable area in microns from its size in microns and
+// its four margins in PWG units.
+COMPONENT_EXPORT(PRINT_BACKEND)
+gfx::Rect PrintableAreaFromSizeAndPwgMargins(const gfx::Size& size_um,
+                                             int bottom_pwg,
+                                             int left_pwg,
+                                             int right_pwg,
+                                             int top_pwg);
+
+// Calculates a paper's four margins in PWG units from its size and printable
+// area in microns. Since the size and printable area were converted from PWG
+// units in the first place, the margins in PWG units can be reconstructed
+// losslessly.
+COMPONENT_EXPORT(PRINT_BACKEND)
+void PwgMarginsFromSizeAndPrintableArea(const gfx::Size& size_um,
+                                        const gfx::Rect& printable_area_um,
+                                        int* bottom_pwg,
+                                        int* left_pwg,
+                                        int* right_pwg,
+                                        int* top_pwg);
 #endif  // BUILDFLAG(USE_CUPS)
 
 }  // namespace printing

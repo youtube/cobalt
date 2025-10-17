@@ -7,12 +7,9 @@ package org.chromium.native_test;
 import android.app.NativeActivity;
 import android.os.Bundle;
 
-/**
- * A {@link android.app.NativeActivity} for running native unit tests.
- * (i.e., not browser tests)
- */
+/** A {@link android.app.NativeActivity} for running native unit tests. (i.e., not browser tests) */
 public class NativeUnitTestNativeActivity extends NativeActivity {
-    private NativeUnitTest mTest = new NativeUnitTest();
+    private final NativeUnitTest mTest = new NativeUnitTest();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -24,9 +21,8 @@ public class NativeUnitTestNativeActivity extends NativeActivity {
     @Override
     public void onStart() {
         super.onStart();
-        // Force running in sub thread,
-        // since NativeActivity processes Looper messages in native code,
-        // which makes invoking the test runner Handler problematic.
+        // Force running in sub thread, since NativeActivity processes Looper messages in native
+        // code, which makes invoking the test runner Handler problematic.
         mTest.postStart(this, true);
     }
 }

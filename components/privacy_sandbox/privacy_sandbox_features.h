@@ -5,6 +5,7 @@
 #include "base/component_export.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "build/build_config.h"
 
 #ifndef COMPONENTS_PRIVACY_SANDBOX_PRIVACY_SANDBOX_FEATURES_H_
 #define COMPONENTS_PRIVACY_SANDBOX_PRIVACY_SANDBOX_FEATURES_H_
@@ -14,6 +15,17 @@ namespace privacy_sandbox {
 // Enables the fourth release of the Privacy Sandbox settings.
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 BASE_DECLARE_FEATURE(kPrivacySandboxSettings4);
+
+#if BUILDFLAG(IS_ANDROID)
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxAdsNoticeCCT);
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const char kPrivacySandboxAdsNoticeCCTAppIdName[];
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<std::string> kPrivacySandboxAdsNoticeCCTAppId;
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // Split out name definitions since about_flags otherwise complains about the
 // features having static initializers. Not sure if there is a better solution
@@ -34,8 +46,6 @@ extern const char kPrivacySandboxSettings4ForceShowNoticeEeaForTestingName[];
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 extern const char
     kPrivacySandboxSettings4ForceShowNoticeRestrictedForTestingName[];
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const char kPrivacySandboxSettings4ForceRestrictedUserForTestingName[];
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 extern const char kPrivacySandboxSettings4ShowSampleDataForTestingName[];
 
@@ -72,44 +82,13 @@ extern const base::FeatureParam<bool>
     kPrivacySandboxSettings4ForceShowNoticeRestrictedForTesting;
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 extern const base::FeatureParam<bool>
-    kPrivacySandboxSettings4ForceRestrictedUserForTesting;
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const base::FeatureParam<bool>
     kPrivacySandboxSettings4ShowSampleDataForTesting;
 
-// Enables the third release of the Privacy Sandbox settings.
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-BASE_DECLARE_FEATURE(kPrivacySandboxSettings3);
-// When true, the user will be shown a consent to enable the Privacy Sandbox
-// release 3, if they accept the APIs will become active. Only one of this and
-// the below notice feature should be enabled at any one time.
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const base::FeatureParam<bool> kPrivacySandboxSettings3ConsentRequired;
-// When true, the user will be shown a notice, after which the Privacy Sandbox
-// 3 APIs will become active. Only one of this and the above consent feature
-// should be enabled at any one time.
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const base::FeatureParam<bool> kPrivacySandboxSettings3NoticeRequired;
-
-// Feature parameters which should exclusively be used for testing purposes.
-// Enabling any of these parameters may result in the Privacy Sandbox prefs
-// (unsynced) entering an unexpected state, requiring profile deletion to
-// resolve.
+// When true, suppress any Privacy Sandbox dialog if Chrome is launched
+// from an external app.
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 extern const base::FeatureParam<bool>
-    kPrivacySandboxSettings3ForceShowConsentForTesting;
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const base::FeatureParam<bool>
-    kPrivacySandboxSettings3ForceShowNoticeForTesting;
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const base::FeatureParam<bool>
-    kPrivacySandboxSettings3ShowSampleDataForTesting;
-// This parameter will suppress all Privacy Sandbox prompts, but is supersceeded
-// by the kDisablePrivacySandboxPrompts feature below, and will be removed when
-// the PrivacySandboxSettings3 feature is fully launched & solidified.
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const base::FeatureParam<bool>
-    kPrivacySandboxSettings3DisablePromptForTesting;
+    kPrivacySandboxSettings4SuppressDialogForExternalAppLaunches;
 
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 BASE_DECLARE_FEATURE(kOverridePrivacySandboxSettingsLocalTesting);
@@ -120,14 +99,206 @@ BASE_DECLARE_FEATURE(kOverridePrivacySandboxSettingsLocalTesting);
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 BASE_DECLARE_FEATURE(kDisablePrivacySandboxPrompts);
 
-// Enables the First Party Sets UI.
+// Enables enforcement of Privacy Sandbox Enrollment/Attestations.
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-BASE_DECLARE_FEATURE(kPrivacySandboxFirstPartySetsUI);
+BASE_DECLARE_FEATURE(kEnforcePrivacySandboxAttestations);
 
-// Populates First Party Sets information with sample membership information,
-// for testing purposes only.
+// Enable the Privacy Sandbox Attestations to default allow when the
+// attestations map is absent.
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const base::FeatureParam<bool> kPrivacySandboxFirstPartySetsUISampleSets;
+BASE_DECLARE_FEATURE(kDefaultAllowPrivacySandboxAttestations);
+
+// Gives a list of sites permission to use Privacy Sandbox features without
+// being officially enrolled.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const char kPrivacySandboxEnrollmentOverrides[];
+
+#if BUILDFLAG(IS_ANDROID)
+// Allow the Privacy Sandbox Attestations component to load the pre-installed
+// attestation list from Android APK assets.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxAttestationsLoadFromAPKAsset);
+#endif
+
+// Enables attribution reporting transitional debug reporting for the cookie
+// deprecation experiment.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kAttributionDebugReportingCookieDeprecationTesting);
+
+// Enables Private Aggregation debug reporting to be enabled during the
+// third-party cookie deprecation experiment.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivateAggregationDebugReportingCookieDeprecationTesting);
+
+// Prevents site-level exceptions from permitting Private Aggregation debug
+// reporting if third-party cookies are generally blocked.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivateAggregationDebugReportingIgnoreSiteExceptions);
+
+// Enables chrome://privacy-sandbox-internals DevUI page.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxInternalsDevUI);
+
+// Enables chrome://privacy-sandbox-internals/related-website-internals DevUI
+// page. Relies on PrivacySandboxInternalsDevUI also being enabled.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kRelatedWebsiteSetsDevUI);
+
+// Privacy UX features start
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kAlwaysBlock3pcsIncognito);
+
+// Enables fingerprinting protection setting UX.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kFingerprintingProtectionUx);
+
+// Enables showing IP Protection toggle on the settings page.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kIpProtectionUx);
+
+// Enables displaying ACT features in User Bypass.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kActUserBypassUx);
+
+// Enables TRACKING_PROTECTION content settings to control 3pcb.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kTrackingProtectionContentSettingFor3pcb);
+
+// Enables showing new RWS UI.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxRelatedWebsiteSetsUi);
+
+// Privacy UX features end
+
+#if BUILDFLAG(IS_ANDROID)
+// Enables UserBypass logic for Progressive Web Apps on Android
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kTrackingProtectionUserBypassPwa);
+
+// Triggers UserBypass logic for Progressive Web Apps on Android
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kTrackingProtectionUserBypassPwaTrigger);
+
+// Enables wildcard display on the Clank content settings UI.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kDisplayWildcardInContentSettings);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+// Enables the notice storage for pref storage.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPsDualWritePrefsToNoticeStorage);
+
+// Enables Activity Type Storage
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxActivityTypeStorage);
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const char kPrivacySandboxActivityTypeStorageLastNLaunchesName[];
+
+// Enables chrome://privacy-sandbox-internals/private-state-tokens DevUI
+// page. Relies on PrivacySandboxInternalsDevUI also being enabled.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivateStateTokensDevUI);
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<int>
+    kPrivacySandboxActivityTypeStorageLastNLaunches;
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const char kPrivacySandboxActivityTypeStorageWithinXDaysName[];
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<int>
+    kPrivacySandboxActivityTypeStorageWithinXDays;
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<bool>
+    kPrivacySandboxActivityTypeStorageSkipPreFirstTab;
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxAdTopicsContentParity);
+
+// If true, adds the privacy sandbox notice to product messaging controller
+// queue.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxNoticeQueue);
+
+// Enables the `Always on` sentiment survey
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxSentimentSurvey);
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<std::string>
+    kPrivacySandboxSentimentSurveyTriggerId;
+
+#if BUILDFLAG(IS_ANDROID)
+// Enables the Ads notice survey on CCT.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxCctAdsNoticeSurvey);
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<std::string>
+    kPrivacySandboxCctAdsNoticeSurveyControlEeaTriggerId;
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<std::string>
+    kPrivacySandboxCctAdsNoticeSurveyAcceptedEeaTriggerId;
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<std::string>
+    kPrivacySandboxCctAdsNoticeSurveyDeclinedEeaTriggerId;
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<std::string>
+    kPrivacySandboxCctAdsNoticeSurveyControlRowTriggerId;
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<std::string>
+    kPrivacySandboxCctAdsNoticeSurveyAcknowledgedRowTriggerId;
+
+// Used to set the probability rate for the `Accepted EEA` survey.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<double>
+    kPrivacySandboxCctAdsNoticeSurveyAcceptedConsentTriggerRate;
+
+// Used to set the probability rate for the `Declined EEA` survey.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<double>
+    kPrivacySandboxCctAdsNoticeSurveyDeclineConsentTriggerRate;
+
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<std::string>
+    kPrivacySandboxCctAdsNoticeSurveyAppId;
+
+// The delay in milliseconds from ads notice close to the attempt to surface a
+// survey.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<int>
+    kPrivacySandboxCctAdsNoticeSurveyDelaysMilliseconds;
+
+// The delay in milliseconds between the first click and the next accepted
+// click.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+extern const base::FeatureParam<int> kPrivacySandboxDebouncingDelayMilliseconds;
+
+#endif  // BUILDFLAG(IS_ANDROID)
+
+// If true, displays the Ads APIs UX Enancements.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxAdsApiUxEnhancements);
+
+// If true, will not block prompt when third party cookies are blocked.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxAllowPromptForBlocked3PCookies);
+
+// If true, migrates Privacy Sandbox Notice & Consent prefs to V2.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxMigratePrefsToSchemaV2);
+
+// If true, enable showing notices through the notice framework.
+COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
+BASE_DECLARE_FEATURE(kPrivacySandboxNoticeFramework);
 
 }  // namespace privacy_sandbox
 

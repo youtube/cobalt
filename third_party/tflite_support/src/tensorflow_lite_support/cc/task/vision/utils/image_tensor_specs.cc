@@ -14,9 +14,13 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow_lite_support/cc/task/vision/utils/image_tensor_specs.h"
 
+#include <cstdint>
+
+#include "absl/algorithm/container.h"  // from @com_google_absl
 #include "absl/status/status.h"  // from @com_google_absl
+#include "absl/strings/str_cat.h"  // from @com_google_absl
+#include "absl/types/optional.h"  // from @com_google_absl
 #include "tensorflow_lite_support/cc/common.h"
-#include "tensorflow_lite_support/cc/port/integral_types.h"
 #include "tensorflow_lite_support/cc/port/status_macros.h"
 #include "tensorflow_lite_support/cc/port/statusor.h"
 #include "tensorflow_lite_support/cc/task/core/tflite_engine.h"
@@ -87,7 +91,7 @@ StatusOr<const ImageProperties*> GetImagePropertiesIfAny(
 
 StatusOr<absl::optional<NormalizationOptions>> GetNormalizationOptionsIfAny(
     const TensorMetadata& tensor_metadata) {
-  ASSIGN_OR_RETURN(
+  TFLITE_ASSIGN_OR_RETURN(
       const tflite::ProcessUnit* normalization_process_unit,
       ModelMetadataExtractor::FindFirstProcessUnit(
           tensor_metadata, tflite::ProcessUnitOptions_NormalizationOptions));
@@ -137,14 +141,14 @@ StatusOr<absl::optional<NormalizationOptions>> GetNormalizationOptionsIfAny(
 StatusOr<ImageTensorSpecs> BuildInputImageTensorSpecs(
     const TfLiteEngine::Interpreter& interpreter,
     const tflite::metadata::ModelMetadataExtractor& metadata_extractor) {
-  ASSIGN_OR_RETURN(const TensorMetadata* metadata,
+  TFLITE_ASSIGN_OR_RETURN(const TensorMetadata* metadata,
                    GetInputTensorMetadataIfAny(metadata_extractor));
 
   const ImageProperties* props = nullptr;
   absl::optional<NormalizationOptions> normalization_options;
   if (metadata != nullptr) {
-    ASSIGN_OR_RETURN(props, GetImagePropertiesIfAny(*metadata));
-    ASSIGN_OR_RETURN(normalization_options,
+    TFLITE_ASSIGN_OR_RETURN(props, GetImagePropertiesIfAny(*metadata));
+    TFLITE_ASSIGN_OR_RETURN(normalization_options,
                      GetNormalizationOptionsIfAny(*metadata));
   }
 
@@ -197,7 +201,7 @@ StatusOr<ImageTensorSpecs> BuildInputImageTensorSpecs(
   }
   int bytes_size = input_tensor->bytes;
   size_t byte_depth =
-      input_type == kTfLiteFloat32 ? sizeof(float) : sizeof(uint8);
+      input_type == kTfLiteFloat32 ? sizeof(float) : sizeof(uint8_t);
 
   // Sanity checks.
   if (input_type == kTfLiteFloat32) {

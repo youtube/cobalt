@@ -6,10 +6,6 @@
 
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 const CGFloat kSymbolActionPointSize = 18;
 
 const CGFloat kColorfulBackgroundSymbolCornerRadius = 7;
@@ -25,6 +21,14 @@ const CGFloat kSettingsRootSymbolImagePointSize = 18;
 
 const CGFloat kCloudSlashSymbolPointSize = 20;
 
+UIColor* LargeIncognitoBackgroundColor() {
+  return [UIColor colorNamed:kGrey700Color];
+}
+
+UIColor* LargeIncognitoForegroundColor() {
+  return [UIColor colorNamed:kGrey100Color];
+}
+
 NSArray<UIColor*>* SmallIncognitoPalette() {
   return @[
     [UIColor colorNamed:kGrey400Color], [UIColor colorNamed:kGrey100Color]
@@ -32,9 +36,7 @@ NSArray<UIColor*>* SmallIncognitoPalette() {
 }
 
 NSArray<UIColor*>* LargeIncognitoPalette() {
-  return @[
-    [UIColor colorNamed:kGrey100Color], [UIColor colorNamed:kGrey700Color]
-  ];
+  return @[ LargeIncognitoForegroundColor(), LargeIncognitoBackgroundColor() ];
 }
 
 UIColor* CloudSlashTintColor() {

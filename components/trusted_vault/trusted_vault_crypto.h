@@ -5,11 +5,12 @@
 #ifndef COMPONENTS_TRUSTED_VAULT_TRUSTED_VAULT_CRYPTO_H_
 #define COMPONENTS_TRUSTED_VAULT_TRUSTED_VAULT_CRYPTO_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/containers/span.h"
 #include "components/trusted_vault/securebox.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "crypto/hash.h"
 
 namespace trusted_vault {
 
@@ -17,8 +18,8 @@ class SecureBoxPrivateKey;
 class SecureBoxPublicKey;
 
 // Decrypts |wrapped_key| using securebox. Returns decrypted key if successful
-// and absl::nullopt otherwise.
-absl::optional<std::vector<uint8_t>> DecryptTrustedVaultWrappedKey(
+// and std::nullopt otherwise.
+std::optional<std::vector<uint8_t>> DecryptTrustedVaultWrappedKey(
     const SecureBoxPrivateKey& private_key,
     base::span<const uint8_t> wrapped_key);
 
@@ -28,14 +29,14 @@ std::vector<uint8_t> ComputeTrustedVaultWrappedKey(
     base::span<const uint8_t> trusted_vault_key);
 
 // Signs |key| with |trusted_vault_key| using HMAC-SHA-256.
-std::vector<uint8_t> ComputeMemberProof(
+std::array<uint8_t, crypto::hash::kSha256Size> ComputeMemberProof(
     const SecureBoxPublicKey& key,
-    const std::vector<uint8_t>& trusted_vault_key);
+    base::span<const uint8_t> trusted_vault_key);
 
 // Returns whether |member_proof| is |key| signed with |trusted_vault_key|.
 bool VerifyMemberProof(const SecureBoxPublicKey& key,
-                       const std::vector<uint8_t>& trusted_vault_key,
-                       const std::vector<uint8_t>& member_proof);
+                       base::span<const uint8_t> trusted_vault_key,
+                       base::span<const uint8_t> member_proof);
 
 // Signs |trusted_vault_key| with |prev_trusted_vault_key| using SecureBox
 // symmetric encryption.

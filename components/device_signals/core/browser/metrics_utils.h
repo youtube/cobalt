@@ -5,8 +5,9 @@
 #ifndef COMPONENTS_DEVICE_SIGNALS_CORE_BROWSER_METRICS_UTILS_H_
 #define COMPONENTS_DEVICE_SIGNALS_CORE_BROWSER_METRICS_UTILS_H_
 
+#include <optional>
+
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace device_signals {
 
@@ -32,6 +33,9 @@ void LogUserPermissionChecked(UserPermission permission);
 // Records that a request to collect `signal_name` was received.
 void LogSignalCollectionRequested(SignalName signal_name);
 
+// Records that a request to collect `number_of_signals` was received.
+void LogSignalsCountRequested(size_t number_of_signals);
+
 // Records that a request to collect the parameterized signal named
 // `signal_name` was received with `number_of_items` parameters.
 void LogSignalCollectionRequestedWithItems(SignalName signal_name,
@@ -54,8 +58,8 @@ void LogSignalCollectionFailed(SignalName signal_name,
 void LogSignalCollectionSucceeded(
     SignalName signal_name,
     base::TimeTicks start_time,
-    absl::optional<size_t> signal_collection_size,
-    absl::optional<size_t> signal_request_size = absl::nullopt);
+    std::optional<size_t> signal_collection_size,
+    std::optional<size_t> signal_request_size = std::nullopt);
 
 // Records that an error occurred when trying to parse signals from the
 // CrowdStrike data.zta file.

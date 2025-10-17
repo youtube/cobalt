@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "content/browser/permissions/permission_util.h"
+
 #include "base/test/scoped_feature_list.h"
+#include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/test/test_browser_context.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
@@ -58,20 +60,17 @@ TEST_F(PermissionUtilTest, TestInvalidDomainOverrideFeatureDisabled) {
       {}, nullptr, blink::mojom::PermissionDescriptor::New()));
 }
 TEST_F(PermissionUtilTest, TestInvalidDomainOverrideMultiRequest) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      blink::features::kStorageAccessAPIForOriginExtension);
+  std::vector<blink::mojom::PermissionDescriptorPtr> descriptors;
+  descriptors.emplace_back(
+      PermissionDescriptorUtil::CreatePermissionDescriptorForPermissionType(
+          blink::PermissionType::STORAGE_ACCESS_GRANT));
+  descriptors.emplace_back(descriptors.front()->Clone());
 
   EXPECT_FALSE(PermissionUtil::ValidateDomainOverride(
-      {blink::PermissionType::STORAGE_ACCESS_GRANT,
-       blink::PermissionType::STORAGE_ACCESS_GRANT},
-      nullptr, blink::mojom::PermissionDescriptor::New()));
+      descriptors, nullptr, blink::mojom::PermissionDescriptor::New()));
 }
 TEST_F(PermissionUtilTest, TestInvalidDomainOverrideNullRfh) {
   content::BrowserTaskEnvironment task_environment;
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      blink::features::kStorageAccessAPIForOriginExtension);
 
   TestBrowserContext browser_context;
   RenderViewHostTestEnabler enabler;
@@ -83,16 +82,17 @@ TEST_F(PermissionUtilTest, TestInvalidDomainOverrideNullRfh) {
       WebContentsTester::For(web_contents.get());
   web_contents_tester->NavigateAndCommit(GURL("https://example.xyz"));
 
+  std::vector<blink::mojom::PermissionDescriptorPtr> descriptors;
+  descriptors.emplace_back(
+      PermissionDescriptorUtil::CreatePermissionDescriptorForPermissionType(
+          blink::PermissionType::STORAGE_ACCESS_GRANT));
+
   EXPECT_FALSE(PermissionUtil::ValidateDomainOverride(
-      {blink::PermissionType::STORAGE_ACCESS_GRANT}, nullptr,
-      blink::mojom::PermissionDescriptor::New()));
+      descriptors, nullptr, blink::mojom::PermissionDescriptor::New()));
 }
 
 TEST_F(PermissionUtilTest, TestValidDomainOverride) {
   content::BrowserTaskEnvironment task_environment;
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      blink::features::kStorageAccessAPIForOriginExtension);
 
   TestBrowserContext browser_context;
   RenderViewHostTestEnabler enabler;
@@ -115,16 +115,17 @@ TEST_F(PermissionUtilTest, TestValidDomainOverride) {
       blink::mojom::PermissionDescriptorExtension::NewTopLevelStorageAccess(
           std::move(top_level_storage_access_extension));
 
+  std::vector<blink::mojom::PermissionDescriptorPtr> descriptors;
+  descriptors.emplace_back(
+      PermissionDescriptorUtil::CreatePermissionDescriptorForPermissionType(
+          blink::PermissionType::STORAGE_ACCESS_GRANT));
+
   EXPECT_TRUE(PermissionUtil::ValidateDomainOverride(
-      {blink::PermissionType::STORAGE_ACCESS_GRANT},
-      web_contents->GetPrimaryMainFrame(), descriptor));
+      descriptors, web_contents->GetPrimaryMainFrame(), descriptor));
 }
 
 TEST_F(PermissionUtilTest, TestSameOriginInvalidDomainOverride) {
   content::BrowserTaskEnvironment task_environment;
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      blink::features::kStorageAccessAPIForOriginExtension);
 
   TestBrowserContext browser_context;
   RenderViewHostTestEnabler enabler;
@@ -146,8 +147,11 @@ TEST_F(PermissionUtilTest, TestSameOriginInvalidDomainOverride) {
       blink::mojom::PermissionDescriptorExtension::NewTopLevelStorageAccess(
           std::move(top_level_storage_access_extension));
 
+  std::vector<blink::mojom::PermissionDescriptorPtr> descriptors;
+  descriptors.emplace_back(
+      PermissionDescriptorUtil::CreatePermissionDescriptorForPermissionType(
+          blink::PermissionType::STORAGE_ACCESS_GRANT));
   EXPECT_FALSE(PermissionUtil::ValidateDomainOverride(
-      {blink::PermissionType::STORAGE_ACCESS_GRANT},
-      web_contents->GetPrimaryMainFrame(), descriptor));
+      descriptors, web_contents->GetPrimaryMainFrame(), descriptor));
 }
 }  // namespace content

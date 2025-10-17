@@ -9,9 +9,9 @@
 #include <memory>
 
 #include "absl/base/attributes.h"
+#include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
-#include "quiche/quic/core/quic_udp_socket.h"
 
 namespace quic {
 
@@ -24,11 +24,11 @@ inline constexpr QuicSocketEventMask kSocketEventError = 0x04;
 class QuicEventLoop;
 
 // A listener associated with a file descriptor.
-class QUICHE_NO_EXPORT QuicSocketEventListener {
+class QuicSocketEventListener {
  public:
   virtual ~QuicSocketEventListener() = default;
 
-  virtual void OnSocketEvent(QuicEventLoop* event_loop, QuicUdpSocketFd fd,
+  virtual void OnSocketEvent(QuicEventLoop* event_loop, SocketFd fd,
                              QuicSocketEventMask events) = 0;
 };
 
@@ -38,7 +38,7 @@ class QUICHE_NO_EXPORT QuicSocketEventListener {
 // Note on error handling: while most of the methods below return a boolean to
 // indicate whether the operation has succeeded or not, some will QUIC_BUG
 // instead.
-class QUICHE_NO_EXPORT QuicEventLoop {
+class QuicEventLoop {
  public:
   virtual ~QuicEventLoop() = default;
 
@@ -53,20 +53,20 @@ class QUICHE_NO_EXPORT QuicEventLoop {
   // if it is, the function returns false.  The |listener| must be alive for as
   // long as it is registered.
   virtual ABSL_MUST_USE_RESULT bool RegisterSocket(
-      QuicUdpSocketFd fd, QuicSocketEventMask events,
+      SocketFd fd, QuicSocketEventMask events,
       QuicSocketEventListener* listener) = 0;
   // Removes the listener associated with |fd|.  Returns false if the listener
   // is not found.
-  virtual ABSL_MUST_USE_RESULT bool UnregisterSocket(QuicUdpSocketFd fd) = 0;
+  virtual ABSL_MUST_USE_RESULT bool UnregisterSocket(SocketFd fd) = 0;
   // Adds |events| to the list of the listened events for |fd|, given that |fd|
   // is already registered.  Must be only called if SupportsEdgeTriggered() is
   // false.
-  virtual ABSL_MUST_USE_RESULT bool RearmSocket(QuicUdpSocketFd fd,
+  virtual ABSL_MUST_USE_RESULT bool RearmSocket(SocketFd fd,
                                                 QuicSocketEventMask events) = 0;
   // Causes the |fd| to be notified of |events| on the next event loop iteration
   // even if none of the specified events has happened.
   virtual ABSL_MUST_USE_RESULT bool ArtificiallyNotifyEvent(
-      QuicUdpSocketFd fd, QuicSocketEventMask events) = 0;
+      SocketFd fd, QuicSocketEventMask events) = 0;
 
   // Runs a single iteration of the event loop.  The iteration will run for at
   // most |default_timeout|.
@@ -83,7 +83,7 @@ class QUICHE_NO_EXPORT QuicEventLoop {
 
 // A factory object for the event loop. Every implementation is expected to have
 // a static singleton instance.
-class QUICHE_NO_EXPORT QuicEventLoopFactory {
+class QuicEventLoopFactory {
  public:
   virtual ~QuicEventLoopFactory() {}
 

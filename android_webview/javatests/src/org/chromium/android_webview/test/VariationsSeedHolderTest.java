@@ -7,7 +7,7 @@ package org.chromium.android_webview.test;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import static org.chromium.android_webview.test.OnlyRunIn.ProcessMode.SINGLE_PROCESS;
+import static org.chromium.android_webview.test.OnlyRunIn.ProcessMode.EITHER_PROCESS;
 
 import android.os.ParcelFileDescriptor;
 
@@ -35,13 +35,11 @@ import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Test VariationsSeedHolder.
- */
+/** Test VariationsSeedHolder. */
 @RunWith(AwJUnit4ClassRunner.class)
-@OnlyRunIn(SINGLE_PROCESS)
+@OnlyRunIn(EITHER_PROCESS) // These tests don't use the renderer process
 public class VariationsSeedHolderTest {
-    private class TestHolder extends VariationsSeedHolder {
+    private static class TestHolder extends VariationsSeedHolder {
         private final CallbackHelper mWriteFinished; // notified after each writeSeedIfNewer
         private final CallbackHelper mUpdateFinished; // notified after each updateSeed
 
@@ -79,7 +77,7 @@ public class VariationsSeedHolderTest {
 
         public void updateSeedBlocking(SeedInfo newSeed) throws TimeoutException {
             int calls = mUpdateFinished.getCallCount();
-            updateSeed(newSeed, /*onFinished=*/() -> mUpdateFinished.notifyCalled());
+            updateSeed(newSeed, /* onFinished= */ () -> mUpdateFinished.notifyCalled());
             mUpdateFinished.waitForCallback(calls);
         }
     }
@@ -182,6 +180,7 @@ public class VariationsSeedHolderTest {
 
     @Test
     @MediumTest
+    @SuppressWarnings("Finally")
     public void testConcurrentUpdatesAndWrites()
             throws IOException, FileNotFoundException, TimeoutException {
         ArrayList<File> files = new ArrayList<>();
@@ -210,7 +209,7 @@ public class VariationsSeedHolderTest {
                 for (int i = 0; i < mockSeeds.length; i++) {
                     callbacksExpected++;
                     holder.updateSeed(
-                            mockSeeds[i], /*onFinished=*/() -> callbackHelper.notifyCalled());
+                            mockSeeds[i], /* onFinished= */ () -> callbackHelper.notifyCalled());
 
                     // Between each "download", schedule a few (3 chosen arbitrarily) requests for
                     // the seed, creating a new file to receive each request.
@@ -218,8 +217,9 @@ public class VariationsSeedHolderTest {
                         File file = File.createTempFile("seed", null, null);
                         files.add(file);
 
-                        ParcelFileDescriptor fd = ParcelFileDescriptor.open(
-                                file, ParcelFileDescriptor.MODE_WRITE_ONLY);
+                        ParcelFileDescriptor fd =
+                                ParcelFileDescriptor.open(
+                                        file, ParcelFileDescriptor.MODE_WRITE_ONLY);
                         fds.add(fd);
 
                         callbacksExpected++;
@@ -246,8 +246,11 @@ public class VariationsSeedHolderTest {
                             break;
                         }
                     }
-                    Assert.assertTrue("Seed data " + Arrays.toString(readSeed.seedData)
-                                    + " read from seed index " + i
+                    Assert.assertTrue(
+                            "Seed data "
+                                    + Arrays.toString(readSeed.seedData)
+                                    + " read from seed index "
+                                    + i
                                     + " does not match any written data",
                             match);
                 }
@@ -283,7 +286,8 @@ public class VariationsSeedHolderTest {
             Assert.assertFalse("Stamp file already exists", seedFile.exists());
             Assert.assertTrue("Failed to create stamp file", seedFile.createNewFile());
             Assert.assertTrue("Failed to set stamp time", seedFile.setLastModified(startingTime));
-            Assert.assertTrue("Seed fetch should be marked as completed since the "
+            Assert.assertTrue(
+                    "Seed fetch should be marked as completed since the "
                             + "seed timestamp was just updated",
                     VariationsSeedHolder.getInstance().isSeedFileFresh());
         } finally {
@@ -309,7 +313,8 @@ public class VariationsSeedHolderTest {
 
             // With no variations seed recently fetched, the seed fetch completion decision should
             // fall to the timestamp of the seed file.
-            Assert.assertFalse("Seed fetch should not be marked as completed since the "
+            Assert.assertFalse(
+                    "Seed fetch should not be marked as completed since the "
                             + "seed timestamp was set to larger than the ",
                     VariationsSeedHolder.getInstance().isSeedFileFresh());
         } finally {
@@ -338,7 +343,8 @@ public class VariationsSeedHolderTest {
 
             // With no variations seed recently fetched, the seed fetch completion decision should
             // fall to the timestamp of the seed file.
-            Assert.assertFalse("Seed fetch should not be marked as completed since the "
+            Assert.assertFalse(
+                    "Seed fetch should not be marked as completed since the "
                             + "seed timestamp was set to larger than the ",
                     VariationsSeedHolder.getInstance().isSeedFileFresh());
         } finally {

@@ -21,7 +21,6 @@
 #include "services/audio/public/cpp/fake_stream_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/utility/utility.h"
 
 using ::testing::_;
 using ::testing::Test;
@@ -80,9 +79,9 @@ class MockRendererAudioInputStreamFactoryClient
       mojo::PendingRemote<media::mojom::AudioInputStream> input_stream,
       mojo::PendingReceiver<media::mojom::AudioInputStreamClient>
           client_receiver,
-      media::mojom::ReadOnlyAudioDataPipePtr data_pipe,
+      media::mojom::ReadWriteAudioDataPipePtr data_pipe,
       bool initially_muted,
-      const absl::optional<base::UnguessableToken>& stream_id) override {
+      const std::optional<base::UnguessableToken>& stream_id) override {
     // Loopback streams have no stream ids.
     EXPECT_FALSE(stream_id.has_value());
     input_stream_.Bind(std::move(input_stream));
@@ -228,8 +227,7 @@ TEST(AudioLoopbackStreamBrokerTest, StreamCreationSuccess_Propagates) {
   base::SyncSocket socket1, socket2;
   base::SyncSocket::CreatePair(&socket1, &socket2);
   std::move(stream_request_data.created_callback)
-      .Run({absl::in_place,
-            base::ReadOnlySharedMemoryRegion::Create(shmem_size).region,
+      .Run({std::in_place, base::UnsafeSharedMemoryRegion::Create(shmem_size),
             mojo::PlatformHandle(socket1.Take())});
 
   EXPECT_CALL(env.renderer_factory_client, OnStreamCreated());
@@ -258,8 +256,7 @@ TEST(AudioLoopbackStreamBrokerTest, MutedStreamCreation_Mutes) {
   base::SyncSocket socket1, socket2;
   base::SyncSocket::CreatePair(&socket1, &socket2);
   std::move(stream_request_data.created_callback)
-      .Run({absl::in_place,
-            base::ReadOnlySharedMemoryRegion::Create(shmem_size).region,
+      .Run({std::in_place, base::UnsafeSharedMemoryRegion::Create(shmem_size),
             mojo::PlatformHandle(socket1.Take())});
 
   EXPECT_CALL(env.renderer_factory_client, OnStreamCreated());
@@ -288,8 +285,7 @@ TEST(AudioLoopbackStreamBrokerTest, SourceGone_CallsDeleter) {
   base::SyncSocket socket1, socket2;
   base::SyncSocket::CreatePair(&socket1, &socket2);
   std::move(stream_request_data.created_callback)
-      .Run({absl::in_place,
-            base::ReadOnlySharedMemoryRegion::Create(shmem_size).region,
+      .Run({std::in_place, base::UnsafeSharedMemoryRegion::Create(shmem_size),
             mojo::PlatformHandle(socket1.Take())});
 
   EXPECT_CALL(env.renderer_factory_client, OnStreamCreated());

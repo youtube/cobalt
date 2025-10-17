@@ -6,6 +6,8 @@
 
 #include <fuzzer/FuzzedDataProvider.h>
 
+#include <string_view>
+
 #include "base/notreached.h"
 #include "net/base/address_list.h"
 #include "net/base/ip_endpoint.h"
@@ -39,7 +41,6 @@ class FailingSSLClientSocket : public SSLClientSocket {
            int buf_len,
            CompletionOnceCallback callback) override {
     NOTREACHED();
-    return ERR_UNEXPECTED;
   }
 
   int Write(IOBuffer* buf,
@@ -47,7 +48,6 @@ class FailingSSLClientSocket : public SSLClientSocket {
             CompletionOnceCallback callback,
             const NetworkTrafficAnnotationTag& traffic_annotation) override {
     NOTREACHED();
-    return ERR_UNEXPECTED;
   }
 
   int SetReceiveBufferSize(int32_t size) override { return OK; }
@@ -71,9 +71,9 @@ class FailingSSLClientSocket : public SSLClientSocket {
 
   bool WasEverUsed() const override { return false; }
 
-  bool WasAlpnNegotiated() const override { return false; }
-
-  NextProto GetNegotiatedProtocol() const override { return kProtoUnknown; }
+  NextProto GetNegotiatedProtocol() const override {
+    return NextProto::kProtoUnknown;
+  }
 
   bool GetSSLInfo(SSLInfo* ssl_info) override { return false; }
 
@@ -85,20 +85,14 @@ class FailingSSLClientSocket : public SSLClientSocket {
   void ApplySocketTag(const net::SocketTag& tag) override {}
 
   // SSLSocket implementation:
-  int ExportKeyingMaterial(base::StringPiece label,
-                           bool has_context,
-                           base::StringPiece context,
-                           unsigned char* out,
-                           unsigned int outlen) override {
+  int ExportKeyingMaterial(std::string_view label,
+                           std::optional<base::span<const uint8_t>> context,
+                           base::span<uint8_t> out) override {
     NOTREACHED();
-    return 0;
   }
 
   // SSLClientSocket implementation:
-  std::vector<uint8_t> GetECHRetryConfigs() override {
-    NOTREACHED();
-    return {};
-  }
+  std::vector<uint8_t> GetECHRetryConfigs() override { NOTREACHED(); }
 
  private:
   NetLogWithSource net_log_;

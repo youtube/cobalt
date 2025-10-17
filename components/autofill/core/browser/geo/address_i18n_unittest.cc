@@ -10,10 +10,12 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/contains.h"
 #include "base/uuid.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/data_model/autofill_profile.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/libaddressinput/src/cpp/include/libaddressinput/address_data.h"
 #include "third_party/libaddressinput/src/cpp/include/libaddressinput/address_field.h"
@@ -41,7 +43,7 @@ using ::i18n::addressinput::SORTING_CODE;
 using ::i18n::addressinput::STREET_ADDRESS;
 
 struct FieldTypeMirrorConversionsTestCase {
-  ServerFieldType server_field;
+  FieldType server_field;
   AddressField address_field;
 };
 
@@ -54,7 +56,7 @@ TEST_P(FieldTypeMirrorConversionsTest, FieldTypeMirrorConversions) {
   EXPECT_TRUE(FieldForType(test_data.server_field, &address_field));
   EXPECT_EQ(test_data.address_field, address_field);
 
-  ServerFieldType server_field = TypeForField(test_data.address_field);
+  FieldType server_field = TypeForField(test_data.address_field);
   EXPECT_EQ(test_data.server_field, server_field);
 }
 
@@ -76,7 +78,7 @@ INSTANTIATE_TEST_SUITE_P(
         FieldTypeMirrorConversionsTestCase{NAME_FULL, RECIPIENT}));
 
 struct FieldTypeUnidirectionalConversionsTestCase {
-  ServerFieldType server_field;
+  FieldType server_field;
   AddressField expected_address_field;
 };
 
@@ -100,14 +102,13 @@ INSTANTIATE_TEST_SUITE_P(AddressI18nTest,
                              FieldTypeUnidirectionalConversionsTestCase{
                                  ADDRESS_HOME_LINE2, STREET_ADDRESS}));
 
-TEST(AddressI18nTest, UnconvertableServerFields) {
+TEST(AddressI18nTest, UnconvertableFields) {
   EXPECT_FALSE(FieldForType(PHONE_HOME_NUMBER, nullptr));
   EXPECT_FALSE(FieldForType(EMAIL_ADDRESS, nullptr));
 }
 
 TEST(AddressI18nTest, CreateAddressDataFromAutofillProfile) {
-  AutofillProfile profile(base::Uuid::GenerateRandomV4().AsLowercaseString(),
-                          "http://www.example.com/");
+  AutofillProfile profile(i18n_model_definition::kLegacyHierarchyCountryCode);
   test::SetProfileInfo(&profile, "John", "H.", "Doe", "johndoe@hades.com",
                        "Underworld", "666 Erebus St.", "Apt 8", "Elysium", "CA",
                        "91111", "US", "16502111111");
@@ -125,6 +126,21 @@ TEST(AddressI18nTest, CreateAddressDataFromAutofillProfile) {
   expected.language_code = "en";
   expected.organization = "Underworld";
   expected.recipient = "John H. Doe";
+
+  EXPECT_EQ(expected, *actual);
+}
+
+TEST(AddressI18nTest, ProfileOnlyWithAddressLine2ReturnsOneAddressLine) {
+  AutofillProfile profile(i18n_model_definition::kLegacyHierarchyCountryCode);
+  test::SetProfileInfo(&profile, "", "", "", "", "", "", "Apt 8", "", "", "",
+                       "", "");
+  profile.set_language_code("en");
+  std::unique_ptr<AddressData> actual =
+      CreateAddressDataFromAutofillProfile(profile, "en_US");
+
+  AddressData expected;
+  expected.address_line.push_back("Apt 8");
+  expected.language_code = "en";
 
   EXPECT_EQ(expected, *actual);
 }

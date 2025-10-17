@@ -55,25 +55,25 @@ class PartitionItem {
   URLPatternSet accessible_resources_;
 };
 
-WebviewInfo::WebviewInfo(const std::string& extension_id)
-    : extension_id_(extension_id) {
-}
+WebviewInfo::WebviewInfo(const ExtensionId& extension_id)
+    : extension_id_(extension_id) {}
 
-WebviewInfo::~WebviewInfo() {
-}
+WebviewInfo::~WebviewInfo() = default;
 
 // static
 bool WebviewInfo::IsResourceWebviewAccessible(
     const Extension* extension,
     const std::string& partition_id,
     const std::string& relative_path) {
-  if (!extension)
+  if (!extension) {
     return false;
+  }
 
   const WebviewInfo* webview_info = static_cast<const WebviewInfo*>(
       extension->GetManifestData(keys::kWebviewAccessibleResources));
-  if (!webview_info)
+  if (!webview_info) {
     return false;
+  }
 
   for (const auto& item : webview_info->partition_items_) {
     if (item->Matches(partition_id) &&
@@ -92,12 +92,14 @@ bool WebviewInfo::HasWebviewAccessibleResources(
     const std::string& partition_id) {
   const WebviewInfo* webview_info = static_cast<const WebviewInfo*>(
       extension.GetManifestData(keys::kWebviewAccessibleResources));
-  if (!webview_info)
+  if (!webview_info) {
     return false;
+  }
 
   for (const auto& item : webview_info->partition_items_) {
-    if (item->Matches(partition_id))
+    if (item->Matches(partition_id)) {
       return true;
+    }
   }
   return false;
 }
@@ -106,11 +108,9 @@ void WebviewInfo::AddPartitionItem(std::unique_ptr<PartitionItem> item) {
   partition_items_.push_back(std::move(item));
 }
 
-WebviewHandler::WebviewHandler() {
-}
+WebviewHandler::WebviewHandler() = default;
 
-WebviewHandler::~WebviewHandler() {
-}
+WebviewHandler::~WebviewHandler() = default;
 
 bool WebviewHandler::Parse(Extension* extension, std::u16string* error) {
   std::unique_ptr<WebviewInfo> info(new WebviewInfo(extension->id()));
@@ -169,13 +169,10 @@ bool WebviewHandler::Parse(Extension* extension, std::u16string* error) {
         return false;
       }
 
-      GURL pattern_url =
-          Extension::GetResourceURL(extension->url(), item.GetString());
+      GURL pattern_url = extension->GetResourceURL(item.GetString());
       // If passed a non-relative URL (like http://example.com),
-      // Extension::GetResourceURL() will return that URL directly. (See
-      // https://crbug.com/1135236). Check if this happened by comparing the
-      // host.
-      if (pattern_url.host_piece() != extension->id()) {
+      // Extension::GetResourceURL() will return an invalid URL.
+      if (!pattern_url.is_valid()) {
         // NOTE: Warning instead of error because there are existing apps that
         // have this bug, and we don't want to hard-error on them.
         // https://crbug.com/856948.

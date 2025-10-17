@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "quiche/quic/core/quic_stream_id_manager.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 
@@ -37,7 +38,8 @@ QuicStreamIdManager::QuicStreamIdManager(
       incoming_initial_max_open_streams_(max_allowed_incoming_streams),
       incoming_stream_count_(0),
       largest_peer_created_stream_id_(
-          QuicUtils::GetInvalidStreamId(version.transport_version)) {}
+          QuicUtils::GetInvalidStreamId(version.transport_version)),
+      stop_increasing_incoming_max_streams_(false) {}
 
 QuicStreamIdManager::~QuicStreamIdManager() {}
 
@@ -57,7 +59,8 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
     // We have told peer about current max.
     return true;
   }
-  if (frame.stream_count < incoming_actual_max_streams_) {
+  if (frame.stream_count < incoming_actual_max_streams_ &&
+      delegate_->CanSendMaxStreams()) {
     // Peer thinks it's blocked on a stream count that is less than our current
     // max. Inform the peer of the correct stream count.
     SendMaxStreamsFrame();
@@ -105,7 +108,10 @@ void QuicStreamIdManager::MaybeSendMaxStreamsFrame() {
       return;
     }
   }
-  SendMaxStreamsFrame();
+  if (delegate_->CanSendMaxStreams() &&
+      incoming_advertised_max_streams_ < incoming_actual_max_streams_) {
+    SendMaxStreamsFrame();
+  }
 }
 
 void QuicStreamIdManager::SendMaxStreamsFrame() {
@@ -129,9 +135,11 @@ void QuicStreamIdManager::OnStreamClosed(QuicStreamId stream_id) {
     // supports. Nothing can be done here.
     return;
   }
-  // One stream closed, and another one can be opened.
-  incoming_actual_max_streams_++;
-  MaybeSendMaxStreamsFrame();
+  if (!stop_increasing_incoming_max_streams_) {
+    // One stream closed, and another one can be opened.
+    incoming_actual_max_streams_++;
+    MaybeSendMaxStreamsFrame();
+  }
 }
 
 QuicStreamId QuicStreamIdManager::GetNextOutgoingStreamId() {

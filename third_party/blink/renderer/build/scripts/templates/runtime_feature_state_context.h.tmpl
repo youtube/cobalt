@@ -8,7 +8,7 @@
 
 #include "base/containers/flat_map.h"
 #include "third_party/blink/public/common/common_export.h"
-#include "third_party/blink/public/mojom/runtime_feature_state/runtime_feature_state.mojom-shared.h"
+#include "third_party/blink/public/mojom/runtime_feature_state/runtime_feature.mojom-shared.h"
 #include "third_party/blink/public/common/runtime_feature_state/runtime_feature_state_read_context.h"
 
 namespace blink {
@@ -21,7 +21,7 @@ namespace blink {
 // final value that browser and renderer processes can use.
 //
 // Specifically, this class allows for read/write access from the browser
-// process prior to a page's nagivation committing. Post navigation commit this
+// process prior to a page's navigation committing. Post navigation commit this
 // class is changed to a RuntimeFeatureStateReadContext which is not mutable
 // from the browser process but may receive updates from a renderer process for
 // features which allow overrides from origin trials.
@@ -36,7 +36,7 @@ class BLINK_COMMON_EXPORT RuntimeFeatureStateContext
   {% for feature in browser_write_access_features %}
   void Set{{feature.name}}Enabled(bool enabled) {
     return SetIsEnabled(
-        blink::mojom::RuntimeFeatureState::k{{feature.name}},
+        blink::mojom::RuntimeFeature::k{{feature.name}},
         enabled);
   }
   {% endfor %}
@@ -44,7 +44,7 @@ class BLINK_COMMON_EXPORT RuntimeFeatureStateContext
  private:
   void PopulateInitialValues();
 
-  void SetIsEnabled(blink::mojom::RuntimeFeatureState feature, bool enabled) {
+  void SetIsEnabled(blink::mojom::RuntimeFeature feature, bool enabled) {
     feature_overrides_[feature] = enabled;
   }
 };

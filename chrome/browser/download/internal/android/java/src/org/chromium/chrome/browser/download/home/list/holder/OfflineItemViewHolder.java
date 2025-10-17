@@ -4,7 +4,8 @@
 
 package org.chromium.chrome.browser.download.home.list.holder;
 
-import static org.chromium.components.browser_ui.widget.listmenu.BasicListMenu.buildMenuListItem;
+import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils.buildMenuListItem;
 
 import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
@@ -14,6 +15,8 @@ import android.widget.ImageView;
 
 import androidx.annotation.CallSuper;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.home.filter.Filters;
 import org.chromium.chrome.browser.download.home.list.ListItem;
 import org.chromium.chrome.browser.download.home.list.ListProperties;
@@ -21,21 +24,21 @@ import org.chromium.chrome.browser.download.home.list.UiUtils;
 import org.chromium.chrome.browser.download.home.metrics.UmaUtils;
 import org.chromium.chrome.browser.download.home.view.SelectionView;
 import org.chromium.chrome.browser.download.internal.R;
+import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
 import org.chromium.components.browser_ui.widget.async_image.AsyncImageView;
-import org.chromium.components.browser_ui.widget.listmenu.BasicListMenu;
-import org.chromium.components.browser_ui.widget.listmenu.ListMenu;
-import org.chromium.components.browser_ui.widget.listmenu.ListMenuButton;
-import org.chromium.components.browser_ui.widget.listmenu.ListMenuButtonDelegate;
-import org.chromium.components.browser_ui.widget.listmenu.ListMenuItemProperties;
+import org.chromium.components.browser_ui.widget.selectable_list.SelectableListUtils;
 import org.chromium.components.offline_items_collection.OfflineItem;
 import org.chromium.components.offline_items_collection.OfflineItemVisuals;
+import org.chromium.ui.listmenu.ListMenu;
+import org.chromium.ui.listmenu.ListMenuButton;
+import org.chromium.ui.listmenu.ListMenuDelegate;
+import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 
-/**
- * Helper that supports all typical actions for OfflineItems.
- */
-class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuButtonDelegate {
+/** Helper that supports all typical actions for OfflineItems. */
+@NullMarked
+class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuDelegate {
     /** The {@link View} that visually represents the selected state of this list item. */
     protected final SelectionView mSelectionView;
 
@@ -45,17 +48,15 @@ class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuButton
     private final ListMenuButton mMore;
 
     // Persisted 'More' button properties.
-    private Runnable mShareCallback;
-    private Runnable mDeleteCallback;
-    private Runnable mRenameCallback;
+    private @Nullable Runnable mShareCallback;
+    private @Nullable Runnable mDeleteCallback;
+    private @Nullable Runnable mRenameCallback;
 
     // flag to hide rename list menu option for offline pages
     private boolean mCanRename;
     private boolean mCanShare;
 
-    /**
-     * Creates a new instance of a {@link OfflineItemViewHolder}.
-     */
+    /** Creates a new instance of a {@link OfflineItemViewHolder}. */
     public OfflineItemViewHolder(View view) {
         super(view);
         mSelectionView = itemView.findViewById(R.id.selection);
@@ -81,7 +82,8 @@ class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuButton
 
         // Push 'selection' state.
         if (shouldPushSelection(properties, item)) {
-            mSelectionView.setSelectionState(item.selected,
+            mSelectionView.setSelectionState(
+                    item.selected,
                     properties.get(ListProperties.SELECTION_MODE_ACTIVE),
                     item.showSelectedAnimation);
         }
@@ -95,29 +97,39 @@ class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuButton
                 mThumbnail.setVisibility(View.VISIBLE);
                 mThumbnail.setImageResizer(
                         new BitmapResizer(mThumbnail, Filters.fromOfflineItem(offlineItem)));
-                mThumbnail.setAsyncImageDrawable((consumer, width, height) -> {
-                    return properties.get(ListProperties.PROVIDER_VISUALS)
-                            .getVisuals(offlineItem, width, height, (id, visuals) -> {
-                                consumer.onResult(onThumbnailRetrieved(visuals));
-                            });
-                }, offlineItem.id);
+                mThumbnail.setAsyncImageDrawable(
+                        (consumer, width, height) ->
+                                properties
+                                        .get(ListProperties.PROVIDER_VISUALS)
+                                        .getVisuals(
+                                                offlineItem,
+                                                width,
+                                                height,
+                                                (id, visuals) ->
+                                                        consumer.onResult(
+                                                                assumeNonNull(
+                                                                        onThumbnailRetrieved(
+                                                                                visuals)))),
+                        offlineItem.id);
             }
         }
     }
 
     private void bindOnClick(PropertyModel properties, ListItem item, OfflineItem offlineItem) {
-        itemView.setOnClickListener(v -> {
-            if (mSelectionView != null && mSelectionView.isInSelectionMode()) {
-                properties.get(ListProperties.CALLBACK_SELECTION).onResult(item);
-            } else {
-                properties.get(ListProperties.CALLBACK_OPEN).onResult(offlineItem);
-            }
-        });
+        itemView.setOnClickListener(
+                v -> {
+                    if (mSelectionView != null && mSelectionView.isInSelectionMode()) {
+                        properties.get(ListProperties.CALLBACK_SELECTION).onResult(item);
+                    } else {
+                        properties.get(ListProperties.CALLBACK_OPEN).onResult(offlineItem);
+                    }
+                });
 
-        itemView.setOnLongClickListener(v -> {
-            properties.get(ListProperties.CALLBACK_SELECTION).onResult(item);
-            return true;
-        });
+        itemView.setOnLongClickListener(
+                v -> {
+                    properties.get(ListProperties.CALLBACK_SELECTION).onResult(item);
+                    return true;
+                });
     }
 
     private void bindMenuButtonCallbacks(PropertyModel properties, OfflineItem offlineItem) {
@@ -137,6 +149,12 @@ class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuButton
                 () -> properties.get(ListProperties.CALLBACK_REMOVE).onResult(offlineItem);
 
         mMore.setClickable(!properties.get(ListProperties.SELECTION_MODE_ACTIVE));
+
+        SelectableListUtils.setContentDescriptionContext(
+                mMore.getContext(),
+                mMore,
+                offlineItem.title,
+                SelectableListUtils.ContentDescriptionSource.MENU_BUTTON);
     }
 
     @Override
@@ -154,17 +172,18 @@ class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuButton
         if (mCanRename) listItems.add(buildMenuListItem(R.string.rename, 0, 0));
 
         listItems.add(buildMenuListItem(R.string.delete, 0, 0));
-        ListMenu.Delegate delegate = (model) -> {
-            int textId = model.get(ListMenuItemProperties.TITLE_ID);
-            if (textId == R.string.share) {
-                if (mShareCallback != null) mShareCallback.run();
-            } else if (textId == R.string.delete) {
-                if (mDeleteCallback != null) mDeleteCallback.run();
-            } else if (textId == R.string.rename) {
-                if (mRenameCallback != null) mRenameCallback.run();
-            }
-        };
-        return new BasicListMenu(mMore.getContext(), listItems, delegate);
+        ListMenu.Delegate delegate =
+                (model) -> {
+                    int textId = model.get(ListMenuItemProperties.TITLE_ID);
+                    if (textId == R.string.share) {
+                        if (mShareCallback != null) mShareCallback.run();
+                    } else if (textId == R.string.delete) {
+                        if (mDeleteCallback != null) mDeleteCallback.run();
+                    } else if (textId == R.string.rename) {
+                        if (mRenameCallback != null) mRenameCallback.run();
+                    }
+                };
+        return BrowserUiListMenuUtils.getBasicListMenu(mMore.getContext(), listItems, delegate);
     }
 
     /**
@@ -176,7 +195,7 @@ class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuButton
      * @param visuals The {@link OfflineItemVisuals} from the async request.
      * @return A {@link Drawable} to use for the thumbnail.
      */
-    protected Drawable onThumbnailRetrieved(OfflineItemVisuals visuals) {
+    protected @Nullable Drawable onThumbnailRetrieved(@Nullable OfflineItemVisuals visuals) {
         if (visuals == null || visuals.icon == null) return null;
         return new BitmapDrawable(itemView.getResources(), visuals.icon);
     }
@@ -186,7 +205,7 @@ class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuButton
 
         return mSelectionView.isSelected() != item.selected
                 || mSelectionView.isInSelectionMode()
-                != properties.get(ListProperties.SELECTION_MODE_ACTIVE);
+                        != properties.get(ListProperties.SELECTION_MODE_ACTIVE);
     }
 
     /**
@@ -196,9 +215,9 @@ class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuButton
     private static class BitmapResizer implements AsyncImageView.ImageResizer {
         private static final float IMAGE_VIEW_MAX_SCALE_FACTOR = 4.f;
 
-        private ImageView mImageView;
+        private final ImageView mImageView;
 
-        private @Filters.FilterType int mFilter;
+        private final @Filters.FilterType int mFilter;
 
         /** Constructor. */
         public BitmapResizer(ImageView imageView, @Filters.FilterType int filter) {
@@ -207,7 +226,7 @@ class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuButton
         }
 
         @Override
-        public void maybeResizeImage(Drawable drawable) {
+        public void maybeResizeImage(@Nullable Drawable drawable) {
             Matrix matrix = null;
 
             if (drawable instanceof BitmapDrawable) {
@@ -219,7 +238,7 @@ class OfflineItemViewHolder extends ListItemViewHolder implements ListMenuButton
                     matrix == null ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.MATRIX);
         }
 
-        private Matrix upscaleBitmapIfNecessary(BitmapDrawable drawable) {
+        private @Nullable Matrix upscaleBitmapIfNecessary(BitmapDrawable drawable) {
             if (drawable == null) return null;
 
             int width = drawable.getBitmap().getWidth();

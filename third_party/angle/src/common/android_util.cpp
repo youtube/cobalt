@@ -9,6 +9,10 @@
 #include "common/android_util.h"
 #include "common/debug.h"
 
+#if defined(ANGLE_PLATFORM_ANDROID)
+#    include <sys/system_properties.h>
+#endif
+
 #if defined(ANGLE_PLATFORM_ANDROID) && __ANDROID_API__ >= 26
 #    define ANGLE_AHARDWARE_BUFFER_SUPPORT
 // NDK header file for access to Android Hardware Buffers
@@ -40,6 +44,16 @@ typedef struct native_handle
 // Taken from nativebase/nativebase.h
 // https://android.googlesource.com/platform/frameworks/native/+/master/libs/nativebase/include/nativebase/nativebase.h
 typedef const native_handle_t *buffer_handle_t;
+
+// Taken from nativebase/nativebase.h
+// https://android.googlesource.com/platform/frameworks/native/+/master/libs/nativebase/include/nativebase/nativebase.h
+#define ANDROID_NATIVE_UNSIGNED_CAST(x) static_cast<unsigned int>(x)
+
+#define ANDROID_NATIVE_MAKE_CONSTANT(a, b, c, d)                                         \
+    ((ANDROID_NATIVE_UNSIGNED_CAST(a) << 24) | (ANDROID_NATIVE_UNSIGNED_CAST(b) << 16) | \
+     (ANDROID_NATIVE_UNSIGNED_CAST(c) << 8) | (ANDROID_NATIVE_UNSIGNED_CAST(d)))
+
+#define ANDROID_NATIVE_BUFFER_MAGIC ANDROID_NATIVE_MAKE_CONSTANT('_', 'b', 'f', 'r')
 
 typedef struct android_native_base_t
 {
@@ -157,6 +171,11 @@ GLenum GetPixelFormatInfo(int pixelFormat, bool *isYUV)
 ANativeWindowBuffer *ClientBufferToANativeWindowBuffer(EGLClientBuffer clientBuffer)
 {
     return reinterpret_cast<ANativeWindowBuffer *>(clientBuffer);
+}
+
+bool IsValidNativeWindowBuffer(ANativeWindowBuffer *windowBuffer)
+{
+    return windowBuffer->common.magic == ANDROID_NATIVE_BUFFER_MAGIC;
 }
 
 uint64_t GetAHBUsage(int eglNativeBufferUsage)
@@ -296,5 +315,23 @@ AHardwareBuffer *ClientBufferToAHardwareBuffer(EGLClientBuffer clientBuffer)
     return OffsetPointer<AHardwareBuffer>(clientBuffer,
                                           -kAHardwareBufferToANativeWindowBufferOffset);
 }
+
+bool GetSystemProperty(const char *propertyName, std::string *value)
+{
+#if defined(ANGLE_PLATFORM_ANDROID)
+    // PROP_VALUE_MAX from <sys/system_properties.h>
+    std::vector<char> propertyBuf(PROP_VALUE_MAX);
+    int len = __system_property_get(propertyName, propertyBuf.data());
+    if (len <= 0)
+    {
+        return false;
+    }
+    *value = std::string(propertyBuf.data());
+    return true;
+#else
+    return false;
+#endif
+}
+
 }  // namespace android
 }  // namespace angle

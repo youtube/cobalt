@@ -18,6 +18,8 @@
     "RasterBufferProviderPerfTests/RasterBufferProviderPerfTest.ScheduleAndExecuteTasks/3",
     "RasterBufferProviderPerfTests/RasterBufferProviderPerfTest.ScheduleTasks/3",
     "ScrollingLayerTreePerfTest.LongScrollablePageSingleThread",
-    "ScrollingLayerTreePerfTest.LongScrollablePageThreaded"
+    "ScrollingLayerTreePerfTest.LongScrollablePageThreaded",
+    "TileManagerPerfTest.*",
+    "LayerTreeHostPerfTestLeafInvalidates.*"
   ]
 }

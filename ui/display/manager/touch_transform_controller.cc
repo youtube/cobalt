@@ -4,11 +4,11 @@
 
 #include "ui/display/manager/touch_transform_controller.h"
 
+#include <algorithm>
 #include <utility>
 #include <vector>
 
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "ui/display/display_layout.h"
 #include "ui/display/manager/display_manager.h"
 #include "ui/display/manager/managed_display_info.h"
@@ -95,7 +95,6 @@ bool GetCalibratedTransform(
   // only solution is to restart touch calibration and get new points from user.
   if (!product_matrix.GetInverse(&product_matrix_inverse)) {
     NOTREACHED() << "Touch Calibration failed. Determinant is zero.";
-    return false;
   }
 
   product_matrix_inverse.set_rc(3, 3, 0);
@@ -186,8 +185,8 @@ double TouchTransformController::GetTouchResolutionScale(
       touch_display.bounds_in_native().size().IsEmpty())
     return 1.0;
 
-  double display_area = touch_display.bounds_in_native().size().GetArea();
-  double touch_area = touch_device.size.GetArea();
+  double display_area = touch_display.bounds_in_native().size().Area64();
+  double touch_area = touch_device.size.Area64();
   double ratio = std::sqrt(display_area / touch_area);
 
   VLOG(2) << "Display size: "
@@ -347,8 +346,8 @@ void TouchTransformController::UpdateTouchTransforms(
   if (display_manager_->IsInMirrorMode()) {
     std::size_t primary_display_id_index = std::distance(
         display_id_list.begin(),
-        base::ranges::find(display_id_list,
-                           Screen::GetScreen()->GetPrimaryDisplay().id()));
+        std::ranges::find(display_id_list,
+                          Screen::GetScreen()->GetPrimaryDisplay().id()));
 
     for (std::size_t index = 0; index < display_id_list.size(); index++) {
       // In extended but software mirroring mode, there is a WindowTreeHost

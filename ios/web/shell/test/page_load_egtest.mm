@@ -6,10 +6,6 @@
 #import "ios/web/shell/test/earl_grey/web_shell_test_case.h"
 #import "net/test/embedded_test_server/embedded_test_server.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 const char kHtmlFile[] = "/chromium_logo_page.html";
 }  // namespace
@@ -21,7 +17,13 @@ const char kHtmlFile[] = "/chromium_logo_page.html";
 @implementation PageLoadTestCase
 
 // Tests that a simple page loads successfully.
-- (void)testPageLoad {
+// TODO(crbug.com/354699341): Test is flaky on iPad device.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testPageLoad testPageLoad
+#else
+#define MAYBE_testPageLoad DISABLED_testPageLoad
+#endif
+- (void)MAYBE_testPageLoad {
   const GURL pageURL = self.testServer->GetURL(kHtmlFile);
 
   [ShellEarlGrey loadURL:pageURL];

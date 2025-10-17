@@ -7,13 +7,16 @@
 
 #include <stddef.h>
 
+#include <iosfwd>
 #include <map>
 #include <memory>
 #include <set>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "components/ukm/ukm_recorder_impl.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
@@ -70,17 +73,17 @@ class TestUkmRecorder : public UkmRecorderImpl {
       ukm::SourceId source_id) const;
 
   // Sets a callback that will be called when recording an entry for entry name.
-  void SetOnAddEntryCallback(base::StringPiece entry_name,
+  void SetOnAddEntryCallback(std::string_view entry_name,
                              base::RepeatingClosure on_add_entry);
 
   // Gets all of the entries recorded for entry name.
-  std::vector<const mojom::UkmEntry*> GetEntriesByName(
-      base::StringPiece entry_name) const;
+  std::vector<raw_ptr<const mojom::UkmEntry, VectorExperimental>>
+  GetEntriesByName(std::string_view entry_name) const;
 
   // Gets the data for all entries with given entry name, merged to one entry
   // for each source id. Intended for singular="true" metrics.
   std::map<ukm::SourceId, mojom::UkmEntryPtr> GetMergedEntriesByName(
-      base::StringPiece entry_name) const;
+      std::string_view entry_name) const;
 
   // Checks if an entry is associated with a url.
   void ExpectEntrySourceHasUrl(const mojom::UkmEntry* entry,
@@ -88,23 +91,29 @@ class TestUkmRecorder : public UkmRecorderImpl {
 
   // Expects the value of a metric from an entry.
   static void ExpectEntryMetric(const mojom::UkmEntry* entry,
-                                base::StringPiece metric_name,
+                                std::string_view metric_name,
                                 int64_t expected_value);
 
   // Checks if an entry contains a specific metric.
   static bool EntryHasMetric(const mojom::UkmEntry* entry,
-                             base::StringPiece metric_name);
+                             std::string_view metric_name);
 
   // Gets the value of a metric from an entry. Returns nullptr if the metric is
   // not found.
   static const int64_t* GetEntryMetric(const mojom::UkmEntry* entry,
-                                       base::StringPiece metric_name);
+                                       std::string_view metric_name);
 
   // A test helper returning all metrics for all entries with a given name in a
   // human-readable form, allowing to write clearer test expectations.
   std::vector<HumanReadableUkmMetrics> GetMetrics(
       std::string entry_name,
       const std::vector<std::string>& metric_names) const;
+
+  // Returns the values of the metrics with the passed-in metric name in entries
+  // with the passed-in entry name.
+  std::vector<int64_t> GetMetricsEntryValues(
+      const std::string& entry_name,
+      const std::string& metric_name) const;
 
   // A test helper returning all entries for a given name in a human-readable
   // form, allowing to write clearer test expectations.
@@ -134,6 +143,10 @@ class TestAutoSetUkmRecorder : public TestUkmRecorder {
  private:
   base::WeakPtrFactory<TestAutoSetUkmRecorder> self_ptr_factory_{this};
 };
+
+// Formatter method for Google Test.
+void PrintTo(const TestUkmRecorder::HumanReadableUkmEntry& entry,
+             std::ostream* os);
 
 }  // namespace ukm
 

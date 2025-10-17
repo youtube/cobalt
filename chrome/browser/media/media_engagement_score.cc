@@ -4,6 +4,7 @@
 
 #include "chrome/browser/media/media_engagement_score.h"
 
+#include <string_view>
 #include <utility>
 
 #include "base/metrics/field_trial_params.h"
@@ -51,10 +52,11 @@ base::Value::Dict GetMediaEngagementScoreDictForSettings(
 }
 
 void GetIntegerFromScore(const base::Value::Dict& dict,
-                         base::StringPiece key,
+                         std::string_view key,
                          int* out) {
-  if (absl::optional<int> v = dict.FindInt(key))
+  if (std::optional<int> v = dict.FindInt(key)) {
     *out = v.value();
+  }
 }
 
 }  // namespace
@@ -107,12 +109,12 @@ MediaEngagementScore::MediaEngagementScore(base::Clock* clock,
   GetIntegerFromScore(score_dict_, kVisitsKey, &visits_);
   GetIntegerFromScore(score_dict_, kMediaPlaybacksKey, &media_playbacks_);
 
-  if (absl::optional<bool> has_high_score =
+  if (std::optional<bool> has_high_score =
           score_dict_.FindBool(kHasHighScoreKey)) {
     is_high_ = has_high_score.value();
   }
 
-  if (absl::optional<double> last_time =
+  if (std::optional<double> last_time =
           score_dict_.FindDouble(kLastMediaPlaybackTimeKey)) {
     last_media_playback_time_ =
         base::Time::FromInternalValue(last_time.value());
@@ -136,7 +138,7 @@ media::mojom::MediaEngagementScoreDetailsPtr
 MediaEngagementScore::GetScoreDetails() const {
   return media::mojom::MediaEngagementScoreDetails::New(
       origin_, actual_score(), visits(), media_playbacks(),
-      last_media_playback_time().ToJsTime(), high_score());
+      last_media_playback_time().InMillisecondsFSinceUnixEpoch(), high_score());
 }
 
 MediaEngagementScore::~MediaEngagementScore() = default;
@@ -154,8 +156,8 @@ void MediaEngagementScore::Commit(bool force_update) {
   if (!UpdateScoreDict(force_update))
     return;
 
-  content_settings::ContentSettingConstraints constraints = {
-      base::Time::Now() + kScoreExpirationDuration};
+  content_settings::ContentSettingConstraints constraints;
+  constraints.set_lifetime(kScoreExpirationDuration);
   settings_map_->SetWebsiteSettingDefaultScope(
       origin_.GetURL(), GURL(), ContentSettingsType::MEDIA_ENGAGEMENT,
       base::Value(std::move(score_dict_)), constraints);
@@ -179,12 +181,12 @@ bool MediaEngagementScore::UpdateScoreDict(bool force_update) {
     return false;
   }
 
-  if (absl::optional<bool> has_high_score =
+  if (std::optional<bool> has_high_score =
           score_dict_.FindBool(kHasHighScoreKey)) {
     is_high = has_high_score.value();
   }
 
-  if (absl::optional<double> last_time =
+  if (std::optional<double> last_time =
           score_dict_.FindDouble(kLastMediaPlaybackTimeKey)) {
     stored_last_media_playback_internal = last_time.value();
   }

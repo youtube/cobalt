@@ -2,20 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr.h"
-
 #import "content/browser/renderer_host/text_input_client_mac.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
+#include "content/common/features.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/test/browser_task_environment.h"
@@ -24,7 +26,6 @@
 #include "content/public/test/test_renderer_host.h"
 #include "ipc/ipc_test_sink.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
@@ -115,7 +116,7 @@ class TextInputClientMacTest : public content::RenderViewHostTestHarness {
  private:
   friend class ScopedTestingThread;
 
-  raw_ptr<RenderWidgetHost> widget_;
+  raw_ptr<RenderWidgetHost, DanglingUntriaged> widget_;
   std::unique_ptr<TextInputClientLocalFrame> local_frame_;
 
   base::Thread thread_;
@@ -128,14 +129,12 @@ class TextInputClientMacTest : public content::RenderViewHostTestHarness {
 class ScopedTestingThread {
  public:
   ScopedTestingThread(TextInputClientMacTest* test) : thread_(test->thread_) {
-    thread_.Start();
+    thread_->Start();
   }
-  ~ScopedTestingThread() {
-    thread_.Stop();
-  }
+  ~ScopedTestingThread() { thread_->Stop(); }
 
  private:
-  base::Thread& thread_;
+  const raw_ref<base::Thread> thread_;
 };
 
 }  // namespace
@@ -213,17 +212,17 @@ TEST_F(TextInputClientMacTest, GetRectForRange) {
 }
 
 TEST_F(TextInputClientMacTest, TimeoutRectForRange) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(features::kTextInputClient,
+                                                  {{"ipc_timeout", "300ms"}});
+
   base::RunLoop run_loop;
   local_frame()->SetCallback(run_loop.QuitClosure());
-
-  base::TimeDelta old_timeout = service()->wait_timeout_for_tests();
-  service()->set_wait_timeout_for_tests(base::Milliseconds(300));
 
   gfx::Rect rect =
       service()->GetFirstRectForRange(widget(), gfx::Range(NSMakeRange(0, 32)));
   run_loop.Run();
 
-  service()->set_wait_timeout_for_tests(old_timeout);
   EXPECT_EQ(gfx::Rect(), rect);
 }
 

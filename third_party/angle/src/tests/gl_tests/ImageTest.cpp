@@ -13,15 +13,18 @@
 #include "util/EGLWindow.h"
 #include "util/test_utils.h"
 
+#if defined(ANGLE_ENABLE_WGPU)
+#    include <dawn/native/DawnNative.h>
+#    include <webgpu/webgpu.h>
+#endif
+
 #include "common/android_util.h"
 
-#if defined(ANGLE_PLATFORM_ANDROID) && __ANDROID_API__ >= 26
+#if defined(ANGLE_PLATFORM_ANDROID) && __ANDROID_API__ >= 29
 #    define ANGLE_AHARDWARE_BUFFER_SUPPORT
 // NDK header file for access to Android Hardware Buffers
 #    include <android/hardware_buffer.h>
-#    if __ANDROID_API__ >= 29
-#        define ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
-#    endif
+#    define ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
 #endif
 
 #if defined(ANGLE_PLATFORM_ANDROID) && __ANDROID_API__ >= 33
@@ -39,6 +42,7 @@ constexpr char kExternalExt[]                    = "GL_OES_EGL_image_external";
 constexpr char kExternalESSL3Ext[]               = "GL_OES_EGL_image_external_essl3";
 constexpr char kYUVInternalFormatExt[]           = "GL_ANGLE_yuv_internal_format";
 constexpr char kYUVTargetExt[]                   = "GL_EXT_YUV_target";
+constexpr char kRGBXInternalFormatExt[]          = "GL_ANGLE_rgbx_internal_format";
 constexpr char kBaseExt[]                        = "EGL_KHR_image_base";
 constexpr char k2DTextureExt[]                   = "EGL_KHR_gl_texture_2D_image";
 constexpr char k3DTextureExt[]                   = "EGL_KHR_gl_texture_3D_image";
@@ -49,6 +53,10 @@ constexpr char kImageGLColorspaceExt[]           = "EGL_EXT_image_gl_colorspace"
 constexpr char kEGLImageArrayExt[]               = "GL_EXT_EGL_image_array";
 constexpr char kEGLAndroidImageNativeBufferExt[] = "EGL_ANDROID_image_native_buffer";
 constexpr char kEGLImageStorageExt[]             = "GL_EXT_EGL_image_storage";
+constexpr char kEGLImageStorageCompressionExt[]  = "GL_EXT_EGL_image_storage_compression";
+constexpr char kTextureStorageCompressionExt[]   = "GL_EXT_texture_storage_compression";
+constexpr char kWebGPUDeviceExt[]                = "EGL_ANGLE_device_webgpu";
+constexpr char kWebGPUTextureExt[]               = "EGL_ANGLE_webgpu_texture_client_buffer";
 constexpr EGLint kDefaultAttribs[]               = {
     EGL_IMAGE_PRESERVED,
     EGL_TRUE,
@@ -92,23 +100,27 @@ constexpr EGLint kNativeClientBufferAttribs_RGBA8_Renderbuffer[] = {
 // Color data in linear and sRGB colorspace
 // 2D texture data
 GLubyte kLinearColor[] = {132, 55, 219, 255};
-GLubyte kSrgbColor[]   = {59, 10, 180, 255};
+GLubyte kSrgbColor[]   = {190, 128, 238, 255};
 // 3D texture data
 GLubyte kLinearColor3D[] = {131, 242, 100, 255, 201, 89, 133, 255};
-GLubyte kSrgbColor3D[]   = {58, 226, 32, 255, 149, 26, 60, 255};
+GLubyte kSrgbColor3D[]   = {190, 249, 168, 255, 230, 159, 191, 255};
 // Cubemap texture data
 GLubyte kLinearColorCube[] = {75, 135, 205, 255, 201, 89,  133, 255, 111, 201, 108, 255,
                               30, 90,  230, 255, 180, 210, 70,  255, 77,  111, 99,  255};
-GLubyte kSrgbColorCube[]   = {18, 62, 155, 255, 149, 26,  60, 255, 41, 149, 38, 255,
-                              3,  26, 202, 255, 117, 164, 16, 255, 19, 41,  32, 255};
+GLubyte kSrgbColorCube[]   = {148, 192, 232, 255, 230, 159, 191, 255, 176, 230, 174, 255,
+                              96,  160, 244, 255, 219, 234, 143, 255, 149, 176, 167, 255};
 GLfloat kCubeFaceX[]       = {1.0, -1.0, 0.0, 0.0, 0.0, 0.0};
 GLfloat kCubeFaceY[]       = {0.0, 0.0, 1.0, -1.0, 0.0, 0.0};
 GLfloat kCubeFaceZ[]       = {0.0, 0.0, 0.0, 0.0, 1.0, -1.0};
 
-constexpr int kColorspaceAttributeIndex = 2;
-constexpr size_t kCubeFaceCount         = 6;
+constexpr int kColorspaceAttributeIndex     = 2;
+constexpr int k3DColorspaceAttributeIndex   = 4;
+constexpr int kTextureZOffsetAttributeIndex = 1;
+constexpr size_t kCubeFaceCount             = 6;
 
 constexpr int AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM  = 1;
+constexpr int AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM  = 2;
+constexpr int AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM    = 3;
 constexpr int AHARDWAREBUFFER_FORMAT_D24_UNORM       = 0x31;
 constexpr int AHARDWAREBUFFER_FORMAT_Y8Cr8Cb8_420_SP = 0x11;
 constexpr int AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420    = 0x23;
@@ -151,6 +163,19 @@ void main()
         return R"(#version 300 es
 out vec2 texcoord;
 in vec4 position;
+void main()
+{
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+    texcoord = (position.xy * 0.5) + 0.5;
+})";
+    }
+
+    const char *getVS3D() const
+    {
+        return R"(#version 300 es
+out vec2 texcoord;
+in vec4 position;
+
 void main()
 {
     gl_Position = vec4(position.xy, 0.0, 1.0);
@@ -219,6 +244,20 @@ void main()
 })";
     }
 
+    const char *getTexture3DFS() const
+    {
+        return R"(#version 300 es
+precision highp float;
+uniform highp sampler3D tex3D;
+uniform uint layer;
+in vec2 texcoord;
+out vec4 fragColor;
+void main()
+{
+    fragColor = texture(tex3D, vec3(texcoord.x, texcoord.y, float(layer)));
+})";
+    }
+
     const char *getTextureCubeFS() const
     {
         return R"(#version 300 es
@@ -275,6 +314,57 @@ void main()
 })";
     }
 
+    const char *getTextureYUVVS() const
+    {
+        return R"(#version 300 es
+#extension GL_EXT_YUV_target : require
+precision highp float;
+uniform __samplerExternal2DY2YEXT tex;
+in vec4 position;
+out vec4 color;
+
+void main()
+{
+    gl_Position = position;
+    vec2 texcoord = (position.xy * 0.5) + 0.5;
+    texcoord.y = 1.0 - texcoord.y;
+    color = texture(tex, texcoord);
+})";
+    }
+
+    const char *getFetchYUVVS() const
+    {
+        return R"(#version 300 es
+#extension GL_OES_EGL_image_external_essl3 : enable
+precision highp float;
+uniform samplerExternalOES tex;
+in vec4 position;
+out vec4 color;
+
+void main()
+{
+    gl_Position = position;
+    vec2 texcoord = (position.xy * 0.5) + 0.5;
+    texcoord.y = 1.0 - texcoord.y;
+    ivec2 fetchcoord = ivec2(texcoord * vec2(textureSize(tex, 0)));
+    fetchcoord = min(fetchcoord, textureSize(tex, 0) - ivec2(1.0));
+    color = texelFetch(tex, fetchcoord, 0);
+})";
+    }
+
+    const char *getPassThroughFS() const
+    {
+        return R"(#version 300 es
+precision highp float;
+in vec4 color;
+out vec4 frag_color;
+
+void main()
+{
+    frag_color = color;
+})";
+    }
+
     const char *getTextureYUVFS() const
     {
         return R"(#version 300 es
@@ -287,6 +377,23 @@ out vec4 color;
 void main()
 {
     color = texture(tex, texcoord);
+})";
+    }
+
+    const char *getFetchYUVFS() const
+    {
+        return R"(#version 300 es
+#extension GL_OES_EGL_image_external_essl3 : enable
+precision highp float;
+uniform samplerExternalOES tex;
+in vec2 texcoord;
+out vec4 color;
+
+void main()
+{
+    ivec2 fetchcoord = ivec2(texcoord * vec2(textureSize(tex, 0)));
+    fetchcoord = min(fetchcoord, textureSize(tex, 0) - ivec2(1.0));
+    color = texelFetch(tex, fetchcoord, 0);
 })";
     }
 
@@ -328,6 +435,18 @@ void main()
                 glGetUniformLocation(m2DArrayTextureProgram, "layer");
         }
 
+        if (getClientMajorVersion() >= 3)
+        {
+            m3DTextureProgram = CompileProgram(getVS3D(), getTexture3DFS());
+            if (m3DTextureProgram == 0)
+            {
+                FAIL() << "shader compilation failed.";
+            }
+
+            m3DTextureUniformLocation      = glGetUniformLocation(m3DTextureProgram, "tex3D");
+            m3DTextureLayerUniformLocation = glGetUniformLocation(m3DTextureProgram, "layer");
+        }
+
         if (IsGLExtensionEnabled("GL_OES_EGL_image_external"))
         {
             mTextureExternalProgram = CompileProgram(getVS(), getTextureExternalFS());
@@ -353,10 +472,28 @@ void main()
 
             mTextureYUVUniformLocation = glGetUniformLocation(mTextureYUVProgram, "tex");
 
+            mTextureYUVVSProgram = CompileProgram(getTextureYUVVS(), getPassThroughFS());
+            ASSERT_NE(0u, mTextureYUVVSProgram) << "shader compilation failed.";
+
+            mTextureYUVVSUniformLocation = glGetUniformLocation(mTextureYUVVSProgram, "tex");
+
             mRenderYUVProgram = CompileProgram(getVSESSL3(), getRenderYUVFS());
             ASSERT_NE(0u, mRenderYUVProgram) << "shader compilation failed.";
 
             mRenderYUVUniformLocation = glGetUniformLocation(mRenderYUVProgram, "u_color");
+        }
+
+        if (IsGLExtensionEnabled(kExternalESSL3Ext))
+        {
+            mFetchYUVProgram = CompileProgram(getVSESSL3(), getFetchYUVFS());
+            ASSERT_NE(0u, mFetchYUVProgram) << "shader compilation failed.";
+
+            mFetchYUVUniformLocation = glGetUniformLocation(mFetchYUVProgram, "tex");
+
+            mFetchYUVVSProgram = CompileProgram(getFetchYUVVS(), getPassThroughFS());
+            ASSERT_NE(0u, mFetchYUVVSProgram) << "shader compilation failed.";
+
+            mFetchYUVVSUniformLocation = glGetUniformLocation(mFetchYUVVSProgram, "tex");
         }
 
         if (IsGLExtensionEnabled(kEGLImageStorageExt))
@@ -398,6 +535,89 @@ void main()
         glDeleteProgram(mTextureExternalESSL3Program);
         glClearColor(0, 0, 0, 0);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        ASSERT_GL_NO_ERROR();
+    }
+
+    // 1) For tests that sample from EGLImages with colorspace override -
+    //    1) Always upload color values in sRGB colorspace
+    //    2) The image should be treated as if it was an sRGB image resulting in
+    //       the sampled value to be to decoded to linear colorspace
+    //
+    // 2) For tests that render to EGLImages with colorspace override -
+    //    1) Always upload color values in linear colorspace
+    //    2) The image should be treated as if it was an sRGB image resulting in
+    //       the rendered color to be encoded in sRGB colorspace
+
+    enum class EglImageUsage
+    {
+        Sampling,
+        Rendering
+    };
+
+    bool attribListHasSrgbColorspace(const EGLint *attribs,
+                                     const int colorspaceAttributeIndex) const
+    {
+        return (attribs[colorspaceAttributeIndex] == EGL_GL_COLORSPACE &&
+                attribs[colorspaceAttributeIndex + 1] == EGL_GL_COLORSPACE_SRGB_KHR);
+    }
+
+    GLubyte *getExpected2DColorForAttribList(const EGLint *attribs,
+                                             EglImageUsage usage = EglImageUsage::Sampling) const
+    {
+        const bool srgbColorspace = attribListHasSrgbColorspace(attribs, kColorspaceAttributeIndex);
+        return (usage == EglImageUsage::Sampling) ? (srgbColorspace ? kLinearColor : kSrgbColor)
+                                                  : (srgbColorspace ? kSrgbColor : kLinearColor);
+    }
+
+    GLubyte *getExpected3DColorForAttribList(const EGLint *attribs,
+                                             EglImageUsage usage = EglImageUsage::Sampling) const
+    {
+        const bool srgbColorspace =
+            attribListHasSrgbColorspace(attribs, k3DColorspaceAttributeIndex);
+        return (usage == EglImageUsage::Sampling)
+                   ? (srgbColorspace ? kLinearColor3D : kSrgbColor3D)
+                   : (srgbColorspace ? kSrgbColor3D : kLinearColor3D);
+    }
+
+    GLubyte *getExpectedCubeColorForAttribList(const EGLint *attribs,
+                                               EglImageUsage usage = EglImageUsage::Sampling) const
+    {
+        const bool srgbColorspace = attribListHasSrgbColorspace(attribs, kColorspaceAttributeIndex);
+        return (usage == EglImageUsage::Sampling)
+                   ? (srgbColorspace ? kLinearColorCube : kSrgbColorCube)
+                   : (srgbColorspace ? kSrgbColorCube : kLinearColorCube);
+    }
+
+    void createEGLImage2DTextureStorage(size_t width,
+                                        size_t height,
+                                        GLenum format,
+                                        const GLint *attribs,
+                                        GLTexture &sourceTexture,
+                                        EGLImageKHR *outSourceImage)
+    {
+
+        glBindTexture(GL_TEXTURE_2D, sourceTexture);
+        glTexStorageAttribs2DEXT(GL_TEXTURE_2D, 1, format, static_cast<GLsizei>(width),
+                                 static_cast<GLsizei>(height), attribs);
+
+        ASSERT_GL_NO_ERROR();
+        // Disable mipmapping
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        ASSERT_GL_NO_ERROR();
+
+        // Create an image from the source texture
+        EGLWindow *window = getEGLWindow();
+
+        EGLImageKHR image =
+            eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
+                              reinterpretHelper<EGLClientBuffer>(sourceTexture), nullptr);
+
+        ASSERT_EGL_SUCCESS();
+
+        *outSourceImage = image;
     }
 
     void createEGLImage2DTextureSource(size_t width,
@@ -405,7 +625,7 @@ void main()
                                        GLenum format,
                                        GLenum type,
                                        const EGLint *attribs,
-                                       void *data,
+                                       const void *data,
                                        GLTexture &sourceTexture,
                                        EGLImageKHR *outSourceImage)
     {
@@ -426,7 +646,7 @@ void main()
 
         EGLImageKHR image =
             eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
-                              reinterpretHelper<EGLClientBuffer>(sourceTexture.get()), attribs);
+                              reinterpretHelper<EGLClientBuffer>(sourceTexture), attribs);
 
         ASSERT_EGL_SUCCESS();
 
@@ -438,7 +658,7 @@ void main()
                                             GLenum format,
                                             GLenum type,
                                             const EGLint *attribs,
-                                            uint8_t *data,
+                                            const uint8_t *data,
                                             size_t dataStride,
                                             EGLenum imageTarget,
                                             GLTexture &sourceTexture,
@@ -465,7 +685,7 @@ void main()
 
         EGLImageKHR image =
             eglCreateImageKHR(window->getDisplay(), window->getContext(), imageTarget,
-                              reinterpretHelper<EGLClientBuffer>(sourceTexture.get()), attribs);
+                              reinterpretHelper<EGLClientBuffer>(sourceTexture), attribs);
 
         ASSERT_EGL_SUCCESS();
 
@@ -478,16 +698,26 @@ void main()
                                        GLenum format,
                                        GLenum type,
                                        const EGLint *attribs,
-                                       void *data,
+                                       const void *data,
                                        GLTexture &sourceTexture,
                                        EGLImageKHR *outSourceImage)
     {
         // Create a source 3D texture
         glBindTexture(GL_TEXTURE_3D, sourceTexture);
 
-        glTexImage3D(GL_TEXTURE_3D, 0, format, static_cast<GLsizei>(width),
-                     static_cast<GLsizei>(height), static_cast<GLsizei>(depth), 0, format, type,
-                     data);
+        if (getClientMajorVersion() < 3)
+        {
+            ASSERT_TRUE(IsGLExtensionEnabled("GL_OES_texture_3D"));
+            glTexImage3DOES(GL_TEXTURE_3D, 0, format, static_cast<GLsizei>(width),
+                            static_cast<GLsizei>(height), static_cast<GLsizei>(depth), 0, format,
+                            type, data);
+        }
+        else
+        {
+            glTexImage3D(GL_TEXTURE_3D, 0, format, static_cast<GLsizei>(width),
+                         static_cast<GLsizei>(height), static_cast<GLsizei>(depth), 0, format, type,
+                         data);
+        }
 
         // Disable mipmapping
         glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -500,7 +730,7 @@ void main()
 
         EGLImageKHR image =
             eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_3D_KHR,
-                              reinterpretHelper<EGLClientBuffer>(sourceTexture.get()), attribs);
+                              reinterpretHelper<EGLClientBuffer>(sourceTexture), attribs);
 
         ASSERT_EGL_SUCCESS();
 
@@ -511,25 +741,13 @@ void main()
                                           size_t height,
                                           GLenum internalFormat,
                                           const EGLint *attribs,
-                                          const GLubyte data[4],
-                                          GLuint sourceRenderbuffer,
+                                          GLRenderbuffer &sourceRenderbuffer,
                                           EGLImageKHR *outSourceImage)
     {
         // Create a source renderbuffer
         glBindRenderbuffer(GL_RENDERBUFFER, sourceRenderbuffer);
         glRenderbufferStorage(GL_RENDERBUFFER, internalFormat, static_cast<GLsizei>(width),
                               static_cast<GLsizei>(height));
-
-        // Create a framebuffer and clear it to set the data
-        GLFramebuffer framebuffer;
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
-                                  sourceRenderbuffer);
-
-        glClearColor(data[0] / 255.0f, data[1] / 255.0f, data[2] / 255.0f, data[3] / 255.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        ASSERT_GL_NO_ERROR();
 
         // Create an image from the source renderbuffer
         EGLWindow *window = getEGLWindow();
@@ -584,11 +802,14 @@ void main()
 
     void createEGLImageTargetTextureStorage(EGLImageKHR image,
                                             GLenum targetType,
-                                            GLuint targetTexture)
+                                            GLuint targetTexture,
+                                            const GLint *attribs)
     {
         // Create a target texture from the image
         glBindTexture(targetType, targetTexture);
-        glEGLImageTargetTexStorageEXT(targetType, image, nullptr);
+        glEGLImageTargetTexStorageEXT(targetType, image, attribs);
+
+        ASSERT_GL_NO_ERROR();
 
         // Disable mipmapping
         glTexParameteri(targetType, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -613,19 +834,25 @@ void main()
         size_t bytesPerPixel;
     };
 
-#if defined(ANGLE_AHARDWARE_BUFFER_SUPPORT)
-    void writeAHBData(AHardwareBuffer *aHardwareBuffer,
+    bool writeAHBData(AHardwareBuffer *aHardwareBuffer,
                       size_t width,
                       size_t height,
                       size_t depth,
                       bool isYUV,
                       const std::vector<AHBPlaneData> &data)
     {
+#if defined(ANGLE_AHARDWARE_BUFFER_SUPPORT)
+        ASSERT(!data.empty());
 #    if defined(ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT)
         AHardwareBuffer_Planes planeInfo;
         int res = AHardwareBuffer_lockPlanes(
             aHardwareBuffer, AHARDWAREBUFFER_USAGE_CPU_WRITE_RARELY, -1, nullptr, &planeInfo);
-        EXPECT_EQ(res, 0);
+        if (res != 0)
+        {
+            WARN() << "AHardwareBuffer_lockPlanes failed";
+            return false;
+        }
+
         EXPECT_EQ(data.size(), planeInfo.planeCount);
 
         for (size_t planeIdx = 0; planeIdx < data.size(); planeIdx++)
@@ -690,8 +917,11 @@ void main()
         res = AHardwareBuffer_unlock(aHardwareBuffer, nullptr);
         EXPECT_EQ(res, 0);
 #    endif
-    }
+        return true;
+#else
+        return false;
 #endif
+    }
 
     enum AHBUsage
     {
@@ -705,14 +935,13 @@ void main()
     constexpr static uint32_t kDefaultAHBUsage = kAHBUsageGPUSampledImage | kAHBUsageGPUFramebuffer;
     constexpr static uint32_t kDefaultAHBYUVUsage = kAHBUsageGPUSampledImage;
 
-    AHardwareBuffer *createAndroidHardwareBuffer(size_t width,
-                                                 size_t height,
-                                                 size_t depth,
-                                                 int androidFormat,
-                                                 uint32_t usage,
-                                                 const std::vector<AHBPlaneData> &data)
-    {
 #if defined(ANGLE_AHARDWARE_BUFFER_SUPPORT)
+    AHardwareBuffer_Desc createAndroidHardwareBufferDesc(size_t width,
+                                                         size_t height,
+                                                         size_t depth,
+                                                         int androidFormat,
+                                                         uint32_t usage)
+    {
         // The height and width are number of pixels of size format
         AHardwareBuffer_Desc aHardwareBufferDescription = {};
         aHardwareBufferDescription.width                = width;
@@ -743,6 +972,35 @@ void main()
         aHardwareBufferDescription.stride = 0;
         aHardwareBufferDescription.rfu0   = 0;
         aHardwareBufferDescription.rfu1   = 0;
+        return aHardwareBufferDescription;
+    }
+#endif
+
+    bool isAndroidHardwareBufferConfigurationSupported(size_t width,
+                                                       size_t height,
+                                                       size_t depth,
+                                                       int androidFormat,
+                                                       uint32_t usage)
+    {
+#if defined(ANGLE_AHARDWARE_BUFFER_SUPPORT)
+        const AHardwareBuffer_Desc aHardwareBufferDescription =
+            createAndroidHardwareBufferDesc(width, height, depth, androidFormat, usage);
+        return AHardwareBuffer_isSupported(&aHardwareBufferDescription);
+#else
+        return false;
+#endif
+    }
+
+    AHardwareBuffer *createAndroidHardwareBuffer(size_t width,
+                                                 size_t height,
+                                                 size_t depth,
+                                                 int androidFormat,
+                                                 uint32_t usage,
+                                                 const std::vector<AHBPlaneData> &data)
+    {
+#if defined(ANGLE_AHARDWARE_BUFFER_SUPPORT)
+        const AHardwareBuffer_Desc aHardwareBufferDescription =
+            createAndroidHardwareBufferDesc(width, height, depth, androidFormat, usage);
 
         // Allocate memory from Android Hardware Buffer
         AHardwareBuffer *aHardwareBuffer = nullptr;
@@ -814,7 +1072,11 @@ void main()
             angle::android::ClientBufferToANativeWindowBuffer(eglClientBuffer));
         if (!data.empty())
         {
-            writeAHBData(pAHardwareBuffer, width, height, depth, false, data);
+            bool success = writeAHBData(pAHardwareBuffer, width, height, depth, false, data);
+            if (!success)
+            {
+                return;
+            }
         }
 #endif  // ANGLE_AHARDWARE_BUFFER_SUPPORT
 
@@ -829,6 +1091,66 @@ void main()
         *outSourceImage = image;
     }
 
+#if defined(ANGLE_ENABLE_WGPU)
+    const DawnProcTable &getWebGPUProcs() { return dawn::native::GetProcs(); }
+
+    WGPUDevice getWebGPUDevice()
+    {
+        EXPECT_TRUE(IsEGLClientExtensionEnabled("EGL_EXT_device_query"));
+        EGLAttrib eglDevice = 0;
+        EXPECT_EGL_TRUE(
+            eglQueryDisplayAttribEXT(getEGLWindow()->getDisplay(), EGL_DEVICE_EXT, &eglDevice));
+        EXPECT_TRUE(IsEGLDeviceExtensionEnabled(reinterpret_cast<EGLDeviceEXT>(eglDevice),
+                                                kWebGPUDeviceExt));
+
+        EGLAttrib wgpuDevice = 0;
+        EXPECT_TRUE(eglQueryDeviceAttribEXT(reinterpret_cast<EGLDeviceEXT>(eglDevice),
+                                            EGL_WEBGPU_DEVICE_ANGLE, &wgpuDevice));
+
+        return reinterpret_cast<WGPUDevice>(wgpuDevice);
+    }
+
+    void createEGLImageWebGPUTextureClientBufferSource(const WGPUTextureDescriptor &desc,
+                                                       const EGLint *attribsImage,
+                                                       const std::vector<GLubyte> &data,
+                                                       uint32_t bytesPerRow,
+                                                       WGPUTexture *outSourceWebGPUTexture,
+                                                       EGLImageKHR *outSourceImage)
+    {
+        const DawnProcTable &wgpu = getWebGPUProcs();
+
+        WGPUDevice device   = getWebGPUDevice();
+        WGPUTexture texture = wgpu.deviceCreateTexture(device, &desc);
+
+        EGLImageKHR image = eglCreateImageKHR(getEGLWindow()->getDisplay(), EGL_NO_CONTEXT,
+                                              EGL_WEBGPU_TEXTURE_ANGLE, texture, attribsImage);
+        ASSERT_EGL_SUCCESS();
+
+        if (!data.empty())
+        {
+            WGPUQueue queue = wgpu.deviceGetQueue(device);
+
+            WGPUTexelCopyTextureInfo copyDest = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
+            copyDest.texture                  = texture;
+            copyDest.mipLevel                 = 0;
+            copyDest.origin                   = {0, 0, 0};
+
+            WGPUTexelCopyBufferLayout dataLayout = WGPU_TEXEL_COPY_BUFFER_LAYOUT_INIT;
+            dataLayout.bytesPerRow               = bytesPerRow;
+
+            wgpu.queueWriteTexture(queue, &copyDest, data.data(), data.size(), &dataLayout,
+                                   &desc.size);
+
+            wgpu.queueRelease(queue);
+        }
+
+        wgpu.deviceRelease(device);
+
+        *outSourceWebGPUTexture = texture;
+        *outSourceImage         = image;
+    }
+#endif  // defined(ANGLE_ENABLE_WGPU)
+
     void createEGLImageTargetRenderbuffer(EGLImageKHR image, GLuint targetRenderbuffer)
     {
         // Create a target texture from the image
@@ -840,6 +1162,7 @@ void main()
 
     void ValidationGLEGLImage_helper(const EGLint *attribs);
     void SourceAHBTarget2D_helper(const EGLint *attribs);
+    void SourceAHBTarget2DImageStorageGenerateMipmap_helper(const EGLint *attribs);
     void SourceAHBTarget2DArray_helper(const EGLint *attribs);
     void SourceAHBTargetExternal_helper(const EGLint *attribs);
     void SourceAHBTargetExternalESSL3_helper(const EGLint *attribs);
@@ -854,15 +1177,31 @@ void main()
     void SourceCubeTargetRenderbuffer_helper(const EGLint *attribs);
     void SourceCubeTargetExternal_helper(const EGLint *attribs);
     void SourceCubeTargetExternalESSL3_helper(const EGLint *attribs);
-    void Source3DTargetTexture_helper(const bool withColorspace);
-    void Source3DTargetRenderbuffer_helper(const bool withColorspace);
-    void Source3DTargetExternal_helper(const bool withColorspace);
-    void Source3DTargetExternalESSL3_helper(const bool withColorspace);
+    void Source3DTargetTexture_helper(EGLint *attribs);
+    void Source3DTargetRenderbuffer_helper(EGLint *attribs);
+    void Source3DTargetExternal_helper(EGLint *attribs);
+    void Source3DTargetExternalESSL3_helper(EGLint *attribs);
     void SourceRenderbufferTargetTexture_helper(const EGLint *attribs);
     void SourceRenderbufferTargetTextureExternal_helper(const EGLint *attribs);
     void SourceRenderbufferTargetRenderbuffer_helper(const EGLint *attribs);
+    void FixedRatedCompressionBasicHelper(const GLint *attribs);
+    void FixedRatedCompressionImageAttribCheck(EGLImageKHR image,
+                                               const GLint *attribs,
+                                               const GLint expectResult);
     void SourceRenderbufferTargetTextureExternalESSL3_helper(const EGLint *attribs);
-
+    void ImageStorageGenerateMipmap_helper(const EGLint *attribs,
+                                           const GLsizei width,
+                                           const GLsizei height,
+                                           AHardwareBuffer *srcAhb,
+                                           GLuint srcTexture,
+                                           EGLImageKHR *imageOut);
+    void ImageCheckingTextureAccessHelper(GLenum target, bool mipmap);
+    void verifyImageStorageMipmap(const EGLint *attribs,
+                                  EGLImageKHR image,
+                                  const GLsizei mipLevelCount);
+    void verifyImageStorageMipmapWithBlend(const EGLint *attribs,
+                                           EGLImageKHR image,
+                                           const GLsizei mipLevelCount);
     void verifyResultsTexture(GLuint texture,
                               const GLubyte referenceColor[4],
                               GLenum textureTarget,
@@ -877,9 +1216,9 @@ void main()
         drawQuad(program, "position", 0.5f);
 
         // Expect that the rendered quad's color is the same as the reference color with a tolerance
-        // of 1
+        // of 2
         EXPECT_PIXEL_NEAR(0, 0, referenceColor[0], referenceColor[1], referenceColor[2],
-                          referenceColor[3], 1);
+                          referenceColor[3], 2);
     }
 
     void verifyResultsTextureLeftAndRight(GLuint texture,
@@ -900,6 +1239,15 @@ void main()
     {
         verifyResultsTexture(texture, data, GL_TEXTURE_2D, mTextureProgram,
                              mTextureUniformLocation);
+    }
+
+    void verifyResults3D(GLuint texture, const GLubyte data[4], uint32_t layerIndex = 0)
+    {
+        glUseProgram(m3DTextureProgram);
+        glUniform1ui(m3DTextureLayerUniformLocation, layerIndex);
+
+        verifyResultsTexture(texture, data, GL_TEXTURE_3D, m3DTextureProgram,
+                             m3DTextureUniformLocation);
     }
 
     void verifyResults2DLeftAndRight(GLuint texture, const GLubyte left[4], const GLubyte right[4])
@@ -959,6 +1307,24 @@ void main()
                              mTextureYUVUniformLocation);
     }
 
+    void verifyResultsExternalYUVVS(GLuint texture, const GLubyte data[4])
+    {
+        verifyResultsTexture(texture, data, GL_TEXTURE_EXTERNAL_OES, mTextureYUVVSProgram,
+                             mTextureYUVVSUniformLocation);
+    }
+
+    void verifyResultsExternalYUVFetch(GLuint texture, const GLubyte data[4])
+    {
+        verifyResultsTexture(texture, data, GL_TEXTURE_EXTERNAL_OES, mFetchYUVProgram,
+                             mFetchYUVUniformLocation);
+    }
+
+    void verifyResultsExternalYUVFetchVS(GLuint texture, const GLubyte data[4])
+    {
+        verifyResultsTexture(texture, data, GL_TEXTURE_EXTERNAL_OES, mFetchYUVVSProgram,
+                             mFetchYUVVSUniformLocation);
+    }
+
     void verifyResultsRenderbuffer(GLuint renderbuffer, GLubyte referenceColor[4])
     {
         // Bind the renderbuffer to a framebuffer
@@ -967,10 +1333,35 @@ void main()
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
                                   renderbuffer);
 
-        // Expect that the rendered quad's color is the same as the reference color with a tolerance
-        // of 1
+        // Expect renderbuffer to match referenceColor with a tolerance of 1.
         EXPECT_PIXEL_NEAR(0, 0, referenceColor[0], referenceColor[1], referenceColor[2],
                           referenceColor[3], 1);
+    }
+
+    void verifyResultsRenderbufferWithClearAndDraw(GLuint texture,
+                                                   GLuint renderbuffer,
+                                                   GLubyte clearColor[4],
+                                                   GLubyte referenceColor[4])
+    {
+        // Bind the renderbuffer to a framebuffer
+        GLFramebuffer framebuffer;
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
+                                  renderbuffer);
+
+        // Clear the renderbuffer with the clear color
+        glClearColor(clearColor[0] / 255.0f, clearColor[1] / 255.0f, clearColor[2] / 255.0f,
+                     clearColor[3] / 255.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // Expect renderbuffer to match referenceColor with a tolerance of 1.
+        EXPECT_PIXEL_NEAR(0, 0, referenceColor[0], referenceColor[1], referenceColor[2],
+                          referenceColor[3], 1);
+
+        // Sample source texture and draw onto renderbuffer and expect rendered quad's color
+        // is the same as the reference color with a tolerance of 1
+        verifyResultsTexture(texture, referenceColor, GL_TEXTURE_2D, mTextureProgram,
+                             mTextureUniformLocation);
     }
 
     enum class AHBVerifyRegion
@@ -1106,17 +1497,17 @@ void main()
     }
 
     template <typename destType, typename sourcetype>
-    destType reinterpretHelper(sourcetype source)
+    destType reinterpretHelper(const sourcetype &source)
     {
         static_assert(sizeof(destType) == sizeof(size_t),
                       "destType should be the same size as a size_t");
-        size_t sourceSizeT = static_cast<size_t>(source);
+        size_t sourceSizeT = static_cast<size_t>(source.get());
         return reinterpret_cast<destType>(sourceSizeT);
     }
 
     bool hasImageGLColorspaceExt() const
     {
-        // Possible GLES driver bug on Pixel2 devices: http://anglebug.com/5321
+        // Possible GLES driver bug on Pixel2 devices: http://anglebug.com/42263865
         if (IsPixel2() && IsOpenGLES())
         {
             return false;
@@ -1132,9 +1523,28 @@ void main()
 
     bool hasEglImageStorageExt() const { return IsGLExtensionEnabled(kEGLImageStorageExt); }
 
+    bool hasEglImageStorageCompressionExt() const
+    {
+        return IsGLExtensionEnabled(kEGLImageStorageCompressionExt);
+    }
+
+    bool hasTextureStorageCompressionExt() const
+    {
+        return IsGLExtensionEnabled(kTextureStorageCompressionExt);
+    }
+
     bool hasAndroidHardwareBufferSupport() const
     {
 #if defined(ANGLE_AHARDWARE_BUFFER_SUPPORT)
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    bool hasAhbLockPlanesSupport() const
+    {
+#if defined(ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT)
         return true;
 #else
         return false;
@@ -1152,6 +1562,8 @@ void main()
     bool hasYUVInternalFormatExt() const { return IsGLExtensionEnabled(kYUVInternalFormatExt); }
 
     bool hasYUVTargetExt() const { return IsGLExtensionEnabled(kYUVTargetExt); }
+
+    bool hasRGBXInternalFormatExt() const { return IsGLExtensionEnabled(kRGBXInternalFormatExt); }
 
     bool hasBaseExt() const
     {
@@ -1183,16 +1595,34 @@ void main()
         return IsEGLDisplayExtensionEnabled(getEGLWindow()->getDisplay(), kCubemapExt);
     }
 
-    EGLint *get3DAttributes(const bool withColorspace = false, EGLint layer = 0)
+    bool hasWebGPUDeviceExt() const
     {
-        if (!withColorspace)
+        if (!IsEGLClientExtensionEnabled("EGL_EXT_device_query"))
         {
-            default3DAttribs[1] = static_cast<EGLint>(layer);
-            return default3DAttribs;
+            return false;
+        }
+        EGLAttrib device = 0;
+        EXPECT_EGL_TRUE(
+            eglQueryDisplayAttribEXT(getEGLWindow()->getDisplay(), EGL_DEVICE_EXT, &device));
+        return IsEGLDeviceExtensionEnabled(reinterpret_cast<EGLDeviceEXT>(device),
+                                           kWebGPUDeviceExt);
+    }
+
+    bool hasWebGPUTextureExt() const
+    {
+        return IsEGLDisplayExtensionEnabled(getEGLWindow()->getDisplay(), kWebGPUTextureExt);
+    }
+
+    angle::VulkanPerfCounters getPerfCounters()
+    {
+        ASSERT(IsVulkan());
+
+        if (mCounterNameToIndexMap.empty())
+        {
+            mCounterNameToIndexMap = BuildCounterNameToIndexMap();
         }
 
-        colorspace3DAttribs[1] = static_cast<EGLint>(layer);
-        return colorspace3DAttribs;
+        return GetPerfCounters(mCounterNameToIndexMap);
     }
 
     void externalTextureTracerTestHelper(const EGLint *attribsToRecoverInMEC)
@@ -1218,7 +1648,7 @@ void main()
 
         image1 = eglCreateImageKHR(
             eglWindow->getDisplay(), eglWindow->getContext(), EGL_GL_TEXTURE_2D_KHR,
-            reinterpretHelper<EGLClientBuffer>(sourceTexture1.get()), attribsToRecoverInMEC);
+            reinterpretHelper<EGLClientBuffer>(sourceTexture1), attribsToRecoverInMEC);
 
         ASSERT_EGL_SUCCESS();
 
@@ -1266,7 +1696,7 @@ void main()
         };
         image2 = eglCreateImageKHR(
             eglWindow->getDisplay(), eglWindow->getContext(), EGL_GL_TEXTURE_2D_KHR,
-            reinterpretHelper<EGLClientBuffer>(sourceTexture2.get()), defaultAttribs);
+            reinterpretHelper<EGLClientBuffer>(sourceTexture2), defaultAttribs);
 
         ASSERT_EGL_SUCCESS();
 
@@ -1309,8 +1739,13 @@ void main()
         eglDestroyImageKHR(eglWindow->getDisplay(), image2);
     }
 
-    void FramebufferAttachmentDeletedWhileInUseHelper(bool useTextureAttachment,
+    void framebufferAttachmentDeletedWhileInUseHelper(bool useTextureAttachment,
                                                       bool deleteSourceTextureLast);
+    void framebufferResolveAttachmentDeletedWhileInUseHelper(bool useTextureAttachment,
+                                                             bool deleteSourceTextureLast);
+    void useAHBByGLThenForeignThenGLHelper(
+        std::function<void(const GLTexture &, uint32_t, uint32_t)> firstUse,
+        std::function<void(const GLTexture &, uint32_t, uint32_t)> secondUse);
 
     EGLint default3DAttribs[5] = {
         EGL_GL_TEXTURE_ZOFFSET_KHR, static_cast<EGLint>(0), EGL_IMAGE_PRESERVED, EGL_TRUE, EGL_NONE,
@@ -1326,11 +1761,14 @@ void main()
     };
     GLuint mTextureProgram;
     GLuint m2DArrayTextureProgram;
+    GLuint m3DTextureProgram;
     GLuint mCubeTextureProgram;
     GLuint mCubeArrayTextureProgram;
     GLint mTextureUniformLocation;
     GLuint m2DArrayTextureUniformLocation;
     GLuint m2DArrayTextureLayerUniformLocation;
+    GLuint m3DTextureUniformLocation;
+    GLuint m3DTextureLayerUniformLocation;
     GLuint mCubeTextureUniformLocation;
     GLuint mCubeTextureFaceCoordUniformLocation;
     GLuint mCubeArrayTextureUniformLocation;
@@ -1346,8 +1784,18 @@ void main()
     GLuint mTextureYUVProgram        = 0;
     GLint mTextureYUVUniformLocation = -1;
 
+    GLuint mTextureYUVVSProgram        = 0;
+    GLint mTextureYUVVSUniformLocation = -1;
+
+    GLuint mFetchYUVProgram          = 0;
+    GLint mFetchYUVUniformLocation   = -1;
+    GLuint mFetchYUVVSProgram        = 0;
+    GLint mFetchYUVVSUniformLocation = -1;
+
     GLuint mRenderYUVProgram        = 0;
     GLint mRenderYUVUniformLocation = -1;
+
+    CounterNameToIndexMap mCounterNameToIndexMap;
 };
 
 class ImageTestES3 : public ImageTest
@@ -1371,6 +1819,7 @@ TEST_P(ImageTest, ANGLEExtensionAvailability)
         EXPECT_TRUE(hasBaseExt());
         EXPECT_TRUE(has2DTextureExt());
         EXPECT_TRUE(hasRenderbufferExt());
+        EXPECT_FALSE(has3DTextureExt());
 
         if (IsD3D11())
         {
@@ -1420,6 +1869,29 @@ TEST_P(ImageTest, ANGLEExtensionAvailability)
         EXPECT_FALSE(has3DTextureExt());
         EXPECT_FALSE(hasRenderbufferExt());
     }
+    else if (IsWebGPU())
+    {
+        EXPECT_TRUE(hasOESExt());
+        EXPECT_TRUE(hasBaseExt());
+        EXPECT_TRUE(hasExternalExt());
+        if (getClientMajorVersion() >= 3)
+        {
+            EXPECT_TRUE(hasExternalESSL3Ext());
+        }
+        else
+        {
+            EXPECT_FALSE(hasExternalESSL3Ext());
+        }
+        EXPECT_TRUE(has2DTextureExt());
+        EXPECT_FALSE(hasCubemapExt());
+        EXPECT_FALSE(has3DTextureExt());
+        EXPECT_TRUE(hasRenderbufferExt());
+        EXPECT_TRUE(hasWebGPUDeviceExt());
+        EXPECT_TRUE(hasWebGPUTextureExt());
+#if !defined(ANGLE_ENABLE_WGPU)
+        FAIL() << "ANGLE_ENABLE_WGPU not defined when running on WebGPU backend";
+#endif
+    }
     else
     {
         EXPECT_FALSE(hasOESExt());
@@ -1433,7 +1905,6 @@ TEST_P(ImageTest, ANGLEExtensionAvailability)
 
     // These extensions are not yet available on any platform.
     EXPECT_FALSE(hasPixmapExt());
-    EXPECT_FALSE(has3DTextureExt());
 }
 
 // Check validation from the EGL_KHR_image_base extension
@@ -1450,20 +1921,20 @@ TEST_P(ImageTest, ValidationImageBase)
     EGLContext context        = window->getContext();
     EGLConfig config          = window->getConfig();
     EGLImageKHR image         = EGL_NO_IMAGE_KHR;
-    EGLClientBuffer texture2D = reinterpretHelper<EGLClientBuffer>(glTexture2D.get());
+    EGLClientBuffer texture2D = reinterpretHelper<EGLClientBuffer>(glTexture2D);
 
     // Test validation of eglCreateImageKHR
 
     // If <dpy> is not the handle of a valid EGLDisplay object, the error EGL_BAD_DISPLAY is
     // generated.
-    image = eglCreateImageKHR(reinterpretHelper<EGLDisplay>(0xBAADF00D), context,
+    image = eglCreateImageKHR(reinterpret_cast<EGLDisplay>(0xBAADF00D), context,
                               EGL_GL_TEXTURE_2D_KHR, texture2D, nullptr);
     EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
     EXPECT_EGL_ERROR(EGL_BAD_DISPLAY);
 
     // If <ctx> is neither the handle of a valid EGLContext object on <dpy> nor EGL_NO_CONTEXT, the
     // error EGL_BAD_CONTEXT is generated.
-    image = eglCreateImageKHR(display, reinterpretHelper<EGLContext>(0xBAADF00D),
+    image = eglCreateImageKHR(display, reinterpret_cast<EGLContext>(0xBAADF00D),
                               EGL_GL_TEXTURE_2D_KHR, texture2D, nullptr);
     EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
     EXPECT_EGL_ERROR(EGL_BAD_CONTEXT);
@@ -1539,13 +2010,13 @@ TEST_P(ImageTest, ValidationImageBase)
 
     // If <dpy> is not the handle of a valid EGLDisplay object, the error EGL_BAD_DISPLAY is
     // generated.
-    result = eglDestroyImageKHR(reinterpretHelper<EGLDisplay>(0xBAADF00D), image);
+    result = eglDestroyImageKHR(reinterpret_cast<EGLDisplay>(0xBAADF00D), image);
     EXPECT_EQ(result, static_cast<EGLBoolean>(EGL_FALSE));
     EXPECT_EGL_ERROR(EGL_BAD_DISPLAY);
 
     // If <image> is not a valid EGLImageKHR object created with respect to <dpy>, the error
     // EGL_BAD_PARAMETER is generated.
-    result = eglDestroyImageKHR(display, reinterpretHelper<EGLImageKHR>(0xBAADF00D));
+    result = eglDestroyImageKHR(display, reinterpret_cast<EGLImageKHR>(0xBAADF00D));
     EXPECT_EQ(result, static_cast<EGLBoolean>(EGL_FALSE));
     EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
 
@@ -1582,7 +2053,7 @@ TEST_P(ImageTest, ValidationGLImage)
         }
 
         image = eglCreateImageKHR(display, context, EGL_GL_TEXTURE_2D_KHR,
-                                  reinterpretHelper<EGLClientBuffer>(textureCube.get()), nullptr);
+                                  reinterpretHelper<EGLClientBuffer>(textureCube), nullptr);
         EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
         EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
 
@@ -1601,7 +2072,7 @@ TEST_P(ImageTest, ValidationGLImage)
             EGL_NONE,
         };
         image = eglCreateImageKHR(display, context, EGL_GL_TEXTURE_2D_KHR,
-                                  reinterpretHelper<EGLClientBuffer>(incompleteTexture.get()),
+                                  reinterpretHelper<EGLClientBuffer>(incompleteTexture),
                                   level0Attribute);
         EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
         EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
@@ -1610,9 +2081,8 @@ TEST_P(ImageTest, ValidationGLImage)
         // EGL_GL_TEXTURE_3D_KHR, <buffer> is not the name of a complete GL texture object, and
         // mipmap level 0 is not specified, the error EGL_BAD_PARAMETER is generated.
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        image =
-            eglCreateImageKHR(display, context, EGL_GL_TEXTURE_2D_KHR,
-                              reinterpretHelper<EGLClientBuffer>(incompleteTexture.get()), nullptr);
+        image = eglCreateImageKHR(display, context, EGL_GL_TEXTURE_2D_KHR,
+                                  reinterpretHelper<EGLClientBuffer>(incompleteTexture), nullptr);
         EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
         EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
 
@@ -1634,7 +2104,7 @@ TEST_P(ImageTest, ValidationGLImage)
             EGL_NONE,
         };
         image = eglCreateImageKHR(display, context, EGL_GL_TEXTURE_2D_KHR,
-                                  reinterpretHelper<EGLClientBuffer>(incompleteTexture.get()),
+                                  reinterpretHelper<EGLClientBuffer>(incompleteTexture),
                                   level2Attribute);
         EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
         EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
@@ -1649,7 +2119,7 @@ TEST_P(ImageTest, ValidationGLImage)
         // If <target> is not one of the values in Table aaa, the error EGL_BAD_PARAMETER is
         // generated.
         image = eglCreateImageKHR(display, context, EGL_GL_TEXTURE_2D_KHR,
-                                  reinterpretHelper<EGLClientBuffer>(texture2D.get()), nullptr);
+                                  reinterpretHelper<EGLClientBuffer>(texture2D), nullptr);
         EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
         EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
     }
@@ -1678,7 +2148,7 @@ TEST_P(ImageTest, ValidationGLImage)
             EGL_NONE,
         };
         image = eglCreateImageKHR(display, context, EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X_KHR,
-                                  reinterpretHelper<EGLClientBuffer>(incompleteTextureCube.get()),
+                                  reinterpretHelper<EGLClientBuffer>(incompleteTextureCube),
                                   level0Attribute);
         EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
         EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
@@ -1697,7 +2167,7 @@ TEST_P(ImageTest, ValidationGLImage)
         // If <target> is not one of the values in Table aaa, the error EGL_BAD_PARAMETER is
         // generated.
         image = eglCreateImageKHR(display, context, EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X_KHR,
-                                  reinterpretHelper<EGLClientBuffer>(textureCube.get()), nullptr);
+                                  reinterpretHelper<EGLClientBuffer>(textureCube), nullptr);
         EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
         EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
     }
@@ -1717,8 +2187,7 @@ TEST_P(ImageTest, ValidationGLImage)
             EGL_NONE,
         };
         image = eglCreateImageKHR(display, context, EGL_GL_TEXTURE_3D_KHR,
-                                  reinterpretHelper<EGLClientBuffer>(texture3D.get()),
-                                  zOffset3Parameter);
+                                  reinterpretHelper<EGLClientBuffer>(texture3D), zOffset3Parameter);
         EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
         EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
 
@@ -1728,7 +2197,7 @@ TEST_P(ImageTest, ValidationGLImage)
             EGL_NONE,
         };
         image = eglCreateImageKHR(display, context, EGL_GL_TEXTURE_3D_KHR,
-                                  reinterpretHelper<EGLClientBuffer>(texture3D.get()),
+                                  reinterpretHelper<EGLClientBuffer>(texture3D),
                                   zOffsetNegative1Parameter);
         EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
         EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
@@ -1748,9 +2217,9 @@ TEST_P(ImageTest, ValidationGLImage)
                 EGL_NONE,
             };
 
-            image = eglCreateImageKHR(display, context, EGL_GL_TEXTURE_2D_KHR,
-                                      reinterpretHelper<EGLClientBuffer>(texture2D.get()),
-                                      zOffset0Parameter);
+            image =
+                eglCreateImageKHR(display, context, EGL_GL_TEXTURE_2D_KHR,
+                                  reinterpretHelper<EGLClientBuffer>(texture2D), zOffset0Parameter);
             EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
             EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
         }
@@ -1765,7 +2234,7 @@ TEST_P(ImageTest, ValidationGLImage)
             // If <target> is not one of the values in Table aaa, the error EGL_BAD_PARAMETER is
             // generated.
             image = eglCreateImageKHR(display, context, EGL_GL_TEXTURE_3D_KHR,
-                                      reinterpretHelper<EGLClientBuffer>(texture3D.get()), nullptr);
+                                      reinterpretHelper<EGLClientBuffer>(texture3D), nullptr);
             EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
             EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
         }
@@ -1804,7 +2273,7 @@ TEST_P(ImageTest, ValidationGLImage)
         // If <target> is not one of the values in Table aaa, the error EGL_BAD_PARAMETER is
         // generated.
         image = eglCreateImageKHR(display, context, EGL_GL_RENDERBUFFER_KHR,
-                                  reinterpretHelper<EGLClientBuffer>(renderbuffer.get()), nullptr);
+                                  reinterpretHelper<EGLClientBuffer>(renderbuffer), nullptr);
         EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
         EXPECT_EGL_ERROR(EGL_BAD_PARAMETER);
     }
@@ -1841,7 +2310,7 @@ void ImageTest::ValidationGLEGLImage_helper(const EGLint *attribs)
     // generated.
     GLTexture texture;
     glBindTexture(GL_TEXTURE_2D, texture);
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, reinterpretHelper<GLeglImageOES>(0xBAADF00D));
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, reinterpret_cast<GLeglImageOES>(0xBAADF00D));
     EXPECT_GL_ERROR(GL_INVALID_VALUE);
 
     // <target> must be RENDERBUFFER_OES, and <image> must be the handle of a valid EGLImage
@@ -1850,13 +2319,18 @@ void ImageTest::ValidationGLEGLImage_helper(const EGLint *attribs)
     glEGLImageTargetRenderbufferStorageOES(GL_TEXTURE_2D, image);
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
 
+    // If a renderbuffer is not bound, the error INVALID_OPERATION is generated.
+    // (Not in specification.)
+    glEGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER, image);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
     // If the GL is unable to create a renderbuffer using the specified eglImageOES, the error
     // INVALID_OPERATION is generated.If <image>
     // does not refer to a valid eglImageOES object, the error INVALID_VALUE is generated.
     GLRenderbuffer renderbuffer;
     glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
     glEGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER,
-                                           reinterpretHelper<GLeglImageOES>(0xBAADF00D));
+                                           reinterpret_cast<GLeglImageOES>(0xBAADF00D));
     EXPECT_GL_ERROR(GL_INVALID_VALUE);
 
     // Clean up
@@ -2044,25 +2518,415 @@ void ImageTest::Source2DTarget2D_helper(const EGLint *attribs)
     GLTexture source;
     EGLImageKHR image;
     createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs,
-                                  static_cast<void *>(&kLinearColor), source, &image);
+                                  static_cast<void *>(kSrgbColor), source, &image);
 
     // Create the target
     GLTexture target;
     createEGLImageTargetTexture2D(image, target);
 
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResults2D(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResults2D(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResults2D(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
+}
+
+void ImageTest::ImageStorageGenerateMipmap_helper(const EGLint *attribs,
+                                                  const GLsizei width,
+                                                  const GLsizei height,
+                                                  AHardwareBuffer *srcAhb,
+                                                  GLuint srcTexture,
+                                                  EGLImageKHR *imageOut)
+{
+    ASSERT(srcAhb != nullptr || glIsTexture(srcTexture));
+
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 && !IsGLExtensionEnabled("GL_EXT_sRGB"));
+    ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasEglImageStorageExt());
+
+    constexpr int kNumTiles = 8;
+    const int tileWidth     = width / kNumTiles;
+    const int tileHeight    = height / kNumTiles;
+
+    // Create EGLImage and then a target texture from that image
+    EGLWindow *window = getEGLWindow();
+    if (srcAhb != nullptr)
+    {
+        *imageOut =
+            eglCreateImageKHR(window->getDisplay(), EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID,
+                              angle::android::AHardwareBufferToClientBuffer(srcAhb), attribs);
+    }
+    else
+    {
+        *imageOut =
+            eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
+                              reinterpret_cast<EGLClientBuffer>(srcTexture), attribs);
+    }
+    ASSERT_EGL_SUCCESS();
+
+    GLTexture dstTexture;
+    glBindTexture(GL_TEXTURE_2D, dstTexture);
+    // Setup for mipmapping
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    ASSERT_GL_NO_ERROR();
+
+    glEGLImageTargetTexStorageEXT(GL_TEXTURE_2D, *imageOut, nullptr);
+    ASSERT_GL_NO_ERROR();
+
+    // Create framebuffer, attach level 0 of target texture and render pattern
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dstTexture, 0);
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+    glEnable(GL_SCISSOR_TEST);
+    for (int i = 0; i < kNumTiles; ++i)
+    {
+        for (int j = 0; j < kNumTiles; ++j)
+        {
+            const float v = (i & 1) ^ (j & 1) ? 0.5f : 0.f;
+            glClearColor(v, 0.f, v, v);
+            glScissor(i * tileWidth, j * tileHeight, tileWidth, tileHeight);
+            glClear(GL_COLOR_BUFFER_BIT);
+        }
+    }
+    glDisable(GL_SCISSOR_TEST);
+
+    // Generate mipmap for target texture
+    glGenerateMipmap(GL_TEXTURE_2D);
+}
+
+void ImageTest::verifyImageStorageMipmap(const EGLint *attribs,
+                                         EGLImageKHR image,
+                                         const GLsizei mipLevelCount)
+{
+    if (image == EGL_NO_IMAGE_KHR)
+    {
+        // Early return if image isn't valid
+        return;
+    }
+
+    GLubyte linearColor[] = {64, 0, 64, 64};
+    GLubyte srgbColor[]   = {137, 0, 137, 64};
+    GLubyte *expectedColor =
+        attribListHasSrgbColorspace(attribs, kColorspaceAttributeIndex) ? srgbColor : linearColor;
+
+    GLTexture targetTexture;
+    glBindTexture(GL_TEXTURE_2D, targetTexture);
+    // Setup for mipmapping
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    ASSERT_GL_NO_ERROR();
+
+    glEGLImageTargetTexStorageEXT(GL_TEXTURE_2D, image, nullptr);
+    ASSERT_GL_NO_ERROR();
+
+    // Create target framebuffer, attach "(mipLevelCount - 1)" level of target texture and verify
+    // data
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, targetTexture,
+                           mipLevelCount - 1);
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+    EXPECT_PIXEL_NEAR(0, 0, expectedColor[0], expectedColor[1], expectedColor[2], expectedColor[3],
+                      1);
+
+    // Verify that the target texture generates linear color when sampled
+    glActiveTexture(GL_TEXTURE0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, targetTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, mipLevelCount - 1);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipLevelCount - 1);
+    ASSERT_GL_NO_ERROR();
+
+    verifyResults2D(targetTexture, linearColor);
+}
+
+void ImageTest::verifyImageStorageMipmapWithBlend(const EGLint *attribs,
+                                                  EGLImageKHR image,
+                                                  const GLsizei mipLevelCount)
+{
+    if (image == EGL_NO_IMAGE_KHR)
+    {
+        // Early return if image isn't valid
+        return;
+    }
+
+    // Need to have at least miplevel 1
+    ASSERT(mipLevelCount >= 1);
+    // Verification used by only those tests with colorspace overrides
+    ASSERT(attribListHasSrgbColorspace(attribs, kColorspaceAttributeIndex));
+
+    GLTexture targetTexture;
+    glBindTexture(GL_TEXTURE_2D, targetTexture);
+    // Setup for mipmapping
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    ASSERT_GL_NO_ERROR();
+
+    glEGLImageTargetTexStorageEXT(GL_TEXTURE_2D, image, nullptr);
+    ASSERT_GL_NO_ERROR();
+
+    // Create target framebuffer, attach mipLevel == 1 of target texture and verify
+    // data with blending enabled.
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, targetTexture, 1);
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    // Blend green color with contents of mipLevel 1
+    // source color at (7, 11) of mipLevel 1 = [137, 0, 137, 64]
+    GLubyte blendedColor[] = {137, 255, 137, 255};
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+    glUseProgram(program);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.5f);
+
+    EXPECT_PIXEL_NEAR(7, 11, blendedColor[0], blendedColor[1], blendedColor[2], blendedColor[3], 1);
+}
+
+void ImageTest::SourceAHBTarget2DImageStorageGenerateMipmap_helper(const EGLint *attribs)
+{
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+
+    constexpr GLsizei kWidth    = 40;
+    constexpr GLsizei kHeight   = 32;
+    constexpr GLsizei kDepth    = 1;
+    const GLsizei mipLevelCount = static_cast<GLsizei>(std::log2(std::max(kWidth, kHeight)) + 1);
+
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        kWidth, kHeight, kDepth, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+        kDefaultAHBUsage | kAHBUsageGPUMipMapComplete));
+
+    // Create source AHB
+    AHardwareBuffer *aHardwareBuffer =
+        createAndroidHardwareBuffer(kWidth, kHeight, kDepth, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+                                    kDefaultAHBUsage | kAHBUsageGPUMipMapComplete, {});
+    EXPECT_NE(aHardwareBuffer, nullptr);
+
+    EGLImageKHR image = EGL_NO_IMAGE_KHR;
+    ImageStorageGenerateMipmap_helper(attribs, kWidth, kHeight, aHardwareBuffer, 0, &image);
+    verifyImageStorageMipmap(attribs, image, mipLevelCount);
+
+    // Clean up image
+    eglDestroyImageKHR(getEGLWindow()->getDisplay(), image);
+
+    // Clean up AHB
+    destroyAndroidHardwareBuffer(aHardwareBuffer);
+}
+
+// Test interaction between AHB, GL_EXT_EGL_image_storage and glGenerateMipmap
+TEST_P(ImageTestES3, SourceAHBTarget2DGenerateMipmap)
+{
+    SourceAHBTarget2DImageStorageGenerateMipmap_helper(kDefaultAttribs);
+}
+
+// Test interaction between AHB, GL_EXT_EGL_image_storage and glGenerateMipmap with colorspace
+// overrides This mirrors the SingleLayer_ColorTest_MipmapComplete_R8G8B8A8_UNORM_sRGB Android CTS
+// test
+TEST_P(ImageTestES3, SourceAHBTarget2DGenerateMipmap_Colorspace)
+{
+    SourceAHBTarget2DImageStorageGenerateMipmap_helper(kColorspaceAttribs);
+}
+
+// Test to ensure that Vulkan backend's LOAD_OP is correct for non-0 miplevels. A bug in
+// content tracking of mip levels will cause rendering artifacts and result in test failure.
+TEST_P(ImageTestES3, SourceAHBTarget2DGenerateMipmapColorspaceBlend)
+{
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+
+    constexpr GLsizei kWidth    = 40;
+    constexpr GLsizei kHeight   = 32;
+    constexpr GLsizei kDepth    = 1;
+    const GLsizei mipLevelCount = static_cast<GLsizei>(std::log2(std::max(kWidth, kHeight)) + 1);
+
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        kWidth, kHeight, kDepth, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+        kDefaultAHBUsage | kAHBUsageGPUMipMapComplete));
+
+    // Create source AHB
+    AHardwareBuffer *aHardwareBuffer =
+        createAndroidHardwareBuffer(kWidth, kHeight, kDepth, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+                                    kDefaultAHBUsage | kAHBUsageGPUMipMapComplete, {});
+    EXPECT_NE(aHardwareBuffer, nullptr);
+
+    EGLImageKHR image = EGL_NO_IMAGE_KHR;
+    ImageStorageGenerateMipmap_helper(kColorspaceAttribs, kWidth, kHeight, aHardwareBuffer, 0,
+                                      &image);
+    verifyImageStorageMipmapWithBlend(kColorspaceAttribs, image, mipLevelCount);
+
+    // Clean up image
+    eglDestroyImageKHR(getEGLWindow()->getDisplay(), image);
+
+    // Clean up AHB
+    destroyAndroidHardwareBuffer(aHardwareBuffer);
+}
+
+// Test interaction between AHB, GL_OES_EGL_image_external and glGenerateMipmap.
+TEST_P(ImageTestES3, SourceAHBTargetTexture2DGenerateMipmap)
+{
+    EGLWindow *window = getEGLWindow();
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+
+    GLubyte red_data[16] = {255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255};
+
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(2, 2, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+                                              kDefaultAHBUsage, kDefaultAttribs, {{red_data, 16}},
+                                              &source, &image);
+
+    // Create a texture target to bind the egl image.
+    GLTexture tex1;
+    createEGLImageTargetTexture2D(image, tex1);
+
+    // Draw to the tex1.
+    GLFramebuffer fbo1;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo1);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex1, 0);
+    ASSERT_GL_NO_ERROR();
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+    ANGLE_GL_PROGRAM(drawGreen, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+    drawQuad(drawGreen, essl1_shaders::PositionAttrib(), 0.0f);
+    ASSERT_GL_NO_ERROR();
+
+    // Generate mipmap for texture.
+    glBindTexture(GL_TEXTURE_2D, tex1);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    ASSERT_GL_NO_ERROR();
+
+    // Attach the texture to fbo2.
+    GLTexture tex2;
+    glBindTexture(GL_TEXTURE_2D, tex2);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    GLFramebuffer fbo2;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex2, 0);
+    ASSERT_GL_NO_ERROR();
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    // Sample tex1.
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, tex1);
+    ANGLE_GL_PROGRAM(drawTexture, essl1_shaders::vs::Texture2D(), essl1_shaders::fs::Texture2D());
+    glUseProgram(drawTexture);
+    GLint texLocation = glGetUniformLocation(drawTexture, essl1_shaders::Texture2DUniform());
+    ASSERT_NE(-1, texLocation);
+    glUniform1i(texLocation, 0);
+    drawQuad(drawTexture, essl1_shaders::PositionAttrib(), 0.5f);
+
+    // Verify results.
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+
+    // Clean up.
+    eglDestroyImageKHR(window->getDisplay(), image);
+    destroyAndroidHardwareBuffer(source);
+}
+
+// Test that drawing to an AHB works.
+TEST_P(ImageTestES3, SourceAHBTarget2DDraw)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+
+    // Create the Image without data so we don't need ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+                                              kDefaultAHBUsage, kDefaultAttribs, {}, &source,
+                                              &image);
+
+    // Create a texture target to bind the egl image
+    GLTexture target;
+    createEGLImageTargetTexture2D(image, target);
+
+    // Draw to the target and verify results.
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    ANGLE_GL_PROGRAM(drawGreen, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+    drawQuad(drawGreen, essl1_shaders::PositionAttrib(), 0.0f);
+    ASSERT_GL_NO_ERROR();
+
+    // Verify results for completeness.
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    destroyAndroidHardwareBuffer(source);
+}
+
+// Test that using an image through a texture, detaching it, then using it again with another
+// texture works.  This is similar to the usage pattern of |SourceAHBTarget2DGenerateMipmap|, but
+// doesn't require the |kAHBUsageGPUMipMapComplete| flags.
+TEST_P(ImageTestES3, SourceAHBTarget2DUseAfterDetach)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+
+    // Create the Image without data so we don't need ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+                                              kDefaultAHBUsage, kDefaultAttribs, {}, &source,
+                                              &image);
+
+    // Create a texture target to bind the egl image
+    GLTexture target;
+    createEGLImageTargetTexture2D(image, target);
+
+    // Clear the texture, use a temporary framebuffer.
+    {
+        GLFramebuffer fbo;
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+        glClearColor(1, 0, 0, 1);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    // Use the texture in a command buffer, but don't let it get submitted (use the default
+    // framebuffer).
+    ANGLE_GL_PROGRAM(drawTexture, essl1_shaders::vs::Texture2D(), essl1_shaders::fs::Texture2D());
+    GLint texLocation = glGetUniformLocation(drawTexture, essl1_shaders::Texture2DUniform());
+    ASSERT_NE(-1, texLocation);
+    glUseProgram(drawTexture);
+    glUniform1i(texLocation, 0);
+    ASSERT_GL_NO_ERROR();
+
+    glBindTexture(GL_TEXTURE_2D, target);
+    drawQuad(drawTexture, essl1_shaders::PositionAttrib(), 0.5f);
+
+    // Release the texture.  In the Vulkan backend, the image is scheduled to be transitioned to the
+    // FORIENG queue because this is an AHB.
+    glBindTexture(GL_TEXTURE_2D, 0);
+    target.reset();
+
+    // Now attach another texture to the same image.
+    GLTexture target2;
+    glBindTexture(GL_TEXTURE_2D, target2);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
+    ASSERT_GL_NO_ERROR();
+
+    // Use the new texture.  In the Vulkan backend, the management of transfer to FOREIGN queue and
+    // back should be correct.
+    drawQuad(drawTexture, essl1_shaders::PositionAttrib(), 0.5f);
+    ASSERT_GL_NO_ERROR();
+
+    // Verify results for completeness.
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    destroyAndroidHardwareBuffer(source);
 }
 
 // Try to orphan image created with the GL_EXT_EGL_image_storage extension
@@ -2080,7 +2944,7 @@ TEST_P(ImageTestES3, Source2DTarget2DStorageOrphan)
 
     // Create the target
     GLTexture target;
-    createEGLImageTargetTextureStorage(image, GL_TEXTURE_2D, target);
+    createEGLImageTargetTextureStorage(image, GL_TEXTURE_2D, target, nullptr);
 
     // Expect that the target texture has the same color as the source texture
     verifyResults2D(target, kLinearColor);
@@ -2088,6 +2952,43 @@ TEST_P(ImageTestES3, Source2DTarget2DStorageOrphan)
     // Try to orphan this target texture
     glBindTexture(GL_TEXTURE_2D, target);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, kLinearColor);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+}
+
+// Try to orphan 3D image created with the GL_EXT_EGL_image_storage extension
+TEST_P(ImageTestES3, Source3DTarget3DStorageOrphan)
+{
+    EGLWindow *window = getEGLWindow();
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has3DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasEglImageStorageExt());
+
+    constexpr size_t depth = 2;
+    EGLint attribs[3]      = {EGL_IMAGE_PRESERVED, EGL_TRUE, EGL_NONE};
+
+    // Create the Image
+    GLTexture source;
+    EGLImageKHR image;
+
+    createEGLImage3DTextureSource(1, 1, depth, GL_RGBA, GL_UNSIGNED_BYTE, attribs,
+                                  static_cast<void *>(&kLinearColor), source, &image);
+
+    // Create the target
+    GLTexture target;
+    createEGLImageTargetTextureStorage(image, GL_TEXTURE_3D, target, nullptr);
+
+    for (size_t layer = 0; layer < depth; layer++)
+    {
+        // Expect that the target texture has the same color as the source texture
+        verifyResults3D(target, kLinearColor);
+    }
+
+    // Try to orphan this target texture
+    glBindTexture(GL_TEXTURE_3D, target);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA, 1, 1, depth, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 kLinearColor);
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 
     // Clean up
@@ -2105,27 +3006,27 @@ TEST_P(ImageTest, Source2DTarget2DTargetTextureRespecifyColorspace)
     GLTexture source;
     EGLImageKHR image;
     createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, kDefaultAttribs,
-                                  static_cast<void *>(&kLinearColor), source, &image);
+                                  static_cast<void *>(&kSrgbColor), source, &image);
 
     // Create the target
     GLTexture target;
     createEGLImageTargetTexture2D(image, target);
 
     // Expect that the target texture has the same color as the source texture
-    verifyResults2D(target, kLinearColor);
+    verifyResults2D(target, kSrgbColor);
 
     // Respecify texture colorspace and verify results
     glBindTexture(GL_TEXTURE_2D, target);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_FORMAT_SRGB_OVERRIDE_EXT, GL_SRGB);
     ASSERT_GL_NO_ERROR();
-    // Expect that the target texture has the corresponding sRGB color values
-    verifyResults2D(target, kSrgbColor);
+    // Expect that the target texture decodes the sRGB color to linear when sampling
+    verifyResults2D(target, kLinearColor);
 
     // Reset texture parameter and verify results again
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_FORMAT_SRGB_OVERRIDE_EXT, GL_NONE);
     ASSERT_GL_NO_ERROR();
     // Expect that the target texture has the same color as the source texture
-    verifyResults2D(target, kLinearColor);
+    verifyResults2D(target, kSrgbColor);
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -2256,27 +3157,362 @@ void ImageTest::Source2DTarget2DArray_helper(const EGLint *attribs)
     // Create the Image
     GLTexture source;
     EGLImageKHR image;
-    createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, kLinearColor, source,
+    createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, kSrgbColor, source,
                                   &image);
 
     // Create the target
     GLTexture target;
     createEGLImageTargetTexture2DArray(image, target);
 
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResults2DArray(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResults2DArray(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResults2DArray(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
 }
+
+// Testing source AHB EGL image, if the client buffer is null, the test will not crash
+TEST_P(ImageTest, SourceAHBInvalid)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !IsVulkan());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+
+    // Create the Image
+    EGLImageKHR image = eglCreateImageKHR(window->getDisplay(), EGL_NO_CONTEXT,
+                                          EGL_NATIVE_BUFFER_ANDROID, nullptr, nullptr);
+    ASSERT_EGL_ERROR(EGL_BAD_PARAMETER);
+    EXPECT_EQ(image, EGL_NO_IMAGE_KHR);
+}
+
+// Testing source AHB EGL image, if the client buffer is not a  ANativeWindowBuffer,
+// eglCreateImageKHR should return NO_IMAGE and generate error EGL_BAD_PARAMETER.
+TEST_P(ImageTest, SourceAHBCorrupt)
+{
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !IsVulkan());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+
+#if defined(ANGLE_AHARDWARE_BUFFER_SUPPORT)
+    EGLWindow *window = getEGLWindow();
+
+    const AHardwareBuffer_Desc aHardwareBufferDescription = createAndroidHardwareBufferDesc(
+        16, 16, 1, AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM, kAHBUsageGPUSampledImage);
+
+    // Allocate memory from Android Hardware Buffer
+    AHardwareBuffer *aHardwareBuffer = nullptr;
+    EXPECT_EQ(0, AHardwareBuffer_allocate(&aHardwareBufferDescription, &aHardwareBuffer));
+
+    std::memset(
+        reinterpret_cast<void *>(angle::android::AHardwareBufferToClientBuffer(aHardwareBuffer)), 0,
+        sizeof(int));
+    EGLImageKHR ahbImage = eglCreateImageKHR(
+        window->getDisplay(), EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID,
+        angle::android::AHardwareBufferToClientBuffer(aHardwareBuffer), kDefaultAttribs);
+
+    ASSERT_EGL_ERROR(EGL_BAD_PARAMETER);
+    EXPECT_EQ(ahbImage, EGL_NO_IMAGE_KHR);
+
+    AHardwareBuffer_release(aHardwareBuffer);
+#endif
+}
+
+// Helper function to check if it is reasonable to access texture resource
+void ImageTest::ImageCheckingTextureAccessHelper(GLenum target, bool mipmap)
+{
+    constexpr GLsizei width = 2, height = 2, depth = 2;
+    GLTexture source;
+    EGLenum eglTarget;
+    EGLWindow *window = getEGLWindow();
+
+    glBindTexture(target, source);
+    switch (target)
+    {
+        case GL_TEXTURE_2D:
+            eglTarget = EGL_GL_TEXTURE_2D_KHR;
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                         nullptr);
+            break;
+        case GL_TEXTURE_3D:
+            eglTarget = EGL_GL_TEXTURE_3D_KHR;
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA, width, height, depth, 0, GL_RGBA,
+                         GL_UNSIGNED_BYTE, nullptr);
+            break;
+        case GL_TEXTURE_CUBE_MAP:
+            eglTarget = EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X_KHR;
+            for (GLenum faceIdx = 0; faceIdx < 6; faceIdx++)
+            {
+                glTexImage2D(faceIdx + GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGBA, width, height, 0,
+                             GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            }
+            break;
+        default:
+            return;
+    }
+
+    if (mipmap)
+    {
+        glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glGenerateMipmap(target);
+    }
+
+    EGLImageKHR image = eglCreateImageKHR(window->getDisplay(), window->getContext(), eglTarget,
+                                          reinterpretHelper<EGLClientBuffer>(source), nullptr);
+    ASSERT_EGL_SUCCESS();
+    EXPECT_NE(image, EGL_NO_IMAGE_KHR);
+
+    // If the texture is bound to egl image, EGL_BAD_ACCESS should be returned.
+    EGLImageKHR invalidImage1 =
+        eglCreateImageKHR(window->getDisplay(), window->getContext(), eglTarget,
+                          reinterpretHelper<EGLClientBuffer>(source), nullptr);
+    ASSERT_EGL_ERROR(EGL_BAD_ACCESS);
+    EXPECT_EQ(invalidImage1, EGL_NO_IMAGE_KHR);
+
+    // If the image is destroyed, the texture could be bound to egl image here.
+    eglDestroyImageKHR(window->getDisplay(), image);
+
+    EGLImageKHR validImage1 =
+        eglCreateImageKHR(window->getDisplay(), window->getContext(), eglTarget,
+                          reinterpretHelper<EGLClientBuffer>(source), nullptr);
+    ASSERT_EGL_SUCCESS();
+    EXPECT_NE(validImage1, EGL_NO_IMAGE_KHR);
+
+    if (target == GL_TEXTURE_3D)
+    {
+        constexpr EGLint zOffsetAttribs[] = {
+            EGL_GL_TEXTURE_ZOFFSET,
+            1,
+            EGL_NONE,
+        };
+        EGLImageKHR validImage2 =
+            eglCreateImageKHR(window->getDisplay(), window->getContext(), eglTarget,
+                              reinterpretHelper<EGLClientBuffer>(source), zOffsetAttribs);
+        ASSERT_EGL_SUCCESS();
+        EXPECT_NE(validImage2, EGL_NO_IMAGE_KHR);
+        eglDestroyImageKHR(window->getDisplay(), validImage2);
+    }
+
+    if (target == GL_TEXTURE_CUBE_MAP)
+    {
+        for (GLenum faceIdx = 1; faceIdx < 6; faceIdx++)
+        {
+            EGLImageKHR validImage2 =
+                eglCreateImageKHR(window->getDisplay(), window->getContext(), eglTarget + faceIdx,
+                                  reinterpretHelper<EGLClientBuffer>(source), nullptr);
+            ASSERT_EGL_SUCCESS();
+            EXPECT_NE(validImage2, EGL_NO_IMAGE_KHR);
+            eglDestroyImageKHR(window->getDisplay(), validImage2);
+        }
+    }
+
+    if (mipmap)
+    {
+        constexpr EGLint mipmapAttribs[] = {
+            EGL_GL_TEXTURE_LEVEL,
+            1,
+            EGL_NONE,
+        };
+        EGLImageKHR validImage3 =
+            eglCreateImageKHR(window->getDisplay(), window->getContext(), eglTarget,
+                              reinterpretHelper<EGLClientBuffer>(source), mipmapAttribs);
+        ASSERT_EGL_SUCCESS();
+        EXPECT_NE(validImage3, EGL_NO_IMAGE_KHR);
+
+        EGLImageKHR invalidImage2 =
+            eglCreateImageKHR(window->getDisplay(), window->getContext(), eglTarget,
+                              reinterpretHelper<EGLClientBuffer>(source), mipmapAttribs);
+        ASSERT_EGL_ERROR(EGL_BAD_ACCESS);
+        EXPECT_EQ(invalidImage2, EGL_NO_IMAGE_KHR);
+
+        eglDestroyImageKHR(window->getDisplay(), validImage3);
+        EGLImageKHR validImage4 =
+            eglCreateImageKHR(window->getDisplay(), window->getContext(), eglTarget,
+                              reinterpretHelper<EGLClientBuffer>(source), mipmapAttribs);
+        ASSERT_EGL_SUCCESS();
+        EXPECT_NE(validImage4, EGL_NO_IMAGE_KHR);
+        eglDestroyImageKHR(window->getDisplay(), validImage4);
+    }
+
+    eglDestroyImageKHR(window->getDisplay(), validImage1);
+}
+
+// Testing GLES resources when creating EGL image, if the client buffer itself is an EGL sibling,
+// eglCreateImageKHR should return NO_IMAGE and generate error EGL_BAD_ACCESS.
+TEST_P(ImageTest, SourceBadAccess)
+{
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !IsVulkan());
+
+    // Validate gles 2D texture
+    if (has2DTextureExt())
+    {
+        ImageCheckingTextureAccessHelper(GL_TEXTURE_2D, false);
+        ImageCheckingTextureAccessHelper(GL_TEXTURE_2D, true);
+    }
+
+    // Validate gles 3D texture
+    if (has3DTextureExt() && getClientMajorVersion() >= 3)
+    {
+        ImageCheckingTextureAccessHelper(GL_TEXTURE_3D, false);
+        ImageCheckingTextureAccessHelper(GL_TEXTURE_3D, true);
+    }
+
+    // Validate gles cube map texture
+    if (hasCubemapExt())
+    {
+        ImageCheckingTextureAccessHelper(GL_TEXTURE_CUBE_MAP, false);
+        ImageCheckingTextureAccessHelper(GL_TEXTURE_CUBE_MAP, true);
+    }
+
+    // Validate gles renderbuffer
+    if (hasRenderbufferExt())
+    {
+        EGLWindow *window = getEGLWindow();
+        GLRenderbuffer source;
+        EGLImageKHR image;
+        createEGLImageRenderbufferSource(1, 1, GL_RGBA8_OES, kDefaultAttribs, source, &image);
+
+        EGLImageKHR invalidImage =
+            eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_RENDERBUFFER_KHR,
+                              reinterpretHelper<EGLClientBuffer>(source), kDefaultAttribs);
+        ASSERT_EGL_ERROR(EGL_BAD_ACCESS);
+        EXPECT_EQ(invalidImage, EGL_NO_IMAGE_KHR);
+        eglDestroyImageKHR(window->getDisplay(), image);
+
+        EGLImageKHR validImage =
+            eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_RENDERBUFFER_KHR,
+                              reinterpretHelper<EGLClientBuffer>(source), kDefaultAttribs);
+        ASSERT_EGL_SUCCESS();
+        EXPECT_NE(validImage, EGL_NO_IMAGE_KHR);
+        eglDestroyImageKHR(window->getDisplay(), validImage);
+    }
+}
+
+// Testing GLES resources when creating EGL image, if the client buffer itself is an EGL target,
+// eglCreateImageKHR should return NO_IMAGE and generate error EGL_BAD_ACCESS.
+TEST_P(ImageTest, ImageSiblingAsSourceTarget)
+{
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !IsVulkan() || !has2DTextureExt() ||
+                       !hasRenderbufferExt());
+    EGLWindow *window = getEGLWindow();
+
+    // Validate gles texture
+    GLRenderbuffer renderBufferSource;
+    EGLImageKHR image1;
+    createEGLImageRenderbufferSource(1, 1, GL_RGBA8_OES, kDefaultAttribs, renderBufferSource,
+                                     &image1);
+    GLTexture texture;
+    createEGLImageTargetTexture2D(image1, texture);
+
+    // Texture is both an EGL target and an EGL source. EGL_BAD_ACCESS should be returned
+    EGLImageKHR invalidImage =
+        eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D,
+                          reinterpretHelper<EGLClientBuffer>(texture), kDefaultAttribs);
+    ASSERT_EGL_ERROR(EGL_BAD_ACCESS);
+    EXPECT_EQ(invalidImage, EGL_NO_IMAGE_KHR);
+
+    // Validate gles renderbuffer
+    GLTexture textureSource;
+    EGLImageKHR image2;
+    createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, kDefaultAttribs,
+                                  static_cast<void *>(&kLinearColor), textureSource, &image2);
+    GLRenderbuffer renderBuffer;
+    createEGLImageTargetRenderbuffer(image2, renderBuffer);
+
+    // Renderbuffer is both an EGL target and an EGL source. EGL_BAD_ACCESS should be returned
+    invalidImage =
+        eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_RENDERBUFFER_KHR,
+                          reinterpretHelper<EGLClientBuffer>(renderBuffer), kDefaultAttribs);
+    ASSERT_EGL_ERROR(EGL_BAD_ACCESS);
+    EXPECT_EQ(invalidImage, EGL_NO_IMAGE_KHR);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image1);
+    eglDestroyImageKHR(window->getDisplay(), image2);
+}
+
+#if defined(ANGLE_ENABLE_WGPU)
+// Testing source WebGPU Texture EGL image, target 2D texture
+TEST_P(ImageTest, SourceWebGPUTextureTarget2D)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasWebGPUDeviceExt() || !hasWebGPUTextureExt());
+
+    const DawnProcTable &wgpu = getWebGPUProcs();
+
+    std::vector<GLubyte> data = {190, 128, 238, 255};
+    uint32_t dataBytesPerRow  = 4;
+
+    WGPUTextureDescriptor desc = WGPU_TEXTURE_DESCRIPTOR_INIT;
+    desc.usage                 = WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst |
+                 WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
+    desc.dimension = WGPUTextureDimension_2D;
+    desc.size      = {1, 1, 1};
+    desc.format    = WGPUTextureFormat_RGBA8Unorm;
+
+    const EGLint attribs[] = {EGL_NONE};
+
+    // Create the Image
+    WGPUTexture source;
+    EGLImageKHR image;
+    createEGLImageWebGPUTextureClientBufferSource(desc, attribs, data, dataBytesPerRow, &source,
+                                                  &image);
+
+    // Create a texture target to bind the egl image
+    GLTexture target;
+    createEGLImageTargetTexture2D(image, target);
+
+    // Use texture target bound to egl image as source and render to framebuffer
+    // Verify that the target texture has the expected color
+    verifyResults2D(target, getExpected2DColorForAttribList(attribs));
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    wgpu.textureRelease(source);
+}
+
+// Testing source WebGPU Texture EGL image, target 2D renderbuffer
+TEST_P(ImageTest, SourceWebGPUTextureRenderbuffer)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasWebGPUDeviceExt() || !hasWebGPUTextureExt());
+
+    const DawnProcTable &wgpu = getWebGPUProcs();
+
+    std::vector<GLubyte> data = {190, 128, 238, 255};
+    uint32_t dataBytesPerRow  = 4;
+
+    WGPUTextureDescriptor desc = WGPU_TEXTURE_DESCRIPTOR_INIT;
+    desc.usage                 = WGPUTextureUsage_CopySrc | WGPUTextureUsage_CopyDst |
+                 WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
+    desc.dimension = WGPUTextureDimension_2D;
+    desc.size      = {1, 1, 1};
+    desc.format    = WGPUTextureFormat_RGBA8Unorm;
+
+    const EGLint attribs[] = {EGL_NONE};
+
+    // Create the Image
+    WGPUTexture source;
+    EGLImageKHR image;
+    createEGLImageWebGPUTextureClientBufferSource(desc, attribs, data, dataBytesPerRow, &source,
+                                                  &image);
+
+    // Create a renderbuffer target to bind the egl image
+    GLRenderbuffer target;
+    createEGLImageTargetRenderbuffer(image, target);
+
+    // Use renderbuffer target bound to egl image as source and render to framebuffer
+    // Verify that the target renderbuffer has the expected color
+    verifyResultsRenderbuffer(target, getExpected2DColorForAttribList(attribs));
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    wgpu.textureRelease(source);
+}
+#endif  // defined(ANGLE_ENABLE_WGPU)
 
 // Testing source AHB EGL image, target 2D texture and delete when in use
 // If refcounted correctly, the test should pass without issues
@@ -2314,14 +3550,12 @@ TEST_P(ImageTest, SourceAHBTarget2DEarlyDelete)
 // Testing source AHB EGL image, target 2D texture
 TEST_P(ImageTest, SourceAHBTarget2D)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     SourceAHBTarget2D_helper(kDefaultAttribs);
 }
 
 // Testing source AHB EGL image with colorspace, target 2D texture
 TEST_P(ImageTest, SourceAHBTarget2D_Colorspace)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 && !IsGLExtensionEnabled("GL_EXT_sRGB"));
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
     SourceAHBTarget2D_helper(kColorspaceAttribs);
@@ -2333,29 +3567,22 @@ void ImageTest::SourceAHBTarget2D_helper(const EGLint *attribs)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Create the Image
     AHardwareBuffer *source;
     EGLImageKHR image;
     createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
-                                              kDefaultAHBUsage, attribs, {{kLinearColor, 4}},
-                                              &source, &image);
+                                              kDefaultAHBUsage, attribs, {{kSrgbColor, 4}}, &source,
+                                              &image);
 
     // Create a texture target to bind the egl image
     GLTexture target;
     createEGLImageTargetTexture2D(image, target);
 
     // Use texture target bound to egl image as source and render to framebuffer
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResults2D(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResults2D(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResults2D(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -2367,8 +3594,6 @@ TEST_P(ImageTest, SourceAHBTarget2DExternalCycleThroughYuvSourcesNoData)
 {
     // http://issuetracker.google.com/175021871
     ANGLE_SKIP_TEST_IF(IsPixel2() || IsPixel2XL());
-
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
 
     EGLWindow *window = getEGLWindow();
 
@@ -2449,12 +3674,16 @@ TEST_P(ImageTest, SourceAHBTarget2DExternalCycleThroughRgbAndYuvSources)
     // http://issuetracker.google.com/175021871
     ANGLE_SKIP_TEST_IF(IsPixel2() || IsPixel2XL());
 
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
-
     EGLWindow *window = getEGLWindow();
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM, kDefaultAHBUsage));
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        2, 2, 1, AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420, kDefaultAHBUsage));
 
     // Create RGB Image
     GLubyte rgbColor[4] = {0, 0, 255, 255};
@@ -2519,12 +3748,11 @@ TEST_P(ImageTest, SourceAHBTarget2DExternalCycleThroughRgbAndYuvTargets)
     // http://issuetracker.google.com/175021871
     ANGLE_SKIP_TEST_IF(IsPixel2() || IsPixel2XL());
 
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
-
     EGLWindow *window = getEGLWindow();
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Create RGBA Image
     GLubyte rgbaColor[4] = {0, 0, 255, 255};
@@ -2603,8 +3831,6 @@ TEST_P(ImageTest, SourceAHBTarget2DExternalCycleThroughYuvTargetsNoData)
     // http://issuetracker.google.com/175021871
     ANGLE_SKIP_TEST_IF(IsPixel2() || IsPixel2XL());
 
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
-
     EGLWindow *window = getEGLWindow();
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
@@ -2676,12 +3902,11 @@ TEST_P(ImageTest, SourceAHBTarget2DExternalCycleThroughYuvTargetsNoData)
 // Testing source AHB EGL image, target 2D texture retaining initial data.
 TEST_P(ImageTest, SourceAHBTarget2DRetainInitialData)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
-
     EGLWindow *window = getEGLWindow();
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     GLubyte data[4] = {0, 255, 0, 255};
 
@@ -2722,17 +3947,55 @@ TEST_P(ImageTest, SourceAHBTarget2DRetainInitialData)
     destroyAndroidHardwareBuffer(source);
 }
 
+// Test interaction between AHBs and GL_EXT_multisampled_render_to_texture
+TEST_P(ImageTest, SourceAHBTarget2DMSRTTInteraction)
+{
+    EGLWindow *window = getEGLWindow();
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_multisampled_render_to_texture"));
+
+    // Create the Image
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+                                              kDefaultAHBUsage, kDefaultAttribs, {}, &source,
+                                              &image);
+
+    // Create the target
+    GLTexture target;
+    createEGLImageTargetTexture2D(image, target);
+
+    // Bind target texture to mulisampled framebuffer
+    GLFramebuffer fboMS;
+    glBindFramebuffer(GL_FRAMEBUFFER, fboMS);
+    glFramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                                         target, 0, 4);
+    EXPECT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    // Clear framebuffer
+    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ASSERT_GL_NO_ERROR();
+
+    // Check clear result
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::blue);
+
+    // Check the AHB is updated
+    verifyResultAHB(source, {{GLColor::blue.data(), 4}});
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+}
 // Testing source AHB EGL image, target 2D array texture
 TEST_P(ImageTest, SourceAHBTarget2DArray)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     SourceAHBTarget2DArray_helper(kDefaultAttribs);
 }
 
 // Testing source AHB EGL image with colorspace, target 2D array texture
 TEST_P(ImageTest, SourceAHBTarget2DArray_Colorspace)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 && !IsGLExtensionEnabled("GL_EXT_sRGB"));
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
     SourceAHBTarget2DArray_helper(kColorspaceAttribs);
@@ -2745,29 +4008,22 @@ void ImageTest::SourceAHBTarget2DArray_helper(const EGLint *attribs)
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() ||
                        !hasEglImageArrayExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Create the Image
     AHardwareBuffer *source;
     EGLImageKHR image;
     createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
-                                              kDefaultAHBUsage, attribs, {{kLinearColor, 4}},
-                                              &source, &image);
+                                              kDefaultAHBUsage, attribs, {{kSrgbColor, 4}}, &source,
+                                              &image);
 
     // Create a texture target to bind the egl image
     GLTexture target;
     createEGLImageTargetTexture2DArray(image, target);
 
     // Use texture target bound to egl image as source and render to framebuffer
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResults2DArray(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResults2DArray(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResults2DArray(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -2777,14 +4033,12 @@ void ImageTest::SourceAHBTarget2DArray_helper(const EGLint *attribs)
 // Testing source AHB EGL image, target external texture
 TEST_P(ImageTest, SourceAHBTargetExternal)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     SourceAHBTargetExternal_helper(kDefaultAttribs);
 }
 
 // Testing source AHB EGL image with colorspace, target external texture
 TEST_P(ImageTest, SourceAHBTargetExternal_Colorspace)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 && !IsGLExtensionEnabled("GL_EXT_sRGB"));
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
     SourceAHBTargetExternal_helper(kColorspaceAttribs);
@@ -2795,6 +4049,7 @@ void ImageTest::SourceAHBTargetExternal_helper(const EGLint *attribs)
     EGLWindow *window = getEGLWindow();
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() || !hasExternalExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Ozone only supports external target for images created with EGL_EXT_image_dma_buf_import
     ANGLE_SKIP_TEST_IF(IsOzone());
@@ -2803,24 +4058,16 @@ void ImageTest::SourceAHBTargetExternal_helper(const EGLint *attribs)
     AHardwareBuffer *source;
     EGLImageKHR image;
     createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
-                                              kDefaultAHBUsage, attribs, {{kLinearColor, 4}},
-                                              &source, &image);
+                                              kDefaultAHBUsage, attribs, {{kSrgbColor, 4}}, &source,
+                                              &image);
 
     // Create a texture target to bind the egl image
     GLTexture target;
     createEGLImageTargetTextureExternal(image, target);
 
     // Use texture target bound to egl image as source and render to framebuffer
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResultsExternal(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResultsExternal(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResultsExternal(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -2830,7 +4077,6 @@ void ImageTest::SourceAHBTargetExternal_helper(const EGLint *attribs)
 // Testing source AHB EGL image, target external ESSL3 texture
 TEST_P(ImageTestES3, SourceAHBTargetExternalESSL3)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     SourceAHBTargetExternalESSL3_helper(kDefaultAttribs);
 }
 
@@ -2863,7 +4109,7 @@ TEST_P(ImageTestES3, SourceYUVTextureTargetExternalRGBSampleYUVSample)
     EGLWindow *window = getEGLWindow();
     EGLImageKHR image =
         eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
-                          reinterpretHelper<EGLClientBuffer>(yuvTexture.get()), kDefaultAttribs);
+                          reinterpretHelper<EGLClientBuffer>(yuvTexture), kDefaultAttribs);
     ASSERT_EGL_SUCCESS();
 
     // Create a texture target to bind the egl image
@@ -2884,6 +4130,67 @@ TEST_P(ImageTestES3, SourceYUVTextureTargetExternalRGBSampleYUVSample)
     drawQuad(mTextureYUVProgram, "position", 0.5f);
     // Expect that the rendered quad's color matches the raw YUV data
     EXPECT_PIXEL_NEAR(0, 0, yuvColor[2], yuvColor[4], yuvColor[5], 255, 1);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+}
+
+// Similar to SourceYUVTextureTargetExternalRGBSampleYUVSample, but added swizzle after
+// __samplerExternal2DY2YEXT from texture.
+TEST_P(ImageTestES3, SourceYUVTextureTargetExternalRGBSampleYUVSampleWithSwizzle)
+{
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() ||
+                       !hasYUVInternalFormatExt() || !hasYUVTargetExt());
+
+    // Create source YUV texture
+    GLTexture yuvTexture;
+    GLubyte yuvColor[6]      = {7, 51, 197, 231, 128, 192};
+    constexpr size_t kWidth  = 2;
+    constexpr size_t kHeight = 2;
+
+    glBindTexture(GL_TEXTURE_2D, yuvTexture);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_G8_B8R8_2PLANE_420_UNORM_ANGLE, kWidth, kHeight);
+    ASSERT_GL_NO_ERROR();
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, kWidth, kHeight, GL_G8_B8R8_2PLANE_420_UNORM_ANGLE,
+                    GL_UNSIGNED_BYTE, yuvColor);
+    ASSERT_GL_NO_ERROR();
+    // Disable mipmapping
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    ASSERT_GL_NO_ERROR();
+
+    // Create the Image
+    EGLWindow *window = getEGLWindow();
+    EGLImageKHR image =
+        eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
+                          reinterpretHelper<EGLClientBuffer>(yuvTexture), kDefaultAttribs);
+    ASSERT_EGL_SUCCESS();
+
+    // Create a texture target to bind the egl image
+    GLTexture target;
+    createEGLImageTargetTextureExternal(image, target);
+
+    // Draw quad with program that samples raw YUV data and then swizzle
+    const char *fragmentShaderSource = R"(#version 300 es
+#extension GL_EXT_YUV_target : require
+precision highp float;
+uniform __samplerExternal2DY2YEXT tex;
+in vec2 texcoord;
+out vec4 color;
+
+void main()
+{
+    color = vec4(texture(tex, texcoord).zyx, 1.0);
+})";
+    ANGLE_GL_PROGRAM(textureYUVProgram, getVSESSL3(), fragmentShaderSource);
+    ASSERT_NE(0u, textureYUVProgram) << "shader compilation failed.";
+    glUseProgram(textureYUVProgram);
+    GLint uniformLocation = glGetUniformLocation(textureYUVProgram, "tex");
+    ASSERT_NE(-1, uniformLocation);
+    glUniform1i(uniformLocation, 0);
+    drawQuad(textureYUVProgram, "position", 0.5f);
+    // Expect that the rendered quad's color matches the raw YUV data after component swizzle
+    EXPECT_PIXEL_NEAR(0, 0, yuvColor[5], yuvColor[4], yuvColor[2], 255, 1);
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -2931,12 +4238,12 @@ TEST_P(ImageTestES3, ProgramWithBothExternalY2YAndExternalOESSampler)
     EGLWindow *window = getEGLWindow();
     EGLImageKHR image0 =
         eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
-                          reinterpretHelper<EGLClientBuffer>(yuvTexture0.get()), kDefaultAttribs);
+                          reinterpretHelper<EGLClientBuffer>(yuvTexture0), kDefaultAttribs);
     ASSERT_EGL_SUCCESS();
 
     EGLImageKHR image1 =
         eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
-                          reinterpretHelper<EGLClientBuffer>(yuvTexture1.get()), kDefaultAttribs);
+                          reinterpretHelper<EGLClientBuffer>(yuvTexture1), kDefaultAttribs);
     ASSERT_EGL_SUCCESS();
 
     // Create texture targets for EGLImages
@@ -3027,16 +4334,13 @@ void main()
 // Test sampling from a YUV AHB with a regular external sampler and pre-initialized data
 TEST_P(ImageTest, SourceYUVAHBTargetExternalRGBSampleInitData)
 {
-#ifndef ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
-    std::cout << "Test skipped: !ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT." << std::endl;
-    return;
-#else
     EGLWindow *window = getEGLWindow();
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
     // http://issuetracker.google.com/175021871
     ANGLE_SKIP_TEST_IF(IsPixel2() || IsPixel2XL());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // 3 planes of data
     GLubyte dataY[4]  = {7, 51, 197, 231};
@@ -3064,17 +4368,12 @@ TEST_P(ImageTest, SourceYUVAHBTargetExternalRGBSampleInitData)
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
     destroyAndroidHardwareBuffer(source);
-#endif
 }
 
 // Test sampling from a YUV AHB with a regular external sampler without data. This gives coverage of
 // sampling even if we can't verify the results.
 TEST_P(ImageTest, SourceYUVAHBTargetExternalRGBSampleNoData)
 {
-    // Multiple issues sampling AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420 in the Vulkan backend:
-    // http://issuetracker.google.com/172649538
-    ANGLE_SKIP_TEST_IF(IsVulkan());
-
     EGLWindow *window = getEGLWindow();
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
@@ -3113,14 +4412,11 @@ TEST_P(ImageTest, SourceYUVAHBTargetExternalRGBSampleNoData)
 // Test sampling from a YUV AHB using EXT_yuv_target
 TEST_P(ImageTestES3, SourceYUVAHBTargetExternalYUVSample)
 {
-#ifndef ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
-    std::cout << "Test skipped: !ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT." << std::endl;
-    return;
-#else
     EGLWindow *window = getEGLWindow();
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() || !hasYUVTargetExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // 3 planes of data
     GLubyte dataY[4]  = {7, 51, 197, 231};
@@ -3148,19 +4444,187 @@ TEST_P(ImageTestES3, SourceYUVAHBTargetExternalYUVSample)
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
     destroyAndroidHardwareBuffer(source);
-#endif
 }
 
-TEST_P(ImageTestES3, SourceYUVAHBTargetExternalYUVSampleLinearFiltering)
+// Test sampling from a YUV AHB using EXT_yuv_target in the vertex shader
+TEST_P(ImageTestES3, SourceYUVAHBTargetExternalYUVSampleVS)
 {
-#ifndef ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
-    std::cout << "Test skipped: !ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT." << std::endl;
-    return;
-#else
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() || !hasYUVTargetExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+
+    // 3 planes of data
+    GLubyte dataY[4]  = {7, 51, 197, 231};
+    GLubyte dataCb[1] = {
+        128,
+    };
+    GLubyte dataCr[1] = {
+        192,
+    };
+
+    // Create the Image
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(
+        2, 2, 1, AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420, kDefaultAHBUsage, kDefaultAttribs,
+        {{dataY, 1}, {dataCb, 1}, {dataCr, 1}}, &source, &image);
+
+    // Create a texture target to bind the egl image
+    GLTexture target;
+    createEGLImageTargetTextureExternal(image, target);
+
+    GLubyte pixelColor[4] = {197, 128, 192, 255};
+    verifyResultsExternalYUVVS(target, pixelColor);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    destroyAndroidHardwareBuffer(source);
+}
+
+// Test texelFetch from a YUV AHB using samplerExternalOES in the fragment shader
+TEST_P(ImageTestES3, SourceYUVAHBTargetExternalYUVFetchSamplerExternalOES)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() ||
+                       !hasExternalESSL3Ext());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+
+    // 3 planes of data
+    GLubyte dataY[4]  = {7, 51, 197, 231};
+    GLubyte dataCb[1] = {
+        128,
+    };
+    GLubyte dataCr[1] = {
+        192,
+    };
+
+    // Create the Image
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(
+        2, 2, 1, AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420, kDefaultAHBUsage, kDefaultAttribs,
+        {{dataY, 1}, {dataCb, 1}, {dataCr, 1}}, &source, &image);
+
+    // Create a texture target to bind the egl image
+    GLTexture target;
+    createEGLImageTargetTextureExternal(image, target);
+
+    GLubyte pixelRGBColor[4] = {255, 159, 212, 255};
+    verifyResultsExternalYUVFetch(target, pixelRGBColor);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    destroyAndroidHardwareBuffer(source);
+}
+
+// Test texelFetch from a YUV AHB using samplerExternalOES in the vertex shader
+TEST_P(ImageTestES3, SourceYUVAHBTargetExternalYUVFetchVSSamplerExternalOES)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() ||
+                       !hasExternalESSL3Ext());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+
+    // 3 planes of data
+    GLubyte dataY[4]  = {7, 51, 197, 231};
+    GLubyte dataCb[1] = {
+        128,
+    };
+    GLubyte dataCr[1] = {
+        192,
+    };
+
+    // Create the Image
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(
+        2, 2, 1, AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420, kDefaultAHBUsage, kDefaultAttribs,
+        {{dataY, 1}, {dataCb, 1}, {dataCr, 1}}, &source, &image);
+
+    // Create a texture target to bind the egl image
+    GLTexture target;
+    createEGLImageTargetTextureExternal(image, target);
+
+    GLubyte pixelRGBColor[4] = {255, 159, 212, 255};
+    verifyResultsExternalYUVFetchVS(target, pixelRGBColor);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    destroyAndroidHardwareBuffer(source);
+}
+
+// Test using glCopySubTextureCHROMIUM with YUV AHB as the source
+TEST_P(ImageTestES3, SourceYUVAHBTargetExternalCopySrc)
+{
     EGLWindow *window = getEGLWindow();
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_CHROMIUM_copy_texture"));
+
+    // 3 planes of data
+    GLubyte dataY[4]  = {7, 51, 197, 231};
+    GLubyte dataCb[1] = {
+        128,
+    };
+    GLubyte dataCr[1] = {
+        192,
+    };
+
+    // Create the Image
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(
+        2, 2, 1, AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420, kDefaultAHBUsage, kDefaultAttribs,
+        {{dataY, 1}, {dataCb, 1}, {dataCr, 1}}, &source, &image);
+
+    // Create a texture target to bind the egl image
+    GLTexture yuv;
+    createEGLImageTargetTextureExternal(image, yuv);
+
+    // Create a texture to be the destination of copy
+    GLTexture copyDst;
+    glBindTexture(GL_TEXTURE_2D, copyDst);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, 2, 2);
+    glCopySubTextureCHROMIUM(yuv, 0, GL_TEXTURE_2D, copyDst, 0, 0, 0, 0, 0, 2, 2, false, false,
+                             false);
+    ASSERT_GL_NO_ERROR();
+
+    // Verify the results
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, copyDst, 0);
+    EXPECT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+    ASSERT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(92, 0, 0, 255), 2);
+    EXPECT_PIXEL_COLOR_NEAR(1, 0, GLColor(143, 0, 41, 255), 2);
+    EXPECT_PIXEL_COLOR_NEAR(0, 1, GLColor(255, 159, 211, 255), 2);
+    EXPECT_PIXEL_COLOR_NEAR(1, 1, GLColor(255, 198, 250, 255), 2);
+    ASSERT_GL_NO_ERROR();
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    destroyAndroidHardwareBuffer(source);
+}
+
+TEST_P(ImageTestES3, SourceYUVAHBTargetExternalYUVSampleLinearFiltering)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        2, 4, 1, AHARDWAREBUFFER_FORMAT_YV12, kDefaultAHBYUVUsage));
 
     // [  Red,   Red]
     // [  Red,   Red]
@@ -3169,17 +4633,17 @@ TEST_P(ImageTestES3, SourceYUVAHBTargetExternalYUVSampleLinearFiltering)
 
     // clang-format off
     GLubyte dataY[]  = {
-        76, 76,
-        76, 76,
+        81, 81,
+        81, 81,
         16, 16,
         16, 16,
     };
     GLubyte dataCb[] = {
-        84,
+        90,
         128,
     };
     GLubyte dataCr[] = {
-        255,
+        240,
         128,
     };
     // clang-format on
@@ -3222,20 +4686,16 @@ TEST_P(ImageTestES3, SourceYUVAHBTargetExternalYUVSampleLinearFiltering)
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), ahbImage);
     destroyAndroidHardwareBuffer(ahbSource);
-#endif
 }
 
 // Test rendering to a YUV AHB using EXT_yuv_target
 TEST_P(ImageTestES3, RenderToYUVAHB)
 {
-#ifndef ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
-    std::cout << "Test skipped: !ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT." << std::endl;
-    return;
-#else
     EGLWindow *window = getEGLWindow();
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() || !hasYUVTargetExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // 3 planes of data, initialize to all zeroes
     GLubyte dataY[4]  = {0, 0, 0, 0};
@@ -3270,6 +4730,11 @@ TEST_P(ImageTestES3, RenderToYUVAHB)
     glUseProgram(mRenderYUVProgram);
     glUniform4f(mRenderYUVUniformLocation, drawColor[0] / 255.0f, drawColor[1] / 255.0f,
                 drawColor[2] / 255.0f, drawColor[3] / 255.0f);
+
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+    drawQuad(mRenderYUVProgram, "position", 0.0f);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     drawQuad(mRenderYUVProgram, "position", 0.0f);
     ASSERT_GL_NO_ERROR();
 
@@ -3291,7 +4756,84 @@ TEST_P(ImageTestES3, RenderToYUVAHB)
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
     destroyAndroidHardwareBuffer(source);
-#endif
+}
+
+// Test rendering to a YUV AHB using EXT_yuv_target with a normal depth attachment
+TEST_P(ImageTestES3, RenderToYUVAHBWithDepth)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() || !hasYUVTargetExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+
+    // 3 planes of data, initialize to all zeroes
+    GLubyte dataY[4]  = {0, 0, 0, 0};
+    GLubyte dataCb[1] = {
+        0,
+    };
+    GLubyte dataCr[1] = {
+        0,
+    };
+
+    // Create the Image
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(
+        2, 2, 1, AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420, kDefaultAHBUsage, kDefaultAttribs,
+        {{dataY, 1}, {dataCb, 1}, {dataCr, 1}}, &source, &image);
+
+    // Create a texture target to bind the egl image
+    GLTexture target;
+    createEGLImageTargetTextureExternal(image, target);
+
+    // Create a depth texture
+    GLTexture depthTexture;
+    glBindTexture(GL_TEXTURE_2D, depthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, 2, 2, 0, GL_DEPTH_COMPONENT, GL_FLOAT,
+                 nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    // Set up a framebuffer to render into the AHB
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_EXTERNAL_OES, target,
+                           0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    GLubyte drawColor[4] = {197, 128, 192, 255};
+
+    glUseProgram(mRenderYUVProgram);
+    glUniform4f(mRenderYUVUniformLocation, drawColor[0] / 255.0f, drawColor[1] / 255.0f,
+                drawColor[2] / 255.0f, drawColor[3] / 255.0f);
+
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+    drawQuad(mRenderYUVProgram, "position", 0.0f);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    drawQuad(mRenderYUVProgram, "position", 0.0f);
+    ASSERT_GL_NO_ERROR();
+
+    // ReadPixels returns the RGB converted color
+    EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(255, 159, 212, 255), 1.0);
+
+    // Finish before reading back AHB data
+    glFinish();
+
+    GLubyte expectedDataY[4]  = {drawColor[0], drawColor[0], drawColor[0], drawColor[0]};
+    GLubyte expectedDataCb[1] = {
+        drawColor[1],
+    };
+    GLubyte expectedDataCr[1] = {
+        drawColor[2],
+    };
+    verifyResultAHB(source, {{expectedDataY, 1}, {expectedDataCb, 1}, {expectedDataCr, 1}});
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    destroyAndroidHardwareBuffer(source);
 }
 
 // Test clearing to a YUV AHB using EXT_yuv_target
@@ -3337,7 +4879,119 @@ TEST_P(ImageTestES3, ClearYUVAHB)
     destroyAndroidHardwareBuffer(source);
 }
 
-#if defined(ANGLE_AHARDWARE_BUFFER_SUPPORT)
+// Test clearing to a YUV AHB using EXT_yuv_target with a normal depth attachment
+TEST_P(ImageTestES3, ClearYUVAHBWithDepth)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() || !hasYUVTargetExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+
+    // Create the Image without data so we don't need ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(2, 2, 1, AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420,
+                                              kDefaultAHBUsage, kDefaultAttribs, {}, &source,
+                                              &image);
+
+    // Create a texture target to bind the egl image
+    GLTexture target;
+    createEGLImageTargetTextureExternal(image, target);
+
+    // Create a depth texture
+    GLTexture depthTexture;
+    glBindTexture(GL_TEXTURE_2D, depthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, 2, 2, 0, GL_DEPTH_COMPONENT, GL_FLOAT,
+                 nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    // Set up a framebuffer to render into the AHB
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_EXTERNAL_OES, target,
+                           0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    // Clearing a YUV framebuffer reinterprets the rgba clear color as YUV values and writes them
+    // directly to the buffer
+    GLubyte clearColor[4] = {197, 128, 192, 255};
+    glClearColor(clearColor[0] / 255.0f, clearColor[1] / 255.0f, clearColor[2] / 255.0f,
+                 clearColor[3] / 255.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ASSERT_GL_NO_ERROR();
+
+    // ReadPixels returns the RGB converted color
+    EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(255, 159, 212, 255), 1.0);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    destroyAndroidHardwareBuffer(source);
+}
+
+// Test partial clearing to a YUV AHB using EXT_yuv_target
+TEST_P(ImageTestES3, PartialClearYUVAHB)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() || !hasYUVTargetExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+
+    // Create the Image without data so we don't need ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
+    GLubyte dataY[4]  = {0, 0, 0, 0};
+    GLubyte dataCb[1] = {
+        0,
+    };
+    GLubyte dataCr[1] = {
+        0,
+    };
+
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(
+        8, 8, 1, AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420, kDefaultAHBUsage, kDefaultAttribs,
+        {{dataY, 64}, {dataCb, 64}, {dataCr, 64}}, &source, &image);
+
+    // Create a texture target to bind the egl image
+    GLTexture target;
+    createEGLImageTargetTextureExternal(image, target);
+
+    // Set up a framebuffer to render into the AHB
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_EXTERNAL_OES, target,
+                           0);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    // Full clear the background
+    GLubyte clearColorFull[4] = {40, 240, 109, 255};
+    glClearColor(clearColorFull[0] / 255.0f, clearColorFull[1] / 255.0f, clearColorFull[2] / 255.0f,
+                 clearColorFull[3] / 255.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(0, 0, 255, 255), 2.0);
+
+    // Partial clear the corner with another color
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(0, 0, 4, 4);
+
+    GLubyte clearColor[4] = {197, 128, 192, 255};
+    glClearColor(clearColor[0] / 255.0f, clearColor[1] / 255.0f, clearColor[2] / 255.0f,
+                 clearColor[3] / 255.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ASSERT_GL_NO_ERROR();
+
+    // ReadPixels returns the RGB converted color
+    EXPECT_PIXEL_COLOR_NEAR(0, 0, GLColor(255, 159, 212, 255), 2.0);
+    EXPECT_PIXEL_COLOR_NEAR(4, 4, GLColor(0, 0, 255, 255), 2.0);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    destroyAndroidHardwareBuffer(source);
+}
+
 // Test glClear on FBO with AHB attachment is applied to the AHB image before we read back
 TEST_P(ImageTestES3, AHBClearAppliedBeforeReadBack)
 {
@@ -3345,6 +4999,7 @@ TEST_P(ImageTestES3, AHBClearAppliedBeforeReadBack)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kRed[]   = {255, 0, 0, 255};
     const GLubyte kBlack[] = {0, 0, 0, 0};
@@ -3377,6 +5032,37 @@ TEST_P(ImageTestES3, AHBClearAppliedBeforeReadBack)
     destroyAndroidHardwareBuffer(ahb);
 }
 
+// Similar to AHBClearAppliedBeforeReadBack, but clear is applied glClearTexImage().
+TEST_P(ImageTestES3, AHBClearAppliedViaClearTexImageBeforeReadBack)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_clear_texture"));
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+    EGLWindow *window = getEGLWindow();
+
+    const GLubyte kRed[]   = {255, 0, 0, 255};
+    const GLubyte kBlack[] = {0, 0, 0, 0};
+
+    // Create one image backed by the AHB.
+    AHardwareBuffer *ahb;
+    EGLImageKHR ahbImage;
+    createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+                                              kDefaultAHBUsage, kDefaultAttribs, {{kBlack, 4}},
+                                              &ahb, &ahbImage);
+    GLTexture ahbTexture;
+    createEGLImageTargetTexture2D(ahbImage, ahbTexture);
+
+    // Clear to red
+    glClearTexImageEXT(ahbTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &GLColor::red);
+    glFinish();
+
+    verifyResultAHB(ahb, {{kRed, 4}});
+
+    eglDestroyImageKHR(window->getDisplay(), ahbImage);
+    destroyAndroidHardwareBuffer(ahb);
+}
+
 // Similar to AHBClearAppliedBeforeReadBack, but clear is applied twice.
 TEST_P(ImageTestES3, AHBTwiceClearAppliedBeforeReadBack)
 {
@@ -3384,6 +5070,7 @@ TEST_P(ImageTestES3, AHBTwiceClearAppliedBeforeReadBack)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kRed[]   = {255, 0, 0, 255};
     const GLubyte kBlack[] = {0, 0, 0, 0};
@@ -3418,6 +5105,38 @@ TEST_P(ImageTestES3, AHBTwiceClearAppliedBeforeReadBack)
     destroyAndroidHardwareBuffer(ahb);
 }
 
+// Similar to AHBTwiceClearAppliedBeforeReadBack, but clear is applied using glClearTexImage().
+TEST_P(ImageTestES3, AHBTwiceClearViaClearTexImageAppliedBeforeReadBack)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_clear_texture"));
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+    EGLWindow *window = getEGLWindow();
+
+    const GLubyte kRed[]   = {255, 0, 0, 255};
+    const GLubyte kBlack[] = {0, 0, 0, 0};
+
+    // Create one image backed by the AHB.
+    AHardwareBuffer *ahb;
+    EGLImageKHR ahbImage;
+    createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+                                              kDefaultAHBUsage, kDefaultAttribs, {{kBlack, 4}},
+                                              &ahb, &ahbImage);
+    GLTexture ahbTexture;
+    createEGLImageTargetTexture2D(ahbImage, ahbTexture);
+
+    // Clear to green, then to red
+    glClearTexImageEXT(ahbTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &GLColor::green);
+    glClearTexImageEXT(ahbTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, &GLColor::red);
+    glFinish();
+
+    verifyResultAHB(ahb, {{kRed, 4}});
+
+    eglDestroyImageKHR(window->getDisplay(), ahbImage);
+    destroyAndroidHardwareBuffer(ahb);
+}
+
 // Test that glClear on FBO with AHB attachment is applied to the AHB image before detaching the AHB
 // image from FBO
 TEST_P(ImageTestES3, AHBClearAndDetachBeforeReadback)
@@ -3426,6 +5145,7 @@ TEST_P(ImageTestES3, AHBClearAndDetachBeforeReadback)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kRed[]   = {255, 0, 0, 255};
     const GLubyte kBlack[] = {0, 0, 0, 0};
@@ -3469,6 +5189,7 @@ TEST_P(ImageTestES3, AHBClearAndAttachAnotherTextureBeforeReadback)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kRed[]   = {255, 0, 0, 255};
     const GLubyte kBlack[] = {0, 0, 0, 0};
@@ -3516,6 +5237,7 @@ TEST_P(ImageTestES3, AHBClearAndSwitchToDefaultFBOBeforeReadBack)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kRed[]   = {255, 0, 0, 255};
     const GLubyte kBlack[] = {0, 0, 0, 0};
@@ -3558,6 +5280,7 @@ TEST_P(ImageTestES3, AHBClearWithGLClientWaitSyncBeforeReadBack)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kRed[]   = {255, 0, 0, 255};
     const GLubyte kBlack[] = {0, 0, 0, 0};
@@ -3596,10 +5319,10 @@ TEST_P(ImageTestES3, AHBClearWithGLClientWaitSyncBeforeReadBack)
 // Test glDraw + glFlush on FBO with AHB attachment are applied to the AHB image before we read back
 TEST_P(ImageTestES3, AHBDrawFlushAppliedBeforeReadBack)
 {
-    ANGLE_SKIP_TEST_IF(!kHasAHBFrontBufferUsageSupport);
-
     EGLWindow *window = getEGLWindow();
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport() || !kHasAHBFrontBufferUsageSupport);
 
     // Create a GLTexture backed by the AHB.
     AHardwareBuffer *ahb;
@@ -3644,10 +5367,10 @@ TEST_P(ImageTestES3, AHBDrawFlushAppliedBeforeReadBack)
 // image before detaching the AHB image from FBO
 TEST_P(ImageTestES3, AHBDrawFlushAndDetachBeforeReadBack)
 {
-    ANGLE_SKIP_TEST_IF(!kHasAHBFrontBufferUsageSupport);
-
     EGLWindow *window = getEGLWindow();
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport() || !kHasAHBFrontBufferUsageSupport);
 
     // Create a GLTexture backed by the AHB.
     AHardwareBuffer *ahb;
@@ -3696,10 +5419,10 @@ TEST_P(ImageTestES3, AHBDrawFlushAndDetachBeforeReadBack)
 // image before implicitly unbinding the AHB image from FBO
 TEST_P(ImageTestES3, AHBDrawFlushAndAttachAnotherTextureBeforeReadBack)
 {
-    ANGLE_SKIP_TEST_IF(!kHasAHBFrontBufferUsageSupport);
-
     EGLWindow *window = getEGLWindow();
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport() || !kHasAHBFrontBufferUsageSupport);
 
     // Create a GLTexture backed by the AHB.
     AHardwareBuffer *ahb;
@@ -3752,10 +5475,10 @@ TEST_P(ImageTestES3, AHBDrawFlushAndAttachAnotherTextureBeforeReadBack)
 // image before switching to the default FBO
 TEST_P(ImageTestES3, AHBDrawFlushAndSwitchToDefaultFBOBeforeReadBack)
 {
-    ANGLE_SKIP_TEST_IF(!kHasAHBFrontBufferUsageSupport);
-
     EGLWindow *window = getEGLWindow();
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport() || !kHasAHBFrontBufferUsageSupport);
 
     // Create a GLTexture backed by the AHB.
     AHardwareBuffer *ahb;
@@ -3800,14 +5523,45 @@ TEST_P(ImageTestES3, AHBDrawFlushAndSwitchToDefaultFBOBeforeReadBack)
     destroyAndroidHardwareBuffer(ahb);
 }
 
+// Test that texture swizzle parameters work with EGL image-backed textures
+TEST_P(ImageTestES3, AHBTextureSwizzleParameters)
+{
+    EGLWindow *window = getEGLWindow();
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+
+    // Create the Image
+    AHardwareBuffer *ahb;
+    EGLImageKHR ahbImage;
+    createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM,
+                                              kDefaultAHBUsage, kDefaultAttribs,
+                                              {{kLinearColor, 4}}, &ahb, &ahbImage);
+
+    GLTexture ahbTexture;
+    createEGLImageTargetTexture2D(ahbImage, ahbTexture);
+
+    glBindTexture(GL_TEXTURE_2D, ahbTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_GREEN);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_BLUE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+
+    GLubyte expectedColor[] = {kLinearColor[1], kLinearColor[2], kLinearColor[0], kLinearColor[3]};
+    verifyResults2D(ahbTexture, expectedColor);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), ahbImage);
+    destroyAndroidHardwareBuffer(ahb);
+}
+
 // Test that RGBX data are preserved when importing from AHB.  Regression test for a bug in the
 // Vulkan backend where the image was cleared due to format emulation.
 TEST_P(ImageTestES3, RGBXAHBImportPreservesData)
 {
     EGLWindow *window = getEGLWindow();
-
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Create the Image
     AHardwareBuffer *ahb;
@@ -3834,6 +5588,7 @@ TEST_P(ImageTestES3, RGBXAHBImportPreservesData_Colorspace)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kRed50SRGB[]   = {188, 0, 0, 255};
     const GLubyte kRed50Linear[] = {128, 0, 0, 255};
@@ -3856,6 +5611,89 @@ TEST_P(ImageTestES3, RGBXAHBImportPreservesData_Colorspace)
     destroyAndroidHardwareBuffer(ahb);
 }
 
+// Tests that RGBX can be successfully loaded with 3-channel data and read back as 4-channel data.
+TEST_P(ImageTestES3, RGBXAHBUploadDownload)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport() || !hasRGBXInternalFormatExt());
+
+    const size_t kWidth  = 32;
+    const size_t kHeight = 32;
+
+    const GLubyte kBlack[] = {0, 0, 0, 255};
+    const GLubyte kCyan[]  = {0, 255, 255};
+
+    std::vector<GLubyte> pixelsRGBABlack;
+    for (size_t h = 0; h < kHeight; h++)
+    {
+        for (size_t w = 0; w < kWidth; w++)
+        {
+            pixelsRGBABlack.push_back(kBlack[0]);
+            pixelsRGBABlack.push_back(kBlack[1]);
+            pixelsRGBABlack.push_back(kBlack[2]);
+            pixelsRGBABlack.push_back(kBlack[3]);
+        }
+    }
+
+    std::vector<GLubyte> pixelsRGBCyan;
+    for (size_t h = 0; h < kHeight; h++)
+    {
+        for (size_t w = 0; w < kWidth; w++)
+        {
+            pixelsRGBCyan.push_back(kCyan[0]);
+            pixelsRGBCyan.push_back(kCyan[1]);
+            pixelsRGBCyan.push_back(kCyan[2]);
+        }
+    }
+
+    // Create the Image
+    AHardwareBuffer *ahb;
+    EGLImageKHR ahbImage;
+    createEGLImageAndroidHardwareBufferSource(
+        kWidth, kHeight, 1, AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM, kDefaultAHBUsage,
+        kDefaultAttribs, {{pixelsRGBABlack.data(), 4}}, &ahb, &ahbImage);
+
+    GLTexture ahbTexture;
+    createEGLImageTargetTexture2D(ahbImage, ahbTexture);
+
+    verifyResults2D(ahbTexture, kBlack);
+    verifyResultAHB(ahb, {{pixelsRGBABlack.data(), 4}});
+
+    glBindTexture(GL_TEXTURE_2D, ahbTexture);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, kWidth, kHeight, GL_RGB, GL_UNSIGNED_BYTE,
+                    pixelsRGBCyan.data());
+    ASSERT_GL_NO_ERROR();
+
+    GLFramebuffer ahbFramebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, ahbFramebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ahbTexture, 0);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    std::vector<GLubyte> readback;
+    readback.resize(kWidth * kHeight * 4);
+    glReadPixels(0, 0, kWidth, kHeight, GL_RGBX8_ANGLE, GL_UNSIGNED_BYTE, readback.data());
+
+    for (size_t y = 0; y < kHeight; y++)
+    {
+        const GLubyte *actualRowData = readback.data() + (y * kWidth * 4);
+        for (size_t x = 0; x < kWidth; x++)
+        {
+            const GLubyte *actualPixelData = actualRowData + (x * 4);
+            EXPECT_EQ(actualPixelData[0], kCyan[0]) << "at (" << x << ", " << y << ")";
+            EXPECT_EQ(actualPixelData[1], kCyan[1]) << "at (" << x << ", " << y << ")";
+            EXPECT_EQ(actualPixelData[2], kCyan[2]) << "at (" << x << ", " << y << ")";
+        }
+    }
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), ahbImage);
+    destroyAndroidHardwareBuffer(ahb);
+}
+
 // Test that RGBA data are preserved when importing from AHB and glTexSubImage is able to update
 // data.
 TEST_P(ImageTestES3, RGBAAHBUploadData)
@@ -3864,6 +5702,7 @@ TEST_P(ImageTestES3, RGBAAHBUploadData)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kGarbage[]     = {123, 123, 123, 123};
     const GLubyte kRed50Linear[] = {128, 0, 0, 127};
@@ -3898,6 +5737,7 @@ TEST_P(ImageTestES3, RGBAAHBUploadDataColorspace)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kGarbage[]     = {123, 123, 123, 123};
     const GLubyte kRed50SRGB[]   = {188, 0, 0, 128};
@@ -3933,6 +5773,7 @@ TEST_P(ImageTestES3, RGBXAHBUploadData)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kGarbage[]     = {123, 123, 123, 123};
     const GLubyte kRed50Linear[] = {128, 0, 0, 255};
@@ -3967,6 +5808,7 @@ TEST_P(ImageTestES3, RGBXAHBUploadDataColorspace)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kGarbage[]     = {123, 123, 123, 123};
     const GLubyte kRed50SRGB[]   = {188, 0, 0, 255};
@@ -3976,8 +5818,8 @@ TEST_P(ImageTestES3, RGBXAHBUploadDataColorspace)
     AHardwareBuffer *ahb;
     EGLImageKHR ahbImage;
     createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM,
-                                              kDefaultAHBUsage, kColorspaceAttribs, {{kGarbage, 4}},
-                                              &ahb, &ahbImage);
+                                              kDefaultAHBUsage, kColorspaceAttribs,
+                                              {{kGarbage, sizeof(kGarbage)}}, &ahb, &ahbImage);
 
     GLTexture ahbTexture;
     createEGLImageTargetTexture2D(ahbImage, ahbTexture);
@@ -3987,7 +5829,45 @@ TEST_P(ImageTestES3, RGBXAHBUploadDataColorspace)
     glFinish();
 
     verifyResults2D(ahbTexture, kRed50Linear);
-    verifyResultAHB(ahb, {{kRed50SRGB, 4}});
+    verifyResultAHB(ahb, {{kRed50SRGB, sizeof(kRed50SRGB)}});
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), ahbImage);
+    destroyAndroidHardwareBuffer(ahb);
+}
+
+// Test that RGB data are preserved when importing from AHB created with sRGB color space and
+// glTexSubImage is able to update data.
+TEST_P(ImageTestES3, RGBAHBUploadDataColorspace)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM, kDefaultAHBUsage));
+
+    const GLubyte kGarbage[]     = {123, 123, 123};
+    const GLubyte kRed50SRGB[]   = {188, 0, 0};
+    const GLubyte kRed50Linear[] = {128, 0, 0, 255};
+
+    // Create the Image
+    AHardwareBuffer *ahb;
+    EGLImageKHR ahbImage;
+    createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM,
+                                              kDefaultAHBUsage, kColorspaceAttribs,
+                                              {{kGarbage, sizeof(kGarbage)}}, &ahb, &ahbImage);
+
+    GLTexture ahbTexture;
+    createEGLImageTargetTexture2D(ahbImage, ahbTexture);
+
+    glBindTexture(GL_TEXTURE_2D, ahbTexture);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, GL_RGB, GL_UNSIGNED_BYTE, kRed50SRGB);
+    glFinish();
+
+    verifyResults2D(ahbTexture, kRed50Linear);
+    verifyResultAHB(ahb, {{kRed50SRGB, sizeof(kRed50SRGB)}});
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), ahbImage);
@@ -4002,6 +5882,7 @@ TEST_P(ImageTestES3, RGBXAHBImportNoFramebufferUsage)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Create the Image
     AHardwareBuffer *ahb;
@@ -4029,8 +5910,16 @@ TEST_P(ImageTestES3, RGBXAHBImportMultipleLayers)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
-    constexpr size_t kLayerCount = 3;
+    // Limit the test to single layer for now. writeAHBData is assuming alignment between layers
+    // being 4096 which may not true on some GPUs. There is no API to retrieve such alignment from
+    // driver. For now just limit to single layer so that we can still test single layer behavior
+    // here.
+    constexpr size_t kLayerCount = 1;
+
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        1, 1, kLayerCount, AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM, kDefaultAHBUsage));
 
     const GLubyte kInitColor[] = {132, 55, 219, 12, 77, 23, 190, 101, 231, 44, 143, 99};
 
@@ -4068,6 +5957,7 @@ TEST_P(ImageTestES3, RGBXAHBImportThenReadPixels)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Create the Image
     AHardwareBuffer *ahb;
@@ -4105,6 +5995,7 @@ TEST_P(ImageTestES3, RGBXAHBImportThenClear)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Create the Image
     AHardwareBuffer *ahb;
@@ -4147,6 +6038,7 @@ TEST_P(ImageTestES3, RGBXAHBImportThenClearThenDraw)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Create the Image
     AHardwareBuffer *ahb;
@@ -4205,6 +6097,7 @@ TEST_P(ImageTestES3, RGBXAHBImportThenUpload)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     const GLubyte kInitColor[] = {132, 55, 219, 12, 132, 55, 219, 12};
 
@@ -4235,6 +6128,39 @@ TEST_P(ImageTestES3, RGBXAHBImportThenUpload)
     destroyAndroidHardwareBuffer(ahb);
 }
 
+// Tests interaction of emulated channel being cleared with a following data upload and immediately
+// ends to check that the image updates are processed and flushed without errors. It is similar to
+// RGBXAHBImportThenUpload, but there is no pixel reading or destroying the image to avoid extra
+// staged update flushes.
+TEST_P(ImageTestES3, IncompleteRGBXAHBImportThenUploadThenEnd)
+{
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+
+    const GLubyte kInitColor[] = {132, 55, 219, 12, 132, 55, 219, 12};
+
+    // Create the Image
+    AHardwareBuffer *ahb;
+    EGLImageKHR ahbImage;
+    createEGLImageAndroidHardwareBufferSource(2, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8X8_UNORM,
+                                              kDefaultAHBUsage, kDefaultAttribs, {{kInitColor, 4}},
+                                              &ahb, &ahbImage);
+
+    GLTexture ahbTexture;
+    createEGLImageTargetTexture2D(ahbImage, ahbTexture);
+
+    // Upload data
+    const GLubyte kUploadColor[] = {63, 127, 191, 55};
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 1, 0, 1, 1, GL_RGB, GL_UNSIGNED_BYTE, kUploadColor);
+    ASSERT_GL_NO_ERROR();
+
+    // Clean up
+    destroyAndroidHardwareBuffer(ahb);
+    // This test relies on internal assertions to catch the issue regarding unflushed updates after
+    // clearing emulated channels.
+}
+
 // Test that RGBX data are preserved when importing from AHB.  Tests interaction of emulated channel
 // being cleared with occlusion queries.
 TEST_P(ImageTestES3, RGBXAHBImportOcclusionQueryNotCounted)
@@ -4243,6 +6169,7 @@ TEST_P(ImageTestES3, RGBXAHBImportOcclusionQueryNotCounted)
 
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     GLQueryEXT query;
     glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, query);
@@ -4290,9 +6217,60 @@ TEST_P(ImageTestES3, RGBXAHBImportOcclusionQueryNotCounted)
     eglDestroyImageKHR(window->getDisplay(), ahbImage);
     destroyAndroidHardwareBuffer(ahb);
 }
-#endif  // defined(ANGLE_AHARDWARE_BUFFER_SUPPORT)
 
-// Test validatin of using EXT_yuv_target
+// Test repeatedly importing and releasing AHBs into textures to replicate behavior where
+// SurfaceFlinger optimistically imports AHBs but never actually ends up using them. Regression
+// test to check that AHB releases are not left pending and kept alive to avoid running out of
+// memory.
+TEST_P(ImageTestES3, AHBImportReleaseStress)
+{
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+
+    // Counters only available on Vulkan.
+    ANGLE_SKIP_TEST_IF(!IsVulkan());
+
+    const GLubyte kBlack[] = {0, 0, 0, 0};
+
+    glFinish();
+
+    GLPerfMonitor monitor;
+    glBeginPerfMonitorAMD(monitor);
+
+    const uint64_t initialPendingSubmissionGarbageObjects =
+        getPerfCounters().pendingSubmissionGarbageObjects;
+
+    for (int i = 0; i < 20; i++)
+    {
+        AHardwareBuffer *ahb;
+        EGLImageKHR ahbImage;
+        createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+                                                  kDefaultAHBUsage, kDefaultAttribs, {{kBlack, 4}},
+                                                  &ahb, &ahbImage);
+
+        {
+            GLTexture ahbTexture;
+            glBindTexture(GL_TEXTURE_2D, ahbTexture);
+            glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, ahbImage);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            ASSERT_GL_NO_ERROR();
+
+            // Intentionally not doing anything which may explicitly flush operations on the AHB.
+        }
+
+        eglDestroyImageKHR(getEGLWindow()->getDisplay(), ahbImage);
+        destroyAndroidHardwareBuffer(ahb);
+    }
+
+    glEndPerfMonitorAMD(monitor);
+
+    EXPECT_LE(getPerfCounters().pendingSubmissionGarbageObjects,
+              initialPendingSubmissionGarbageObjects + 10);
+}
+
+// Test validation of using EXT_yuv_target
 TEST_P(ImageTestES3, YUVValidation)
 {
     EGLWindow *window = getEGLWindow();
@@ -4424,7 +6402,6 @@ TEST_P(ImageTestES3, YUVValidation)
 // Testing source AHB EGL image with colorspace, target external ESSL3 texture
 TEST_P(ImageTestES3, SourceAHBTargetExternalESSL3_Colorspace)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 && !IsGLExtensionEnabled("GL_EXT_sRGB"));
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
     SourceAHBTargetExternalESSL3_helper(kColorspaceAttribs);
@@ -4436,29 +6413,22 @@ void ImageTest::SourceAHBTargetExternalESSL3_helper(const EGLint *attribs)
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() ||
                        !hasExternalESSL3Ext());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Create the Image
     AHardwareBuffer *source;
     EGLImageKHR image;
     createEGLImageAndroidHardwareBufferSource(1, 1, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
-                                              kDefaultAHBUsage, attribs, {{kLinearColor, 4}},
-                                              &source, &image);
+                                              kDefaultAHBUsage, attribs, {{kSrgbColor, 4}}, &source,
+                                              &image);
 
     // Create a texture target to bind the egl image
     GLTexture target;
     createEGLImageTargetTextureExternal(image, target);
 
     // Use texture target bound to egl image as source and render to framebuffer
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResultsExternalESSL3(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResultsExternalESSL3(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResultsExternalESSL3(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -4470,15 +6440,18 @@ TEST_P(ImageTestES3, SourceAHBArrayTarget2DArray)
 {
     EGLWindow *window = getEGLWindow();
 
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() ||
                        !hasEglImageArrayExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
 
-    // Create the Image
+    constexpr size_t kDepth = 2;
+
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        1, 1, kDepth, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM, kDefaultAHBUsage));
+
+    // Create the Image without data so we don't need ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
     AHardwareBuffer *source;
     EGLImageKHR image;
-    constexpr size_t kDepth = 2;
     createEGLImageAndroidHardwareBufferSource(1, 1, kDepth, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
                                               kDefaultAHBUsage, kDefaultAttribs, {}, &source,
                                               &image);
@@ -4508,11 +6481,14 @@ TEST_P(ImageTestES3, SourceAHBCubeTargetCube)
 {
     EGLWindow *window = getEGLWindow();
 
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(!hasEglImageStorageExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
 
-    // Create the Image
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        1, 1, kCubeFaceCount, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+        kDefaultAHBUsage | kAHBUsageGPUCubeMap));
+
+    // Create the Image without data so we don't need ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
     AHardwareBuffer *source;
     EGLImageKHR image;
     createEGLImageAndroidHardwareBufferSource(
@@ -4521,7 +6497,7 @@ TEST_P(ImageTestES3, SourceAHBCubeTargetCube)
 
     // Create a texture target to bind the egl image
     GLTexture target;
-    createEGLImageTargetTextureStorage(image, GL_TEXTURE_CUBE_MAP, target);
+    createEGLImageTargetTextureStorage(image, GL_TEXTURE_CUBE_MAP, target, nullptr);
 
     // Upload texture data
     for (size_t faceIdx = 0; faceIdx < kCubeFaceCount; faceIdx++)
@@ -4548,23 +6524,26 @@ TEST_P(ImageTestES31, SourceAHBCubeArrayTargetCubeArray)
 {
     EGLWindow *window = getEGLWindow();
 
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(!(getClientMajorVersion() >= 3 && getClientMinorVersion() >= 1));
     ANGLE_SKIP_TEST_IF(!hasEglImageStorageExt() ||
                        !IsGLExtensionEnabled("GL_EXT_texture_cube_map_array"));
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
 
-    // Create the Image
+    constexpr size_t kDepth = kCubeFaceCount * 2;
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        1, 1, kDepth, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+        kDefaultAHBUsage | kAHBUsageGPUCubeMap));
+
+    // Create the Image without data so we don't need ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
     AHardwareBuffer *source;
     EGLImageKHR image;
-    constexpr size_t kDepth = kCubeFaceCount * 2;
     createEGLImageAndroidHardwareBufferSource(1, 1, kDepth, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
                                               kDefaultAHBUsage | kAHBUsageGPUCubeMap,
                                               kDefaultAttribs, {}, &source, &image);
 
     // Create a texture target to bind the egl image
     GLTexture target;
-    createEGLImageTargetTextureStorage(image, GL_TEXTURE_CUBE_MAP_ARRAY, target);
+    createEGLImageTargetTextureStorage(image, GL_TEXTURE_CUBE_MAP_ARRAY, target, nullptr);
 
     // Upload texture data
     for (size_t faceIdx = 0; faceIdx < kCubeFaceCount; faceIdx++)
@@ -4594,11 +6573,14 @@ TEST_P(ImageTestES3, SourceAHBMipTarget2DMip)
 {
     EGLWindow *window = getEGLWindow();
 
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(!hasEglImageStorageExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
 
-    // Create the Image
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        2, 2, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+        kDefaultAHBUsage | kAHBUsageGPUMipMapComplete));
+
+    // Create the Image without data so we don't need ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
     AHardwareBuffer *source;
     EGLImageKHR image;
     createEGLImageAndroidHardwareBufferSource(2, 2, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
@@ -4607,7 +6589,7 @@ TEST_P(ImageTestES3, SourceAHBMipTarget2DMip)
 
     // Create a texture target to bind the egl image
     GLTexture target;
-    createEGLImageTargetTextureStorage(image, GL_TEXTURE_2D, target);
+    createEGLImageTargetTextureStorage(image, GL_TEXTURE_2D, target, nullptr);
 
     // Upload texture data
     // Set Mip level 0 to one color
@@ -4639,11 +6621,14 @@ TEST_P(ImageTestES3, SourceAHBMipTarget2DMipGenerateMipmap)
 {
     EGLWindow *window = getEGLWindow();
 
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(!hasEglImageStorageExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
 
-    // Create the Image
+    ANGLE_SKIP_TEST_IF(!isAndroidHardwareBufferConfigurationSupported(
+        2, 2, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+        kDefaultAHBUsage | kAHBUsageGPUMipMapComplete));
+
+    // Create the Image without data so we don't need ANGLE_AHARDWARE_BUFFER_LOCK_PLANES_SUPPORT
     AHardwareBuffer *source;
     EGLImageKHR image;
     createEGLImageAndroidHardwareBufferSource(2, 2, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
@@ -4652,7 +6637,7 @@ TEST_P(ImageTestES3, SourceAHBMipTarget2DMipGenerateMipmap)
 
     // Create a texture target to bind the egl image
     GLTexture target;
-    createEGLImageTargetTextureStorage(image, GL_TEXTURE_2D, target);
+    createEGLImageTargetTextureStorage(image, GL_TEXTURE_2D, target, nullptr);
 
     // Upload texture data
     // Set Mip level 0 to one color
@@ -4680,7 +6665,7 @@ TEST_P(ImageTestES3, SourceAHBMipTarget2DMipGenerateMipmap)
 // Create a depth format AHB backed EGL image and verify that the image's aspect is honored
 TEST_P(ImageTest, SourceAHBTarget2DDepth)
 {
-    // TODO - Support for depth formats in AHB is missing (http://anglebug.com/4818)
+    // TODO - Support for depth formats in AHB is missing (http://anglebug.com/42263405)
     ANGLE_SKIP_TEST_IF(true);
 
     EGLWindow *window = getEGLWindow();
@@ -4688,6 +6673,7 @@ TEST_P(ImageTest, SourceAHBTarget2DDepth)
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     GLint level             = 0;
     GLsizei width           = 1;
@@ -4761,8 +6747,6 @@ TEST_P(ImageTest, Source2DTargetRenderbuffer_Colorspace)
 {
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
-    // Need to add support for VK_KHR_image_format_list to Renderbuffer: http://anglebug.com/5281
-    ANGLE_SKIP_TEST_IF(IsVulkan());
     Source2DTargetRenderbuffer_helper(kColorspaceAttribs);
 }
 
@@ -4772,26 +6756,29 @@ void ImageTest::Source2DTargetRenderbuffer_helper(const EGLint *attribs)
     EGLWindow *window = getEGLWindow();
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
 
-    // Create the Image
-    GLTexture source;
+    // Create sampling texture
+    GLTexture sampleTexture;
+    glBindTexture(GL_TEXTURE_2D, sampleTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, kLinearColor);
+    // Disable mipmapping
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    ASSERT_GL_NO_ERROR();
+
+    // Create the attachment texture and image
+    GLTexture attachmentTexture;
     EGLImageKHR image;
-    createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, kLinearColor, source,
-                                  &image);
+    createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, nullptr,
+                                  attachmentTexture, &image);
 
-    // Create the target
-    GLRenderbuffer target;
-    createEGLImageTargetRenderbuffer(image, target);
+    // Create the renderbuffer
+    GLRenderbuffer renderbuffer;
+    createEGLImageTargetRenderbuffer(image, renderbuffer);
 
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResultsRenderbuffer(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResultsRenderbuffer(target, kLinearColor);
-    }
+    // Verify that the render buffer has the expected color
+    verifyResultsRenderbufferWithClearAndDraw(
+        sampleTexture, renderbuffer, kLinearColor,
+        getExpected2DColorForAttribList(attribs, EglImageUsage::Rendering));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -4801,7 +6788,6 @@ void ImageTest::Source2DTargetRenderbuffer_helper(const EGLint *attribs)
 // where source native client buffer is created using EGL_ANDROID_create_native_client_buffer API
 TEST_P(ImageTest, SourceNativeClientBufferTargetExternal)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     SourceNativeClientBufferTargetExternal_helper(kDefaultAttribs);
 }
 
@@ -4809,7 +6795,6 @@ TEST_P(ImageTest, SourceNativeClientBufferTargetExternal)
 // where source native client buffer is created using EGL_ANDROID_create_native_client_buffer API
 TEST_P(ImageTest, SourceNativeClientBufferTargetExternal_Colorspace)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
     SourceNativeClientBufferTargetExternal_helper(kColorspaceAttribs);
@@ -4821,27 +6806,20 @@ void ImageTest::SourceNativeClientBufferTargetExternal_helper(const EGLint *attr
     EGLWindow *window = getEGLWindow();
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Create an Image backed by a native client buffer allocated using
     // EGL_ANDROID_create_native_client_buffer API
     EGLImageKHR image;
     createEGLImageANWBClientBufferSource(1, 1, 1, kNativeClientBufferAttribs_RGBA8_Texture, attribs,
-                                         {{kLinearColor, 4}}, &image);
+                                         {{kSrgbColor, 4}}, &image);
 
     // Create the target
     GLTexture target;
     createEGLImageTargetTextureExternal(image, target);
 
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResultsExternal(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResultsExternal(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResultsExternal(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -4851,7 +6829,6 @@ void ImageTest::SourceNativeClientBufferTargetExternal_helper(const EGLint *attr
 // where source native client buffer is created using EGL_ANDROID_create_native_client_buffer API
 TEST_P(ImageTest, SourceNativeClientBufferTargetRenderbuffer)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     SourceNativeClientBufferTargetRenderbuffer_helper(kDefaultAttribs);
 }
 
@@ -4859,11 +6836,8 @@ TEST_P(ImageTest, SourceNativeClientBufferTargetRenderbuffer)
 // where source native client buffer is created using EGL_ANDROID_create_native_client_buffer API
 TEST_P(ImageTest, SourceNativeClientBufferTargetRenderbuffer_Colorspace)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
-    // Need to add support for VK_KHR_image_format_list to Renderbuffer: http://anglebug.com/5281
-    ANGLE_SKIP_TEST_IF(IsVulkan());
     SourceNativeClientBufferTargetRenderbuffer_helper(kColorspaceAttribs);
 }
 
@@ -4873,27 +6847,33 @@ void ImageTest::SourceNativeClientBufferTargetRenderbuffer_helper(const EGLint *
     EGLWindow *window = getEGLWindow();
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     // Create an Image backed by a native client buffer allocated using
     // EGL_ANDROID_create_native_client_buffer API
-    EGLImageKHR image;
+    EGLImageKHR image = EGL_NO_IMAGE_KHR;
     createEGLImageANWBClientBufferSource(1, 1, 1, kNativeClientBufferAttribs_RGBA8_Renderbuffer,
-                                         attribs, {{kLinearColor, 4}}, &image);
+                                         attribs, {{kSrgbColor, 4}}, &image);
+    // We are locking AHB to initialize AHB with data. The lock is allowed to fail, and may fail if
+    // driver decided to allocate with framebuffer compression enabled.
+    ANGLE_SKIP_TEST_IF(image == EGL_NO_IMAGE_KHR);
 
     // Create the target
     GLRenderbuffer target;
     createEGLImageTargetRenderbuffer(image, target);
 
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResultsRenderbuffer(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResultsRenderbuffer(target, kLinearColor);
-    }
+    // Create a framebuffer with renderbuffer attachment and clear it
+    GLFramebuffer framebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, target);
+    glClearColor(kLinearColor[0] / 255.0f, kLinearColor[1] / 255.0f, kLinearColor[2] / 255.0f,
+                 kLinearColor[3] / 255.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ASSERT_GL_NO_ERROR();
+
+    // Verify that the render buffer has the expected color
+    verifyResultsRenderbuffer(target,
+                              getExpected2DColorForAttribList(attribs, EglImageUsage::Rendering));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -4922,23 +6902,15 @@ void ImageTest::Source2DTargetExternal_helper(const EGLint *attribs)
     // Create the Image
     GLTexture source;
     EGLImageKHR image;
-    createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, kLinearColor, source,
+    createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, kSrgbColor, source,
                                   &image);
 
     // Create the target
     GLTexture target;
     createEGLImageTargetTextureExternal(image, target);
 
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResultsExternal(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResultsExternal(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResultsExternal(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -4965,23 +6937,15 @@ void ImageTest::Source2DTargetExternalESSL3_helper(const EGLint *attribs)
     // Create the Image
     GLTexture source;
     EGLImageKHR image;
-    createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, kLinearColor, source,
+    createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, kSrgbColor, source,
                                   &image);
 
     // Create the target
     GLTexture target;
     createEGLImageTargetTextureExternal(image, target);
 
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResultsExternalESSL3(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResultsExternalESSL3(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResultsExternalESSL3(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -5010,23 +6974,15 @@ void ImageTest::SourceCubeTarget2D_helper(const EGLint *attribs)
         GLTexture source;
         EGLImageKHR image;
         createEGLImageCubemapTextureSource(
-            1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, reinterpret_cast<uint8_t *>(kLinearColorCube),
+            1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, reinterpret_cast<uint8_t *>(kSrgbColorCube),
             sizeof(GLubyte) * 4, EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X_KHR + faceIdx, source, &image);
 
         // Create the target
         GLTexture target;
         createEGLImageTargetTexture2D(image, target);
 
-        if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-        {
-            // Expect that the target texture has the corresponding sRGB color values
-            verifyResults2D(target, &kSrgbColorCube[faceIdx * 4]);
-        }
-        else
-        {
-            // Expect that the target texture has the same color as the source texture
-            verifyResults2D(target, &kLinearColorCube[faceIdx * 4]);
-        }
+        // Verify that the target texture has the expected color
+        verifyResults2D(target, &getExpectedCubeColorForAttribList(attribs)[faceIdx * 4]);
 
         // Clean up
         eglDestroyImageKHR(window->getDisplay(), image);
@@ -5042,8 +6998,6 @@ TEST_P(ImageTest, SourceCubeTargetRenderbuffer_Colorspace)
 {
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
-    // Need to add support for VK_KHR_image_format_list to Renderbuffer: http://anglebug.com/5281
-    ANGLE_SKIP_TEST_IF(IsVulkan());
     SourceCubeTargetRenderbuffer_helper(kColorspaceAttribs);
 }
 
@@ -5052,7 +7006,7 @@ void ImageTest::SourceCubeTargetRenderbuffer_helper(const EGLint *attribs)
     EGLWindow *window = getEGLWindow();
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !hasCubemapExt());
 
-    // http://anglebug.com/3145
+    // http://anglebug.com/42261821
     ANGLE_SKIP_TEST_IF(IsVulkan() && IsIntel() && IsFuchsia());
 
     for (EGLenum faceIdx = 0; faceIdx < 6; faceIdx++)
@@ -5061,23 +7015,26 @@ void ImageTest::SourceCubeTargetRenderbuffer_helper(const EGLint *attribs)
         GLTexture source;
         EGLImageKHR image;
         createEGLImageCubemapTextureSource(
-            1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, reinterpret_cast<uint8_t *>(kLinearColorCube),
+            1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, reinterpret_cast<uint8_t *>(kSrgbColorCube),
             sizeof(GLubyte) * 4, EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X_KHR + faceIdx, source, &image);
 
         // Create the target
         GLRenderbuffer target;
         createEGLImageTargetRenderbuffer(image, target);
 
-        if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-        {
-            // Expect that the target texture has the corresponding sRGB color values
-            verifyResultsRenderbuffer(target, &kSrgbColorCube[faceIdx * 4]);
-        }
-        else
-        {
-            // Expect that the target texture has the same color as the source texture
-            verifyResultsRenderbuffer(target, &kLinearColorCube[faceIdx * 4]);
-        }
+        // Create a framebuffer with renderbuffer attachment and clear it
+        GLFramebuffer framebuffer;
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, target);
+        glClearColor(
+            kLinearColorCube[faceIdx * 4 + 0] / 255.0f, kLinearColorCube[faceIdx * 4 + 1] / 255.0f,
+            kLinearColorCube[faceIdx * 4 + 2] / 255.0f, kLinearColorCube[faceIdx * 4 + 3] / 255.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ASSERT_GL_NO_ERROR();
+
+        // Verify that the render buffer has the expected color
+        verifyResultsRenderbuffer(target, &getExpectedCubeColorForAttribList(
+                                              attribs, EglImageUsage::Rendering)[faceIdx * 4]);
 
         // Clean up
         eglDestroyImageKHR(window->getDisplay(), image);
@@ -5110,24 +7067,17 @@ void ImageTest::SourceCubeTargetExternal_helper(const EGLint *attribs)
         // Create the Image
         GLTexture source;
         EGLImageKHR image;
+        // Upload sRGB color so that it is converted to linear when sampling.
         createEGLImageCubemapTextureSource(
-            1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, reinterpret_cast<uint8_t *>(kLinearColorCube),
+            1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, reinterpret_cast<uint8_t *>(kSrgbColorCube),
             sizeof(GLubyte) * 4, EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X_KHR + faceIdx, source, &image);
 
         // Create the target
         GLTexture target;
         createEGLImageTargetTextureExternal(image, target);
 
-        if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-        {
-            // Expect that the target texture has the corresponding sRGB color values
-            verifyResultsExternal(target, &kSrgbColorCube[faceIdx * 4]);
-        }
-        else
-        {
-            // Expect that the target texture has the same color as the source texture
-            verifyResultsExternal(target, &kLinearColorCube[faceIdx * 4]);
-        }
+        // Verify that the target texture has the expected color
+        verifyResultsExternal(target, &getExpectedCubeColorForAttribList(attribs)[faceIdx * 4]);
 
         // Clean up
         eglDestroyImageKHR(window->getDisplay(), image);
@@ -5157,24 +7107,18 @@ void ImageTest::SourceCubeTargetExternalESSL3_helper(const EGLint *attribs)
         // Create the Image
         GLTexture source;
         EGLImageKHR image;
+        // Upload sRGB color so that it is converted to linear when sampling.
         createEGLImageCubemapTextureSource(
-            1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, reinterpret_cast<uint8_t *>(kLinearColorCube),
+            1, 1, GL_RGBA, GL_UNSIGNED_BYTE, attribs, reinterpret_cast<uint8_t *>(kSrgbColorCube),
             sizeof(GLubyte) * 4, EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X_KHR + faceIdx, source, &image);
 
         // Create the target
         GLTexture target;
         createEGLImageTargetTextureExternal(image, target);
 
-        if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-        {
-            // Expect that the target texture has the corresponding sRGB color values
-            verifyResultsExternalESSL3(target, &kSrgbColorCube[faceIdx * 4]);
-        }
-        else
-        {
-            // Expect that the target texture has the same color as the source texture
-            verifyResultsExternalESSL3(target, &kLinearColorCube[faceIdx * 4]);
-        }
+        // Verify that the target texture has the expected color
+        verifyResultsExternalESSL3(target,
+                                   &getExpectedCubeColorForAttribList(attribs)[faceIdx * 4]);
 
         // Clean up
         eglDestroyImageKHR(window->getDisplay(), image);
@@ -5183,17 +7127,17 @@ void ImageTest::SourceCubeTargetExternalESSL3_helper(const EGLint *attribs)
 
 TEST_P(ImageTest, Source3DTargetTexture)
 {
-    Source3DTargetTexture_helper(false);
+    Source3DTargetTexture_helper(default3DAttribs);
 }
 
 TEST_P(ImageTest, Source3DTargetTexture_Colorspace)
 {
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 && !IsGLExtensionEnabled("GL_EXT_sRGB"));
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
-    Source3DTargetTexture_helper(true);
+    Source3DTargetTexture_helper(colorspace3DAttribs);
 }
 
-void ImageTest::Source3DTargetTexture_helper(const bool withColorspace)
+void ImageTest::Source3DTargetTexture_helper(EGLint *attribs)
 {
     EGLWindow *window = getEGLWindow();
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has3DTextureExt());
@@ -5207,24 +7151,17 @@ void ImageTest::Source3DTargetTexture_helper(const bool withColorspace)
         // Create the Image
         GLTexture source;
         EGLImageKHR image;
-        createEGLImage3DTextureSource(1, 1, depth, GL_RGBA, GL_UNSIGNED_BYTE,
-                                      get3DAttributes(withColorspace, layer), kLinearColor3D,
+        // Upload sRGB color so that it is converted to linear when sampling.
+        attribs[kTextureZOffsetAttributeIndex] = static_cast<EGLint>(layer);
+        createEGLImage3DTextureSource(1, 1, depth, GL_RGBA, GL_UNSIGNED_BYTE, attribs, kSrgbColor3D,
                                       source, &image);
 
         // Create the target
         GLTexture target;
         createEGLImageTargetTexture2D(image, target);
 
-        if (withColorspace)
-        {
-            // Expect that the target texture has the corresponding sRGB color values
-            verifyResults2D(target, &kSrgbColor3D[layer * 4]);
-        }
-        else
-        {
-            // Expect that the target texture has the same color as the source texture
-            verifyResults2D(target, &kLinearColor3D[layer * 4]);
-        }
+        // Verify that the target texture has the expected color
+        verifyResults2D(target, &getExpected3DColorForAttribList(attribs)[layer * 4]);
 
         // Clean up
         eglDestroyImageKHR(window->getDisplay(), image);
@@ -5233,23 +7170,21 @@ void ImageTest::Source3DTargetTexture_helper(const bool withColorspace)
 
 TEST_P(ImageTest, Source3DTargetRenderbuffer)
 {
-    Source3DTargetRenderbuffer_helper(false);
+    Source3DTargetRenderbuffer_helper(default3DAttribs);
 }
 
 TEST_P(ImageTest, Source3DTargetRenderbuffer_Colorspace)
 {
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
-    // Need to add support for VK_KHR_image_format_list to Renderbuffer: http://anglebug.com/5281
-    ANGLE_SKIP_TEST_IF(IsVulkan());
-    Source3DTargetRenderbuffer_helper(true);
+    Source3DTargetRenderbuffer_helper(colorspace3DAttribs);
 }
 
-void ImageTest::Source3DTargetRenderbuffer_helper(const bool withColorspace)
+void ImageTest::Source3DTargetRenderbuffer_helper(EGLint *attribs)
 {
     // Qualcom drivers appear to always bind the 0 layer of the source 3D texture when the
     // target is a renderbuffer. They work correctly when the target is a 2D texture.
-    // http://anglebug.com/2745
+    // http://anglebug.com/42261453
     ANGLE_SKIP_TEST_IF(IsAndroid() && IsOpenGLES());
 
     EGLWindow *window = getEGLWindow();
@@ -5265,24 +7200,27 @@ void ImageTest::Source3DTargetRenderbuffer_helper(const bool withColorspace)
         GLTexture source;
         EGLImageKHR image;
 
-        createEGLImage3DTextureSource(1, 1, depth, GL_RGBA, GL_UNSIGNED_BYTE,
-                                      get3DAttributes(withColorspace, layer), kLinearColor3D,
+        attribs[kTextureZOffsetAttributeIndex] = static_cast<EGLint>(layer);
+        createEGLImage3DTextureSource(1, 1, depth, GL_RGBA, GL_UNSIGNED_BYTE, attribs, kSrgbColor3D,
                                       source, &image);
 
         // Create the target
         GLRenderbuffer target;
         createEGLImageTargetRenderbuffer(image, target);
 
-        if (withColorspace)
-        {
-            // Expect that the target texture has the corresponding sRGB color values
-            verifyResultsRenderbuffer(target, &kSrgbColor3D[layer * 4]);
-        }
-        else
-        {
-            // Expect that the target texture has the same color as the source texture
-            verifyResultsRenderbuffer(target, &kLinearColor3D[layer * 4]);
-        }
+        // Create a framebuffer with renderbuffer attachment and clear it
+        GLFramebuffer framebuffer;
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, target);
+        glClearColor(kLinearColor3D[layer * 4 + 0] / 255.0f, kLinearColor3D[layer * 4 + 1] / 255.0f,
+                     kLinearColor3D[layer * 4 + 2] / 255.0f,
+                     kLinearColor3D[layer * 4 + 3] / 255.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ASSERT_GL_NO_ERROR();
+
+        // Verify that the render buffer has the expected color
+        verifyResultsRenderbuffer(
+            target, &getExpected3DColorForAttribList(attribs, EglImageUsage::Rendering)[layer * 4]);
 
         // Clean up
         eglDestroyImageKHR(window->getDisplay(), image);
@@ -5292,17 +7230,17 @@ void ImageTest::Source3DTargetRenderbuffer_helper(const bool withColorspace)
 // Test 3D -> external texture EGL images.
 TEST_P(ImageTest, Source3DTargetExternal)
 {
-    Source3DTargetExternal_helper(false);
+    Source3DTargetExternal_helper(default3DAttribs);
 }
 
 TEST_P(ImageTest, Source3DTargetExternal_Colorspace)
 {
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 && !IsGLExtensionEnabled("GL_EXT_sRGB"));
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
-    Source3DTargetExternal_helper(true);
+    Source3DTargetExternal_helper(colorspace3DAttribs);
 }
 
-void ImageTest::Source3DTargetExternal_helper(const bool withColorspace)
+void ImageTest::Source3DTargetExternal_helper(EGLint *attribs)
 {
     EGLWindow *window = getEGLWindow();
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasExternalExt() || !hasBaseExt() || !has3DTextureExt());
@@ -5319,24 +7257,17 @@ void ImageTest::Source3DTargetExternal_helper(const bool withColorspace)
         // Create the Image
         GLTexture source;
         EGLImageKHR image;
-        createEGLImage3DTextureSource(1, 1, depth, GL_RGBA, GL_UNSIGNED_BYTE,
-                                      get3DAttributes(withColorspace, layer), kLinearColor3D,
+        // Upload sRGB color so that it is converted to linear when sampling.
+        attribs[kTextureZOffsetAttributeIndex] = static_cast<EGLint>(layer);
+        createEGLImage3DTextureSource(1, 1, depth, GL_RGBA, GL_UNSIGNED_BYTE, attribs, kSrgbColor3D,
                                       source, &image);
 
         // Create the target
         GLTexture target;
         createEGLImageTargetTextureExternal(image, target);
 
-        if (withColorspace)
-        {
-            // Expect that the target texture has the corresponding sRGB color values
-            verifyResultsExternal(target, &kSrgbColor3D[layer * 4]);
-        }
-        else
-        {
-            // Expect that the target texture has the same color as the source texture
-            verifyResultsExternal(target, &kLinearColor3D[layer * 4]);
-        }
+        // Verify that the target texture has the expected color
+        verifyResultsExternal(target, &getExpected3DColorForAttribList(attribs)[layer * 4]);
 
         // Clean up
         eglDestroyImageKHR(window->getDisplay(), image);
@@ -5346,17 +7277,17 @@ void ImageTest::Source3DTargetExternal_helper(const bool withColorspace)
 // Test 3D -> external texture EGL images using ESSL3 shaders.
 TEST_P(ImageTestES3, Source3DTargetExternalESSL3)
 {
-    Source3DTargetExternalESSL3_helper(false);
+    Source3DTargetExternalESSL3_helper(default3DAttribs);
 }
 
 TEST_P(ImageTestES3, Source3DTargetExternalESSL3_Colorspace)
 {
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 && !IsGLExtensionEnabled("GL_EXT_sRGB"));
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
-    Source3DTargetExternalESSL3_helper(true);
+    Source3DTargetExternalESSL3_helper(colorspace3DAttribs);
 }
 
-void ImageTest::Source3DTargetExternalESSL3_helper(const bool withColorspace)
+void ImageTest::Source3DTargetExternalESSL3_helper(EGLint *attribs)
 {
     EGLWindow *window = getEGLWindow();
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasExternalESSL3Ext() || !hasBaseExt() ||
@@ -5371,25 +7302,17 @@ void ImageTest::Source3DTargetExternalESSL3_helper(const bool withColorspace)
         // Create the Image
         GLTexture source;
         EGLImageKHR image;
-
-        createEGLImage3DTextureSource(1, 1, depth, GL_RGBA, GL_UNSIGNED_BYTE,
-                                      get3DAttributes(withColorspace, layer), kLinearColor3D,
+        // Upload sRGB color so that it is converted to linear when sampling.
+        attribs[kTextureZOffsetAttributeIndex] = static_cast<EGLint>(layer);
+        createEGLImage3DTextureSource(1, 1, depth, GL_RGBA, GL_UNSIGNED_BYTE, attribs, kSrgbColor3D,
                                       source, &image);
 
         // Create the target
         GLTexture target;
         createEGLImageTargetTextureExternal(image, target);
 
-        if (withColorspace)
-        {
-            // Expect that the target texture has the corresponding sRGB color values
-            verifyResultsExternalESSL3(target, &kSrgbColor3D[layer * 4]);
-        }
-        else
-        {
-            // Expect that the target texture has the same color as the source texture
-            verifyResultsExternalESSL3(target, &kLinearColor3D[layer * 4]);
-        }
+        // Verify that the target texture has the expected color
+        verifyResultsExternalESSL3(target, &getExpected3DColorForAttribList(attribs)[layer * 4]);
 
         // Clean up
         eglDestroyImageKHR(window->getDisplay(), image);
@@ -5415,22 +7338,24 @@ void ImageTest::SourceRenderbufferTargetTexture_helper(const EGLint *attribs)
     // Create the Image
     GLRenderbuffer source;
     EGLImageKHR image;
-    createEGLImageRenderbufferSource(1, 1, GL_RGBA8_OES, attribs, kLinearColor, source, &image);
+    createEGLImageRenderbufferSource(1, 1, GL_RGBA8_OES, attribs, source, &image);
+
+    // Create a framebuffer with renderbuffer attachment and clear it
+    GLFramebuffer framebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, source);
+    glClearColor(kSrgbColor[0] / 255.0f, kSrgbColor[1] / 255.0f, kSrgbColor[2] / 255.0f,
+                 kSrgbColor[3] / 255.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    ASSERT_GL_NO_ERROR();
 
     // Create the target
     GLTexture target;
     createEGLImageTargetTexture2D(image, target);
 
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResults2D(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResults2D(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResults2D(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -5459,22 +7384,24 @@ void ImageTest::SourceRenderbufferTargetTextureExternal_helper(const EGLint *att
     // Create the Image
     GLRenderbuffer source;
     EGLImageKHR image;
-    createEGLImageRenderbufferSource(1, 1, GL_RGBA8_OES, attribs, kLinearColor, source, &image);
+    createEGLImageRenderbufferSource(1, 1, GL_RGBA8_OES, attribs, source, &image);
+
+    // Create a framebuffer with renderbuffer attachment and clear it
+    GLFramebuffer framebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, source);
+    glClearColor(kSrgbColor[0] / 255.0f, kSrgbColor[1] / 255.0f, kSrgbColor[2] / 255.0f,
+                 kSrgbColor[3] / 255.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    ASSERT_GL_NO_ERROR();
 
     // Create the target
     GLTexture target;
     createEGLImageTargetTextureExternal(image, target);
 
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResultsExternal(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResultsExternal(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResultsExternal(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -5501,22 +7428,23 @@ void ImageTest::SourceRenderbufferTargetTextureExternalESSL3_helper(const EGLint
     // Create the Image
     GLRenderbuffer source;
     EGLImageKHR image;
-    createEGLImageRenderbufferSource(1, 1, GL_RGBA8_OES, attribs, kLinearColor, source, &image);
+    createEGLImageRenderbufferSource(1, 1, GL_RGBA8_OES, attribs, source, &image);
+
+    // Create a framebuffer with renderbuffer attachment and clear it
+    GLFramebuffer framebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, source);
+    glClearColor(kSrgbColor[0] / 255.0f, kSrgbColor[1] / 255.0f, kSrgbColor[2] / 255.0f,
+                 kSrgbColor[3] / 255.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ASSERT_GL_NO_ERROR();
 
     // Create the target
     GLTexture target;
     createEGLImageTargetTextureExternal(image, target);
 
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResultsExternalESSL3(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResultsExternalESSL3(target, kLinearColor);
-    }
+    // Verify that the target texture has the expected color
+    verifyResultsExternalESSL3(target, getExpected2DColorForAttribList(attribs));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -5531,8 +7459,6 @@ TEST_P(ImageTest, SourceRenderbufferTargetRenderbuffer_Colorspace)
 {
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 && !IsGLExtensionEnabled("GL_EXT_sRGB"));
     ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
-    // Need to add support for VK_KHR_image_format_list to Renderbuffer: http://anglebug.com/5281
-    ANGLE_SKIP_TEST_IF(IsVulkan());
     SourceRenderbufferTargetRenderbuffer_helper(kColorspaceAttribs);
 }
 
@@ -5544,25 +7470,142 @@ void ImageTest::SourceRenderbufferTargetRenderbuffer_helper(const EGLint *attrib
     // Create the Image
     GLRenderbuffer source;
     EGLImageKHR image;
-    createEGLImageRenderbufferSource(1, 1, GL_RGBA8_OES, attribs, kLinearColor, source, &image);
+    createEGLImageRenderbufferSource(1, 1, GL_RGBA8_OES, attribs, source, &image);
 
     // Create the target
     GLRenderbuffer target;
     createEGLImageTargetRenderbuffer(image, target);
 
-    if (attribs[kColorspaceAttributeIndex] == EGL_GL_COLORSPACE)
-    {
-        // Expect that the target texture has the corresponding sRGB color values
-        verifyResultsRenderbuffer(target, kSrgbColor);
-    }
-    else
-    {
-        // Expect that the target texture has the same color as the source texture
-        verifyResultsRenderbuffer(target, kLinearColor);
-    }
+    // Create a framebuffer with renderbuffer attachment and clear it
+    GLFramebuffer framebuffer;
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, target);
+    glClearColor(kLinearColor[0] / 255.0f, kLinearColor[1] / 255.0f, kLinearColor[2] / 255.0f,
+                 kLinearColor[3] / 255.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ASSERT_GL_NO_ERROR();
+
+    // Verify that the render buffer has the expected color
+    verifyResultsRenderbuffer(target,
+                              getExpected2DColorForAttribList(attribs, EglImageUsage::Rendering));
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
+}
+
+void ImageTest::FixedRatedCompressionBasicHelper(const GLint *attribs)
+{
+    constexpr size_t width  = 16;
+    constexpr size_t height = 16;
+    GLTexture textureSource;
+    EGLImageKHR image;
+    EGLWindow *window = getEGLWindow();
+    createEGLImage2DTextureStorage(width, height, GL_RGBA8, attribs, textureSource, &image);
+
+    GLTexture textureAttachment;
+    createEGLImageTargetTextureStorage(image, GL_TEXTURE_2D, textureAttachment, attribs);
+
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    ASSERT_GL_NO_ERROR();
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureAttachment,
+                           0);
+    ASSERT_GL_NO_ERROR();
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    ANGLE_GL_PROGRAM(drawRed, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+    drawQuad(drawRed, essl1_shaders::PositionAttrib(), 0);
+    EXPECT_PIXEL_RECT_EQ(0, 0, width, height, GLColor::red);
+    ASSERT_GL_NO_ERROR();
+    eglDestroyImageKHR(window->getDisplay(), image);
+}
+
+// Test basic usage of extension GL_EXT_EGL_image_storage_compression
+TEST_P(ImageTest, FixedRatedCompressionBasic)
+{
+    ANGLE_SKIP_TEST_IF(!hasEglImageStorageExt() || !hasEglImageStorageCompressionExt());
+    ANGLE_SKIP_TEST_IF(!hasTextureStorageCompressionExt());
+    constexpr GLint kAttribList[3][3] = {
+        {GL_NONE, GL_NONE, GL_NONE},
+        {GL_SURFACE_COMPRESSION_EXT, GL_SURFACE_COMPRESSION_FIXED_RATE_NONE_EXT, GL_NONE},
+        {GL_SURFACE_COMPRESSION_EXT, GL_SURFACE_COMPRESSION_FIXED_RATE_DEFAULT_EXT, GL_NONE},
+    };
+    for (const GLint *attribs : kAttribList)
+    {
+        FixedRatedCompressionBasicHelper(attribs);
+    }
+}
+
+void ImageTest::FixedRatedCompressionImageAttribCheck(EGLImageKHR image,
+                                                      const GLint *attribs,
+                                                      const GLint expectResult)
+{
+    GLTexture textureAttachment;
+    // Create a target texture from the image
+    glBindTexture(GL_TEXTURE_2D, textureAttachment);
+    glEGLImageTargetTexStorageEXT(GL_TEXTURE_2D, image, attribs);
+    ASSERT_GL_ERROR(expectResult);
+}
+
+// Test whether the result is expected when the attributes mismatched with source
+TEST_P(ImageTest, FixedRatedCompressionMixedAttrib)
+{
+    ANGLE_SKIP_TEST_IF(!hasEglImageStorageExt() || !hasEglImageStorageCompressionExt());
+    ANGLE_SKIP_TEST_IF(!hasTextureStorageCompressionExt());
+    constexpr size_t width                 = 16;
+    constexpr size_t height                = 16;
+    EGLWindow *window                      = getEGLWindow();
+    constexpr GLint textureAttribList[][3] = {
+        {GL_NONE, GL_NONE, GL_NONE},
+        {GL_SURFACE_COMPRESSION_EXT, GL_SURFACE_COMPRESSION_FIXED_RATE_NONE_EXT, GL_NONE},
+        {GL_SURFACE_COMPRESSION_EXT, GL_SURFACE_COMPRESSION_FIXED_RATE_DEFAULT_EXT, GL_NONE},
+    };
+    constexpr GLint imageAttribList[][3] = {
+        {GL_NONE, GL_NONE, GL_NONE},
+        {GL_SURFACE_COMPRESSION_EXT, GL_SURFACE_COMPRESSION_FIXED_RATE_NONE_EXT, GL_NONE},
+    };
+
+    constexpr GLint invalidImageAttribList[][3] = {
+        {GL_SURFACE_COMPRESSION_EXT, GL_SURFACE_COMPRESSION_EXT, GL_NONE},
+        {GL_SURFACE_COMPRESSION_FIXED_RATE_NONE_EXT, GL_SURFACE_COMPRESSION_FIXED_RATE_NONE_EXT,
+         GL_NONE},
+    };
+
+    for (const GLint *textureAttribs : textureAttribList)
+    {
+        GLTexture textureSource;
+        EGLImageKHR image;
+        bool isFixRatedCompressed;
+        createEGLImage2DTextureStorage(width, height, GL_RGBA8, textureAttribs, textureSource,
+                                       &image);
+        /* Query compression rate */
+        GLint compressRate = GL_SURFACE_COMPRESSION_FIXED_RATE_NONE_EXT;
+        glGetTexParameteriv(GL_TEXTURE_2D, GL_SURFACE_COMPRESSION_EXT, &compressRate);
+        ASSERT_GL_NO_ERROR();
+        isFixRatedCompressed = (compressRate == GL_SURFACE_COMPRESSION_FIXED_RATE_DEFAULT_EXT ||
+                                (compressRate >= GL_SURFACE_COMPRESSION_FIXED_RATE_1BPC_EXT &&
+                                 compressRate <= GL_SURFACE_COMPRESSION_FIXED_RATE_12BPC_EXT));
+
+        for (const GLint *attribs : imageAttribList)
+        {
+            if (isFixRatedCompressed && attribs[0] == GL_SURFACE_COMPRESSION_EXT &&
+                attribs[1] == GL_SURFACE_COMPRESSION_FIXED_RATE_NONE_EXT)
+            {
+                FixedRatedCompressionImageAttribCheck(image, attribs, GL_INVALID_OPERATION);
+            }
+            else
+            {
+                FixedRatedCompressionImageAttribCheck(image, attribs, GL_NO_ERROR);
+            }
+        }
+
+        for (const GLint *attribs : invalidImageAttribList)
+        {
+            FixedRatedCompressionImageAttribCheck(image, attribs, GL_INVALID_VALUE);
+        }
+
+        eglDestroyImageKHR(window->getDisplay(), image);
+    }
 }
 
 // Delete the source texture and EGL image.  The image targets should still have the same data
@@ -5622,11 +7665,11 @@ TEST_P(ImageTest, MipLevels)
     // Driver returns OOM in read pixels, some internal error.
     ANGLE_SKIP_TEST_IF(IsOzone() && IsOpenGLES());
     // Also fails on NVIDIA Shield TV bot.
-    // http://anglebug.com/3850
+    // http://anglebug.com/42262494
     ANGLE_SKIP_TEST_IF(IsNVIDIAShield() && IsOpenGLES());
     // On Vulkan, the clear operation in the loop is optimized with a render pass loadOp=Clear.  On
     // Linux/Intel, that operation is mistakenly clearing the rest of the mips to 0.
-    // http://anglebug.com/3284
+    // http://anglebug.com/42261962
     ANGLE_SKIP_TEST_IF(IsVulkan() && IsLinux() && IsIntel());
 
     EGLWindow *window = getEGLWindow();
@@ -5664,7 +7707,7 @@ TEST_P(ImageTest, MipLevels)
         };
         EGLImageKHR image =
             eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
-                              reinterpretHelper<EGLClientBuffer>(source.get()), attribs);
+                              reinterpretHelper<EGLClientBuffer>(source), attribs);
         ASSERT_EGL_SUCCESS();
 
         // Create a texture and renderbuffer target
@@ -5722,7 +7765,7 @@ TEST_P(ImageTest, MipLevels)
 TEST_P(ImageTest, Respecification)
 {
     // Respecification of textures that does not change the size of the level attached to the EGL
-    // image does not cause orphaning on Qualcomm devices. http://anglebug.com/2744
+    // image does not cause orphaning on Qualcomm devices. http://anglebug.com/42261452
     ANGLE_SKIP_TEST_IF(IsAndroid() && IsOpenGLES());
     ANGLE_SKIP_TEST_IF(IsOzone() && IsOpenGLES());
 
@@ -5839,7 +7882,7 @@ TEST_P(ImageTest, RespecificationWithFBO)
 TEST_P(ImageTest, RespecificationOfOtherLevel)
 {
     // Respecification of textures that does not change the size of the level attached to the EGL
-    // image does not cause orphaning on Qualcomm devices. http://anglebug.com/2744
+    // image does not cause orphaning on Qualcomm devices. http://anglebug.com/42261452
     ANGLE_SKIP_TEST_IF(IsAndroid() && IsOpenGLES());
 
     // It is undefined what happens to the mip 0 of the dest texture after it is orphaned. Some
@@ -5942,13 +7985,13 @@ TEST_P(ImageTest, UpdatedData)
 }
 
 // Check that the external texture is successfully updated when only glTexSubImage2D is called.
-TEST_P(ImageTest, UpdatedExternalTexture)
+TEST_P(ImageTest, AHBUpdatedExternalTexture)
 {
     EGLWindow *window = getEGLWindow();
 
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     GLubyte originalData[4]      = {255, 0, 255, 255};
     GLubyte updateData[4]        = {0, 255, 0, 255};
@@ -6003,6 +8046,83 @@ TEST_P(ImageTest, UpdatedExternalTexture)
 
     // Expect that the target have the update data
     verifyResults2D(targetTexture2, updateData);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+    destroyAndroidHardwareBuffer(source);
+}
+
+// Check that the texture is successfully updated using PBO.
+TEST_P(ImageTest, AHBUpdatedUnpackBuffer)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
+
+    GLubyte originalData[4 * 4] = {
+        0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF,
+        0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF,
+    };
+
+    static const unsigned char pbo[] = {
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0xFF, 0xFF,
+        0xFF, 0xFF, 0x7F, 0x7F, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0xFF, 0x00, 0xFF,
+        0xFF, 0xFF, 0x7F, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0x00,
+    };
+    GLubyte resultData[4 * 4] = {
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        0xFF, 0x0F, 0xFF, 0xFF, 0xFF, 0x0F, 0xFF, 0xFF,
+    };
+    const uint32_t bytesPerPixel = 4;
+
+    // Create the Image
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(2, 2, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+                                              kDefaultAHBUsage, kDefaultAttribs,
+                                              {{originalData, bytesPerPixel}}, &source, &image);
+
+    // Create target
+    GLTexture targetTexture;
+    createEGLImageTargetTexture2D(image, targetTexture);
+
+    // Expect that both the target have the original data
+    verifyResults2D(targetTexture, originalData);
+
+    GLBuffer buf;
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buf);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 1);
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    glBufferData(GL_PIXEL_UNPACK_BUFFER, sizeof(pbo), NULL, GL_DYNAMIC_DRAW);
+    glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, sizeof(pbo), pbo);
+    EXPECT_GL_NO_ERROR();
+
+    // Update the data of the source
+    glBindTexture(GL_TEXTURE_2D, targetTexture);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 2, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 1, 0, 1, 2, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+    // Set sync object and flush the GL commands
+    EGLSyncKHR fence = eglCreateSyncKHR(window->getDisplay(), EGL_SYNC_FENCE_KHR, NULL);
+    ASSERT_NE(fence, EGL_NO_SYNC_KHR);
+    glFlush();
+
+    // Wait that the flush command is finished
+    EGLint result = eglClientWaitSyncKHR(window->getDisplay(), fence, 0, 1000000000);
+    ASSERT_EQ(result, EGL_CONDITION_SATISFIED_KHR);
+    ASSERT_EGL_TRUE(eglDestroySyncKHR(window->getDisplay(), fence));
+
+    // Delete the EGL image
+    eglDestroyImageKHR(window->getDisplay(), image);
+
+    // Access the android hardware buffer directly to check the data is updated
+    verifyResultAHB(source, {{resultData, bytesPerPixel}});
 
     // Clean up
     eglDestroyImageKHR(window->getDisplay(), image);
@@ -6069,10 +8189,10 @@ TEST_P(ImageTest, SourceCubeAndSameTargetTextureWithEachCubeFace)
     for (GLenum faceIdx = 0; faceIdx < 6; faceIdx++)
     {
         // Create the Image with EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X_KHR
-        images[faceIdx] = eglCreateImageKHR(window->getDisplay(), window->getContext(),
-                                            EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X_KHR + faceIdx,
-                                            reinterpretHelper<EGLClientBuffer>(sourceTexture.get()),
-                                            kDefaultAttribs);
+        images[faceIdx] =
+            eglCreateImageKHR(window->getDisplay(), window->getContext(),
+                              EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X_KHR + faceIdx,
+                              reinterpretHelper<EGLClientBuffer>(sourceTexture), kDefaultAttribs);
 
         // Create a target texture from the image
         glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, images[faceIdx]);
@@ -6153,9 +8273,9 @@ TEST_P(ImageTest, AppTraceExternalTextureWithAHBUseCase)
 {
     EGLWindow *window = getEGLWindow();
 
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
 
     GLubyte data[4] = {7, 51, 197, 231};
 
@@ -6215,9 +8335,9 @@ TEST_P(ImageTest, AppTraceExternalTextureWithAHBUseCase)
 // Thread 0 creates the AHB and binds it to a texture, thread 1 uses it without synchronization.
 TEST_P(ImageTest, MultithreadedAHBImportAndUseAsTexture)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
     ANGLE_SKIP_TEST_IF(!platformSupportsMultithreading());
 
     EGLWindow *window = getEGLWindow();
@@ -6275,8 +8395,6 @@ TEST_P(ImageTest, MultithreadedAHBImportAndUseAsTexture)
     auto thread1 = [&](EGLDisplay dpy, EGLSurface surface, EGLContext context) {
         ThreadSynchronization<Step> threadSynchronization(&currentStep, &mutex, &condVar);
 
-        ASSERT_TRUE(threadSynchronization.waitForStep(Step::Start));
-
         EXPECT_EGL_TRUE(eglMakeCurrent(dpy, surface, surface, context));
 
         // Wait for thread 0 to set up
@@ -6318,9 +8436,9 @@ TEST_P(ImageTest, MultithreadedAHBImportAndUseAsTexture)
 // synchronization.
 TEST_P(ImageTest, MultithreadedAHBImportAndUseAsRenderbuffer)
 {
-    ANGLE_SKIP_TEST_IF(!IsAndroid());
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !hasRenderbufferExt());
     ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!hasAhbLockPlanesSupport());
     ANGLE_SKIP_TEST_IF(!platformSupportsMultithreading());
 
     EGLWindow *window = getEGLWindow();
@@ -6378,8 +8496,6 @@ TEST_P(ImageTest, MultithreadedAHBImportAndUseAsRenderbuffer)
     auto thread1 = [&](EGLDisplay dpy, EGLSurface surface, EGLContext context) {
         ThreadSynchronization<Step> threadSynchronization(&currentStep, &mutex, &condVar);
 
-        ASSERT_TRUE(threadSynchronization.waitForStep(Step::Start));
-
         EXPECT_EGL_TRUE(eglMakeCurrent(dpy, surface, surface, context));
 
         // Wait for thread 0 to set up
@@ -6421,7 +8537,7 @@ TEST_P(ImageTest, MultithreadedAHBImportAndUseAsRenderbuffer)
     ASSERT_NE(currentStep, Step::Abort);
 }
 
-void ImageTest::FramebufferAttachmentDeletedWhileInUseHelper(bool useTextureAttachment,
+void ImageTest::framebufferAttachmentDeletedWhileInUseHelper(bool useTextureAttachment,
                                                              bool deleteSourceTextureLast)
 {
     ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt());
@@ -6434,6 +8550,7 @@ void ImageTest::FramebufferAttachmentDeletedWhileInUseHelper(bool useTextureAtta
 
     std::mutex mutex;
     std::condition_variable condVar;
+    EGLSyncKHR sync;
 
     enum class Step
     {
@@ -6458,8 +8575,7 @@ void ImageTest::FramebufferAttachmentDeletedWhileInUseHelper(bool useTextureAtta
         createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, kDefaultAttribs,
                                       kLinearColor, source, &image);
 
-        // Explicit flush is currently required for Vulkan backend
-        glFlush();
+        sync = eglCreateSyncKHR(window->getDisplay(), EGL_SYNC_FENCE_KHR, nullptr);
         ASSERT_GL_NO_ERROR();
 
         // Wait thread 1 finish using the Image
@@ -6493,6 +8609,7 @@ void ImageTest::FramebufferAttachmentDeletedWhileInUseHelper(bool useTextureAtta
         ASSERT_TRUE(threadSynchronization.waitForStep(Step::Thread0CreatedImage));
 
         EXPECT_EGL_TRUE(eglMakeCurrent(dpy, surface, surface, context));
+        eglWaitSyncKHR(dpy, sync, 0);
 
         // Create the target and set up a framebuffer to render into the Image
         GLFramebuffer fbo;
@@ -6576,25 +8693,932 @@ void ImageTest::FramebufferAttachmentDeletedWhileInUseHelper(bool useTextureAtta
 // Testing Target 2D Texture deleted while still used in the RenderPass (Image destroyed last).
 TEST_P(ImageTest, TargetTexture2DDeletedWhileInUse)
 {
-    FramebufferAttachmentDeletedWhileInUseHelper(true, false);
+    framebufferAttachmentDeletedWhileInUseHelper(true, false);
 }
 
 // Testing Target 2D Texture deleted while still used in the RenderPass (Source deleted last).
 TEST_P(ImageTest, TargetTexture2DDeletedWhileInUse2)
 {
-    FramebufferAttachmentDeletedWhileInUseHelper(true, true);
+    framebufferAttachmentDeletedWhileInUseHelper(true, true);
 }
 
 // Testing Target Renderbuffer deleted while still used in the RenderPass (Image destroyed last).
 TEST_P(ImageTest, TargetRenderbufferDeletedWhileInUse)
 {
-    FramebufferAttachmentDeletedWhileInUseHelper(false, false);
+    framebufferAttachmentDeletedWhileInUseHelper(false, false);
 }
 
 // Testing Target Renderbuffer deleted while still used in the RenderPass (Source deleted last).
 TEST_P(ImageTest, TargetRenderbufferDeletedWhileInUse2)
 {
-    FramebufferAttachmentDeletedWhileInUseHelper(false, true);
+    framebufferAttachmentDeletedWhileInUseHelper(false, true);
+}
+
+void ImageTest::framebufferResolveAttachmentDeletedWhileInUseHelper(bool useTextureAttachment,
+                                                                    bool deleteSourceTextureLast)
+{
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt());
+    ANGLE_SKIP_TEST_IF(useTextureAttachment && !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!useTextureAttachment && !hasRenderbufferExt());
+    ANGLE_SKIP_TEST_IF(!platformSupportsMultithreading());
+
+    EGLWindow *window = getEGLWindow();
+    EGLImageKHR image = EGL_NO_IMAGE_KHR;
+
+    std::mutex mutex;
+    std::condition_variable condVar;
+    EGLSyncKHR sync;
+
+    enum class Step
+    {
+        Start,
+        Thread0CreatedImage,
+        Thread1UsedImage,
+        Finish,
+        Abort,
+    };
+    Step currentStep = Step::Start;
+
+    EXPECT_EGL_TRUE(window->makeCurrent(EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+
+    // This thread will use window context
+    std::thread thread0([&]() {
+        ThreadSynchronization<Step> threadSynchronization(&currentStep, &mutex, &condVar);
+
+        window->makeCurrent();
+
+        // Create the Image
+        GLTexture source;
+        createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, kDefaultAttribs,
+                                      kLinearColor, source, &image);
+
+        sync = eglCreateSyncKHR(window->getDisplay(), EGL_SYNC_FENCE_KHR, nullptr);
+        ASSERT_GL_NO_ERROR();
+
+        // Wait thread 1 finish using the Image
+        threadSynchronization.nextStep(Step::Thread0CreatedImage);
+        ASSERT_TRUE(threadSynchronization.waitForStep(Step::Thread1UsedImage));
+
+        if (!deleteSourceTextureLast)
+        {
+            // Delete "source" texture first - image buffer will be deleted with the "image"
+            source.reset();
+        }
+
+        // Destroy Image
+        eglDestroyImageKHR(window->getDisplay(), image);
+
+        if (deleteSourceTextureLast)
+        {
+            // Delete "source" texture last - this will delete image buffer
+            source.reset();
+        }
+
+        threadSynchronization.nextStep(Step::Finish);
+
+        EXPECT_EGL_TRUE(window->makeCurrent(EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+    });
+
+    // This thread will use non Shared context
+    auto thread1 = [&](EGLDisplay dpy, EGLSurface surface, EGLContext context) {
+        ThreadSynchronization<Step> threadSynchronization(&currentStep, &mutex, &condVar);
+
+        ASSERT_TRUE(threadSynchronization.waitForStep(Step::Thread0CreatedImage));
+
+        EXPECT_EGL_TRUE(eglMakeCurrent(dpy, surface, surface, context));
+        eglWaitSyncKHR(dpy, sync, 0);
+
+        // Create the target and set up a framebuffer to render into the Image
+        GLFramebuffer fbo;
+        GLTexture targetTexture;
+        GLRenderbuffer targetRenderbuffer;
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        if (useTextureAttachment)
+        {
+            createEGLImageTargetTexture2D(image, targetTexture);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                                   targetTexture, 0);
+        }
+        else
+        {
+            createEGLImageTargetRenderbuffer(image, targetRenderbuffer);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER,
+                                      targetRenderbuffer);
+        }
+        EXPECT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        // Test that framebuffer has source content
+        EXPECT_PIXEL_EQ(0, 0, kLinearColor[0], kLinearColor[1], kLinearColor[2], kLinearColor[3]);
+
+        // Create additional target texture
+        GLTexture targetTexture2;
+        createEGLImageTargetTexture2D(image, targetTexture2);
+
+        // Create MSAA framebuffer
+        GLTexture msaaColor;
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msaaColor);
+        glTexStorage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGBA8, 1, 1, false);
+
+        GLFramebuffer msaaFBO;
+        glBindFramebuffer(GL_FRAMEBUFFER, msaaFBO);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE,
+                               msaaColor, 0);
+        ASSERT_GL_NO_ERROR();
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        // Draw Red quad into the MSAA framebuffer
+        ANGLE_GL_PROGRAM(drawRed, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+        drawQuad(drawRed, essl1_shaders::PositionAttrib(), 0.0f);
+        ASSERT_GL_NO_ERROR();
+
+        // Resolve into image
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+        glBlitFramebuffer(0, 0, 1, 1, 0, 0, 1, 1, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        ASSERT_GL_NO_ERROR();
+
+        // Delete "targetTexture2" that may affect RenderPass because it uses same Image
+        targetTexture2.reset();
+
+        // Start another render pass and blend into the image.
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+
+        ANGLE_GL_PROGRAM(drawGreen, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+        drawQuad(drawGreen, essl1_shaders::PositionAttrib(), 0.0f);
+        ASSERT_GL_NO_ERROR();
+
+        // Test that resolve and draw worked
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+        EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::yellow);
+
+        // Draw again to open RenderPass after the read pixels
+        glDisable(GL_BLEND);
+        drawQuad(drawGreen, essl1_shaders::PositionAttrib(), 0.0f);
+        ASSERT_GL_NO_ERROR();
+
+        // Delete resources
+        fbo.reset();
+        targetTexture.reset();
+        targetRenderbuffer.reset();
+        ASSERT_GL_NO_ERROR();
+
+        // Wait thread 0 destroys the Image and source
+        threadSynchronization.nextStep(Step::Thread1UsedImage);
+        ASSERT_TRUE(threadSynchronization.waitForStep(Step::Finish));
+
+        EXPECT_EGL_TRUE(eglMakeCurrent(dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+    };
+
+    std::array<LockStepThreadFunc, 1> threadFuncs = {
+        std::move(thread1),
+    };
+
+    RunLockStepThreads(getEGLWindow(), threadFuncs.size(), threadFuncs.data());
+    thread0.join();
+
+    window->makeCurrent();
+
+    ASSERT_NE(currentStep, Step::Abort);
+}
+
+// Test whether the dimension size of the target GL_TEXTURE_EXTERNAL_OES is as expected.
+TEST_P(ImageTestES31, QueryDimFromExternalTex)
+{
+    EGLWindow *window = getEGLWindow();
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt() || !hasExternalExt());
+
+    // Create the Image
+    GLTexture source;
+    GLsizei src_w = 1, src_h = 1, qw = 0, qh = 0;
+    EGLImageKHR image;
+    createEGLImage2DTextureSource(src_w, src_h, GL_RGBA, GL_UNSIGNED_BYTE, kDefaultAttribs,
+                                  kSrgbColor, source, &image);
+
+    // Create the target
+    GLTexture target;
+    createEGLImageTargetTextureExternal(image, target);
+
+    // Querying the dimensions should work
+    glGetTexLevelParameteriv(GL_TEXTURE_EXTERNAL_OES, 0, GL_TEXTURE_WIDTH, &qw);
+    EXPECT_EQ(qw, src_w);
+    glGetTexLevelParameteriv(GL_TEXTURE_EXTERNAL_OES, 0, GL_TEXTURE_HEIGHT, &qh);
+    EXPECT_EQ(qh, src_h);
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+}
+
+// Testing Target 2D Texture deleted while still used in the RenderPass as resolve attachment (Image
+// destroyed last).
+TEST_P(ImageTestES31, TargetTexture2DDeletedWhileInUseAsResolve)
+{
+    framebufferResolveAttachmentDeletedWhileInUseHelper(true, false);
+}
+
+// Testing Target 2D Texture deleted while still used in the RenderPass as resolve attachment
+// (Source deleted last).
+TEST_P(ImageTestES31, TargetTexture2DDeletedWhileInUseAsResolve2)
+{
+    framebufferResolveAttachmentDeletedWhileInUseHelper(true, true);
+}
+
+// Testing Target Renderbuffer deleted while still used in the RenderPass as resolve attachment
+// (Image destroyed last).
+TEST_P(ImageTestES31, TargetRenderbufferDeletedWhileInUseAsResolve)
+{
+    framebufferResolveAttachmentDeletedWhileInUseHelper(false, false);
+}
+
+// Testing Target Renderbuffer deleted while still used in the RenderPass as resolve attachment
+// (Source deleted last).
+TEST_P(ImageTestES31, TargetRenderbufferDeletedWhileInUseAsResolve2)
+{
+    framebufferResolveAttachmentDeletedWhileInUseHelper(false, true);
+}
+
+// Test that the AHB can be used in some way in GL, then accessed by foreign entity, then used again
+// by GL.  This makes sure transitions in and out of the FOREIGN Vulkan queue are correctly
+// implemented.
+void ImageTest::useAHBByGLThenForeignThenGLHelper(
+    std::function<void(const GLTexture &, uint32_t, uint32_t)> firstUse,
+    std::function<void(const GLTexture &, uint32_t, uint32_t)> secondUse)
+{
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !hasRenderbufferExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+
+    constexpr uint32_t kWidth  = 53;
+    constexpr uint32_t kHeight = 37;
+
+    // Create the Image
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(
+        kWidth, kHeight, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM, kDefaultAHBUsage,
+        kDefaultAttribs, {}, &source, &image);
+
+    // Create a texture target to bind the egl image
+    GLTexture target;
+    createEGLImageTargetTexture2D(image, target);
+
+    glViewport(0, 0, kWidth, kHeight);
+
+    // Use the image in GL once.
+    firstUse(target, kWidth, kHeight);
+
+    // In between uses, overwrite parts of the image.
+    // First, wait for first use to finish.
+    EGLWindow *window = getEGLWindow();
+    EGLSyncKHR fence  = eglCreateSyncKHR(window->getDisplay(), EGL_SYNC_FENCE_KHR, NULL);
+    glFlush();
+    EGLint result = eglClientWaitSyncKHR(window->getDisplay(), fence, 0, 1'000'000'000);
+    ASSERT_EQ(result, EGL_CONDITION_SATISFIED_KHR);
+    ASSERT_EGL_TRUE(eglDestroySyncKHR(window->getDisplay(), fence));
+
+    // Then overwrite a quarter of the image with some color
+    std::vector<GLubyte> data((kWidth / 2) * (kHeight / 2) * 4, 99);
+    writeAHBData(source, kWidth / 2, kHeight / 2, 1, false, {{data.data(), 4}});
+
+    // And use the image again in GL.
+    secondUse(target, kWidth, kHeight);
+
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test draw, use in foreign, then draw again
+TEST_P(ImageTest, DrawForeignDraw)
+{
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    auto first = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f);
+    };
+    auto second = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(width / 4, 0, width / 2, height);
+
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f);
+
+        // Expect the following:
+        //
+        // +-----+-----+-----+-----+
+        // |     |     |     |     |
+        // | 99  | 99  | G   | G   |
+        // |     | +   | +   |     |
+        // |     | R   | R   |     |
+        // |     |     |     |     |
+        // +-----+-----+-----+     |
+        // |     |           |     |
+        // | G   | G + R     | G   |
+        // |     |           |     |
+        // |     |           |     |
+        // |     |           |     |
+        // +-----+-----------+-----+
+        //
+        EXPECT_PIXEL_RECT_EQ(0, 0, width / 4, height / 2, GLColor(99, 99, 99, 99));
+        EXPECT_PIXEL_RECT_EQ(0, height / 2, width / 4, height - height / 2, GLColor::green);
+        EXPECT_PIXEL_RECT_EQ(width / 4, 0, width / 2 - width / 4, height / 2,
+                             GLColor(255, 99, 99, 255));
+        EXPECT_PIXEL_RECT_EQ(width / 4, height / 2, width / 2, height - height / 2,
+                             GLColor::yellow);
+        EXPECT_PIXEL_RECT_EQ(width / 2, 0, width / 2 - width / 4, height / 2, GLColor::yellow);
+        EXPECT_PIXEL_RECT_EQ(width / 4 + width / 2, 0, width - width / 2 - width / 4, height,
+                             GLColor::green);
+    };
+
+    useAHBByGLThenForeignThenGLHelper(first, second);
+}
+
+// Test draw, use in foreign, then blit
+TEST_P(ImageTestES3, DrawForeignBlit)
+{
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    auto first = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f);
+    };
+    auto second = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        GLFramebuffer otherFbo;
+        glBindFramebuffer(GL_FRAMEBUFFER, otherFbo);
+
+        GLTexture color;
+        glBindTexture(GL_TEXTURE_2D, color);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                     nullptr);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        glClearColor(0, 0, 1, 1);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+
+        glBlitFramebuffer(width / 4, 0, width / 2 + width / 4, height, width / 4, 0,
+                          width / 2 + width / 4, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+
+        // Expect the following:
+        //
+        // +-----+-----------+-----+
+        // |     |           |     |
+        // | 99  | B         | G   |
+        // |     |           |     |
+        // |     |           |     |
+        // |     |           |     |
+        // +-----+           |     |
+        // |     |           |     |
+        // | G   |           |     |
+        // |     |           |     |
+        // |     |           |     |
+        // |     |           |     |
+        // +-----+-----------+-----+
+        //
+        EXPECT_PIXEL_RECT_EQ(0, 0, width / 4, height / 2, GLColor(99, 99, 99, 99));
+        EXPECT_PIXEL_RECT_EQ(0, height / 2, width / 4, height - height / 2, GLColor::green);
+        EXPECT_PIXEL_RECT_EQ(width / 4, 0, width / 2 - width / 4, height, GLColor::blue);
+        EXPECT_PIXEL_RECT_EQ(width / 4 + width / 2, 0, width - width / 2 - width / 4, height,
+                             GLColor::green);
+    };
+
+    useAHBByGLThenForeignThenGLHelper(first, second);
+}
+
+// Test draw, readback, use in foreign, then draw again
+TEST_P(ImageTest, DrawReadbackForeignDraw)
+{
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    auto first = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f);
+
+        // A second usage of the same image
+        EXPECT_PIXEL_RECT_EQ(0, 0, width, height, GLColor::green);
+    };
+    auto second = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(width / 4, 0, width / 2, height);
+
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f);
+
+        // Expect the following:
+        //
+        // +-----+-----+-----+-----+
+        // |     |     |     |     |
+        // | 99  | 99  | G   | G   |
+        // |     | +   | +   |     |
+        // |     | R   | R   |     |
+        // |     |     |     |     |
+        // +-----+-----+-----+     |
+        // |     |           |     |
+        // | G   | G + R     | G   |
+        // |     |           |     |
+        // |     |           |     |
+        // |     |           |     |
+        // +-----+-----------+-----+
+        //
+        EXPECT_PIXEL_RECT_EQ(0, 0, width / 4, height / 2, GLColor(99, 99, 99, 99));
+        EXPECT_PIXEL_RECT_EQ(0, height / 2, width / 4, height - height / 2, GLColor::green);
+        EXPECT_PIXEL_RECT_EQ(width / 4, 0, width / 2 - width / 4, height / 2,
+                             GLColor(255, 99, 99, 255));
+        EXPECT_PIXEL_RECT_EQ(width / 4, height / 2, width / 2, height - height / 2,
+                             GLColor::yellow);
+        EXPECT_PIXEL_RECT_EQ(width / 2, 0, width / 2 - width / 4, height / 2, GLColor::yellow);
+        EXPECT_PIXEL_RECT_EQ(width / 4 + width / 2, 0, width - width / 2 - width / 4, height,
+                             GLColor::green);
+    };
+
+    useAHBByGLThenForeignThenGLHelper(first, second);
+}
+
+// Test draw, use in foreign, then readback
+TEST_P(ImageTest, DrawForeignReadback)
+{
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    auto first = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f);
+    };
+    auto second = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        // Expect the following:
+        //
+        // +-----------+-----------+
+        // |           |           |
+        // | 99        |           |
+        // |           |           |
+        // |           |           |
+        // |           |           |
+        // +-----------+           |
+        // |                       |
+        // | G                     |
+        // |                       |
+        // |                       |
+        // |                       |
+        // +-----------------------+
+        //
+        EXPECT_PIXEL_RECT_EQ(0, 0, width / 2, height / 2, GLColor(99, 99, 99, 99));
+        EXPECT_PIXEL_RECT_EQ(width / 2, 0, width - width / 2, height / 2, GLColor::green);
+        EXPECT_PIXEL_RECT_EQ(0, height / 2, width, height - height / 2, GLColor::green);
+    };
+
+    useAHBByGLThenForeignThenGLHelper(first, second);
+}
+
+// Test use as resolve attachment, use in foreign, then draw again
+TEST_P(ImageTestES3, ResolveForeignDraw)
+{
+    GLFramebuffer fbo;
+
+    auto first = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        GLRenderbuffer color;
+        glBindRenderbuffer(GL_RENDERBUFFER, color);
+        glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_RGBA8, width, height);
+
+        GLFramebuffer msaaFbo;
+        glBindFramebuffer(GL_FRAMEBUFFER, msaaFbo);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f);
+
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture,
+                               0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_DRAW_FRAMEBUFFER);
+
+        glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT,
+                          GL_NEAREST);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    };
+    auto second = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(width / 4, 0, width / 2, height);
+
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f);
+
+        // Expect the following:
+        //
+        // +-----+-----+-----+-----+
+        // |     |     |     |     |
+        // | 99  | 99  | G   | G   |
+        // |     | +   | +   |     |
+        // |     | R   | R   |     |
+        // |     |     |     |     |
+        // +-----+-----+-----+     |
+        // |     |           |     |
+        // | G   | G + R     | G   |
+        // |     |           |     |
+        // |     |           |     |
+        // |     |           |     |
+        // +-----+-----------+-----+
+        //
+        EXPECT_PIXEL_RECT_EQ(0, 0, width / 4, height / 2, GLColor(99, 99, 99, 99));
+        EXPECT_PIXEL_RECT_EQ(0, height / 2, width / 4, height - height / 2, GLColor::green);
+        EXPECT_PIXEL_RECT_EQ(width / 4, 0, width / 2 - width / 4, height / 2,
+                             GLColor(255, 99, 99, 255));
+        EXPECT_PIXEL_RECT_EQ(width / 4, height / 2, width / 2, height - height / 2,
+                             GLColor::yellow);
+        EXPECT_PIXEL_RECT_EQ(width / 2, 0, width / 2 - width / 4, height / 2, GLColor::yellow);
+        EXPECT_PIXEL_RECT_EQ(width / 4 + width / 2, 0, width - width / 2 - width / 4, height,
+                             GLColor::green);
+    };
+
+    useAHBByGLThenForeignThenGLHelper(first, second);
+}
+
+// Test upload, use in foreign, then draw
+TEST_P(ImageTest, UploadForeignDraw)
+{
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    auto first = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        std::vector<GLColor> data(width * height, GLColor::blue);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE,
+                        data.data());
+
+        EXPECT_PIXEL_RECT_EQ(0, 0, width, height, GLColor::blue);
+    };
+    auto second = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(width / 4, 0, width / 2, height);
+
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Red());
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f);
+
+        // Expect the following:
+        //
+        // +-----+-----+-----+-----+
+        // |     |     |     |     |
+        // | 99  | 99  | B   | B   |
+        // |     | +   | +   |     |
+        // |     | R   | R   |     |
+        // |     |     |     |     |
+        // +-----+-----+-----+     |
+        // |     |           |     |
+        // | B   | B + R     | B   |
+        // |     |           |     |
+        // |     |           |     |
+        // |     |           |     |
+        // +-----+-----------+-----+
+        //
+        EXPECT_PIXEL_RECT_EQ(0, 0, width / 4, height / 2, GLColor(99, 99, 99, 99));
+        EXPECT_PIXEL_RECT_EQ(0, height / 2, width / 4, height - height / 2, GLColor::blue);
+        EXPECT_PIXEL_RECT_EQ(width / 4, 0, width / 2 - width / 4, height / 2,
+                             GLColor(255, 99, 99, 255));
+        EXPECT_PIXEL_RECT_EQ(width / 4, height / 2, width / 2, height - height / 2,
+                             GLColor::magenta);
+        EXPECT_PIXEL_RECT_EQ(width / 2, 0, width / 2 - width / 4, height / 2, GLColor::magenta);
+        EXPECT_PIXEL_RECT_EQ(width / 4 + width / 2, 0, width - width / 2 - width / 4, height,
+                             GLColor::blue);
+    };
+
+    useAHBByGLThenForeignThenGLHelper(first, second);
+}
+
+// Test sample in FS, use in foreign, then sample again in VS
+TEST_P(ImageTestES3, SampleForeignSample)
+{
+    GLTexture color;
+
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    auto first = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glBindTexture(GL_TEXTURE_2D, color);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                     nullptr);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        std::vector<GLColor> data(width * height, GLColor::blue);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE,
+                        data.data());
+
+        ANGLE_GL_PROGRAM(drawTexture, essl1_shaders::vs::Texture2D(),
+                         essl1_shaders::fs::Texture2D());
+        glUseProgram(drawTexture);
+        GLint texLocation = glGetUniformLocation(drawTexture, essl1_shaders::Texture2DUniform());
+        ASSERT_NE(-1, texLocation);
+        glUniform1i(texLocation, 0);
+        drawQuad(drawTexture, essl1_shaders::PositionAttrib(), 0.5f);
+
+        EXPECT_PIXEL_RECT_EQ(0, 0, width, height, GLColor::blue);
+    };
+    auto second = [&](const GLTexture &texture, uint32_t width, uint32_t height) {
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        constexpr char kVS[] = R"(precision highp float;
+uniform highp sampler2D tex;
+attribute vec2 position;
+varying vec4 color;
+void main()
+{
+    color = texture2D(tex, position * 0.5 + 0.5);
+    gl_Position = vec4(position, 0, 1);
+})";
+
+        constexpr char kFS[] = R"(precision highp float;
+varying vec4 color;
+void main()
+{
+    gl_FragColor = color;
+})";
+
+        ANGLE_GL_PROGRAM(program, kVS, kFS);
+        glUseProgram(program);
+        GLint texLocation = glGetUniformLocation(program, "tex");
+        ASSERT_NE(-1, texLocation);
+        glUniform1i(texLocation, 0);
+
+        const std::array<Vector3, 12> kVertices = {{
+            Vector3(-1.0f, -1.0f, 0.5f),
+            Vector3(-1.0f, -0.1f, 0.5f),
+            Vector3(-0.1f, -0.1f, 0.5f),
+
+            Vector3(-1.0f, -1.0f, 0.5f),
+            Vector3(-0.1f, -0.1f, 0.5f),
+            Vector3(-0.1f, -1.0f, 0.5f),
+
+            Vector3(0.1f, -1.0f, 0.5f),
+            Vector3(0.1f, -0.1f, 0.5f),
+            Vector3(1.0f, -0.1f, 0.5f),
+
+            Vector3(0.1f, -1.0f, 0.5f),
+            Vector3(1.0f, -0.1f, 0.5f),
+            Vector3(1.0f, -1.0f, 0.5f),
+        }};
+
+        GLint positionLocation = glGetAttribLocation(program, "position");
+        ASSERT_NE(-1, positionLocation);
+        glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, kVertices.data());
+        glEnableVertexAttribArray(positionLocation);
+
+        glClearColor(0, 255, 0, 255);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawArrays(GL_TRIANGLES, 0, 12);
+
+        // Expect the following:
+        //
+        // +---------+---+---------+
+        // |         |   |         |
+        // | 99      |   | B       |
+        // |         |   |         |
+        // |         |   |         |
+        // |---------+   +---------|
+        // |                       |
+        // |                       |
+        // | G                     |
+        // |                       |
+        // |                       |
+        // |                       |
+        // +-----------------------+
+        //
+        EXPECT_PIXEL_RECT_EQ(0, 0, width / 2 - width / 10 - 1, height / 2 - height / 10 - 1,
+                             GLColor(99, 99, 99, 99));
+        EXPECT_PIXEL_RECT_EQ(width / 2 + width / 10 + 1, 0, width - width / 2 - width / 10 - 1,
+                             height / 2 - 1, GLColor::blue);
+        EXPECT_PIXEL_RECT_EQ(0, height / 2, width, height - height / 2, GLColor::green);
+    };
+
+    useAHBByGLThenForeignThenGLHelper(first, second);
+}
+
+// Test draw, use in foreign, readback in another context, use in foreign, then sample in the
+// original context.
+TEST_P(ImageTestES3, MultithreadedDrawForeignReadbackForeignSample)
+{
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!hasAndroidImageNativeBufferExt() || !hasAndroidHardwareBufferSupport());
+    ANGLE_SKIP_TEST_IF(!platformSupportsMultithreading());
+
+    EGLWindow *window = getEGLWindow();
+
+    constexpr uint32_t kWidth  = 53;
+    constexpr uint32_t kHeight = 37;
+
+    // Create the Image
+    AHardwareBuffer *source;
+    EGLImageKHR image;
+    createEGLImageAndroidHardwareBufferSource(
+        kWidth, kHeight, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM, kDefaultAHBUsage,
+        kDefaultAttribs, {}, &source, &image);
+
+    std::mutex mutex;
+    std::condition_variable condVar;
+
+    enum class Step
+    {
+        Start,
+        Thread0DrawDone,
+        Thread1ReadbackDone,
+        Finish,
+        Abort,
+    };
+    Step currentStep = Step::Start;
+
+    auto thread0 = [&](EGLDisplay dpy, EGLSurface surface, EGLContext context) {
+        ThreadSynchronization<Step> threadSynchronization(&currentStep, &mutex, &condVar);
+
+        EXPECT_EGL_TRUE(eglMakeCurrent(dpy, surface, surface, context));
+
+        // Create a texture target to bind the egl image
+        GLTexture target;
+        createEGLImageTargetTexture2D(image, target);
+        ASSERT_GL_NO_ERROR();
+
+        // Draw into the image in this context.
+        GLFramebuffer fbo;
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        glViewport(0, 0, kWidth, kHeight);
+        ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::Green());
+        drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f);
+        ASSERT_GL_NO_ERROR();
+
+        EGLSyncKHR fence = eglCreateSyncKHR(window->getDisplay(), EGL_SYNC_FENCE_KHR, NULL);
+        glFlush();
+        EGLint result = eglClientWaitSyncKHR(window->getDisplay(), fence, 0, 1'000'000'000);
+        ASSERT_EQ(result, EGL_CONDITION_SATISFIED_KHR);
+        ASSERT_EGL_TRUE(eglDestroySyncKHR(window->getDisplay(), fence));
+
+        // Then overwrite a quarter of the image with some color
+        std::vector<GLubyte> data((kWidth / 2) * (kHeight / 2) * 4, 99);
+        writeAHBData(source, kWidth / 2, kHeight / 2, 1, false, {{data.data(), 4}});
+
+        // Wait for the other thread to read back from it.
+        threadSynchronization.nextStep(Step::Thread0DrawDone);
+        ASSERT_TRUE(threadSynchronization.waitForStep(Step::Thread1ReadbackDone));
+
+        // Create a different framebuffer to render to.
+        GLTexture color;
+        glBindTexture(GL_TEXTURE_2D, color);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kWidth, kHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                     nullptr);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        // Sample from the image.
+        glBindTexture(GL_TEXTURE_2D, target);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        ANGLE_GL_PROGRAM(drawTexture, essl1_shaders::vs::Texture2D(),
+                         essl1_shaders::fs::Texture2D());
+        glUseProgram(drawTexture);
+        GLint texLocation = glGetUniformLocation(drawTexture, essl1_shaders::Texture2DUniform());
+        ASSERT_NE(-1, texLocation);
+        glUniform1i(texLocation, 0);
+        drawQuad(drawTexture, essl1_shaders::PositionAttrib(), 0.5f);
+
+        // Expect the following:
+        //
+        // +-----+-----+-----+-----+
+        // |     |     |           |
+        // | 123 | 99  |  G        |
+        // |     |     |           |
+        // |     |     |           |
+        // |     |     |           |
+        // |     +-----+           |
+        // |     |                 |
+        // | 123 |                 |
+        // |     |                 |
+        // |     |                 |
+        // |     |                 |
+        // +-----+-----------+-----+
+        //
+        EXPECT_PIXEL_RECT_EQ(0, 0, kWidth / 4, kHeight, GLColor(123, 123, 123, 123));
+        EXPECT_PIXEL_RECT_EQ(kWidth / 4, 0, kWidth / 2 - kWidth / 4, kHeight / 2,
+                             GLColor(99, 99, 99, 99));
+        EXPECT_PIXEL_RECT_EQ(kWidth / 4, kHeight / 2, kWidth / 2 - kWidth / 4,
+                             kHeight - kHeight / 2, GLColor::green);
+        EXPECT_PIXEL_RECT_EQ(kWidth / 2, 0, kWidth - kWidth / 2, kHeight, GLColor::green);
+
+        eglDestroyImageKHR(window->getDisplay(), image);
+
+        threadSynchronization.nextStep(Step::Finish);
+
+        // Clean up
+        EXPECT_EGL_TRUE(eglMakeCurrent(dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+    };
+
+    auto thread1 = [&](EGLDisplay dpy, EGLSurface surface, EGLContext context) {
+        ThreadSynchronization<Step> threadSynchronization(&currentStep, &mutex, &condVar);
+
+        EXPECT_EGL_TRUE(eglMakeCurrent(dpy, surface, surface, context));
+
+        // Create a texture target to bind the egl image
+        GLTexture target;
+        createEGLImageTargetTexture2D(image, target);
+
+        // Wait for thread 0 to set up, and rebind the texture.
+        ASSERT_TRUE(threadSynchronization.waitForStep(Step::Thread0DrawDone));
+        glBindTexture(GL_TEXTURE_2D, target);
+
+        // Expect the following:
+        //
+        // +-----------+-----------+
+        // |           |           |
+        // | 99        |           |
+        // |           |           |
+        // |           |           |
+        // |           |           |
+        // +-----------+           |
+        // |                       |
+        // | G                     |
+        // |                       |
+        // |                       |
+        // |                       |
+        // +-----------------------+
+        //
+        GLFramebuffer fbo;
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0);
+        ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+        EXPECT_PIXEL_RECT_EQ(0, 0, kWidth / 2, kHeight / 2, GLColor(99, 99, 99, 99));
+        EXPECT_PIXEL_RECT_EQ(kWidth / 2, 0, kWidth - kWidth / 2, kHeight / 2, GLColor::green);
+        EXPECT_PIXEL_RECT_EQ(0, kHeight / 2, kWidth, kHeight - kHeight / 2, GLColor::green);
+
+        // Then overwrite parts of the image with another color
+        std::vector<GLubyte> data((kWidth / 4) * kHeight * 4, 123);
+        writeAHBData(source, kWidth / 4, kHeight, 1, false, {{data.data(), 4}});
+
+        // Notify the other thread that it's finished reading back the texture.
+        threadSynchronization.nextStep(Step::Thread1ReadbackDone);
+        ASSERT_TRUE(threadSynchronization.waitForStep(Step::Finish));
+
+        // Clean up
+        EXPECT_EGL_TRUE(eglMakeCurrent(dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+    };
+
+    std::array<LockStepThreadFunc, 2> threadFuncs = {
+        std::move(thread0),
+        std::move(thread1),
+    };
+
+    RunLockStepThreads(getEGLWindow(), threadFuncs.size(), threadFuncs.data());
+
+    ASSERT_NE(currentStep, Step::Abort);
 }
 
 // Test redefining the same GL texture with different EGLImages
@@ -6643,11 +9667,326 @@ TEST_P(ImageTest, RedefineWithMultipleImages)
     ASSERT_GL_NO_ERROR();
 }
 
-ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(ImageTest);
+// Regression test to check that sRGB texture can be used to create image in sRGB colorspace.
+// Also check that creating image using sRGB texture in linear colorspace wouldn't fail.
+TEST_P(ImageTestES3, CreatesRGBImages)
+{
+    EGLWindow *window = getEGLWindow();
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_sRGB"));
+    ANGLE_SKIP_TEST_IF(!hasImageGLColorspaceExt());
+    ANGLE_SKIP_TEST_IF(
+        !IsEGLDisplayExtensionEnabled(window->getDisplay(), "EGL_KHR_gl_colorspace"));
+
+    std::vector<EGLint> colorSpaces = {EGL_GL_COLORSPACE_SRGB_KHR, EGL_GL_COLORSPACE_LINEAR_KHR};
+    constexpr GLsizei kWidth        = 2;
+    constexpr GLsizei kHeight       = 2;
+
+    for (size_t i = 0; i < colorSpaces.size(); i++)
+    {
+        // Create sRGB texture
+        GLTexture sRGBTexture;
+        glBindTexture(GL_TEXTURE_2D, sRGBTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, kWidth, kHeight, 0, GL_RGBA,
+                     GL_UNSIGNED_BYTE, nullptr);
+        ASSERT_GL_NO_ERROR();
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        ASSERT_GL_NO_ERROR();
+
+        EGLint createImageAttribs[] = {
+            EGL_IMAGE_PRESERVED_KHR, EGL_TRUE, EGL_GL_COLORSPACE_KHR, colorSpaces[i], EGL_NONE,
+        };
+
+        // Create the Image using sRGB texture
+        EGLImageKHR image =
+            eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
+                              reinterpretHelper<EGLClientBuffer>(sRGBTexture), createImageAttribs);
+        ASSERT_EGL_SUCCESS();
+        ASSERT_NE(image, EGL_NO_IMAGE_KHR);
+
+        // Clean up
+        eglDestroyImageKHR(window->getDisplay(), image);
+    }
+}
+
+// Regression test to check that sRGB texture can be used to create image in sRGB colorspace.
+// Also check that creating image using sRGB texture in linear colorspace wouldn't fail.
+TEST_P(ImageTestES3, DmaBufNegativeValidation)
+{
+    EGLWindow *window = getEGLWindow();
+    ANGLE_SKIP_TEST_IF(!hasBaseExt());
+    ANGLE_SKIP_TEST_IF(!IsEGLDisplayExtensionEnabled(getEGLWindow()->getDisplay(),
+                                                     "EGL_EXT_image_dma_buf_import"));
+
+    const EGLint invalidImageAttributeList[][3] = {
+        {EGL_YUV_COLOR_SPACE_HINT_EXT, EGL_NONE, EGL_NONE},
+        {EGL_SAMPLE_RANGE_HINT_EXT, EGL_NONE, EGL_NONE},
+        {EGL_YUV_CHROMA_HORIZONTAL_SITING_HINT_EXT, EGL_NONE, EGL_NONE},
+        {EGL_YUV_CHROMA_VERTICAL_SITING_HINT_EXT, EGL_NONE, EGL_NONE},
+    };
+
+    EGLImageKHR image;
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        image = eglCreateImageKHR(window->getDisplay(), EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, NULL,
+                                  invalidImageAttributeList[i]);
+        ASSERT_EGL_ERROR(EGL_BAD_ATTRIBUTE);
+        ASSERT_EQ(image, EGL_NO_IMAGE_KHR);
+    }
+}
+
+// Test redefining the source GL texture
+TEST_P(ImageTestES3, RedefineSourceTexture)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+
+    const GLColor originalColor = GLColor::yellow;
+    const std::vector<GLColor> updateColor(4, GLColor::blue);
+
+    // Create the Image
+    GLTexture source;
+    EGLImageKHR image;
+    createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, kDefaultAttribs,
+                                  originalColor.data(), source, &image);
+
+    // Create texture & bind to Image
+    GLTexture target;
+    createEGLImageTargetTexture2D(image, target);
+
+    // Verify that the target texture has the expected color, makes sure everything is synced and
+    // |texture| is fully set up.
+    verifyResults2D(target, originalColor.data());
+
+    // Change the source texture.  The size is changed to make sure a new image is definitely
+    // created for the texture.
+    glBindTexture(GL_TEXTURE_2D, source);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, updateColor.data());
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+
+    // Make sure source is fully set up.
+    verifyResults2D(source, updateColor[0].data());
+
+    // Make sure the target still points to the old image.
+    verifyResults2D(target, originalColor.data());
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test fully overwriting the source GL texture
+TEST_P(ImageTestES3, RewriteSourceTexture)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+
+    const GLColor originalColor = GLColor::yellow;
+    const GLColor updateColor   = GLColor::blue;
+
+    // Create the Image
+    GLTexture source;
+    EGLImageKHR image;
+    createEGLImage2DTextureSource(1, 1, GL_RGBA, GL_UNSIGNED_BYTE, kDefaultAttribs,
+                                  originalColor.data(), source, &image);
+
+    // Create texture & bind to Image
+    GLTexture target;
+    createEGLImageTargetTexture2D(image, target);
+
+    // Verify that the target texture has the expected color, makes sure everything is synced and
+    // |texture| is fully set up.
+    verifyResults2D(target, originalColor.data());
+
+    // Upload new data to source texture such that it's completely overwritten.
+    glBindTexture(GL_TEXTURE_2D, source);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, updateColor.data());
+
+    // Make sure the target sees the update written to the source texture.
+    verifyResults2D(target, updateColor.data());
+
+    // For completeness, check source too
+    verifyResults2D(source, updateColor.data());
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test using the source GL texture as a storage image.  Internally, the Vulkan backend recreates
+// the Texture's image backing.
+TEST_P(ImageTestES31, UseSourceTextureAsStorageImage)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+
+    const GLColor originalColor = GLColor::yellow;
+
+    // Create the Image, use glTexStorage2D for storage image use later.
+    GLTexture source;
+    glBindTexture(GL_TEXTURE_2D, source);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, 1, 1);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, originalColor.data());
+
+    EGLImageKHR image =
+        eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
+                          reinterpretHelper<EGLClientBuffer>(source), kDefaultAttribs);
+    ASSERT_EGL_SUCCESS();
+
+    // Create texture & bind to Image
+    GLTexture target;
+    createEGLImageTargetTexture2D(image, target);
+
+    // Verify that the target texture has the expected color, makes sure everything is synced and
+    // |texture| is fully set up.
+    verifyResults2D(target, originalColor.data());
+
+    // Use the source texture as a storage image
+    const char kCS[] = R"(#version 310 es
+layout(local_size_x=1, local_size_y=1, local_size_z=1) in;
+layout(rgba8) uniform highp writeonly image2D img;
+void main()
+{
+    imageStore(img, ivec2(0, 0), vec4(0, 0, 1, 1));
+})";
+
+    ANGLE_GL_COMPUTE_PROGRAM(program, kCS);
+    glUseProgram(program);
+
+    glBindImageTexture(0, source, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
+    glDispatchCompute(1, 1, 1);
+    EXPECT_GL_NO_ERROR();
+
+    // Make sure the target sees the update written to the source texture.
+    glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+    verifyResults2D(target, GLColor::blue.data());
+
+    // For completeness, check source too
+    verifyResults2D(source, GLColor::blue.data());
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test overwriting the base level and calling glGenerateMipmap on the source GL texture while the
+// texture is in use.
+TEST_P(ImageTestES3, ImmutableTextureOverwriteBaseLevelAndGenerateMipmapWhileInUse)
+{
+    EGLWindow *window = getEGLWindow();
+
+    ANGLE_SKIP_TEST_IF(!hasOESExt() || !hasBaseExt() || !has2DTextureExt());
+
+    constexpr char kVS[] = R"(#version 300 es
+out vec2 texcoord;
+in vec4 position;
+void main()
+{
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+    texcoord = (position.xy * 0.5) + 0.5;
+})";
+
+    constexpr char kFS[] = R"(#version 300 es
+precision highp float;
+uniform sampler2D tex;
+in vec2 texcoord;
+out vec4 fragColor;
+void main()
+{
+    vec4 test = vec4(0.8, 0.8, 0.8, 0.8);
+    for (int i = 0; i < 500; i++)
+    {
+        test = sqrt(test);
+    }
+    fragColor = texture(tex, texcoord * test.xy);
+})";
+
+    constexpr uint32_t kWidth  = 16;
+    constexpr uint32_t kHeight = 24;
+    const std::vector<GLColor> originalColor(kWidth * kHeight, GLColor::yellow);
+    const std::vector<GLColor> updateColor1(kWidth * kHeight, GLColor::red);
+    const std::vector<GLColor> updateColor2(kWidth * kHeight, GLColor::green);
+    const std::vector<GLColor> updateColor3(kWidth * kHeight, GLColor::blue);
+    const std::vector<GLColor> *updateColors[] = {&updateColor1, &updateColor2, &updateColor3};
+
+    // Create the Image, use glTexStorage2D for glGenerateMipmap not to orphan the EGL image.
+    GLTexture source;
+    glBindTexture(GL_TEXTURE_2D, source);
+    glTexStorage2D(GL_TEXTURE_2D, 5, GL_RGBA8, kWidth, kHeight);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, kWidth, kHeight, GL_RGBA, GL_UNSIGNED_BYTE,
+                    originalColor.data());
+
+    EGLImageKHR image =
+        eglCreateImageKHR(window->getDisplay(), window->getContext(), EGL_GL_TEXTURE_2D_KHR,
+                          reinterpretHelper<EGLClientBuffer>(source), kDefaultAttribs);
+    ASSERT_EGL_SUCCESS();
+
+    // Create texture & bind to Image
+    GLTexture target;
+    createEGLImageTargetTexture2D(image, target);
+
+    // Verify that the target texture has the expected color, makes sure everything is synced and
+    // |texture| is fully set up.
+    verifyResults2D(target, originalColor[0].data());
+
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    glBindTexture(GL_TEXTURE_2D, source);
+
+    // Use the source texture in an expensive draw call.  Then completely overwrite the base level,
+    // then generate mipmap.  Do this multiple times, for any "redefines base level then generates
+    // mipmap" tracking heuristics that might trigger recreating the backing image of the texture to
+    // make sure the target texture still points to the same backing image.
+    for (uint32_t i = 0; i < 13; ++i)
+    {
+        for (const auto *updateColor : updateColors)
+        {
+            drawQuad(program, "position", 0.0f);
+
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, kWidth, kHeight, GL_RGBA, GL_UNSIGNED_BYTE,
+                            updateColor->data());
+            glGenerateMipmap(GL_TEXTURE_2D);
+        }
+    }
+
+    // http://anglebug.com/410584007
+    ANGLE_SKIP_TEST_IF(getEGLWindow()->isFeatureEnabled(Feature::AllowGenerateMipmapWithCompute));
+
+    // Make sure the target sees the update written to the source texture.
+    verifyResults2D(target, updateColor3[0].data());
+
+    // For completeness, check source too
+    verifyResults2D(source, updateColor3[0].data());
+
+    // Clean up
+    eglDestroyImageKHR(window->getDisplay(), image);
+
+    ASSERT_EGL_SUCCESS();
+    ASSERT_GL_NO_ERROR();
+}
+
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND(ImageTest,
+                                       ES3_VULKAN().enable(Feature::AllocateNonZeroMemory),
+                                       ES2_WEBGPU());
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ImageTestES3);
-ANGLE_INSTANTIATE_TEST_ES3(ImageTestES3);
+ANGLE_INSTANTIATE_TEST_ES3_AND(ImageTestES3, ES3_VULKAN().enable(Feature::AllocateNonZeroMemory));
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ImageTestES31);
-ANGLE_INSTANTIATE_TEST_ES31(ImageTestES31);
+ANGLE_INSTANTIATE_TEST_ES31_AND(ImageTestES31,
+                                ES31_VULKAN().enable(Feature::AllocateNonZeroMemory));
 }  // namespace angle

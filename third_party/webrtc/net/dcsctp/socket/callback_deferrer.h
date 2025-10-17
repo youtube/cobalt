@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -61,23 +62,25 @@ class CallbackDeferrer : public DcSctpSocketCallbacks {
 
   // Implementation of DcSctpSocketCallbacks
   SendPacketStatus SendPacketWithStatus(
-      rtc::ArrayView<const uint8_t> data) override;
+      webrtc::ArrayView<const uint8_t> data) override;
   std::unique_ptr<Timeout> CreateTimeout(
       webrtc::TaskQueueBase::DelayPrecision precision) override;
   TimeMs TimeMillis() override;
+  webrtc::Timestamp Now() override { return underlying_.Now(); }
   uint32_t GetRandomInt(uint32_t low, uint32_t high) override;
   void OnMessageReceived(DcSctpMessage message) override;
+  void OnMessageReady() override;
   void OnError(ErrorKind error, absl::string_view message) override;
   void OnAborted(ErrorKind error, absl::string_view message) override;
   void OnConnected() override;
   void OnClosed() override;
   void OnConnectionRestarted() override;
-  void OnStreamsResetFailed(rtc::ArrayView<const StreamID> outgoing_streams,
+  void OnStreamsResetFailed(webrtc::ArrayView<const StreamID> outgoing_streams,
                             absl::string_view reason) override;
   void OnStreamsResetPerformed(
-      rtc::ArrayView<const StreamID> outgoing_streams) override;
+      webrtc::ArrayView<const StreamID> outgoing_streams) override;
   void OnIncomingStreamsReset(
-      rtc::ArrayView<const StreamID> incoming_streams) override;
+      webrtc::ArrayView<const StreamID> incoming_streams) override;
   void OnBufferedAmountLow(StreamID stream_id) override;
   void OnTotalBufferedAmountLow() override;
 
@@ -88,12 +91,26 @@ class CallbackDeferrer : public DcSctpSocketCallbacks {
   void OnLifecycleEnd(LifecycleId lifecycle_id) override;
 
  private:
+  struct Error {
+    ErrorKind error;
+    std::string message;
+  };
+  struct StreamReset {
+    std::vector<StreamID> streams;
+    std::string message;
+  };
+  // Use a pre-sized variant for storage to avoid double heap allocation. This
+  // variant can hold all cases of stored data.
+  using CallbackData =
+      std::variant<std::monostate, DcSctpMessage, Error, StreamReset, StreamID>;
+  using Callback = void (*)(CallbackData, DcSctpSocketCallbacks&);
+
   void Prepare();
   void TriggerDeferred();
 
   DcSctpSocketCallbacks& underlying_;
   bool prepared_ = false;
-  std::vector<std::function<void(DcSctpSocketCallbacks& cb)>> deferred_;
+  std::vector<std::pair<Callback, CallbackData>> deferred_;
 };
 }  // namespace dcsctp
 

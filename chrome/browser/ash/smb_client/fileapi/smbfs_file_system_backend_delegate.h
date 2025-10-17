@@ -11,8 +11,7 @@
 
 class Profile;
 
-namespace ash {
-namespace smb_client {
+namespace ash::smb_client {
 
 class SmbFsAsyncFileUtil;
 
@@ -36,14 +35,11 @@ class SmbFsFileSystemBackendDelegate : public FileSystemBackendDelegate {
       storage::FileSystemContext* context) override;
   storage::WatcherManager* GetWatcherManager(
       storage::FileSystemType type) override;
-  void GetRedirectURLForContents(const storage::FileSystemURL& url,
-                                 storage::URLCallback callback) override;
 
  private:
   std::unique_ptr<SmbFsAsyncFileUtil> async_file_util_;
 };
 
-}  // namespace smb_client
-}  // namespace ash
+}  // namespace ash::smb_client
 
 #endif  // CHROME_BROWSER_ASH_SMB_CLIENT_FILEAPI_SMBFS_FILE_SYSTEM_BACKEND_DELEGATE_H_

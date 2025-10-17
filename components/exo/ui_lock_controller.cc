@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "ash/bluetooth_devices_observer.h"
-#include "ash/constants/app_types.h"
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/keyboard/keyboard_controller.h"
 #include "ash/public/cpp/session/session_controller.h"
@@ -29,7 +28,6 @@
 #include "components/fullscreen_control/fullscreen_control_popup.h"
 #include "components/fullscreen_control/subtle_notification_view.h"
 #include "components/strings/grit/components_strings.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
@@ -149,7 +147,7 @@ views::Widget* CreateEscNotification(
       l10n_util::GetStringFUTF16(message_id, key_names, nullptr),
       std::move(icons));
 
-  gfx::Size size = content_view->GetPreferredSize();
+  gfx::Size size = content_view->GetPreferredSize({});
   views::Widget* popup = SubtleNotificationView::CreatePopupWidget(
       parent, std::move(content_view));
   popup->SetZOrderLevel(ui::ZOrderLevel::kSecuritySurface);
@@ -214,6 +212,14 @@ class ExitNotifier : public ui::EventHandler,
       OnFullscreen();
     } else if (pointer_is_captured_) {
       MaybeShowPointerCaptureNotification();
+    }
+  }
+
+  // Notify again but this only notifies again the fullscreen notifier.
+  void NotifyAgainForFullscreen() {
+    ash::WindowState* window_state = ash::WindowState::Get(window_);
+    if (window_state->IsFullscreen()) {
+      OnFullscreen();
     }
   }
 
@@ -440,11 +446,9 @@ class ExitNotifier : public ui::EventHandler,
       exit_popup_->Hide(animate);
   }
 
-  const raw_ptr<aura::Window, ExperimentalAsh> window_;
-  raw_ptr<views::Widget, ExperimentalAsh> fullscreen_esc_notification_ =
-      nullptr;
-  raw_ptr<views::Widget, ExperimentalAsh> pointer_capture_notification_ =
-      nullptr;
+  const raw_ptr<aura::Window> window_;
+  raw_ptr<views::Widget> fullscreen_esc_notification_ = nullptr;
+  raw_ptr<views::Widget> pointer_capture_notification_ = nullptr;
   bool want_pointer_capture_notification_ = false;
   bool pointer_is_captured_ = false;
   std::unique_ptr<FullscreenControlPopup> exit_popup_;
@@ -469,7 +473,7 @@ DEFINE_UI_CLASS_PROPERTY_TYPE(ExitNotifier*)
 
 namespace exo {
 namespace {
-DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(ExitNotifier, kExitNotifierKey, nullptr)
+DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(ExitNotifier, kExitNotifierKey)
 
 ExitNotifier* GetExitNotifier(UILockController* controller,
                               aura::Window* window,
@@ -539,7 +543,7 @@ void UILockController::OnKeyEvent(ui::KeyEvent* event) {
 
   if (event->code() == ui::DomCode::ESCAPE &&
       (event->flags() & kExcludedFlags) == 0) {
-    OnEscapeKey(event->type() == ui::ET_KEY_PRESSED);
+    OnEscapeKey(event->type() == ui::EventType::kKeyPressed);
   }
 }
 
@@ -578,11 +582,17 @@ void UILockController::OnLockStateChanged(bool locked) {
 void UILockController::OnSurfaceFocused(Surface* gained_focus,
                                         Surface* lost_focus,
                                         bool has_focused_surface) {
-  if (gained_focus != focused_surface_to_unlock_)
+  if (gained_focus != focused_surface_to_unlock_) {
     StopTimer();
+  }
 
-  if (gained_focus)
-    GetExitNotifier(this, gained_focus->window(), true);
+  if (gained_focus) {
+    ExitNotifier* exit_notifier =
+        GetExitNotifier(this, gained_focus->window(), true);
+    if (exit_notifier) {
+      exit_notifier->NotifyAgainForFullscreen();
+    }
+  }
 }
 
 void UILockController::OnPointerCaptureEnabled(Pointer* pointer,

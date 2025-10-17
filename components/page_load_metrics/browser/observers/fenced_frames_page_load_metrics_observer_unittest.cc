@@ -43,7 +43,7 @@ class FencedFramesPageLoadMetricsObserverTest
 
     // Add UmaPageLoadMetricsObserver to ensure existing observer's behavior
     // being not changed.
-    tracker->AddObserver(std::make_unique<UmaPageLoadMetricsObserver>());
+    tracker->AddObserver(std::make_unique<UmaPageLoadMetricsObserver>(false));
   }
 
   void PopulateTimingForHistograms(content::RenderFrameHost* rfh) {
@@ -54,7 +54,7 @@ class FencedFramesPageLoadMetricsObserverTest
     timing.paint_timing->first_image_paint = base::Milliseconds(80);
     timing.paint_timing->first_contentful_paint = base::Milliseconds(100);
 
-    auto largest_contentful_paint = mojom::LargestContentfulPaintTiming::New();
+    auto largest_contentful_paint = CreateLargestContentfulPaintTiming();
     largest_contentful_paint->largest_image_paint = base::Milliseconds(100);
     largest_contentful_paint->largest_image_paint_size = 100;
     timing.paint_timing->largest_contentful_paint =
@@ -75,7 +75,7 @@ class FencedFramesPageLoadMetricsObserverTest
     NavigateAndCommit(GURL(kSetUpUrl));
   }
 
-  raw_ptr<FencedFramesPageLoadMetricsObserver> observer_;
+  raw_ptr<FencedFramesPageLoadMetricsObserver, DanglingUntriaged> observer_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 

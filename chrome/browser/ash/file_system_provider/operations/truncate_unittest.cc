@@ -22,9 +22,7 @@
 #include "storage/browser/file_system/async_file_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
-namespace file_system_provider {
-namespace operations {
+namespace ash::file_system_provider::operations {
 namespace {
 
 const char kExtensionId[] = "mbflcebpggnecokmikipoihdbecnjfoj";
@@ -38,15 +36,15 @@ const int64_t kTruncateLength = 64;
 
 class FileSystemProviderOperationsTruncateTest : public testing::Test {
  protected:
-  FileSystemProviderOperationsTruncateTest() {}
-  ~FileSystemProviderOperationsTruncateTest() override {}
+  FileSystemProviderOperationsTruncateTest() = default;
+  ~FileSystemProviderOperationsTruncateTest() override = default;
 
   void SetUp() override {
-    MountOptions mount_options(kFileSystemId, "" /* display_name */);
+    MountOptions mount_options(kFileSystemId, /*display_name=*/"");
     mount_options.writable = true;
     file_system_info_ = ProvidedFileSystemInfo(
-        kExtensionId, mount_options, base::FilePath(), false /* configurable */,
-        true /* watchable */, extensions::SOURCE_FILE, IconSet());
+        kExtensionId, mount_options, base::FilePath(), /*configurable=*/false,
+        /*watchable=*/true, extensions::SOURCE_FILE, IconSet());
   }
 
   ProvidedFileSystemInfo file_system_info_;
@@ -55,7 +53,7 @@ class FileSystemProviderOperationsTruncateTest : public testing::Test {
 TEST_F(FileSystemProviderOperationsTruncateTest, Execute) {
   using extensions::api::file_system_provider::TruncateRequestedOptions;
 
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   util::StatusCallbackLog callback_log;
 
   Truncate truncate(&dispatcher, file_system_info_, base::FilePath(kFilePath),
@@ -75,17 +73,17 @@ TEST_F(FileSystemProviderOperationsTruncateTest, Execute) {
   const base::Value* options_as_value = &event_args[0];
   ASSERT_TRUE(options_as_value->is_dict());
 
-  TruncateRequestedOptions options;
-  ASSERT_TRUE(
-      TruncateRequestedOptions::Populate(options_as_value->GetDict(), options));
-  EXPECT_EQ(kFileSystemId, options.file_system_id);
-  EXPECT_EQ(kRequestId, options.request_id);
-  EXPECT_EQ(kFilePath, options.file_path);
-  EXPECT_EQ(kTruncateLength, static_cast<double>(options.length));
+  auto options =
+      TruncateRequestedOptions::FromValue(options_as_value->GetDict());
+  ASSERT_TRUE(options);
+  EXPECT_EQ(kFileSystemId, options->file_system_id);
+  EXPECT_EQ(kRequestId, options->request_id);
+  EXPECT_EQ(kFilePath, options->file_path);
+  EXPECT_EQ(kTruncateLength, static_cast<double>(options->length));
 }
 
 TEST_F(FileSystemProviderOperationsTruncateTest, Execute_NoListener) {
-  util::LoggingDispatchEventImpl dispatcher(false /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/false);
   util::StatusCallbackLog callback_log;
 
   Truncate truncate(&dispatcher, file_system_info_, base::FilePath(kFilePath),
@@ -96,13 +94,13 @@ TEST_F(FileSystemProviderOperationsTruncateTest, Execute_NoListener) {
 }
 
 TEST_F(FileSystemProviderOperationsTruncateTest, Execute_ReadOnly) {
-  util::LoggingDispatchEventImpl dispatcher(false /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/false);
   util::StatusCallbackLog callback_log;
 
   const ProvidedFileSystemInfo read_only_file_system_info(
-      kExtensionId, MountOptions(kFileSystemId, "" /* display_name */),
-      base::FilePath() /* mount_path */, false /* configurable */,
-      true /* watchable */, extensions::SOURCE_FILE, IconSet());
+      kExtensionId, MountOptions(kFileSystemId, /*display_name=*/""),
+      /*mount_path=*/base::FilePath(), /*configurable=*/false,
+      /*watchable=*/true, extensions::SOURCE_FILE, IconSet());
 
   Truncate truncate(&dispatcher, file_system_info_, base::FilePath(kFilePath),
                     kTruncateLength,
@@ -112,7 +110,7 @@ TEST_F(FileSystemProviderOperationsTruncateTest, Execute_ReadOnly) {
 }
 
 TEST_F(FileSystemProviderOperationsTruncateTest, OnSuccess) {
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   util::StatusCallbackLog callback_log;
 
   Truncate truncate(&dispatcher, file_system_info_, base::FilePath(kFilePath),
@@ -121,13 +119,13 @@ TEST_F(FileSystemProviderOperationsTruncateTest, OnSuccess) {
 
   EXPECT_TRUE(truncate.Execute(kRequestId));
 
-  truncate.OnSuccess(kRequestId, RequestValue(), false /* has_more */);
+  truncate.OnSuccess(kRequestId, RequestValue(), /*has_more=*/false);
   ASSERT_EQ(1u, callback_log.size());
   EXPECT_EQ(base::File::FILE_OK, callback_log[0]);
 }
 
 TEST_F(FileSystemProviderOperationsTruncateTest, OnError) {
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   util::StatusCallbackLog callback_log;
 
   Truncate truncate(&dispatcher, file_system_info_, base::FilePath(kFilePath),
@@ -142,6 +140,4 @@ TEST_F(FileSystemProviderOperationsTruncateTest, OnError) {
   EXPECT_EQ(base::File::FILE_ERROR_TOO_MANY_OPENED, callback_log[0]);
 }
 
-}  // namespace operations
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider::operations

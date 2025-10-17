@@ -47,8 +47,8 @@ There are two types of checks.
    that all built files needed to run tests on swarming are identical in the
    two build directories. The full determinism check is currently used on
    Linux and Windows bots. (`Deterministic Linux (dbg)` has one more check:
-   it doesn't use goma for the incremental build, to check that using goma
-   doesn't affect built files either.)
+   it doesn't use reclient for the incremental build, to check that using
+   reclient doesn't affect built files either.)
 
 2. The simple determinism check does a clobber build in `out/Release`, moves
    this to a different location (`out/Release.1`), then does another clobber
@@ -123,10 +123,8 @@ Things to do, in order of involvedness and effectiveness:
   example.
 
 - Try to reproduce the problem locally. First, set up two build directories
-  with identical args.gn. If building on Windows then until
-  https://crbug.com/1280678 is fixed you should set GOMA_USE_LOCAL=false
-  because otherwise you will hit known determinism problems. Then do a full
-  build at the last known green revision in the first build directory:
+  with identical args.gn. Then do a full build at the last known green revision
+  in the first build directory:
 
     ```
     $ gn clean out/gn
@@ -163,5 +161,5 @@ Things *not* to do:
   clobbering a deterministic bot might make it green, it's papering over issues
   that the deterministic bots are supposed to catch.
 
-- Don't add entries to `src/tools/determinism/deterministic_build_ignorelist.py`.
+- Don't add entries to `src/tools/determinism/deterministic_build_ignorelist.pyl`.
   Instead, try to revert commits introducing nondeterminism.

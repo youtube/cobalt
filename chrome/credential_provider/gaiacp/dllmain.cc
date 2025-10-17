@@ -72,7 +72,7 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID* ppv) {
   // Check to see if the credential provider has crashed too much recently.
   // If it has then do not allow it to create any credential providers.
   if (!credential_provider::WriteToStartupSentinel()) {
-    LOGFN(ERROR) << "Disabled due to previous unsuccessful starts";
+    LOGFN(ERROR) << "Disabled temporarily due to previous unsuccessful starts.";
     return E_NOTIMPL;
   }
 
@@ -197,12 +197,12 @@ void CALLBACK PerformPostSigninActionsW(HWND /*hwnd*/,
   // Don't log |buffer| since it contains sensitive info like password.
 
   HRESULT hr = S_OK;
-  absl::optional<base::Value> properties =
-      base::JSONReader::Read(buffer.data(), base::JSON_ALLOW_TRAILING_COMMAS);
+  std::optional<base::Value::Dict> properties = base::JSONReader::ReadDict(
+      buffer.data(), base::JSON_ALLOW_TRAILING_COMMAS);
 
   credential_provider::SecurelyClearBuffer(buffer.data(), buffer.size());
 
-  if (!properties || !properties->is_dict()) {
+  if (!properties) {
     LOGFN(ERROR) << "base::JSONReader::Read failed length=" << buffer.size();
     return;
   }
@@ -221,7 +221,7 @@ void CALLBACK PerformPostSigninActionsW(HWND /*hwnd*/,
   if (FAILED(hr))
     LOGFN(ERROR) << "PerformPostSigninActions hr=" << putHR(hr);
 
-  credential_provider::SecurelyClearDictionaryValue(&properties);
+  credential_provider::SecurelyClearDictionaryValue(properties);
 
   // Clear the sentinel when it's clear that the user has successfully logged
   // in. This is done to catch edge cases where existing sentinel deletion might

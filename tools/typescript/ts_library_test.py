@@ -6,6 +6,7 @@
 import json
 import ts_library
 import ts_definitions
+import path_mappings
 import os
 import shutil
 import tempfile
@@ -19,10 +20,16 @@ class TsLibraryTest(unittest.TestCase):
   def setUp(self):
     self._out_folder = None
     self._additional_flags = []
+    self.maxDiff = None
 
   def tearDown(self):
     if self._out_folder:
       shutil.rmtree(self._out_folder)
+
+  def _read_file(self, parent_dir, file_name):
+    file_path = os.path.join(parent_dir, file_name)
+    with open(file_path, 'r', newline='') as f:
+      return f.read()
 
   def _build_project1(self, enable_source_maps=False):
     gen_dir = os.path.join(self._out_folder, 'tools', 'typescript', 'tests',
@@ -74,7 +81,7 @@ class TsLibraryTest(unittest.TestCase):
         'legacy_file.d.ts',
         'tsconfig_definitions.json',
         'tsconfig_build_ts.json',
-        'build_ts.manifest',
+        'build_ts_manifest.json',
     ]
     for f in files:
       self.assertTrue(os.path.exists(os.path.join(gen_dir, f)), f)
@@ -95,6 +102,20 @@ class TsLibraryTest(unittest.TestCase):
     project1_gen_dir = os.path.relpath(project1_gen_dir, gen_dir)
     project3_gen_dir = os.path.relpath(project3_gen_dir, gen_dir)
     project6_gen_dir = os.path.relpath(project6_gen_dir, gen_dir)
+    # Using path mappings to generate the path map file. path_mappings is also
+    # unit tested separately in path_mappings_test.py.
+    path_mappings.main([
+        '--root_gen_dir',
+        os.path.relpath(self._out_folder, gen_dir),
+        '--root_src_dir',
+        os.path.relpath(os.path.join(_HERE_DIR, 'tests'), gen_dir),
+        '--gen_dir',
+        os.path.relpath(gen_dir, _CWD),
+        '--raw_deps',
+        '//ui/webui/resources/js:build_ts',
+        '--output_suffix',
+        'project2',
+    ])
 
     ts_library.main([
         '--output_suffix',
@@ -103,8 +124,6 @@ class TsLibraryTest(unittest.TestCase):
         os.path.relpath(self._out_folder, gen_dir),
         '--root_src_dir',
         os.path.relpath(os.path.join(_HERE_DIR, 'tests'), gen_dir),
-        '--raw_deps',
-        '//ui/webui/resources/js:build_ts',
         '--root_dir',
         os.path.relpath(root_dir, _CWD),
         '--gen_dir',
@@ -119,6 +138,8 @@ class TsLibraryTest(unittest.TestCase):
         os.path.join(project6_gen_dir, 'tsconfig_build_ts.json'),
         '--path_mappings',
         'chrome://some-other-source/*|' + os.path.join(project1_gen_dir, '*'),
+        '--path_mappings_file',
+        'path_mappings_project2.json',
         '--tsconfig_base',
         os.path.relpath(os.path.join(root_dir, 'tsconfig_base.json'), gen_dir),
     ])
@@ -128,7 +149,8 @@ class TsLibraryTest(unittest.TestCase):
     files = [
         'bar.js',
         'tsconfig_build_ts.json',
-        'build_ts.manifest',
+        'build_ts_manifest.json',
+        'path_mappings_project2.json',
     ]
     for f in files:
       self.assertTrue(os.path.exists(os.path.join(gen_dir, f)), f)
@@ -170,7 +192,13 @@ class TsLibraryTest(unittest.TestCase):
         os.path.exists(os.path.join(gen_dir, 'tsconfig_build_ts.json')))
     self.assertFalse(
         os.path.exists(os.path.join(gen_dir, 'tsconfig_build_ts.tsbuildinfo')))
-    self.assertFalse(os.path.exists(os.path.join(gen_dir, 'build_ts.manifest')))
+    self.assertFalse(
+        os.path.exists(os.path.join(gen_dir, 'build_ts_manifest.json')))
+
+    # Check that 'skipLibCheck=true' was *not* automatically added.
+    tsconfig_contents = self._read_file(gen_dir, 'tsconfig_build_ts.json')
+    tsconfig = json.loads(tsconfig_contents)
+    self.assertFalse('skipLibCheck' in tsconfig['compilerOptions'])
 
   def _build_project4(self):
     gen_dir = os.path.join(self._out_folder, 'tools', 'typescript', 'tests',
@@ -204,13 +232,18 @@ class TsLibraryTest(unittest.TestCase):
         'include.js',
         'exclude.js',
         'tsconfig_build_ts.json',
-        'build_ts.manifest',
+        'build_ts_manifest.json',
     ]
     for f in files:
       self.assertTrue(os.path.exists(os.path.join(gen_dir, f)), f)
 
+    # Check that 'skipLibCheck=true' was automatically added.
+    tsconfig_contents = self._read_file(gen_dir, 'tsconfig_build_ts.json')
+    tsconfig = json.loads(tsconfig_contents)
+    self.assertTrue(tsconfig['compilerOptions']['skipLibCheck'])
+
     # Check that the generated manifest file doesn't include exclude.js.
-    manifest = os.path.join(gen_dir, 'build_ts.manifest')
+    manifest = os.path.join(gen_dir, 'build_ts_manifest.json')
     self._assert_manifest_files(manifest, ['include.js'])
 
   def _assert_manifest_files(self, manifest_path, expected_files):
@@ -248,7 +281,6 @@ class TsLibraryTest(unittest.TestCase):
     ts_library.main([
         '--output_suffix',
         'test_build_ts',
-        '--raw_deps',
         '--deps',
         os.path.join(gen_dir, 'tsconfig_build_ts.json'),
         '--root_gen_dir',
@@ -271,14 +303,14 @@ class TsLibraryTest(unittest.TestCase):
     # prod:
     self.assertTrue(
         os.path.exists(os.path.join(gen_dir, 'tsconfig_build_ts.json')))
-    manifest = os.path.join(gen_dir, 'build_ts.manifest')
+    manifest = os.path.join(gen_dir, 'build_ts_manifest.json')
     self.assertTrue(os.path.exists(manifest))
     self._assert_manifest_files(manifest, ['bar.js'])
 
     # test:
     self.assertTrue(
         os.path.exists(os.path.join(gen_dir, 'tsconfig_test_build_ts.json')))
-    manifest_test = os.path.join(gen_dir, 'test_build_ts.manifest')
+    manifest_test = os.path.join(gen_dir, 'test_build_ts_manifest.json')
     self.assertTrue(os.path.exists(manifest_test))
     self._assert_manifest_files(manifest_test, ['bar_test.js'])
 
@@ -316,7 +348,7 @@ class TsLibraryTest(unittest.TestCase):
   def _assert_project6_output(self, gen_dir, out_dir):
     gen_dir_files = [
         'tsconfig_build_ts.json',
-        'build_ts.manifest',
+        'build_ts_manifest.json',
     ]
     for f in gen_dir_files:
       self.assertTrue(os.path.exists(os.path.join(gen_dir, f)), f)
@@ -418,7 +450,46 @@ class TsLibraryTest(unittest.TestCase):
       ])
     except AssertionError as err:
       self.assertTrue(
-          str(err).startswith('Invalid |composite| flag detected in '))
+          str(err).replace('\\', '/').startswith(
+              'Invalid |composite| flag detected in '
+              'tools/typescript/tests/project5/tsconfig_base.json.'
+          ))
+    else:
+      self.fail('Failed to detect error')
+
+  # Test error case where the project's tsconfig file inherits from another
+  # tsconfig file that should fail validation.
+  def testTsConfigValidationErrorInParent(self):
+    self._out_folder = tempfile.mkdtemp(dir=_CWD)
+    root_dir = os.path.join(_HERE_DIR, 'tests', 'project5')
+    gen_dir = os.path.join(self._out_folder, 'tools', 'typescript', 'tests',
+                           'project5')
+    try:
+      ts_library.main([
+          '--output_suffix',
+          'build_ts',
+          '--root_gen_dir',
+          os.path.relpath(self._out_folder, gen_dir),
+          '--root_src_dir',
+          os.path.relpath(os.path.join(_HERE_DIR, 'tests'), gen_dir),
+          '--root_dir',
+          os.path.relpath(root_dir, _CWD),
+          '--gen_dir',
+          os.path.relpath(gen_dir, _CWD),
+          '--out_dir',
+          os.path.relpath(gen_dir, _CWD),
+          '--in_files',
+          'bar.ts',
+          '--tsconfig_base',
+          os.path.relpath(os.path.join(root_dir, 'tsconfig_base2.json'),
+                          gen_dir),
+      ])
+    except AssertionError as err:
+      self.assertTrue(
+          str(err).replace('\\', '/').startswith(
+              'Invalid |composite| flag detected in '
+              'tools/typescript/tests/project5/tsconfig_base.json.'
+          ))
     else:
       self.fail('Failed to detect error')
 
@@ -431,16 +502,15 @@ class TsLibraryTest(unittest.TestCase):
     # Build project1 which source maps enabled.
     gen_dir = self._build_project1(enable_source_maps=True)
 
-    # Assert output is as expected.
-    def _read_file(parent_dir, file_name):
-      file_path = os.path.join(gen_dir, file_name)
+    # Assert output contains a source map.
+    SOURCE_MAP_TOKEN = '//# sourceMappingURL=data:application/json;base64,'
+
+    def _assert_source_map_exists(file_path):
       with open(file_path, 'r', newline='') as f:
-        return f.read()
+        lines = f.readlines()
+        self.assertTrue(lines[-1].startswith(SOURCE_MAP_TOKEN))
 
-    actual_js = _read_file(gen_dir, 'foo.js')
-    expected_js = _read_file(expectations_dir, 'foo.js')
-    self.assertMultiLineEqual(expected_js, actual_js)
-
+    _assert_source_map_exists(os.path.join(gen_dir, 'foo.js'))
 
 if __name__ == '__main__':
   unittest.main()

@@ -4,258 +4,228 @@
 
 #include "third_party/blink/renderer/modules/ml/webnn/ml_graph.h"
 
-#include "base/numerics/checked_math.h"
+#include "base/types/expected_macros.h"
+#include "services/webnn/public/mojom/webnn_graph.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
-#include "third_party/blink/renderer/core/dom/dom_exception.h"
-#include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_device_type.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer_view.h"
-#include "third_party/blink/renderer/core/typed_arrays/dom_data_view.h"
-#include "third_party/blink/renderer/core/typed_arrays/dom_typed_array.h"
 #include "third_party/blink/renderer/modules/ml/ml_context.h"
+#include "third_party/blink/renderer/modules/ml/webnn/ml_graph_utils.h"
 #include "third_party/blink/renderer/modules/ml/webnn/ml_operand.h"
-#include "third_party/blink/renderer/modules/ml/webnn/ml_operator.h"
+#include "third_party/blink/renderer/modules/ml/webnn/ml_tensor.h"
+#include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_deque.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
 
 namespace {
 
-bool ValidateNamedArrayBufferViews(
-    const MLNamedArrayBufferViews& named_array_buffer_views,
-    const HashMap<String, MLGraph::ResourceInfo>& resources_info,
-    String& error_message) {
-  if (named_array_buffer_views.size() !=
-      base::checked_cast<wtf_size_t>(resources_info.size())) {
-    error_message = String::Format(
-        "The number (%u) of the array buffer views doesn't match the "
+#define THROW_AND_RETURN_IF_ERROR(func, msg)                      \
+  RETURN_IF_ERROR(func, [&exception_state](const String& error) { \
+    exception_state.ThrowTypeError(msg + error);                  \
+    return;                                                       \
+  });
+
+template <typename T>
+void AppendVectorOfNumbers(const std::vector<T>& vector,
+                           StringBuilder& builder) {
+  String delimiter = "";
+  for (const T& value : vector) {
+    builder.Append(delimiter);
+    builder.AppendNumber(value);
+    delimiter = ", ";
+  }
+}
+
+base::expected<void, String> ValidateNamedMLTensors(
+    const MLContext* context,
+    const MLNamedTensors& named_tensors,
+    const MLGraph::NamedOperandDescriptors& expected_named_descriptors) {
+  if (named_tensors.size() !=
+      base::checked_cast<wtf_size_t>(expected_named_descriptors.size())) {
+    return base::unexpected(String::Format(
+        "The number (%u) of MLTensor(s) doesn't match the "
         "expectation (%u).",
-        named_array_buffer_views.size(),
-        base::checked_cast<wtf_size_t>(resources_info.size()));
-    return false;
+        named_tensors.size(), expected_named_descriptors.size()));
   }
-  for (const auto& named_array_buffer_view : named_array_buffer_views) {
-    const auto& [name, array_buffer_view] = named_array_buffer_view;
-    if (!resources_info.Contains(name)) {
-      error_message = String::Format("The name \"%s\" isn't part of the graph.",
-                                     name.Utf8().c_str());
-      return false;
+  for (const auto& [name, tensor] : named_tensors) {
+    if (!expected_named_descriptors.Contains(name)) {
+      return base::unexpected(String::Format(
+          "The name \"%s\" isn't part of the graph.", name.Utf8().c_str()));
     }
-    if (array_buffer_view->IsDetached()) {
-      error_message =
-          String::Format("The array buffer view with name \"%s\" is detached.",
-                         name.Utf8().c_str());
-      return false;
+    const auto& info = expected_named_descriptors.at(name);
+    if (tensor->DataType() != info->data_type()) {
+      return base::unexpected(String::Format(
+          "The data type \"%s\""
+          ", of the MLTensor with name \"%s\" "
+          "doesn't match the expected data type (%s).",
+          tensor->dataType().AsCStr(), name.Utf8().c_str(),
+          V8MLOperandDataType(ToBlinkDataType(info->data_type())).AsCStr()));
     }
-    const auto& info = resources_info.at(name);
-    if (array_buffer_view->GetType() != GetArrayBufferViewType(info.type)) {
-      error_message = String::Format(
-          "The type (%s) of the array buffer view with name \"%s\" doesn't "
-          "match the expected operand type (%s).",
-          array_buffer_view->TypeName(), name.Utf8().c_str(),
-          V8MLOperandType(info.type).AsCStr());
-      return false;
+    if (tensor->Shape() != info->shape()) {
+      StringBuilder message;
+      message.Append("The shape [");
+      AppendVectorOfNumbers(tensor->Shape(), message);
+      message.Append("], of the MLTensor with name \"");
+      message.Append(name);
+      message.Append("\" doesn't match the expected shape: [");
+      AppendVectorOfNumbers(info->shape(), message);
+      message.Append("]");
+      return base::unexpected(message.ToString());
     }
-    if (array_buffer_view->byteLength() != info.byte_length) {
-      error_message = String::Format(
-          "The byte length (%zu) of the array buffer view with name \"%s\" "
-          "doesn't match the expected byte length (%zu).",
-          array_buffer_view->byteLength(), name.Utf8().c_str(),
-          info.byte_length);
-      return false;
+    if (tensor->context() != context) {
+      return base::unexpected(String::Format(
+          "The context of MLGraph doesn't match the context of the MLTensor "
+          "with name \"%s\".",
+          name.Utf8().c_str()));
     }
   }
-  return true;
+  return base::ok();
+}
+
+base::expected<void, String> ValidateMLTensorUsage(
+    const MLNamedTensors& named_inputs,
+    const MLNamedTensors& named_outputs) {
+  // Validate that output tensors are unique.
+  HeapHashSet<Member<MLTensor>> output_tensors;
+  for (const auto& named_output : named_outputs) {
+    output_tensors.insert(named_output.second);
+  }
+
+  if (output_tensors.size() != named_outputs.size()) {
+    return base::unexpected(
+        "The same MLTensor cannot be used more than once as output.");
+  }
+
+  // Validate tensors used for input and output are unique.
+  for (const auto& named_input : named_inputs) {
+    if (output_tensors.Contains(named_input.second)) {
+      return base::unexpected(
+          "The same MLTensor cannot be used as input and output.");
+    }
+  }
+  return base::ok();
 }
 
 }  // namespace
 
-MLGraph::MLGraph(MLContext* context) : ml_context_(context) {}
+MLGraph::MLGraph(ExecutionContext* execution_context,
+                 MLContext* context,
+                 mojo::PendingAssociatedRemote<webnn::mojom::blink::WebNNGraph>
+                     pending_graph_remote,
+                 NamedOperandDescriptors input_constraints,
+                 NamedOperandDescriptors output_constraints,
+                 Vector<V8MLDeviceType> devices,
+                 base::PassKey<MLGraphBuilder> /*pass_key*/)
+    : input_constraints_(std::move(input_constraints)),
+      output_constraints_(std::move(output_constraints)),
+      ml_context_(context),
+      remote_graph_(execution_context),
+      devices_(std::move(devices)) {
+  // Bind the end point of `WebNNGraph` mojo interface in the blink side.
+  remote_graph_.Bind(
+      std::move(pending_graph_remote),
+      execution_context->GetTaskRunner(TaskType::kMachineLearning));
+  remote_graph_.set_disconnect_handler(
+      WTF::BindOnce(&MLGraph::OnConnectionError, WrapWeakPersistent(this)));
+}
 
 MLGraph::~MLGraph() = default;
 
 void MLGraph::Trace(Visitor* visitor) const {
   visitor->Trace(ml_context_);
+  visitor->Trace(remote_graph_);
   ScriptWrappable::Trace(visitor);
 }
 
-const HashMap<String, MLGraph::ResourceInfo>& MLGraph::GetInputResourcesInfo()
-    const {
-  DCHECK(resources_info_initialized_);
-  return input_resources_info_;
+void MLGraph::destroy() {
+  if (remote_graph_.is_bound()) {
+    OnConnectionError();
+  }
 }
 
-const HashMap<String, MLGraph::ResourceInfo>& MLGraph::GetOutputResourcesInfo()
-    const {
-  DCHECK(resources_info_initialized_);
-  return output_resources_info_;
+Vector<V8MLDeviceType> MLGraph::devices() const {
+  return devices_;
 }
 
-void MLGraph::ComputeAsync(const MLNamedArrayBufferViews& inputs,
-                           const MLNamedArrayBufferViews& outputs,
-                           ScriptPromiseResolver* resolver,
-                           ExceptionState& exception_state) {
-  // The MLGraph object should be initialized before computing.
-  DCHECK(resources_info_initialized_);
-
-  // Validate the MLNamedArrayBufferViews.
-  String error_message;
-  if (!ValidateNamedArrayBufferViews(inputs, input_resources_info_,
-                                     error_message)) {
-    resolver->Reject(MakeGarbageCollected<DOMException>(
-        DOMExceptionCode::kDataError, "Invalid inputs: " + error_message));
-    return;
-  }
-  if (!ValidateNamedArrayBufferViews(outputs, output_resources_info_,
-                                     error_message)) {
-    resolver->Reject(MakeGarbageCollected<DOMException>(
-        DOMExceptionCode::kDataError, "Invalid outputs: " + error_message));
-    return;
-  }
-
-  // Call ComputeAsyncImpl() implemented by an MLGraph backend.
-  ComputeAsyncImpl(inputs, outputs, resolver, exception_state);
+const MLGraph::NamedOperandDescriptors& MLGraph::GetInputConstraints() const {
+  return input_constraints_;
 }
 
-void MLGraph::ComputeSync(const MLNamedArrayBufferViews& inputs,
-                          const MLNamedArrayBufferViews& outputs,
-                          ExceptionState& exception_state) {
-  // The MLGraph object should be initialized before computing.
-  DCHECK(resources_info_initialized_);
+const MLGraph::NamedOperandDescriptors& MLGraph::GetOutputConstraints() const {
+  return output_constraints_;
+}
 
-  // Validate the input and output MLNamedArrayBufferViews.
-  String error_message;
-  if (!ValidateNamedArrayBufferViews(inputs, input_resources_info_,
-                                     error_message)) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "Invalid inputs: " + error_message);
-    return;
-  }
-  if (!ValidateNamedArrayBufferViews(outputs, output_resources_info_,
-                                     error_message)) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "Invalid outputs: " + error_message);
+void MLGraph::Dispatch(webnn::ScopedTrace scoped_trace,
+                       const MLNamedTensors& inputs,
+                       const MLNamedTensors& outputs,
+                       ExceptionState& exception_state) {
+  // Validate the MLNamedTensors.
+  THROW_AND_RETURN_IF_ERROR(
+      ValidateNamedMLTensors(Context(), inputs, input_constraints_),
+      "Invalid inputs: ");
+  THROW_AND_RETURN_IF_ERROR(
+      ValidateNamedMLTensors(Context(), outputs, output_constraints_),
+      "Invalid outputs: ");
+  THROW_AND_RETURN_IF_ERROR(ValidateMLTensorUsage(inputs, outputs),
+                            "Invalid dispatch: ");
+
+  // Remote graph gets automatically unbound when the execution context
+  // destructs.
+  if (!remote_graph_.is_bound()) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "Graph has been destroyed or context is lost.");
     return;
   }
 
-  // Call ComputeSyncImpl() implemented by an MLGraph backend.
-  ComputeSyncImpl(inputs, outputs, exception_state);
-}
-
-void MLGraph::BuildAsync(const MLNamedOperands& named_outputs,
-                         ScriptPromiseResolver* resolver) {
-  String error_message;
-  if (!ValidateAndInitializeResourcesInfo(named_outputs, error_message)) {
-    resolver->Reject(MakeGarbageCollected<DOMException>(
-        DOMExceptionCode::kDataError, error_message));
-    return;
-  }
-  BuildAsyncImpl(named_outputs, resolver);
-}
-
-MLGraph* MLGraph::BuildSync(const MLNamedOperands& named_outputs,
-                            ExceptionState& exception_state) {
-  String error_message;
-  if (!ValidateAndInitializeResourcesInfo(named_outputs, error_message)) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
-  return BuildSyncImpl(named_outputs, exception_state);
-}
-
-bool MLGraph::ValidateAndInitializeResourcesInfo(
-    const MLNamedOperands& named_outputs,
-    String& error_message) {
-  DCHECK(!resources_info_initialized_);
-
-  // The outputs should not be empty.
-  if (named_outputs.empty()) {
-    error_message = "At least one output needs to be provided.";
-    return false;
-  }
-
-  // The queue and visited set of operators that help implement the
-  // breadth-first graph traversal:
-  // https://en.wikipedia.org/wiki/Breadth-first_search
-  HeapDeque<Member<const MLOperator>> operators_queue;
-  HeapHashSet<Member<const MLOperator>> visited_operators;
-
-  // Validate the named outputs, setup corresponding output resource info and
-  // initialize the queue and visited set with their dependent operators.
-  for (const auto& output : named_outputs) {
-    const auto& name = output.first;
-    const auto& operand = output.second;
-    // Validate whether it is an output operand.
-    if (operand->Kind() != MLOperand::OperandKind::kOutput) {
-      error_message = String::Format(
-          "The operand with name \"%s\" is not an output operand.",
-          name.Utf8().c_str());
-      return false;
+  // The inputs and outputs were already verified in the base class so we can
+  // pass the tensor directly with the input and output tensors.
+  HashMap<String, blink::WebNNTensorToken> mojo_inputs;
+  for (const auto& [name, input_tensor] : inputs) {
+    if (!input_tensor->IsValid()) {
+      exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                        "Invalid input tensor state");
+      return;
     }
-    // Setup resource info for this output operand.
-    output_resources_info_.insert(
-        name, ResourceInfo({.type = operand->Type(),
-                            .byte_length = operand->ByteLength()}));
-    // Mark its dependent operator is visited.
-    visited_operators.insert(operand->Operator());
-    // Enqueue its dependent operator.
-    operators_queue.push_back(operand->Operator());
+
+    if (input_tensor->Usage().Has(webnn::MLTensorUsageFlags::kGraphConstant)) {
+      exception_state.ThrowTypeError("Invalid input tensor usage");
+      return;
+    }
+
+    mojo_inputs.insert(name, input_tensor->handle());
   }
 
-  // An input MLOperand may be used by more than one MLOperators. This set
-  // ensures an input MLOperand won't be validated multiple times.
-  HeapHashSet<Member<const MLOperand>> visited_input_operands;
-  while (operators_queue.size() > 0) {
-    // If the queue is not empty, dequeue an operator from the queue.
-    const auto current_operator = operators_queue.TakeFirst();
-    // Enumerate the current operator's input operands.
-    for (const auto& operand : current_operator->Inputs()) {
-      switch (operand->Kind()) {
-        case MLOperand::OperandKind::kOutput:
-          DCHECK(operand->Operator());
-          // If the operand is an output operand and its dependent operator is
-          // not visited, mark the dependent operator is visited and enqueue
-          // it.
-          if (!visited_operators.Contains(operand->Operator())) {
-            visited_operators.insert(operand->Operator());
-            operators_queue.push_back(operand->Operator());
-          }
-          break;
-        case MLOperand::OperandKind::kInput:
-          // If the operand has been validated, it doesn't need to be verified
-          // multiple times.
-          if (visited_input_operands.Contains(operand)) {
-            continue;
-          }
-          visited_input_operands.insert(operand);
-          // If the operand is an input operand, validate whether its name is
-          // unique.
-          if (input_resources_info_.Contains(operand->Name())) {
-            error_message =
-                String::Format("The input name \"%s\" is duplicated.",
-                               operand->Name().Utf8().c_str());
-            return false;
-          }
-          // Setup resource info for this input operand.
-          input_resources_info_.insert(
-              operand->Name(),
-              ResourceInfo({.type = operand->Type(),
-                            .byte_length = operand->ByteLength()}));
-          break;
-        case MLOperand::OperandKind::kConstant:
-          // If the operand is a constant operand, there is no check needed.
-          break;
-      }
+  HashMap<String, blink::WebNNTensorToken> mojo_outputs;
+  for (const auto& [name, output_tensor] : outputs) {
+    if (!output_tensor->IsValid()) {
+      exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                        "Invalid output tensor state");
+      return;
     }
+
+    if (output_tensor->Usage().Has(webnn::MLTensorUsageFlags::kGraphConstant)) {
+      exception_state.ThrowTypeError("Invalid output tensor usage");
+      return;
+    }
+
+    mojo_outputs.insert(name, output_tensor->handle());
   }
-  resources_info_initialized_ = true;
-  return true;
+
+  remote_graph_->Dispatch(std::move(mojo_inputs), std::move(mojo_outputs));
 }
 
 const MLContext* MLGraph::Context() const {
   return ml_context_.Get();
+}
+
+void MLGraph::OnConnectionError() {
+  remote_graph_.reset();
 }
 
 }  // namespace blink

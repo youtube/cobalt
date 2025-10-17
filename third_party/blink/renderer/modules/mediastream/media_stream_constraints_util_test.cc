@@ -3,10 +3,12 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/mediastream/media_stream_constraints_util.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_constraints_util_sets.h"
 #include "third_party/blink/renderer/modules/mediastream/mock_constraint_factory.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_processor_options.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -38,6 +40,7 @@ class MediaStreamConstraintsUtilTest : public testing::Test {
  protected:
   using DoubleRangeSet = media_constraints::NumericRangeSet<double>;
   using ResolutionSet = media_constraints::ResolutionSet;
+  test::TaskEnvironment task_environment_;
 };
 
 TEST_F(MediaStreamConstraintsUtilTest, BooleanConstraints) {
@@ -47,32 +50,21 @@ TEST_F(MediaStreamConstraintsUtilTest, BooleanConstraints) {
   MockConstraintFactory constraint_factory;
   // Mandatory constraints.
   constraint_factory.basic().echo_cancellation.SetExact(true);
-  constraint_factory.basic().goog_echo_cancellation.SetExact(false);
   MediaConstraints constraints = constraint_factory.CreateMediaConstraints();
-  bool value_true = false;
-  bool value_false = false;
+  bool constrain_value = false;
   EXPECT_TRUE(GetConstraintValueAsBoolean(
       constraints, &MediaTrackConstraintSetPlatform::echo_cancellation,
-      &value_true));
-  EXPECT_TRUE(GetConstraintValueAsBoolean(
-      constraints, &MediaTrackConstraintSetPlatform::goog_echo_cancellation,
-      &value_false));
-  EXPECT_TRUE(value_true);
-  EXPECT_FALSE(value_false);
+      &constrain_value));
+  EXPECT_TRUE(constrain_value);
 
   // Optional constraints, represented as "advanced"
   constraint_factory.Reset();
   constraint_factory.AddAdvanced().echo_cancellation.SetExact(false);
-  constraint_factory.AddAdvanced().goog_echo_cancellation.SetExact(true);
   constraints = constraint_factory.CreateMediaConstraints();
   EXPECT_TRUE(GetConstraintValueAsBoolean(
       constraints, &MediaTrackConstraintSetPlatform::echo_cancellation,
-      &value_false));
-  EXPECT_TRUE(GetConstraintValueAsBoolean(
-      constraints, &MediaTrackConstraintSetPlatform::goog_echo_cancellation,
-      &value_true));
-  EXPECT_TRUE(value_true);
-  EXPECT_FALSE(value_false);
+      &constrain_value));
+  EXPECT_FALSE(constrain_value);
 
   // A mandatory constraint should override an optional one.
   constraint_factory.Reset();
@@ -81,8 +73,8 @@ TEST_F(MediaStreamConstraintsUtilTest, BooleanConstraints) {
   constraints = constraint_factory.CreateMediaConstraints();
   EXPECT_TRUE(GetConstraintValueAsBoolean(
       constraints, &MediaTrackConstraintSetPlatform::echo_cancellation,
-      &value_true));
-  EXPECT_TRUE(value_true);
+      &constrain_value));
+  EXPECT_TRUE(constrain_value);
 }
 
 TEST_F(MediaStreamConstraintsUtilTest, DoubleConstraints) {
@@ -135,7 +127,7 @@ TEST_F(MediaStreamConstraintsUtilTest, VideoTrackAdapterSettingsUnconstrained) {
     EXPECT_EQ(kSourceWidth, result.target_width());
     EXPECT_EQ(0.0, result.min_aspect_ratio());
     EXPECT_EQ(HUGE_VAL, result.max_aspect_ratio());
-    EXPECT_EQ(absl::nullopt, result.max_frame_rate());
+    EXPECT_EQ(std::nullopt, result.max_frame_rate());
   }
 
   // Ideal height.
@@ -151,7 +143,7 @@ TEST_F(MediaStreamConstraintsUtilTest, VideoTrackAdapterSettingsUnconstrained) {
               result.target_width());
     EXPECT_EQ(0.0, result.min_aspect_ratio());
     EXPECT_EQ(HUGE_VAL, result.max_aspect_ratio());
-    EXPECT_EQ(absl::nullopt, result.max_frame_rate());
+    EXPECT_EQ(std::nullopt, result.max_frame_rate());
   }
 
   // Ideal width.
@@ -167,7 +159,7 @@ TEST_F(MediaStreamConstraintsUtilTest, VideoTrackAdapterSettingsUnconstrained) {
     EXPECT_EQ(kIdealWidth, result.target_width());
     EXPECT_EQ(0.0, result.min_aspect_ratio());
     EXPECT_EQ(HUGE_VAL, result.max_aspect_ratio());
-    EXPECT_EQ(absl::nullopt, result.max_frame_rate());
+    EXPECT_EQ(std::nullopt, result.max_frame_rate());
   }
 
   // Ideal aspect ratio.
@@ -183,7 +175,7 @@ TEST_F(MediaStreamConstraintsUtilTest, VideoTrackAdapterSettingsUnconstrained) {
               result.target_width());
     EXPECT_EQ(0.0, result.min_aspect_ratio());
     EXPECT_EQ(HUGE_VAL, result.max_aspect_ratio());
-    EXPECT_EQ(absl::nullopt, result.max_frame_rate());
+    EXPECT_EQ(std::nullopt, result.max_frame_rate());
   }
 
   // Ideal frame rate.
@@ -578,7 +570,7 @@ TEST_F(MediaStreamConstraintsUtilTest,
     EXPECT_EQ(kSourceWidth, result.target_width());
     EXPECT_EQ(0.0, result.min_aspect_ratio());
     EXPECT_EQ(HUGE_VAL, result.max_aspect_ratio());
-    EXPECT_EQ(absl::nullopt, result.max_frame_rate());
+    EXPECT_EQ(std::nullopt, result.max_frame_rate());
   }
 
   {
@@ -590,7 +582,7 @@ TEST_F(MediaStreamConstraintsUtilTest,
     EXPECT_EQ(kSourceWidth, result.target_width());
     EXPECT_EQ(0.0, result.min_aspect_ratio());
     EXPECT_EQ(HUGE_VAL, result.max_aspect_ratio());
-    EXPECT_EQ(absl::nullopt, result.max_frame_rate());
+    EXPECT_EQ(std::nullopt, result.max_frame_rate());
   }
 
   // Ideals supplied.
@@ -633,7 +625,7 @@ TEST_F(MediaStreamConstraintsUtilTest,
     EXPECT_EQ(0.0, result.min_aspect_ratio());
     EXPECT_EQ(HUGE_VAL, result.max_aspect_ratio());
     // No max frame rate since there is no ideal or max value.
-    EXPECT_EQ(absl::nullopt, result.max_frame_rate());
+    EXPECT_EQ(std::nullopt, result.max_frame_rate());
   }
 
   // Ideals supplied.

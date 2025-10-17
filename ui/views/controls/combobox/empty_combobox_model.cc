@@ -18,11 +18,11 @@ size_t EmptyComboboxModel::GetItemCount() const {
 }
 
 std::u16string EmptyComboboxModel::GetItemAt(size_t index) const {
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
-absl::optional<size_t> EmptyComboboxModel::GetDefaultIndex() const {
-  return absl::nullopt;
+std::optional<size_t> EmptyComboboxModel::GetDefaultIndex() const {
+  return std::nullopt;
 }
 
 }  // namespace views::internal

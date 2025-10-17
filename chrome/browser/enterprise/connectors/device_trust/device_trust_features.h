@@ -9,19 +9,34 @@
 
 namespace enterprise_connectors {
 
-// Controls whether the Device Trust connector client code is enabled or not.
-BASE_DECLARE_FEATURE(kDeviceTrustConnectorEnabled);
-
-// Controls whether the Device Trust connector user inline flow related code is
+// Controls whether the key rotation flow, triggered by a remote command, is
 // enabled or not.
-BASE_DECLARE_FEATURE(kUserDTCInlineFlowEnabled);
+BASE_DECLARE_FEATURE(kDTCKeyRotationEnabled);
 
-// Return true if the device trust connector Finch feature is enabled.
-bool IsDeviceTrustConnectorFeatureEnabled();
+// Return true if the key rotation flow is enabled.
+bool IsKeyRotationEnabled();
 
-// Return true if the device trust connector user inline flow Finch feature is
-// enabled.
-bool IsUserInlineFlowFeatureEnabled();
+// Controls whether the public key is uploaded through a shared API for all DTC
+// cases.
+BASE_DECLARE_FEATURE(kDTCKeyUploadedBySharedAPIEnabled);
+
+// Return true if a shared API is used for uploading the public key.
+bool IsDTCKeyUploadedBySharedAPI();
+
+// Controls whether the public key is uploaded through a shared API when
+// creating/rotating keys.
+BASE_DECLARE_FEATURE(kDTCKeyRotationUploadedBySharedAPIEnabled);
+
+// Return true if a shared API is used for uploading the public key during
+// rotation/creation.
+bool IsDTCKeyRotationUploadedBySharedAPI();
+
+// Controls whether the AntiVirus signal will be added to the signals payload
+// collected by DTC.
+BASE_DECLARE_FEATURE(kDTCAntivirusSignalEnabled);
+
+// Return true if `kDTCAntiVirusSignalEnabled` is enabled.
+bool IsDTCAntivirusSignalEnabled();
 
 }  // namespace enterprise_connectors
 

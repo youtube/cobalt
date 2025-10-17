@@ -11,11 +11,16 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
+#include "base/time/time.h"
 #include "ui/ozone/platform/wayland/common/wayland_object.h"
 
 struct wl_data_source;
 struct gtk_primary_selection_source;
 struct zwp_primary_selection_source_v1;
+
+namespace base {
+class TimeTicks;
+}
 
 namespace wl {
 template <typename T>
@@ -54,9 +59,16 @@ class DataSource {
  public:
   class Delegate {
    public:
-    virtual void OnDataSourceFinish(bool completed) = 0;
-    virtual void OnDataSourceSend(const std::string& mime_type,
+    virtual void OnDataSourceFinish(DataSource<T>* source,
+                                    base::TimeTicks timestamp,
+                                    bool completed) = 0;
+    virtual void OnDataSourceSend(DataSource<T>* source,
+                                  const std::string& mime_type,
                                   std::string* contents) = 0;
+    // Optional callback intended to be implemented only by dnd-capable delegate
+    // implementations.
+    virtual void OnDataSourceDropPerformed(DataSource<T>* source,
+                                           base::TimeTicks timestamp) {}
 
    protected:
     virtual ~Delegate() = default;
@@ -68,7 +80,7 @@ class DataSource {
              Delegate* delegate);
   DataSource(const DataSource<T>&) = delete;
   DataSource& operator=(const DataSource<T>&) = delete;
-  ~DataSource() = default;
+  ~DataSource();
 
   void Initialize();
   void Offer(const std::vector<std::string>& mime_types);
@@ -79,14 +91,16 @@ class DataSource {
 
  private:
   void HandleFinishEvent(bool completed);
+  void HandleDropEvent();
   void HandleSendEvent(const std::string& mime_type, int32_t fd);
 
+  // {T}_listener callbacks:
   static void OnSend(void* data, T* source, const char* mime_type, int32_t fd);
-  static void OnCancel(void* data, T* source);
-  static void OnDnDFinished(void* data, T* source);
+  static void OnCancelled(void* data, T* source);
+  static void OnDndFinished(void* data, T* source);
   static void OnAction(void* data, T* source, uint32_t dnd_action);
   static void OnTarget(void* data, T* source, const char* mime_type);
-  static void OnDnDDropPerformed(void* data, T* source);
+  static void OnDndDropPerformed(void* data, T* source);
 
   wl::Object<T> data_source_;
 

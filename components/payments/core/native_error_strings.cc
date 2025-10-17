@@ -97,6 +97,12 @@ const char kPaymentManifestCrossSiteRedirectNotAllowed[] =
 const char kPaymentManifestDownloadFailed[] =
     "Unable to download payment manifest \"$1\".";
 
+const char kPaymentManifestDownloadFailedWithNetworkError[] =
+    "Unable to download payment manifest \"$1\". $2 ($3)";
+
+const char kPaymentManifestDownloadFailedWithHttpStatusCode[] =
+    "Unable to download payment manifest \"$1\". HTTP $2 $3.";
+
 const char kPaymentManifestCSPDenied[] =
     "Content Security Policy denied the download of payment manifest \"$1\".";
 
@@ -243,6 +249,22 @@ const char kPayeeOriginOrPayeeNameRequired[] =
 const char kPayeeOriginMustBeHttps[] =
     "The \"secure-payment-confirmation\" method requires that the "
     "\"payeeOrigin\" field must be https.";
+
+const char kNetworkNameRequired[] =
+    "The \"secure-payment-confirmation\" method requires a non-empty "
+    "\"networkInfo.name\" field.";
+
+const char kValidNetworkIconRequired[] =
+    "The \"secure-payment-confirmation\" method requires a valid URL in the "
+    "\"networkInfo.icon\" field.";
+
+const char kIssuerNameRequired[] =
+    "The \"secure-payment-confirmation\" method requires a non-empty "
+    "\"issuerInfo.name\" field.";
+
+const char kValidIssuerIconRequired[] =
+    "The \"secure-payment-confirmation\" method requires a valid URL in the "
+    "\"issuerInfo.icon\" field.";
 
 }  // namespace errors
 }  // namespace payments

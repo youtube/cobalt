@@ -2,11 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/services/util_win/public/mojom/util_win_mojom_traits.h"
+
+#include <limits.h> /* UINT_MAX */
 
 #include <utility>
 
 #include "base/notreached.h"
+#include "base/numerics/safe_math.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/shortcut.h"
@@ -37,7 +45,6 @@ chrome::mojom::SelectFileDialogType EnumTraits<
       return chrome::mojom::SelectFileDialogType::kOpenMultiFile;
   }
   NOTREACHED();
-  return chrome::mojom::SelectFileDialogType::kNone;
 }
 
 // static
@@ -69,7 +76,6 @@ bool EnumTraits<chrome::mojom::SelectFileDialogType,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -85,7 +91,6 @@ EnumTraits<chrome::mojom::CertificateType, CertificateInfo::Type>::ToMojom(
       return chrome::mojom::CertificateType::kCertificateInCatalog;
   }
   NOTREACHED();
-  return chrome::mojom::CertificateType::kNoCertificate;
 }
 
 // static
@@ -100,7 +105,7 @@ EnumTraits<chrome::mojom::ShortcutOperation, ::base::win::ShortcutOperation>::
     case base::win::ShortcutOperation::kUpdateExisting:
       return chrome::mojom::ShortcutOperation::kUpdateExisting;
   }
-  NOTREACHED();
+  DUMP_WILL_BE_NOTREACHED();
   return chrome::mojom::ShortcutOperation::kCreateAlways;
 }
 
@@ -122,7 +127,6 @@ bool EnumTraits<chrome::mojom::ShortcutOperation,
   }
 
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -149,7 +153,6 @@ bool EnumTraits<chrome::mojom::CertificateType, CertificateInfo::Type>::
   }
 
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -221,8 +224,7 @@ bool StructTraits<
 // static
 base::span<const uint8_t> StructTraits<chrome::mojom::ClsIdDataView,
                                        ::CLSID>::bytes(const ::CLSID& input) {
-  return base::make_span(reinterpret_cast<const uint8_t*>(&input),
-                         sizeof(input));
+  return base::span(reinterpret_cast<const uint8_t*>(&input), sizeof(input));
 }
 
 // static
@@ -282,6 +284,43 @@ bool StructTraits<chrome::mojom::AntiVirusProductDataView,
     return false;
   if (!product_version.empty())
     output->set_product_version(std::move(product_version));
+
+  return true;
+}
+
+// static
+bool StructTraits<chrome::mojom::TpmIdentifierDataView,
+                  metrics::SystemProfileProto_TpmIdentifier>::
+    Read(chrome::mojom::TpmIdentifierDataView input,
+         metrics::SystemProfileProto_TpmIdentifier* output) {
+  if (input.manufacturer_id() == 0u) {
+    // If manufacturer_id is it's default value metrics will not be
+    // reported.
+    return false;
+  }
+  output->set_manufacturer_id(input.manufacturer_id());
+
+  std::optional<std::string> manufacturer_version;
+  if (input.ReadManufacturerVersion(&manufacturer_version)) {
+    if (manufacturer_version.has_value()) {
+      output->set_manufacturer_version(std::move(manufacturer_version.value()));
+    }
+  }
+
+  std::optional<std::string> manufacturer_version_info;
+  if (input.ReadManufacturerVersionInfo(&manufacturer_version_info)) {
+    if (manufacturer_version_info.has_value()) {
+      output->set_manufacturer_version_info(
+          std::move(manufacturer_version_info.value()));
+    }
+  }
+
+  std::optional<std::string> tpm_specific_version;
+  if (input.ReadTpmSpecificVersion(&tpm_specific_version)) {
+    if (tpm_specific_version.has_value()) {
+      output->set_tpm_specific_version(std::move(tpm_specific_version.value()));
+    }
+  }
 
   return true;
 }

@@ -17,11 +17,12 @@ source_set("lib") {
   deps = [
     "//base",
     "//components/google/core/common",
+    "//components/manta",
     "//mojo/public/cpp/bindings",
     "//net",
-    "//services/data_decoder/public/mojom",
     "//services/image_annotation/public/mojom",
     "//services/network/public/cpp",
+    "//ui/accessibility:ax_base",
     "//url",
   ]
 }
@@ -35,7 +36,6 @@ source_set("service") {
   public_deps = [
     ":lib",
     "//base",
-    "//services/data_decoder/public/mojom",
     "//services/image_annotation/public/mojom",
     "//services/network/public/cpp",
     "//url",
@@ -51,11 +51,9 @@ source_set("tests") {
     ":lib",
     "//base",
     "//base/test:test_support",
+    "//components/manta:manta",
     "//mojo/public/cpp/bindings",
     "//net",
-    "//services/data_decoder/public/cpp",
-    "//services/data_decoder/public/cpp:test_support",
-    "//services/data_decoder/public/mojom",
     "//services/image_annotation/public/cpp",
     "//services/image_annotation/public/mojom",
     "//services/network:test_support",
@@ -65,6 +63,7 @@ source_set("tests") {
     "//services/service_manager/public/mojom",
     "//testing/gmock",
     "//testing/gtest",
+    "//ui/accessibility:ax_base",
     "//url",
   ]
 }

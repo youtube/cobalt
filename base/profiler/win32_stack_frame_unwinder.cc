@@ -8,6 +8,7 @@
 
 #include <utility>
 
+#include "base/check_op.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
 
@@ -37,8 +38,8 @@ class Win32UnwindFunctions : public Win32StackFrameUnwinder::UnwindFunctions {
                      CONTEXT* context) override;
 };
 
-Win32UnwindFunctions::Win32UnwindFunctions() {}
-Win32UnwindFunctions::~Win32UnwindFunctions() {}
+Win32UnwindFunctions::Win32UnwindFunctions() = default;
+Win32UnwindFunctions::~Win32UnwindFunctions() = default;
 
 PRUNTIME_FUNCTION Win32UnwindFunctions::LookupFunctionEntry(
     DWORD64 program_counter,
@@ -47,7 +48,6 @@ PRUNTIME_FUNCTION Win32UnwindFunctions::LookupFunctionEntry(
   return ::RtlLookupFunctionEntry(program_counter, image_base, nullptr);
 #else
   NOTREACHED();
-  return nullptr;
 #endif
 }
 
@@ -77,7 +77,7 @@ Win32StackFrameUnwinder::UnwindFunctions::UnwindFunctions() = default;
 Win32StackFrameUnwinder::Win32StackFrameUnwinder()
     : Win32StackFrameUnwinder(std::make_unique<Win32UnwindFunctions>()) {}
 
-Win32StackFrameUnwinder::~Win32StackFrameUnwinder() {}
+Win32StackFrameUnwinder::~Win32StackFrameUnwinder() = default;
 
 bool Win32StackFrameUnwinder::TryUnwind(
     bool at_top_frame,
@@ -113,6 +113,12 @@ bool Win32StackFrameUnwinder::TryUnwind(
     context->Rip = *reinterpret_cast<DWORD64*>(context->Rsp);
     context->Rsp += 8;
 #elif defined(ARCH_CPU_ARM64)
+    // If the old control PC is the same as the return address, then no progress
+    // is being made and the stack is most likely malformed.
+    if (context->Pc == context->Lr) {
+      return false;
+    }
+
     // For leaf function on Windows ARM64, return address is at LR(X30).  Add
     // CONTEXT_UNWOUND_TO_CALL flag to avoid unwind ambiguity for tailcall on
     // ARM64, because padding after tailcall is not guaranteed.
@@ -134,7 +140,6 @@ bool Win32StackFrameUnwinder::TryUnwind(
   return false;
 #else
   NOTREACHED();
-  return false;
 #endif
 }
 

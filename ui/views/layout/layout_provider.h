@@ -33,6 +33,8 @@ enum InsetsMetric {
   // The margins around the icon/title of a dialog. The bottom margin is implied
   // by the content insets and the other margins overlap with INSETS_DIALOG.
   INSETS_DIALOG_TITLE,
+  // The margins for the dialog footnote content.
+  INSETS_DIALOG_FOOTNOTE,
   // The margins around the edges of a tooltip bubble.
   INSETS_TOOLTIP_BUBBLE,
   // Padding to add to vector image buttons to increase their click and touch
@@ -56,9 +58,12 @@ enum DistanceMetric {
   // two types have not been interchanged.
   VIEWS_DISTANCE_START = VIEWS_INSETS_MAX,
 
+  // Width and height of a vector icon in a bubble's header (i.e. the one
+  // returned from GetWindowIcon).
+  DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE = VIEWS_DISTANCE_START,
   // Width of a bubble unless the content is too wide to make that
   // feasible.
-  DISTANCE_BUBBLE_PREFERRED_WIDTH = VIEWS_DISTANCE_START,
+  DISTANCE_BUBBLE_PREFERRED_WIDTH,
   // The default padding to add on each side of a button's label.
   DISTANCE_BUTTON_HORIZONTAL_PADDING,
   // The maximum width a button can have and still influence the sizes of
@@ -68,8 +73,12 @@ enum DistanceMetric {
   // The distance between a dialog's edge and the close button in the upper
   // trailing corner.
   DISTANCE_CLOSE_BUTTON_MARGIN,
+  // Vertical spacing between a list of multiple controls in one column.
+  DISTANCE_CONTROL_LIST_VERTICAL,
   // The vertical padding applied to text in a control.
   DISTANCE_CONTROL_VERTICAL_TEXT_PADDING,
+  // The vertical padding applied to text in a table.
+  DISTANCE_TABLE_VERTICAL_TEXT_PADDING,
   // The default minimum width of a dialog button.
   DISTANCE_DIALOG_BUTTON_MINIMUM_WIDTH,
   // The distance between the bottom of a dialog's content, when the final
@@ -84,9 +93,19 @@ enum DistanceMetric {
   // The distance between the bottom of a dialog's title and the top of the
   // dialog's content, when the first content element is text.
   DISTANCE_DIALOG_CONTENT_MARGIN_TOP_TEXT,
+  // Width of the space in a dropdown button between its label and down arrow.
+  DISTANCE_DROPDOWN_BUTTON_LABEL_ARROW_SPACING,
+  // Width of the horizontal padding in a dropdown button between the down arrow
+  // and the button's border.
+  DISTANCE_DROPDOWN_BUTTON_RIGHT_MARGIN,
+  // Width of the horizontal padding in a dropdown button between the button's
+  // left border and the label.
+  DISTANCE_DROPDOWN_BUTTON_LEFT_MARGIN,
   // Width of modal dialogs unless the content is too wide to make that
   // feasible.
   DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH,
+  // Width of larger modal dialogs that require extra width.
+  DISTANCE_LARGE_MODAL_DIALOG_PREFERRED_WIDTH,
   // The spacing between a pair of related horizontal buttons, used for
   // dialog layout.
   DISTANCE_RELATED_BUTTON_HORIZONTAL,
@@ -101,10 +120,15 @@ enum DistanceMetric {
   // Height to stop at when expanding a scrollable area in a dialog to
   // accommodate its content.
   DISTANCE_DIALOG_SCROLLABLE_AREA_MAX_HEIGHT,
+  // Height to stop at when expanding a scrollable area in a modal dialog to
+  // accomodate its content.
+  DISTANCE_MODAL_DIALOG_SCROLLABLE_AREA_MAX_HEIGHT,
   // Horizontal margin between a table cell and its contents.
   DISTANCE_TABLE_CELL_HORIZONTAL_MARGIN,
   // Horizontal padding applied to text in a textfield.
   DISTANCE_TEXTFIELD_HORIZONTAL_TEXT_PADDING,
+  // Horizontal spacing between controls that are logically unrelated.
+  DISTANCE_UNRELATED_CONTROL_HORIZONTAL,
   // Vertical spacing between controls that are logically unrelated.
   DISTANCE_UNRELATED_CONTROL_VERTICAL,
   // Padding in vector icons. This is a general number for more vector icons.
@@ -144,11 +168,15 @@ enum class ShapeContextTokens {
   kButtonRadius,
   kComboboxRadius,
   kDialogRadius,
+  kExtensionsMenuButtonRadius,
+  kFindBarViewRadius,
   kMenuRadius,
   kMenuAuxRadius,
   kMenuTouchRadius,
   kOmniboxExpandedRadius,
   kTextfieldRadius,
+  kSidePanelContentRadius,
+  kSidePanelPageContentRadius,
 };
 
 // ShapeSysTokens are tokens that map to a fixed value that aligns with UX/UI.
@@ -177,7 +205,7 @@ class VIEWS_EXPORT LayoutProvider {
   virtual ~LayoutProvider();
 
   // This should never return nullptr.
-  // TODO(crbug.com/1200584): Replace callers of this with
+  // TODO(crbug.com/40178332): Replace callers of this with
   // View::GetLayoutProvider().
   static LayoutProvider* Get();
 
@@ -195,7 +223,7 @@ class VIEWS_EXPORT LayoutProvider {
   virtual int GetDistanceMetric(int metric) const;
 
   // Returns the TypographyProvider, used to configure text properties such as
-  // font, weight, color, size, and line height. Never null.
+  // font, weight, color, size, and line height.
   virtual const TypographyProvider& GetTypographyProvider() const;
 
   // Returns the actual width to use for a dialog that requires at least
@@ -208,18 +236,21 @@ class VIEWS_EXPORT LayoutProvider {
   gfx::Insets GetDialogInsetsForContentType(DialogContentType leading,
                                             DialogContentType trailing) const;
 
-  // TODO(https://crbug.com/822000): Possibly combine the following two
+  // TODO(crbug.com/41376600): Possibly combine the following two
   // functions into a single function returning a struct.
 
   // Returns the corner radius specific to the given emphasis.
   virtual int GetCornerRadiusMetric(Emphasis emphasis,
-                                    const gfx::Size& size = gfx::Size()) const;
+                                    const gfx::Size& size) const;
+  int GetCornerRadiusMetric(Emphasis emphasis) const {
+    return GetCornerRadiusMetric(emphasis, gfx::Size());
+  }
 
   // Returns the shadow elevation metric for the given emphasis.
   virtual int GetShadowElevationMetric(Emphasis emphasis) const;
 
   // Returns the corner radius related to a specific context token.
-  // TODO(crbug.com/1412134): Replace GetCornerRadiusMetric(Emphasis...) with
+  // TODO(crbug.com/40255130): Replace GetCornerRadiusMetric(Emphasis...) with
   // context tokens.
   int GetCornerRadiusMetric(ShapeContextTokens token,
                             const gfx::Size& size = gfx::Size()) const;

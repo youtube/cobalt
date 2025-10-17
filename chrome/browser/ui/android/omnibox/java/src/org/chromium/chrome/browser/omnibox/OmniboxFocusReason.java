@@ -6,20 +6,34 @@ package org.chromium.chrome.browser.omnibox;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** A means of tracking which mechanism is being used to focus the omnibox. */
-@IntDef({OmniboxFocusReason.OMNIBOX_TAP, OmniboxFocusReason.OMNIBOX_LONG_PRESS,
-        OmniboxFocusReason.FAKE_BOX_TAP, OmniboxFocusReason.FAKE_BOX_LONG_PRESS,
-        OmniboxFocusReason.ACCELERATOR_TAP, OmniboxFocusReason.TAB_SWITCHER_OMNIBOX_TAP,
-        OmniboxFocusReason.TASKS_SURFACE_FAKE_BOX_TAP,
-        OmniboxFocusReason.TASKS_SURFACE_FAKE_BOX_LONG_PRESS,
-        OmniboxFocusReason.DEFAULT_WITH_HARDWARE_KEYBOARD, OmniboxFocusReason.SEARCH_QUERY,
-        OmniboxFocusReason.LAUNCH_NEW_INCOGNITO_TAB, OmniboxFocusReason.MENU_OR_KEYBOARD_ACTION,
-        OmniboxFocusReason.UNFOCUS, OmniboxFocusReason.QUERY_TILES_NTP_TAP,
-        OmniboxFocusReason.FOLD_TRANSITION_RESTORATION})
+@IntDef({
+    OmniboxFocusReason.OMNIBOX_TAP,
+    OmniboxFocusReason.OMNIBOX_LONG_PRESS,
+    OmniboxFocusReason.FAKE_BOX_TAP,
+    OmniboxFocusReason.FAKE_BOX_LONG_PRESS,
+    OmniboxFocusReason.ACCELERATOR_TAP,
+    OmniboxFocusReason.TAB_SWITCHER_OMNIBOX_TAP,
+    OmniboxFocusReason.TASKS_SURFACE_FAKE_BOX_TAP,
+    OmniboxFocusReason.TASKS_SURFACE_FAKE_BOX_LONG_PRESS,
+    OmniboxFocusReason.DEFAULT_WITH_HARDWARE_KEYBOARD,
+    OmniboxFocusReason.SEARCH_QUERY,
+    OmniboxFocusReason.LAUNCH_NEW_INCOGNITO_TAB,
+    OmniboxFocusReason.MENU_OR_KEYBOARD_ACTION,
+    OmniboxFocusReason.UNFOCUS,
+    OmniboxFocusReason.QUERY_TILES_NTP_TAP,
+    OmniboxFocusReason.FOLD_TRANSITION_RESTORATION,
+    OmniboxFocusReason.DRAG_DROP_TO_OMNIBOX,
+    OmniboxFocusReason.TAP_AFTER_FOCUS_FROM_KEYBOARD,
+    OmniboxFocusReason.ACTIVITY_RECREATION_RESTORATION
+})
 @Retention(RetentionPolicy.SOURCE)
+@NullMarked
 public @interface OmniboxFocusReason {
     int OMNIBOX_TAP = 0;
     int OMNIBOX_LONG_PRESS = 1;
@@ -36,6 +50,12 @@ public @interface OmniboxFocusReason {
     int MENU_OR_KEYBOARD_ACTION = 11;
     int UNFOCUS = 12;
     int QUERY_TILES_NTP_TAP = 13;
+    // FOLD_TRANSITION_RESTORATION has not been used anymore, keep it for record for now.
     int FOLD_TRANSITION_RESTORATION = 14;
-    int NUM_ENTRIES = 15;
+    // DRAG_DROP_TO_OMNIBOX has not been used anymore, keep it for record for now.
+    int DRAG_DROP_TO_OMNIBOX = 15;
+    // Emitted on tap after focus from #8.
+    int TAP_AFTER_FOCUS_FROM_KEYBOARD = 16;
+    int ACTIVITY_RECREATION_RESTORATION = 17;
+    int NUM_ENTRIES = 18;
 }

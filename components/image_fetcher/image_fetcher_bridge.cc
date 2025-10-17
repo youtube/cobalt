@@ -11,21 +11,21 @@
 #include "base/android/callback_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
-#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
 #include "components/embedder_support/android/simple_factory_key/simple_factory_key_handle.h"
 #include "components/image_fetcher/core/cache/image_cache.h"
-#include "components/image_fetcher/core/features.h"
 #include "components/image_fetcher/core/image_fetcher.h"
 #include "components/image_fetcher/core/image_fetcher_metrics_reporter.h"
 #include "components/image_fetcher/core/image_fetcher_service.h"
 #include "components/image_fetcher/image_fetcher_service_provider.h"
-#include "components/image_fetcher/jni_headers/ImageFetcherBridge_jni.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/image/image.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/image_fetcher/jni_headers/ImageFetcherBridge_jni.h"
 
 using base::android::JavaParamRef;
 using base::android::JavaRef;
@@ -106,8 +106,7 @@ void ImageFetcherBridge::FetchImageData(
     params.set_hold_for_expiration_interval(
         base::Minutes(j_expiration_interval_mins));
   }
-  if (base::FeatureList::IsEnabled(features::kBatchImageDecoding))
-    params.set_data_decoder(GetDataDecoder());
+  params.set_data_decoder(GetDataDecoder());
 
   // We can skip transcoding here because this method is used in java as
   // ImageFetcher.fetchGif, which decodes the data in a Java-only library.
@@ -146,8 +145,7 @@ void ImageFetcherBridge::FetchImage(
     params.set_hold_for_expiration_interval(
         base::Minutes(j_expiration_interval_mins));
   }
-  if (base::FeatureList::IsEnabled(features::kBatchImageDecoding))
-    params.set_data_decoder(GetDataDecoder());
+  params.set_data_decoder(GetDataDecoder());
 
   SimpleFactoryKey* key =
       simple_factory_key::SimpleFactoryKeyFromJavaHandle(j_simple_factory_key);
@@ -177,7 +175,8 @@ void ImageFetcherBridge::ReportCacheHitTime(
     const jlong start_time_millis) {
   std::string client_name =
       base::android::ConvertJavaStringToUTF8(j_client_name);
-  base::Time start_time = base::Time::FromJavaTime(start_time_millis);
+  base::Time start_time =
+      base::Time::FromMillisecondsSinceUnixEpoch(start_time_millis);
   ImageFetcherMetricsReporter::ReportImageLoadFromCacheTimeJava(client_name,
                                                                 start_time);
 }
@@ -189,7 +188,8 @@ void ImageFetcherBridge::ReportTotalFetchTimeFromNative(
     const jlong start_time_millis) {
   std::string client_name =
       base::android::ConvertJavaStringToUTF8(j_client_name);
-  base::Time start_time = base::Time::FromJavaTime(start_time_millis);
+  base::Time start_time =
+      base::Time::FromMillisecondsSinceUnixEpoch(start_time_millis);
   ImageFetcherMetricsReporter::ReportTotalFetchFromNativeTimeJava(client_name,
                                                                   start_time);
 }
@@ -266,11 +266,11 @@ void ImageFetcherBridge::OnImageDataFetched(
     base::android::ScopedJavaGlobalRef<jobject> callback,
     const std::string& image_data,
     const RequestMetadata& request_metadata) {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jbyteArray> j_bytes = base::android::ToJavaByteArray(
-      env, reinterpret_cast<const uint8_t*>(image_data.data()),
-      image_data.size());
-  RunObjectCallbackAndroid(callback, j_bytes);
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  ScopedJavaLocalRef<jbyteArray> j_bytes =
+      base::android::ToJavaByteArray(env, image_data);
+
+  base::android::RunObjectCallbackAndroid(callback, j_bytes);
 }
 
 // static
@@ -282,7 +282,7 @@ void ImageFetcherBridge::OnImageFetched(
   if (!image.IsEmpty()) {
     j_bitmap = gfx::ConvertToJavaBitmap(*image.ToSkBitmap());
   }
-  RunObjectCallbackAndroid(callback, j_bitmap);
+  base::android::RunObjectCallbackAndroid(callback, j_bitmap);
 }
 
 }  // namespace image_fetcher

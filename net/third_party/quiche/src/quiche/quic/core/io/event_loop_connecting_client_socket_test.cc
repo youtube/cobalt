@@ -4,17 +4,18 @@
 
 #include "quiche/quic/core/io/event_loop_connecting_client_socket.h"
 
-#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
-#include <vector>
 
 #include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
+#include "absl/synchronization/notification.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/connecting_client_socket.h"
 #include "quiche/quic/core/io/event_loop_socket_factory.h"
@@ -22,16 +23,16 @@
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/platform/api/quic_ip_address_family.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/common/platform/api/quiche_mutex.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_test_loopback.h"
 #include "quiche/common/platform/api/quiche_thread.h"
+#include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
 namespace quic::test {
@@ -43,7 +44,7 @@ using ::testing::ValuesIn;
 
 class TestServerSocketRunner : public quiche::QuicheThread {
  public:
-  using SocketBehavior = std::function<void(
+  using SocketBehavior = quiche::MultiUseCallback<void(
       SocketFd connected_socket, socket_api::SocketProtocol protocol)>;
 
   TestServerSocketRunner(SocketFd server_socket_descriptor,
@@ -62,7 +63,7 @@ class TestServerSocketRunner : public quiche::QuicheThread {
 
   const SocketBehavior& behavior() const { return behavior_; }
 
-  quiche::QuicheNotification& completion_notification() {
+  absl::Notification& completion_notification() {
     return completion_notification_;
   }
 
@@ -70,7 +71,7 @@ class TestServerSocketRunner : public quiche::QuicheThread {
   const SocketFd server_socket_descriptor_;
   const SocketBehavior behavior_;
 
-  quiche::QuicheNotification completion_notification_;
+  absl::Notification completion_notification_;
 };
 
 class TestTcpServerSocketRunner : public TestServerSocketRunner {
@@ -80,7 +81,7 @@ class TestTcpServerSocketRunner : public TestServerSocketRunner {
   // closes the accepted connection socket.
   TestTcpServerSocketRunner(SocketFd server_socket_descriptor,
                             SocketBehavior behavior)
-      : TestServerSocketRunner(server_socket_descriptor, behavior) {
+      : TestServerSocketRunner(server_socket_descriptor, std::move(behavior)) {
     Start();
   }
 
@@ -119,7 +120,7 @@ class TestUdpServerSocketRunner : public TestServerSocketRunner {
   TestUdpServerSocketRunner(SocketFd server_socket_descriptor,
                             SocketBehavior behavior,
                             QuicSocketAddress client_socket_address)
-      : TestServerSocketRunner(server_socket_descriptor, behavior),
+      : TestServerSocketRunner(server_socket_descriptor, std::move(behavior)),
         client_socket_address_(std::move(client_socket_address)) {
     Start();
   }
@@ -199,6 +200,10 @@ class EventLoopConnectingClientSocketTest
         return socket_factory_->CreateTcpClientSocket(
             peer_address, /*receive_buffer_size=*/0, /*send_buffer_size=*/0,
             async_visitor);
+      default:
+        // Unexpected protocol.
+        QUICHE_NOTREACHED();
+        return nullptr;
     }
   }
 
@@ -218,6 +223,10 @@ class EventLoopConnectingClientSocketTest
         return socket_factory_->CreateTcpClientSocket(
             peer_address, /*receive_buffer_size=*/0, /*send_buffer_size=*/4,
             async_visitor);
+      default:
+        // Unexpected protocol.
+        QUICHE_NOTREACHED();
+        return nullptr;
     }
   }
 
@@ -274,6 +283,9 @@ class EventLoopConnectingClientSocketTest
         runner = std::make_unique<TestTcpServerSocketRunner>(
             server_socket_descriptor_, std::move(behavior));
         break;
+      default:
+        // Unexpected protocol.
+        QUICHE_NOTREACHED();
     }
 
     // Runner takes responsibility for closing server socket.
@@ -291,9 +303,9 @@ class EventLoopConnectingClientSocketTest
   std::unique_ptr<QuicEventLoop> event_loop_;
   std::unique_ptr<EventLoopSocketFactory> socket_factory_;
 
-  absl::optional<absl::Status> connect_result_;
-  absl::optional<absl::StatusOr<quiche::QuicheMemSlice>> receive_result_;
-  absl::optional<absl::Status> send_result_;
+  std::optional<absl::Status> connect_result_;
+  std::optional<absl::StatusOr<quiche::QuicheMemSlice>> receive_result_;
+  std::optional<absl::Status> send_result_;
 };
 
 std::string GetTestParamName(
@@ -374,6 +386,9 @@ TEST_P(EventLoopConnectingClientSocketTest, ErrorBeforeConnectAsync) {
       EXPECT_TRUE(connect_result_.value().ok());
       socket->Disconnect();
       break;
+    default:
+      // Unexpected protocol.
+      FAIL();
   }
 }
 
@@ -410,6 +425,9 @@ TEST_P(EventLoopConnectingClientSocketTest, ErrorDuringConnectAsync) {
       // server.
       EXPECT_TRUE(connect_result_.value().ok());
       break;
+    default:
+      // Unexpected protocol.
+      FAIL();
   }
 }
 
@@ -658,6 +676,9 @@ TEST_P(EventLoopConnectingClientSocketTest, SendAsync) {
       socket->SendAsync(data);
       expected = data;
       break;
+    default:
+      // Unexpected protocol.
+      FAIL();
   }
   ASSERT_TRUE(send_result_.has_value());
   EXPECT_TRUE(send_result_.value().ok());

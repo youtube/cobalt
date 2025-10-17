@@ -10,6 +10,7 @@
 #include "base/files/scoped_file.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/protobuf_matchers.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "chromecast/common/mojom/audio_socket.mojom.h"
@@ -31,13 +32,10 @@ namespace audio_output_service {
 
 namespace {
 
+using base::test::EqualsProto;
 using base::test::RunOnceCallback;
 using testing::_;
 using testing::Invoke;
-
-MATCHER_P(EqualsProto, other, "") {
-  return arg.SerializeAsString() == other.SerializeAsString();
-}
 
 enum MessageTypes : int {
   kTest = 1,
@@ -146,7 +144,10 @@ TEST_F(OutputConnectionTest, ConnectSucceed) {
 
 TEST_F(OutputConnectionTest, ConnectFail) {
   EXPECT_CALL(*audio_socket_broker_, GetSocketDescriptor(_))
-      .WillRepeatedly(RunOnceCallback<0>(mojo::PlatformHandle()));
+      .WillRepeatedly(
+          [](mojom::AudioSocketBroker::GetSocketDescriptorCallback callback) {
+            std::move(callback).Run(mojo::PlatformHandle());
+          });
   EXPECT_CALL(*output_connection_, OnConnected(_)).Times(0);
   EXPECT_CALL(*output_connection_, OnConnectionFailed()).Times(1);
 

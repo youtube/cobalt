@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "storage/browser/test/mock_bytes_provider.h"
 
 #include "base/threading/thread_restrictions.h"
@@ -15,7 +20,7 @@ MockBytesProvider::MockBytesProvider(
     size_t* reply_request_count,
     size_t* stream_request_count,
     size_t* file_request_count,
-    absl::optional<base::Time> file_modification_time)
+    std::optional<base::Time> file_modification_time)
     : data_(std::move(data)),
       reply_request_count_(reply_request_count),
       stream_request_count_(stream_request_count),

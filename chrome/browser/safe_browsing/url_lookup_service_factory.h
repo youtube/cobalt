@@ -5,7 +5,8 @@
 #ifndef CHROME_BROWSER_SAFE_BROWSING_URL_LOOKUP_SERVICE_FACTORY_H_
 #define CHROME_BROWSER_SAFE_BROWSING_URL_LOOKUP_SERVICE_FACTORY_H_
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
+#include "base/time/time.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 
 class KeyedService;
@@ -13,6 +14,14 @@ class Profile;
 
 namespace content {
 class BrowserContext;
+}
+
+namespace network {
+class SharedURLLoaderFactory;
+}  // namespace network
+
+namespace variations {
+class VariationsService;
 }
 
 namespace safe_browsing {
@@ -36,15 +45,26 @@ class RealTimeUrlLookupServiceFactory : public ProfileKeyedServiceFactory {
   RealTimeUrlLookupServiceFactory& operator=(
       const RealTimeUrlLookupServiceFactory&) = delete;
 
+  void SetURLLoaderFactoryForTesting(
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
+
  private:
-  friend struct base::DefaultSingletonTraits<RealTimeUrlLookupServiceFactory>;
+  friend base::NoDestructor<RealTimeUrlLookupServiceFactory>;
 
   RealTimeUrlLookupServiceFactory();
-  ~RealTimeUrlLookupServiceFactory() override = default;
+  ~RealTimeUrlLookupServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
+
+  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory(
+      content::BrowserContext* context) const;
+
+  static variations::VariationsService* GetVariationsService();
+  static base::Time GetMinAllowedTimestampForReferrerChains(Profile* profile);
+
+  scoped_refptr<network::SharedURLLoaderFactory> testing_url_loader_factory_;
 };
 
 }  // namespace safe_browsing

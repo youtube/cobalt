@@ -5,12 +5,12 @@
 #include "chrome/test/base/scoped_channel_override.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "base/environment.h"
-#include "base/strings/string_piece.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/strings/cstring_view.h"
 
 namespace chrome {
 
@@ -19,21 +19,19 @@ namespace {
 // Exchanges the value of the environment variable `name` with `new_value`;
 // returning its previous value or null if it was not set. The variable is
 // removed from the environment if `new_value` is null.
-absl::optional<std::string> ExchangeEnvironmentVariable(
-    base::StringPiece name,
-    absl::optional<std::string> new_value) {
+std::optional<std::string> ExchangeEnvironmentVariable(
+    base::cstring_view name,
+    std::optional<std::string> new_value) {
   auto environment = base::Environment::Create();
-  std::string old_value;
-  bool found_old_value = environment->GetVar(name, &old_value);
+  std::optional<std::string> old_value = environment->GetVar(name);
   if (new_value)
     environment->SetVar(name, *new_value);
   else
     environment->UnSetVar(name);
-  return found_old_value ? absl::optional<std::string>(std::move(old_value))
-                         : absl::nullopt;
+  return old_value;
 }
 
-constexpr base::StringPiece kChromeVersionExtra = "CHROME_VERSION_EXTRA";
+constexpr base::cstring_view kChromeVersionExtra = "CHROME_VERSION_EXTRA";
 
 std::string GetVersionExtra(ScopedChannelOverride::Channel channel) {
   switch (channel) {
@@ -45,6 +43,10 @@ std::string GetVersionExtra(ScopedChannelOverride::Channel channel) {
       return "beta";
     case ScopedChannelOverride::Channel::kDev:
       return "unstable";
+#if BUILDFLAG(IS_LINUX)
+    case ScopedChannelOverride::Channel::kCanary:
+      return "canary";
+#endif  // BUILDFLAG(IS_LINUX)
   }
 }
 

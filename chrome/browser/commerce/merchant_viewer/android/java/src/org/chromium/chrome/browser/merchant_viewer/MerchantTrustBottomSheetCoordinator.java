@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.merchant_viewer;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,6 +16,9 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.EnsuresNonNull;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper;
@@ -35,24 +40,26 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.url.GURL;
 
 /** Coordinator for managing the merchant trust bottom sheet experience. */
+@NullMarked
 public class MerchantTrustBottomSheetCoordinator implements View.OnLayoutChangeListener {
     private final Context mContext;
     private final BottomSheetController mBottomSheetController;
     private final View mLayoutView;
     private final MerchantTrustMetrics mMetrics;
+    private final IntentRequestTracker mIntentRequestTracker;
 
     private MerchantTrustBottomSheetMediator mMediator;
-    private BottomSheetObserver mBottomSheetObserver;
-    private MerchantTrustBottomSheetContent mSheetContent;
+    private @Nullable BottomSheetObserver mBottomSheetObserver;
+    private @Nullable MerchantTrustBottomSheetContent mSheetContent;
     private int mCurrentMaxViewHeight;
-    private ThinWebView mThinWebView;
-    private BottomSheetToolbarView mToolbarView;
-    private PropertyModel mToolbarModel;
-    private PropertyModelChangeProcessor mModelChangeProcessor;
-    private final IntentRequestTracker mIntentRequestTracker;
+    private @Nullable ThinWebView mThinWebView;
+    private @Nullable BottomSheetToolbarView mToolbarView;
+    private @Nullable PropertyModel mToolbarModel;
+    private @Nullable PropertyModelChangeProcessor mModelChangeProcessor;
 
     /**
      * Creates a new instance.
+     *
      * @param context current {@link Context} intsance.
      * @param windowAndroid app's Adnroid window.
      * @param bottomSheetController {@BottomSheetController} instance.
@@ -61,9 +68,14 @@ public class MerchantTrustBottomSheetCoordinator implements View.OnLayoutChangeL
      * @param intentRequestTracker The {@link IntentRequestTracker} of the current activity.
      * @param profileSupplier Supplier of {@link Profile} for which favicon service is used.
      */
-    public MerchantTrustBottomSheetCoordinator(Context context, WindowAndroid windowAndroid,
-            BottomSheetController bottomSheetController, Supplier<Tab> tabSupplier, View layoutView,
-            MerchantTrustMetrics metrics, IntentRequestTracker intentRequestTracker,
+    public MerchantTrustBottomSheetCoordinator(
+            Context context,
+            WindowAndroid windowAndroid,
+            BottomSheetController bottomSheetController,
+            Supplier<@Nullable Tab> tabSupplier,
+            View layoutView,
+            MerchantTrustMetrics metrics,
+            IntentRequestTracker intentRequestTracker,
             ObservableSupplier<Profile> profileSupplier) {
         mContext = context;
         mBottomSheetController = bottomSheetController;
@@ -71,20 +83,21 @@ public class MerchantTrustBottomSheetCoordinator implements View.OnLayoutChangeL
         mMetrics = metrics;
         mIntentRequestTracker = intentRequestTracker;
 
-        mMediator = new MerchantTrustBottomSheetMediator(
-                context, windowAndroid, metrics, profileSupplier, new FaviconHelper());
+        mMediator =
+                new MerchantTrustBottomSheetMediator(
+                        context, windowAndroid, metrics, profileSupplier, new FaviconHelper());
     }
 
     /** Displays the details tab sheet. */
     public void requestOpenSheet(GURL url, String title, Runnable onBottomSheetDismissed) {
         setupSheet(onBottomSheetDismissed);
         mMediator.navigateToUrl(url, title);
-        mBottomSheetController.requestShowContent(mSheetContent, true);
+        mBottomSheetController.requestShowContent(assumeNonNull(mSheetContent), true);
     }
 
     /** Closes the bottom sheet. */
     void closeSheet() {
-        mBottomSheetController.hideContent(mSheetContent, true);
+        mBottomSheetController.hideContent(assumeNonNull(mSheetContent), true);
     }
 
     private void setupSheet(Runnable onBottomSheetDismissed) {
@@ -97,64 +110,69 @@ public class MerchantTrustBottomSheetCoordinator implements View.OnLayoutChangeL
 
         View toolbarView = mToolbarView.getView();
         ViewTreeObserver observer = toolbarView.getViewTreeObserver();
-        observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-            @Override
-            public boolean onPreDraw() {
-                toolbarView.getViewTreeObserver().removeOnPreDrawListener(this);
-                setThinWebViewLayout();
-                return true;
-            }
-        });
+        observer.addOnPreDrawListener(
+                new ViewTreeObserver.OnPreDrawListener() {
+                    @Override
+                    public boolean onPreDraw() {
+                        toolbarView.getViewTreeObserver().removeOnPreDrawListener(this);
+                        setThinWebViewLayout();
+                        return true;
+                    }
+                });
 
         mMediator.setupSheetWebContents(mThinWebView, mToolbarModel);
         mSheetContent =
-                new MerchantTrustBottomSheetContent(mToolbarView.getView(), mThinWebView.getView(),
-                        () -> mMediator.getVerticalScrollOffset(), this::closeSheet);
+                new MerchantTrustBottomSheetContent(
+                        mToolbarView.getView(),
+                        mThinWebView.getView(),
+                        () -> mMediator.getVerticalScrollOffset(),
+                        this::closeSheet);
 
-        mBottomSheetObserver = new EmptyBottomSheetObserver() {
-            private int mCloseReason;
+        mBottomSheetObserver =
+                new EmptyBottomSheetObserver() {
+                    private int mCloseReason;
 
-            @Override
-            public void onSheetContentChanged(BottomSheetContent newContent) {
-                if (newContent != mSheetContent) {
-                    mMetrics.recordMetricsForBottomSheetClosed(mCloseReason);
-                    if (onBottomSheetDismissed != null
-                            && (mCloseReason == StateChangeReason.NONE
-                                    || mCloseReason == StateChangeReason.SWIPE
-                                    || mCloseReason == StateChangeReason.BACK_PRESS
-                                    || mCloseReason == StateChangeReason.TAP_SCRIM)) {
-                        onBottomSheetDismissed.run();
+                    @Override
+                    public void onSheetContentChanged(@Nullable BottomSheetContent newContent) {
+                        if (newContent != mSheetContent) {
+                            mMetrics.recordMetricsForBottomSheetClosed(mCloseReason);
+                            if (onBottomSheetDismissed != null
+                                    && (mCloseReason == StateChangeReason.NONE
+                                            || mCloseReason == StateChangeReason.SWIPE
+                                            || mCloseReason == StateChangeReason.BACK_PRESS
+                                            || mCloseReason == StateChangeReason.TAP_SCRIM)) {
+                                onBottomSheetDismissed.run();
+                            }
+                            destroySheet();
+                        }
                     }
-                    destroySheet();
-                }
-            }
 
-            @Override
-            public void onSheetOpened(@StateChangeReason int reason) {
-                mMetrics.recordMetricsForBottomSheetHalfOpened();
-            }
-
-            @Override
-            public void onSheetStateChanged(int newState, int reason) {
-                if (mSheetContent == null) return;
-                switch (newState) {
-                    case SheetState.PEEK:
-                        mMetrics.recordMetricsForBottomSheetPeeked();
-                        break;
-                    case SheetState.HALF:
+                    @Override
+                    public void onSheetOpened(@StateChangeReason int reason) {
                         mMetrics.recordMetricsForBottomSheetHalfOpened();
-                        break;
-                    case SheetState.FULL:
-                        mMetrics.recordMetricsForBottomSheetFullyOpened();
-                        break;
-                }
-            }
+                    }
 
-            @Override
-            public void onSheetClosed(int reason) {
-                mCloseReason = reason;
-            }
-        };
+                    @Override
+                    public void onSheetStateChanged(int newState, int reason) {
+                        if (mSheetContent == null) return;
+                        switch (newState) {
+                            case SheetState.PEEK:
+                                mMetrics.recordMetricsForBottomSheetPeeked();
+                                break;
+                            case SheetState.HALF:
+                                mMetrics.recordMetricsForBottomSheetHalfOpened();
+                                break;
+                            case SheetState.FULL:
+                                mMetrics.recordMetricsForBottomSheetFullyOpened();
+                                break;
+                        }
+                    }
+
+                    @Override
+                    public void onSheetClosed(int reason) {
+                        mCloseReason = reason;
+                    }
+                };
         mBottomSheetController.addObserver(mBottomSheetObserver);
 
         mLayoutView.addOnLayoutChangeListener(this);
@@ -183,34 +201,46 @@ public class MerchantTrustBottomSheetCoordinator implements View.OnLayoutChangeL
         mToolbarView = null;
     }
 
+    @EnsuresNonNull("mThinWebView")
     private void createThinWebView() {
-        mThinWebView = ThinWebViewFactory.create(
-                mContext, new ThinWebViewConstraints(), mIntentRequestTracker);
+        mThinWebView =
+                ThinWebViewFactory.create(
+                        mContext, new ThinWebViewConstraints(), mIntentRequestTracker);
         setThinWebViewLayout();
     }
 
     private void setThinWebViewLayout() {
-        mThinWebView.getView().setLayoutParams(new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
+        assumeNonNull(mThinWebView);
+        assumeNonNull(mToolbarView);
+        int height =
                 (int) (getMaxViewHeight() * MerchantTrustBottomSheetContent.FULL_HEIGHT_RATIO)
-                        - mToolbarView.getToolbarHeightPx()));
+                        - mToolbarView.getToolbarHeightPx();
+        mThinWebView
+                .getView()
+                .setLayoutParams(
+                        new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height));
         ViewGroup.MarginLayoutParams params =
                 (ViewGroup.MarginLayoutParams) mThinWebView.getView().getLayoutParams();
         params.topMargin = mToolbarView.getToolbarHeightPx();
     }
 
+    @EnsuresNonNull({"mToolbarView", "mToolbarModel"})
     private void createToolbarView() {
         mToolbarView = new BottomSheetToolbarView(mContext);
-        mToolbarModel = new PropertyModel.Builder(BottomSheetToolbarProperties.ALL_KEYS)
-                                .with(BottomSheetToolbarProperties.CLOSE_BUTTON_ON_CLICK_CALLBACK,
-                                        this::closeSheet)
-                                .with(BottomSheetToolbarProperties.FAVICON_ICON,
-                                        R.drawable.ic_logo_googleg_24dp)
-                                .with(BottomSheetToolbarProperties.FAVICON_ICON_VISIBLE, true)
-                                .with(BottomSheetToolbarProperties.OPEN_IN_NEW_TAB_VISIBLE, false)
-                                .build();
-        mModelChangeProcessor = PropertyModelChangeProcessor.create(
-                mToolbarModel, mToolbarView, BottomSheetToolbarViewBinder::bind);
+        mToolbarModel =
+                new PropertyModel.Builder(BottomSheetToolbarProperties.ALL_KEYS)
+                        .with(
+                                BottomSheetToolbarProperties.CLOSE_BUTTON_ON_CLICK_CALLBACK,
+                                this::closeSheet)
+                        .with(
+                                BottomSheetToolbarProperties.FAVICON_ICON,
+                                R.drawable.ic_logo_googleg_24dp)
+                        .with(BottomSheetToolbarProperties.FAVICON_ICON_VISIBLE, true)
+                        .with(BottomSheetToolbarProperties.OPEN_IN_NEW_TAB_VISIBLE, false)
+                        .build();
+        mModelChangeProcessor =
+                PropertyModelChangeProcessor.create(
+                        mToolbarModel, mToolbarView, BottomSheetToolbarViewBinder::bind);
     }
 
     // Returns the maximum bottom view height.
@@ -219,9 +249,17 @@ public class MerchantTrustBottomSheetCoordinator implements View.OnLayoutChangeL
     }
 
     @Override
-    public void onLayoutChange(View view, int left, int top, int right, int bottom, int oldLeft,
-            int oldTop, int oldRight, int oldBottom) {
-        if (mSheetContent == null) return;
+    public void onLayoutChange(
+            View view,
+            int left,
+            int top,
+            int right,
+            int bottom,
+            int oldLeft,
+            int oldTop,
+            int oldRight,
+            int oldBottom) {
+        if (mSheetContent == null || mToolbarView == null || mThinWebView == null) return;
 
         int maxViewHeight = getMaxViewHeight();
         if (maxViewHeight == 0 || mCurrentMaxViewHeight == maxViewHeight) return;
@@ -231,13 +269,12 @@ public class MerchantTrustBottomSheetCoordinator implements View.OnLayoutChangeL
         // ThinWebView and so it can leave a portion of the page below it visible.
         layoutParams.height =
                 (int) (maxViewHeight * MerchantTrustBottomSheetContent.FULL_HEIGHT_RATIO)
-                - mToolbarView.getToolbarHeightPx();
+                        - mToolbarView.getToolbarHeightPx();
         ViewUtils.requestLayout(
                 mThinWebView.getView(), "MerchantTrustBottomSheetCoordinator.onLayoutChange");
         mCurrentMaxViewHeight = maxViewHeight;
     }
 
-    @VisibleForTesting
     void setMediatorForTesting(MerchantTrustBottomSheetMediator mediator) {
         mMediator = mediator;
     }

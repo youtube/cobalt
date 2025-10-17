@@ -14,18 +14,12 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/tracing_controller.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "android_webview/browser_jni_headers/AwTracingController_jni.h"
 
 using base::android::JavaParamRef;
 
 namespace {
-
-base::android::ScopedJavaLocalRef<jbyteArray> StringToJavaBytes(
-    JNIEnv* env,
-    const std::string& str) {
-  return base::android::ToJavaByteArray(
-      env, reinterpret_cast<const uint8_t*>(str.data()), str.size());
-}
 
 class AwTraceDataEndpoint
     : public content::TracingController::TraceDataEndpoint {
@@ -75,17 +69,16 @@ static jlong JNI_AwTracingController_Init(JNIEnv* env,
   return reinterpret_cast<intptr_t>(controller);
 }
 
-AwTracingController::AwTracingController(JNIEnv* env, jobject obj)
+AwTracingController::AwTracingController(JNIEnv* env,
+                                         const jni_zero::JavaRef<jobject>& obj)
     : weak_java_object_(env, obj) {}
 
 AwTracingController::~AwTracingController() {}
 
 bool AwTracingController::Start(JNIEnv* env,
                                 const JavaParamRef<jobject>& obj,
-                                const JavaParamRef<jstring>& jcategories,
+                                std::string& categories,
                                 jint jmode) {
-  std::string categories =
-      base::android::ConvertJavaStringToUTF8(env, jcategories);
   base::trace_event::TraceConfig trace_config(
       categories, static_cast<base::trace_event::TraceRecordMode>(jmode));
   return content::TracingController::GetInstance()->StartTracing(
@@ -119,7 +112,7 @@ void AwTracingController::OnTraceDataReceived(
   base::android::ScopedJavaLocalRef<jobject> obj = weak_java_object_.get(env);
   if (obj.obj()) {
     base::android::ScopedJavaLocalRef<jbyteArray> java_trace_data =
-        StringToJavaBytes(env, *chunk);
+        base::android::ToJavaByteArray(env, *chunk);
     Java_AwTracingController_onTraceDataChunkReceived(env, obj,
                                                       java_trace_data);
   }

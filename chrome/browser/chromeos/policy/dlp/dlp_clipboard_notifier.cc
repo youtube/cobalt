@@ -6,82 +6,76 @@
 
 #include <memory>
 
+#include "ash/constants/notifier_catalogs.h"
+#include "ash/public/cpp/clipboard_history_controller.h"
+#include "ash/public/cpp/new_window_delegate.h"
+#include "ash/public/cpp/scoped_clipboard_history_pause.h"
+#include "ash/public/cpp/system/toast_data.h"
+#include "ash/public/cpp/system/toast_manager.h"
+#include "ash/public/cpp/window_tree_host_lookup.h"
+#include "ash/resources/vector_icons/vector_icons.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
+#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/chromeos/policy/dlp/clipboard_bubble.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_clipboard_bubble_constants.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_policy_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/aura/window_tree_host.h"
+#include "ui/base/clipboard/clipboard_data.h"
 #include "ui/base/clipboard/clipboard_monitor.h"
+#include "ui/base/clipboard/clipboard_non_backed.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/display/screen.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "ash/constants/notifier_catalogs.h"
-#include "ash/public/cpp/new_window_delegate.h"
-#include "ash/public/cpp/system/toast_data.h"
-#include "ash/public/cpp/system/toast_manager.h"
-#include "ash/public/cpp/window_tree_host_lookup.h"
-#include "ash/resources/vector_icons/vector_icons.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/chromeos/policy/dlp/dlp_browser_helper_lacros.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#include "ui/events/ozone/events_ozone.h"
 
 namespace policy {
 
 namespace {
 
 ui::DataTransferEndpoint CloneEndpoint(
-    const ui::DataTransferEndpoint* const data_endpoint) {
-  if (data_endpoint == nullptr)
+    base::optional_ref<const ui::DataTransferEndpoint> data_endpoint) {
+  if (!data_endpoint.has_value()) {
     return ui::DataTransferEndpoint(ui::EndpointType::kDefault);
+  }
 
   return ui::DataTransferEndpoint(*data_endpoint);
 }
 
 void SynthesizePaste() {
-  ui::KeyEvent control_press(/*type=*/ui::ET_KEY_PRESSED, ui::VKEY_CONTROL,
-                             /*code=*/static_cast<ui::DomCode>(0),
-                             /*flags=*/0);
-  if (!display::Screen::GetScreen())  // Doesn't exist in unittests.
-    return;
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   auto* host = ash::GetWindowTreeHostForDisplay(
       display::Screen::GetScreen()->GetDisplayForNewWindows().id());
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  auto* host = dlp::GetActiveWindowTreeHost();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
   DCHECK(host);
+
+  ui::KeyEvent control_press(/*type=*/ui::EventType::kKeyPressed,
+                             ui::VKEY_CONTROL,
+                             /*code=*/static_cast<ui::DomCode>(0),
+                             /*flags=*/0);
   host->DeliverEventToSink(&control_press);
 
-  ui::KeyEvent v_press(/*type=*/ui::ET_KEY_PRESSED, ui::VKEY_V,
+  ui::KeyEvent v_press(/*type=*/ui::EventType::kKeyPressed, ui::VKEY_V,
                        /*code=*/static_cast<ui::DomCode>(0),
                        /*flags=*/ui::EF_CONTROL_DOWN);
-
   host->DeliverEventToSink(&v_press);
 
-  ui::KeyEvent v_release(/*type=*/ui::ET_KEY_RELEASED, ui::VKEY_V,
+  ui::KeyEvent v_release(/*type=*/ui::EventType::kKeyReleased, ui::VKEY_V,
                          /*code=*/static_cast<ui::DomCode>(0),
                          /*flags=*/ui::EF_CONTROL_DOWN);
   host->DeliverEventToSink(&v_release);
 
-  ui::KeyEvent control_release(/*type=*/ui::ET_KEY_RELEASED, ui::VKEY_CONTROL,
+  ui::KeyEvent control_release(/*type=*/ui::EventType::kKeyReleased,
+                               ui::VKEY_CONTROL,
                                /*code=*/static_cast<ui::DomCode>(0),
                                /*flags=*/0);
   host->DeliverEventToSink(&control_release);
 }
 
 bool HasEndpoint(const std::vector<ui::DataTransferEndpoint>& saved_endpoints,
-                 const ui::DataTransferEndpoint* const endpoint) {
+                 base::optional_ref<const ui::DataTransferEndpoint> endpoint) {
   const ui::EndpointType endpoint_type =
-      endpoint ? endpoint->type() : ui::EndpointType::kDefault;
+      endpoint.has_value() ? endpoint->type() : ui::EndpointType::kDefault;
 
   for (const auto& ept : saved_endpoints) {
     if (ept.type() == endpoint_type) {
@@ -94,14 +88,12 @@ bool HasEndpoint(const std::vector<ui::DataTransferEndpoint>& saved_endpoints,
   return false;
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
 void OnToastClicked() {
   ash::NewWindowDelegate::GetPrimary()->OpenUrl(
       GURL(dlp::kDlpLearnMoreUrl),
       ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       ash::NewWindowDelegate::Disposition::kNewForegroundTab);
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 }  // namespace
 
@@ -114,14 +106,13 @@ DlpClipboardNotifier::~DlpClipboardNotifier() {
 }
 
 void DlpClipboardNotifier::NotifyBlockedAction(
-    const ui::DataTransferEndpoint* const data_src,
-    const ui::DataTransferEndpoint* const data_dst) {
-  DCHECK(data_src);
+    base::optional_ref<const ui::DataTransferEndpoint> data_src,
+    base::optional_ref<const ui::DataTransferEndpoint> data_dst) {
+  DCHECK(data_src.has_value());
   DCHECK(data_src->GetURL());
   const std::u16string host_name =
       base::UTF8ToUTF16(data_src->GetURL()->host());
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  if (data_dst) {
+  if (data_dst.has_value()) {
     if (data_dst->type() == ui::EndpointType::kCrostini) {
       ShowToast(kClipboardBlockCrostiniToastId,
                 ash::ToastCatalogName::kClipboardBlockedAction,
@@ -147,25 +138,23 @@ void DlpClipboardNotifier::NotifyBlockedAction(
       return;
     }
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   ShowBlockBubble(l10n_util::GetStringFUTF16(
       IDS_POLICY_DLP_CLIPBOARD_BLOCKED_ON_PASTE, host_name));
 }
 
 void DlpClipboardNotifier::WarnOnPaste(
-    const ui::DataTransferEndpoint* const data_src,
-    const ui::DataTransferEndpoint* const data_dst,
-    base::RepeatingCallback<void()> reporting_cb) {
-  DCHECK(data_src);
+    base::optional_ref<const ui::DataTransferEndpoint> data_src,
+    base::optional_ref<const ui::DataTransferEndpoint> data_dst,
+    base::OnceCallback<void()> reporting_cb) {
+  DCHECK(data_src.has_value());
   DCHECK(data_src->GetURL());
 
   CloseWidget(widget_.get(), views::Widget::ClosedReason::kUnspecified);
 
   const std::u16string host_name =
       base::UTF8ToUTF16(data_src->GetURL()->host());
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  if (data_dst) {
+  if (data_dst.has_value()) {
     if (data_dst->type() == ui::EndpointType::kCrostini) {
       ShowToast(kClipboardWarnCrostiniToastId,
                 ash::ToastCatalogName::kClipboardWarnOnPaste,
@@ -191,14 +180,23 @@ void DlpClipboardNotifier::WarnOnPaste(
       return;
     }
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
-  auto proceed_cb = base::BindRepeating(
-      &DlpClipboardNotifier::ProceedPressed, base::Unretained(this),
-      CloneEndpoint(data_dst), std::move(reporting_cb));
+  std::unique_ptr<ui::ClipboardData> warned_clipboard_data;
+  ui::DataTransferEndpoint dte(ui::EndpointType::kClipboardHistory);
+  auto* data_ptr =
+      ui::ClipboardNonBacked::GetForCurrentThread()->GetClipboardData(&dte);
+  if (data_ptr) {  // dlp_clipboard_notifier_unittests do not set the clipboard
+                   // before calling WarnOnPaste.
+    warned_clipboard_data = std::make_unique<ui::ClipboardData>(*data_ptr);
+  }
+
+  auto proceed_cb =
+      base::BindOnce(&DlpClipboardNotifier::ProceedPressed,
+                     base::Unretained(this), std::move(warned_clipboard_data),
+                     CloneEndpoint(data_dst), std::move(reporting_cb));
   auto cancel_cb =
-      base::BindRepeating(&DlpClipboardNotifier::CancelWarningPressed,
-                          base::Unretained(this), CloneEndpoint(data_dst));
+      base::BindOnce(&DlpClipboardNotifier::CancelWarningPressed,
+                     base::Unretained(this), CloneEndpoint(data_dst));
 
   ShowWarningBubble(l10n_util::GetStringFUTF16(
                         IDS_POLICY_DLP_CLIPBOARD_WARN_ON_PASTE, host_name),
@@ -206,11 +204,11 @@ void DlpClipboardNotifier::WarnOnPaste(
 }
 
 void DlpClipboardNotifier::WarnOnBlinkPaste(
-    const ui::DataTransferEndpoint* const data_src,
-    const ui::DataTransferEndpoint* const data_dst,
+    base::optional_ref<const ui::DataTransferEndpoint> data_src,
+    base::optional_ref<const ui::DataTransferEndpoint> data_dst,
     content::WebContents* web_contents,
     base::OnceCallback<void(bool)> paste_cb) {
-  DCHECK(data_src);
+  DCHECK(data_src.has_value());
   DCHECK(data_src->GetURL());
 
   CloseWidget(widget_.get(), views::Widget::ClosedReason::kUnspecified);
@@ -219,11 +217,11 @@ void DlpClipboardNotifier::WarnOnBlinkPaste(
       base::UTF8ToUTF16(data_src->GetURL()->host());
 
   auto proceed_cb =
-      base::BindRepeating(&DlpClipboardNotifier::BlinkProceedPressed,
-                          base::Unretained(this), CloneEndpoint(data_dst));
+      base::BindOnce(&DlpClipboardNotifier::BlinkProceedPressed,
+                     base::Unretained(this), CloneEndpoint(data_dst));
   auto cancel_cb =
-      base::BindRepeating(&DlpClipboardNotifier::CancelWarningPressed,
-                          base::Unretained(this), CloneEndpoint(data_dst));
+      base::BindOnce(&DlpClipboardNotifier::CancelWarningPressed,
+                     base::Unretained(this), CloneEndpoint(data_dst));
 
   ShowWarningBubble(l10n_util::GetStringFUTF16(
                         IDS_POLICY_DLP_CLIPBOARD_WARN_ON_PASTE, host_name),
@@ -233,23 +231,53 @@ void DlpClipboardNotifier::WarnOnBlinkPaste(
 }
 
 bool DlpClipboardNotifier::DidUserApproveDst(
-    const ui::DataTransferEndpoint* const data_dst) {
+    base::optional_ref<const ui::DataTransferEndpoint> data_dst) {
   return HasEndpoint(approved_dsts_, data_dst);
 }
 
 bool DlpClipboardNotifier::DidUserCancelDst(
-    const ui::DataTransferEndpoint* const data_dst) {
+    base::optional_ref<const ui::DataTransferEndpoint> data_dst) {
   return HasEndpoint(cancelled_dsts_, data_dst);
 }
 
 void DlpClipboardNotifier::ProceedPressed(
+    std::unique_ptr<ui::ClipboardData> data,
     const ui::DataTransferEndpoint& data_dst,
-    base::RepeatingCallback<void()> reporting_cb,
+    base::OnceCallback<void()> reporting_cb,
     views::Widget* widget) {
   CloseWidget(widget, views::Widget::ClosedReason::kAcceptButtonClicked);
   approved_dsts_.push_back(data_dst);
-  SynthesizePaste();
+
   std::move(reporting_cb).Run();
+
+  if (!display::Screen::GetScreen()) {  // Clipboard related elements do not
+                                        // exist in unittests.
+    return;
+  }
+
+  // Temporarily ignore clipboard events because we are going to replace the
+  // system clipboard and this would otherwise trigger a call to
+  // `OnClipboardDataChanged` that resets the user warn selection.
+  ignore_clipboard_events_ = true;
+
+  // Pause clipboard history since we are temporarily replacing the system
+  // clipboard data with a non user-initiated action.
+  auto scoped_clipboard_history_pause =
+      ash::ClipboardHistoryController::Get()->CreateScopedPause();
+
+  auto* clipboard = ui::ClipboardNonBacked::GetForCurrentThread();
+  CHECK(clipboard);
+
+  std::unique_ptr<ui::ClipboardData> current_clipboard_data =
+      clipboard->WriteClipboardData(std::move(data));
+
+  SynthesizePaste();
+
+  // Restore the original system clipboard data.
+  ui::ClipboardNonBacked::GetForCurrentThread()->WriteClipboardData(
+      std::move(current_clipboard_data));
+
+  ignore_clipboard_events_ = false;
 }
 
 void DlpClipboardNotifier::BlinkProceedPressed(
@@ -272,23 +300,22 @@ void DlpClipboardNotifier::ResetUserWarnSelection() {
   cancelled_dsts_.clear();
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
 void DlpClipboardNotifier::ShowToast(const std::string& id,
                                      ash::ToastCatalogName catalog_name,
                                      const std::u16string& text) const {
-  ash::ToastData toast(
-      id, catalog_name, text, ash::ToastData::kDefaultToastDuration,
-      /*visible_on_lock_screen=*/false,
-      /*has_dismiss_button=*/true,
-      /*custom_dismiss_text=*/
-      l10n_util::GetStringUTF16(IDS_POLICY_DLP_CLIPBOARD_BLOCK_TOAST_BUTTON),
-      /*dismiss_callback=*/base::BindRepeating(&OnToastClicked),
-      /*leading_icon=*/ash::kSystemMenuBusinessIcon);
+  ash::ToastData toast(id, catalog_name, text);
+  toast.button_type = ash::ToastData::ButtonType::kTextButton;
+  toast.button_text =
+      l10n_util::GetStringUTF16(IDS_POLICY_DLP_CLIPBOARD_BLOCK_TOAST_BUTTON);
+  toast.button_callback = base::BindRepeating(&OnToastClicked);
+  toast.leading_icon = &ash::kSystemMenuBusinessIcon;
   ash::ToastManager::Get()->Show(std::move(toast));
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 void DlpClipboardNotifier::OnClipboardDataChanged() {
+  if (ignore_clipboard_events_) {
+    return;
+  }
   ResetUserWarnSelection();
 }
 

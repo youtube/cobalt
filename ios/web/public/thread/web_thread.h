@@ -14,7 +14,7 @@
 
 namespace web {
 
-// TODO(crbug.com/1026641): Include web_task_traits.h directly when the
+// TODO(crbug.com/40108370): Include web_task_traits.h directly when the
 // migration to Get(UI|IO)ThreadTaskrunner() is complete and the cyclic
 // dependency of web_task_traits.h on WebThread::ID is broken.
 class WebTaskTraits;
@@ -25,7 +25,7 @@ class WebThreadDelegate;
 // called on the named WebThread.
 #define DCHECK_CURRENTLY_ON(thread_identifier)             \
   DCHECK(::web::WebThread::CurrentlyOn(thread_identifier)) \
-      << ::web::WebThread::GetDCheckCurrentlyOnErrorMessage(thread_identifier)
+      << ::web::WebThread::GetCurrentlyOnErrorMessage(thread_identifier)
 
 // The main entry point to post tasks to the UI thread. Tasks posted with the
 // same `traits` will run in posting order (i.e. according to the
@@ -37,9 +37,9 @@ class WebThreadDelegate;
 // In unit tests, there must be a WebTaskEnvironment in scope for this API to be
 // available.
 //
-// TODO(crbug.com/1026641): Make default traits |{}| the default param when it's
-// possible to include web_task_traits.h in this file (see note above on the
-// WebTaskTraits fwd-decl).
+// TODO(crbug.com/40108370): Make default traits |{}| the default param when
+// it's possible to include web_task_traits.h in this file (see note above on
+// the WebTaskTraits fwd-decl).
 scoped_refptr<base::SingleThreadTaskRunner> GetUIThreadTaskRunner(
     const WebTaskTraits& traits);
 
@@ -101,7 +101,7 @@ class WebThread {
   static void SetIOThreadDelegate(WebThreadDelegate* delegate);
 
   // Returns an appropriate error message for when DCHECK_CURRENTLY_ON() fails.
-  static std::string GetDCheckCurrentlyOnErrorMessage(ID expected);
+  static std::string GetCurrentlyOnErrorMessage(ID expected);
 
  private:
   friend class WebThreadImpl;

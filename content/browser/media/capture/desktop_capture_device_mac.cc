@@ -5,6 +5,7 @@
 #include "content/browser/media/capture/desktop_capture_device_mac.h"
 
 #include <CoreGraphics/CoreGraphics.h>
+#include <CoreVideo/CVPixelBuffer.h>
 
 #include "base/task/single_thread_task_runner.h"
 #include "content/browser/media/capture/io_surface_capture_device_base_mac.h"
@@ -50,25 +51,26 @@ class DesktopCaptureDeviceMac : public IOSurfaceCaptureDeviceBase {
         };
 
     // Retrieve the source display's size.
-    base::ScopedCFTypeRef<CGDisplayModeRef> mode(
+    base::apple::ScopedCFTypeRef<CGDisplayModeRef> mode(
         CGDisplayCopyDisplayMode(display_id_));
-    const gfx::Size source_size = mode ? gfx::Size(CGDisplayModeGetWidth(mode),
-                                                   CGDisplayModeGetHeight(mode))
-                                       : requested_format_.frame_size;
+    const gfx::Size source_size =
+        mode ? gfx::Size(CGDisplayModeGetWidth(mode.get()),
+                         CGDisplayModeGetHeight(mode.get()))
+             : requested_format_.frame_size;
 
     // Compute the destination frame size using CaptureResolutionChooser.
     gfx::RectF dest_rect_in_frame;
     ComputeFrameSizeAndDestRect(source_size, requested_format_.frame_size,
                                 dest_rect_in_frame);
 
-    base::ScopedCFTypeRef<CFDictionaryRef> properties;
+    base::apple::ScopedCFTypeRef<CFDictionaryRef> properties;
     {
       float max_frame_time = 1.f / requested_format_.frame_rate;
-      base::ScopedCFTypeRef<CFNumberRef> cf_max_frame_time(
+      base::apple::ScopedCFTypeRef<CFNumberRef> cf_max_frame_time(
           CFNumberCreate(nullptr, kCFNumberFloat32Type, &max_frame_time));
-      base::ScopedCFTypeRef<CGColorSpaceRef> cg_color_space(
+      base::apple::ScopedCFTypeRef<CGColorSpaceRef> cg_color_space(
           CGColorSpaceCreateWithName(kCGColorSpaceSRGB));
-      base::ScopedCFTypeRef<CFDictionaryRef> dest_rect_in_frame_dict(
+      base::apple::ScopedCFTypeRef<CFDictionaryRef> dest_rect_in_frame_dict(
           CGRectCreateDictionaryRepresentation(dest_rect_in_frame.ToCGRect()));
 
       const size_t kNumKeys = 5;
@@ -89,17 +91,18 @@ class DesktopCaptureDeviceMac : public IOSurfaceCaptureDeviceBase {
           &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks));
     }
 
-    display_stream_.reset(CGDisplayStreamCreate(
-        display_id_, requested_format_.frame_size.width(),
-        requested_format_.frame_size.height(),
-        kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, properties, handler));
+    display_stream_.reset(
+        CGDisplayStreamCreate(display_id_, requested_format_.frame_size.width(),
+                              requested_format_.frame_size.height(),
+                              kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                              properties.get(), handler));
     if (!display_stream_) {
       client()->OnError(
           media::VideoCaptureError::kDesktopCaptureDeviceMacFailedStreamCreate,
           FROM_HERE, "CGDisplayStreamCreate failed");
       return;
     }
-    CGError error = CGDisplayStreamStart(display_stream_);
+    CGError error = CGDisplayStreamStart(display_stream_.get());
     if (error != kCGErrorSuccess) {
       client()->OnError(
           media::VideoCaptureError::kDesktopCaptureDeviceMacFailedStreamStart,
@@ -111,17 +114,18 @@ class DesktopCaptureDeviceMac : public IOSurfaceCaptureDeviceBase {
     // worker thread where the CFRunLoop does not get serviced.
     // https://crbug.com/1185388
     CFRunLoopAddSource(CFRunLoopGetMain(),
-                       CGDisplayStreamGetRunLoopSource(display_stream_),
+                       CGDisplayStreamGetRunLoopSource(display_stream_.get()),
                        kCFRunLoopCommonModes);
     client()->OnStarted();
   }
   void OnStop() override {
     weak_factory_.InvalidateWeakPtrs();
     if (display_stream_) {
-      CFRunLoopRemoveSource(CFRunLoopGetMain(),
-                            CGDisplayStreamGetRunLoopSource(display_stream_),
-                            kCFRunLoopCommonModes);
-      CGDisplayStreamStop(display_stream_);
+      CFRunLoopRemoveSource(
+          CFRunLoopGetMain(),
+          CGDisplayStreamGetRunLoopSource(display_stream_.get()),
+          kCFRunLoopCommonModes);
+      CGDisplayStreamStop(display_stream_.get());
     }
     display_stream_.reset();
   }
@@ -134,7 +138,7 @@ class DesktopCaptureDeviceMac : public IOSurfaceCaptureDeviceBase {
 
   const CGDirectDisplayID display_id_;
   const scoped_refptr<base::SingleThreadTaskRunner> device_task_runner_;
-  base::ScopedCFTypeRef<CGDisplayStreamRef> display_stream_;
+  base::apple::ScopedCFTypeRef<CGDisplayStreamRef> display_stream_;
   media::VideoCaptureFormat requested_format_;
   base::WeakPtrFactory<DesktopCaptureDeviceMac> weak_factory_;
 };

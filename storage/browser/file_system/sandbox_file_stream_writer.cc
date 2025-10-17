@@ -18,7 +18,6 @@
 #include "storage/browser/file_system/file_observers.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "storage/browser/file_system/file_system_operation_runner.h"
-#include "storage/browser/file_system/file_system_util.h"
 #include "storage/browser/file_system/memory_file_stream_writer.h"
 #include "storage/browser/file_system/obfuscated_file_util_memory_delegate.h"
 #include "storage/browser/file_system/sandbox_file_system_backend_delegate.h"
@@ -167,29 +166,28 @@ void SandboxFileStreamWriter::DidCreateSnapshotFile(
     return;
   }
 
+  BucketLocator bucket = url_.bucket().value_or(
+      BucketLocator::ForDefaultBucket(url_.storage_key()));
+
   DCHECK(quota_manager_proxy);
-  quota_manager_proxy->GetUsageAndQuota(
-      url_.storage_key(), FileSystemTypeToQuotaStorageType(url_.type()),
-      base::SequencedTaskRunner::GetCurrentDefault(),
-      base::BindOnce(&SandboxFileStreamWriter::DidGetUsageAndQuota,
+  quota_manager_proxy->GetBucketSpaceRemaining(
+      bucket, base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindOnce(&SandboxFileStreamWriter::DidGetBucketSpaceRemaining,
                      weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
-void SandboxFileStreamWriter::DidGetUsageAndQuota(
+void SandboxFileStreamWriter::DidGetBucketSpaceRemaining(
     net::CompletionOnceCallback callback,
-    blink::mojom::QuotaStatusCode status,
-    int64_t usage,
-    int64_t quota) {
+    storage::QuotaErrorOr<int64_t> space_remaining) {
   if (CancelIfRequested())
     return;
-  if (status != blink::mojom::QuotaStatusCode::kOk) {
-    LOG(WARNING) << "Got unexpected quota error : " << static_cast<int>(status);
-
+  if (!space_remaining.has_value()) {
+    LOG(WARNING) << "Got unexpected quota error";
     std::move(callback).Run(net::ERR_FAILED);
     return;
   }
 
-  allowed_bytes_to_write_ = quota - usage;
+  allowed_bytes_to_write_ = space_remaining.value();
   std::move(callback).Run(net::OK);
 }
 
@@ -215,7 +213,7 @@ void SandboxFileStreamWriter::DidWrite(int write_response) {
   has_pending_operation_ = false;
 
   if (write_response <= 0) {
-    // TODO(crbug.com/1091792): Consider listening explicitly for out
+    // TODO(crbug.com/40134326): Consider listening explicitly for out
     // of space errors instead of surfacing all write errors to quota.
     const scoped_refptr<QuotaManagerProxy>& quota_manager_proxy =
         file_system_context_->quota_manager_proxy();
@@ -256,7 +254,8 @@ bool SandboxFileStreamWriter::CancelIfRequested() {
   return true;
 }
 
-int SandboxFileStreamWriter::Flush(net::CompletionOnceCallback callback) {
+int SandboxFileStreamWriter::Flush(FlushMode flush_mode,
+                                   net::CompletionOnceCallback callback) {
   DCHECK(!has_pending_operation_);
   DCHECK(cancel_callback_.is_null());
 
@@ -266,6 +265,7 @@ int SandboxFileStreamWriter::Flush(net::CompletionOnceCallback callback) {
 
   has_pending_operation_ = true;
   int result = file_writer_->Flush(
+      flush_mode,
       base::BindOnce(&SandboxFileStreamWriter::DidFlush,
                      weak_factory_.GetWeakPtr(), std::move(callback)));
   if (result != net::ERR_IO_PENDING)

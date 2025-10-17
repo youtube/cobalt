@@ -7,7 +7,10 @@
 
 #include <stddef.h>
 
+#include "base/gtest_prod_util.h"
+#include "components/gwp_asan/common/allocation_info.h"
 #include "components/gwp_asan/common/allocator_state.h"
+#include "components/gwp_asan/common/lightweight_detector_state.h"
 #include "components/gwp_asan/crash_handler/crash.pb.h"
 #include "third_party/crashpad/crashpad/util/misc/address_types.h"
 
@@ -80,8 +83,6 @@ class CrashAnalyzer {
       gwp_asan::Crash* proto);
 
  private:
-  using SlotMetadata = AllocatorState::SlotMetadata;
-
   // Given an ExceptionSnapshot, return the address of where the exception
   // occurred (or null if it was not a data access exception.)
   static crashpad::VMAddress GetAccessAddress(
@@ -89,17 +90,17 @@ class CrashAnalyzer {
 
   // If the allocator annotation is present in the given snapshot, then return
   // the address for the AllocatorState in the crashing process.
-  static crashpad::VMAddress GetAllocatorAddress(
+  static crashpad::VMAddress GetStateAddress(
       const crashpad::ProcessSnapshot& process_snapshot,
       const char* annotation_name);
 
   // Given a snapshot and crash key, returns true if there was a valid
-  // AllocatorState for the given allocator or false otherwise.
-  static bool GetAllocatorState(
-      const crashpad::ProcessSnapshot& process_snapshot,
-      const char* crash_key,
-      Crash_Allocator allocator,
-      AllocatorState* state);
+  // `AllocatorState` or `LightweightDetectorState` or false otherwise.
+  template <typename T>
+  static bool GetState(const crashpad::ProcessSnapshot& process_snapshot,
+                       const char* crash_key,
+                       Crash_Allocator allocator,
+                       T* state);
 
   // This method implements the underlying logic for GetExceptionInfo(). It
   // analyzes the AllocatorState of the crashing process, if the exception is
@@ -111,10 +112,10 @@ class CrashAnalyzer {
       gwp_asan::Crash* proto);
 
   // This method fills out an AllocationInfo protobuf from a stack trace
-  // and a SlotMetadata::AllocationInfo struct.
+  // and a AllocatorState::AllocationInfo struct.
   static void ReadAllocationInfo(const uint8_t* stack_trace,
                                  size_t stack_trace_offset,
-                                 const SlotMetadata::AllocationInfo& slot_info,
+                                 const AllocationInfo& slot_info,
                                  gwp_asan::Crash_AllocationInfo* proto_info);
 
   // This method analyzes the AllocatorState of the crashing process. If the
@@ -123,6 +124,12 @@ class CrashAnalyzer {
   static bool AnalyzeLightweightDetectorCrash(
       const crashpad::ProcessSnapshot& process_snapshot,
       gwp_asan::Crash* proto);
+
+  static Crash_Mode LightweightDetectorModeToGwpAsanMode(
+      LightweightDetectorMode mode);
+
+  FRIEND_TEST_ALL_PREFIXES(LightweightDetectorAnalyzerTest, UseAfterFree);
+  FRIEND_TEST_ALL_PREFIXES(LightweightDetectorAnalyzerTest, InternalError);
 };
 
 }  // namespace internal

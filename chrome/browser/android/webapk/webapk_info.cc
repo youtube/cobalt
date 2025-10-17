@@ -19,8 +19,10 @@ WebApkInfo::WebApkInfo(std::string name,
                        std::string manifest_id,
                        blink::mojom::DisplayMode display,
                        device::mojom::ScreenOrientationLockType orientation,
-                       absl::optional<SkColor> theme_color,
-                       absl::optional<SkColor> background_color,
+                       std::optional<SkColor> theme_color,
+                       std::optional<SkColor> background_color,
+                       std::optional<SkColor> dark_theme_color,
+                       std::optional<SkColor> dark_background_color,
                        base::Time last_update_check_time,
                        base::Time last_update_completion_time,
                        bool relax_updates,
@@ -42,6 +44,8 @@ WebApkInfo::WebApkInfo(std::string name,
       orientation(orientation),
       theme_color(theme_color),
       background_color(background_color),
+      dark_theme_color(dark_theme_color),
+      dark_background_color(dark_background_color),
       last_update_check_time(last_update_check_time),
       last_update_completion_time(last_update_completion_time),
       relax_updates(relax_updates),
@@ -49,7 +53,7 @@ WebApkInfo::WebApkInfo(std::string name,
       is_backing_browser(is_backing_browser),
       update_status(std::move(update_status)) {}
 
-WebApkInfo::~WebApkInfo() {}
+WebApkInfo::~WebApkInfo() = default;
 
 WebApkInfo& WebApkInfo::operator=(WebApkInfo&& rhs) noexcept = default;
 WebApkInfo::WebApkInfo(WebApkInfo&& other) noexcept = default;

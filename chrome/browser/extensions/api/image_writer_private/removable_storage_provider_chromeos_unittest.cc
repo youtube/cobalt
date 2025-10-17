@@ -32,7 +32,7 @@ const char kUnknownUSBDiskModel[] = "USB Drive";
 
 class RemovableStorageProviderChromeOsUnitTest : public testing::Test {
  public:
-  RemovableStorageProviderChromeOsUnitTest() {}
+  RemovableStorageProviderChromeOsUnitTest() = default;
   void SetUp() override {
     disk_mount_manager_mock_ = new ash::disks::MockDiskMountManager();
     ash::disks::DiskMountManager::InitializeForTesting(
@@ -80,8 +80,9 @@ class RemovableStorageProviderChromeOsUnitTest : public testing::Test {
       StorageDeviceList* list,
       const std::string& file_path) {
     for (auto& device : list->data) {
-      if (device.storage_unit_id == file_path)
+      if (device.storage_unit_id == file_path) {
         return &device;
+      }
     }
     return nullptr;
   }
@@ -102,7 +103,7 @@ class RemovableStorageProviderChromeOsUnitTest : public testing::Test {
   }
 
   content::BrowserTaskEnvironment task_environment_;
-  raw_ptr<ash::disks::MockDiskMountManager, ExperimentalAsh>
+  raw_ptr<ash::disks::MockDiskMountManager, DanglingUntriaged>
       disk_mount_manager_mock_;
   scoped_refptr<StorageDeviceList> devices_;
 };

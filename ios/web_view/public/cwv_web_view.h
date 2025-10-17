@@ -15,6 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
 @class CWVAutofillController;
 @class CWVBackForwardList;
 @class CWVBackForwardListItem;
+@class CWVFindInPageController;
 @class CWVScriptCommand;
 @class CWVTranslationController;
 @class CWVWebViewConfiguration;
@@ -70,7 +71,7 @@ CWV_EXPORT
 //   (not implemented for CWVWebView)
 //   |visibleURL| is the bad cert page URL. |lastCommittedURL| is the previous
 //   page URL.
-@property(nonatomic, readonly) NSURL* visibleURL;
+@property(nonatomic, readonly, nullable) NSURL* visibleURL;
 
 // A human-friendly string which represents the location of the document
 // currently being loaded. KVO compliant.
@@ -92,14 +93,14 @@ CWV_EXPORT
 //
 // See the comment of |visibleURL| above for the difference between |visibleURL|
 // and |lastCommittedURL|.
-@property(nonatomic, readonly) NSURL* lastCommittedURL;
+@property(nonatomic, readonly, nullable) NSURL* lastCommittedURL;
 
 // The SSL status displayed in the URL bar. KVO compliant.
 // It is nil when no page is loaded on the web view.
 @property(nonatomic, readonly, nullable) CWVSSLStatus* visibleSSLStatus;
 
 // The current page title. KVO compliant.
-@property(nonatomic, readonly, copy) NSString* title;
+@property(nonatomic, readonly, copy, nullable) NSString* title;
 
 // Page loading progress from 0.0 to 1.0. KVO compliant.
 //
@@ -111,7 +112,8 @@ CWV_EXPORT
 // The scroll view associated with the web view.
 //
 // It is reset on state restoration.
-@property(nonatomic, readonly) UIScrollView* scrollView;
+// It is nil while the app is terminating. Otherwise it should never be nil.
+@property(nonatomic, readonly, nullable) UIScrollView* scrollView;
 
 // A Boolean value indicating whether horizontal swipe gestures will trigger
 // back-forward list navigations.
@@ -120,15 +122,34 @@ CWV_EXPORT
 // The web view's autofill controller.
 @property(nonatomic, readonly) CWVAutofillController* autofillController;
 
+// The web view's find in page controller.
+@property(nonatomic, readonly)
+    CWVFindInPageController* findInPageController API_AVAILABLE(ios(16.0));
+
 // An equivalent of
 // https://developer.apple.com/documentation/webkit/wkwebview/1414977-backforwardlist
-@property(nonatomic, readonly, nonnull) CWVBackForwardList* backForwardList;
+// It is nil while the app is terminating. Otherwise it should never be nil.
+@property(nonatomic, readonly, nullable) CWVBackForwardList* backForwardList;
 
 // Enables Chrome's custom logic to handle long press and force touch. Defaults
 // to NO.
 // This class property setting should only be changed BEFORE any
 // CWVWebViewConfiguration instance is initialized.
 @property(nonatomic, class) BOOL chromeContextMenuEnabled;
+
+// Whether or not to use the new session storage. Defaults to NO.
+// This class property setting should only be changed BEFORE any
+// CWVWebViewConfiguration instance is initialized.
+@property(nonatomic, class) BOOL useOptimizedSessionStorage;
+
+// Whether or not to enable debugging by Safari Web Inspector.
+// Defaults to NO.
+@property(nonatomic, class) BOOL webInspectorEnabled;
+
+// Normally ios/web_view/ CHECKs IsAccountStorageEnabled() early on. Setting
+// this to true will cause the CHECK to be skipped, which potentially fixes
+// crbug.com/347862165.
+@property(nonatomic, class) BOOL skipAccountStorageCheckEnabled;
 
 // Set this to customize the underlying WKWebView's inputAccessoryView. Setting
 // to nil means to use the WKWebView's default inputAccessoryView instead.
@@ -140,38 +161,6 @@ CWV_EXPORT
 // Explicitly redeclared this property to allow customization according to
 // https://developer.apple.com/documentation/uikit/uiresponder/1621119-inputaccessoryview?language=objc
 @property(nonatomic, strong, nullable) UIView* inputAccessoryView;
-
-// Allows full customization of the user agent.
-// Similar to -[WKWebView customUserAgent], but applies to all instances.
-// If non-nil, this is used instead of |userAgentProduct|.
-@property(nonatomic, class, copy, nullable) NSString* customUserAgent;
-
-// The User Agent product string used to build the full User Agent.
-// Deprecated. Use |customUserAgent| instead.
-+ (NSString*)userAgentProduct;
-
-// Customizes the User Agent string by inserting |product|. It should be of the
-// format "product/1.0". For example:
-// "Mozilla/5.0 (iPhone; CPU iPhone OS 10_3 like Mac OS X) AppleWebKit/603.1.30
-// (KHTML, like Gecko) <product> Mobile/16D32 Safari/602.1" where <product>
-// will be replaced with |product| or empty string if not set.
-//
-// NOTE: It is recommended to set |product| before initializing any web views.
-// Setting |product| is only guaranteed to affect web views which have not yet
-// been initialized. However, exisiting web views could also be affected
-// depending upon their internal state.
-//
-// Deprecated. Use |customUserAgent| instead.
-+ (void)setUserAgentProduct:(NSString*)product;
-
-// Use this method to set the necessary credentials used to communicate with
-// the Google API for features such as translate. See this link for more info:
-// https://support.google.com/googleapi/answer/6158857
-// This method must be called before any |CWVWebViews| are instantiated for
-// the keys to be used.
-+ (void)setGoogleAPIKey:(NSString*)googleAPIKey
-               clientID:(NSString*)clientID
-           clientSecret:(NSString*)clientSecret;
 
 - (instancetype)initWithFrame:(CGRect)frame
                 configuration:(CWVWebViewConfiguration*)configuration;
@@ -221,10 +210,18 @@ CWV_EXPORT
 // `completion` is invoked with the result of evaluating the script and a
 // boolean representing success (`YES`) or failure (`NO`) of the evaluation.
 //
-// Evaluation of `javaScriptString` will fail (and return NO to `completion`) if
-// there is no current internal representation of the main frame. This can occur
-// when the web view is navigating or if the current page content does not allow
-// JavaScript execution (ex: JS disabled or PDF content).
+// Evaluation of `javaScriptString` will fail (and return NO to `completion`)
+// if there is no current internal representation of the main frame. This can
+// occur when the web view is navigating or if the current page content does
+// not allow JavaScript execution (ex: JS disabled or PDF content).
+- (void)evaluateJavaScript:(NSString*)javaScriptString
+         completionHandler:
+             (nullable void (^)(id result,
+                                NSError* __nullable error))completion;
+
+// DEPRECATED: Use `evaluateJavaScript:completionHandler` instead. These
+// methods are the same, but `evaluateJavaScript:completionHandler` provides
+// better Swift type compatibility.
 - (void)evaluateJavaScript:(NSString*)javaScriptString
                 completion:(void (^)(id result, NSError* error))completion;
 

@@ -75,13 +75,14 @@ class DEVICE_BLUETOOTH_EXPORT FlossBatteryManagerClient
 
   // Get the current cached battery info from BatteryManager.
   virtual void GetBatteryInformation(
-      ResponseCallback<absl::optional<BatterySet>> callback,
+      ResponseCallback<std::optional<BatterySet>> callback,
       const FlossDeviceId& device);
 
   // Initialize the BatteryManager client for the given adapter.
   void Init(dbus::Bus* bus,
             const std::string& service_name,
             const int adapter_index,
+            base::Version version,
             base::OnceClosure on_ready) override;
 
  protected:
@@ -97,8 +98,11 @@ class DEVICE_BLUETOOTH_EXPORT FlossBatteryManagerClient
   // Handle BatteryManager RegisterCallback result.
   void BatteryCallbackRegistered(DBusResult<uint32_t> result);
 
+  // Handle BatteryManager UnregisterCallback result.
+  void BatteryCallbackUnregistered(DBusResult<bool> result);
+
   // Managed by FlossDBusManager - we keep local pointer to access object proxy.
-  base::raw_ptr<dbus::Bus> bus_ = nullptr;
+  raw_ptr<dbus::Bus> bus_ = nullptr;
 
   // Path used for battery api calls by this class.
   dbus::ObjectPath battery_manager_adapter_path_;
@@ -128,7 +132,8 @@ class DEVICE_BLUETOOTH_EXPORT FlossBatteryManagerClient
   ExportedCallbackManager<FlossBatteryManagerClientObserver>
       exported_callback_manager_{battery_manager::kCallbackInterface};
 
-  uint32_t battery_manager_callback_id_;
+  // Callback ID used for callbacks registered to this client.
+  std::optional<uint32_t> battery_manager_callback_id_;
 
   // Signal when the client is ready to be used.
   base::OnceClosure on_ready_;

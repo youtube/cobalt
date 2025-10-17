@@ -6,9 +6,11 @@
 #define CC_LAYERS_PAINTED_SCROLLBAR_LAYER_IMPL_H_
 
 #include <memory>
+#include <vector>
 
 #include "cc/cc_export.h"
 #include "cc/input/scrollbar.h"
+#include "cc/layers/nine_patch_generator.h"
 #include "cc/layers/scrollbar_layer_impl_base.h"
 #include "cc/resources/ui_resource_client.h"
 
@@ -31,17 +33,20 @@ class CC_EXPORT PaintedScrollbarLayerImpl : public ScrollbarLayerImplBase {
       delete;
 
   // LayerImpl implementation.
+  mojom::LayerType GetLayerType() const override;
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
   void PushPropertiesTo(LayerImpl* layer) override;
 
   bool WillDraw(DrawMode draw_mode,
                 viz::ClientResourceProvider* resource_provider) override;
-  void AppendQuads(viz::CompositorRenderPass* render_pass,
+  void AppendQuads(const AppendQuadsContext& context,
+                   viz::CompositorRenderPass* render_pass,
                    AppendQuadsData* append_quads_data) override;
   gfx::Rect GetEnclosingVisibleRectInTargetSpace() const override;
   gfx::Rect ComputeThumbQuadRect() const override;
   gfx::Rect ComputeHitTestableThumbQuadRect() const override;
+  gfx::Rect ComputeHitTestableExpandedThumbQuadRect() const override;
 
   void SetJumpOnTrackClick(bool jump_on_track_click);
   void SetSupportsDragSnapBack(bool supports_drag_snap_back);
@@ -51,9 +56,15 @@ class CC_EXPORT PaintedScrollbarLayerImpl : public ScrollbarLayerImplBase {
   void SetThumbLength(int thumb_length);
   void SetTrackRect(gfx::Rect track_rect);
   void SetScrollbarPaintedOpacity(float opacity);
+  void SetThumbColor(SkColor4f thumb_color);
+  void SetTrackAndButtonsImageBounds(const gfx::Size& bounds);
+  void SetTrackAndButtonsAperture(const gfx::Rect& aperture);
 
-  void set_track_ui_resource_id(UIResourceId uid) {
-    track_ui_resource_id_ = uid;
+  void set_uses_nine_patch_track_and_buttons(bool uses_nine_patch) {
+    uses_nine_patch_track_and_buttons_ = uses_nine_patch;
+  }
+  void set_track_and_buttons_ui_resource_id(UIResourceId uid) {
+    track_and_buttons_ui_resource_id_ = uid;
   }
   void set_thumb_ui_resource_id(UIResourceId uid) {
     thumb_ui_resource_id_ = uid;
@@ -65,6 +76,34 @@ class CC_EXPORT PaintedScrollbarLayerImpl : public ScrollbarLayerImplBase {
     internal_contents_scale_ = content_scale;
     internal_content_bounds_ = content_bounds;
   }
+
+  bool jump_on_track_click() const { return jump_on_track_click_; }
+  bool supports_drag_snap_back() const { return supports_drag_snap_back_; }
+  int thumb_thickness() const { return thumb_thickness_; }
+  int thumb_length() const { return thumb_length_; }
+  gfx::Rect back_button_rect() const { return back_button_rect_; }
+  gfx::Rect forward_button_rect() const { return forward_button_rect_; }
+  gfx::Rect track_rect() const { return track_rect_; }
+
+  float internal_contents_scale() const { return internal_contents_scale_; }
+  const gfx::Size& internal_content_bounds() const {
+    return internal_content_bounds_;
+  }
+  float painted_opacity() const { return painted_opacity_; }
+  std::optional<SkColor4f> thumb_color() const { return thumb_color_; }
+  bool uses_nine_patch_track_and_buttons() const {
+    return uses_nine_patch_track_and_buttons_;
+  }
+  const gfx::Size& track_and_buttons_image_bounds() const {
+    return track_and_buttons_image_bounds_;
+  }
+  const gfx::Rect& track_and_buttons_aperture() const {
+    return track_and_buttons_aperture_;
+  }
+  UIResourceId track_and_buttons_ui_resource_id() const {
+    return track_and_buttons_ui_resource_id_;
+  }
+  UIResourceId thumb_ui_resource_id() const { return thumb_ui_resource_id_; }
 
   bool JumpOnTrackClick() const override;
   bool SupportsDragSnapBack() const override;
@@ -90,25 +129,44 @@ class CC_EXPORT PaintedScrollbarLayerImpl : public ScrollbarLayerImplBase {
   bool IsThumbResizable() const override;
 
  private:
-  const char* LayerTypeAsString() const override;
+  void AppendThumbQuads(viz::CompositorRenderPass* render_pass,
+                        AppendQuadsData* append_quads_data) const;
+  void AppendTrackAndButtonsQuads(viz::CompositorRenderPass* render_pass,
+                                  AppendQuadsData* append_quads_data);
+  void AppendNinePatchScaledTrackAndButtons(
+      viz::CompositorRenderPass* render_pass,
+      viz::SharedQuadState* shared_quad_state,
+      const gfx::Rect& track_and_buttons_quad_rect);
+  // Expand the scrollbar thumb's hit testable rect to be able to capture the
+  // thumb across the entire width of the track rect.
+  gfx::Rect ExpandSolidColorThumb(gfx::Rect thumb_rect) const;
+  // Position composited scrollbar thumb in the center of the track.
+  gfx::Rect CenterSolidColorThumb(gfx::Rect thumb_rect) const;
 
-  UIResourceId track_ui_resource_id_;
-  UIResourceId thumb_ui_resource_id_;
+  UIResourceId track_and_buttons_ui_resource_id_ = 0;
+  UIResourceId thumb_ui_resource_id_ = 0;
 
   // This is relevant in case of Mac overlay scrollbars because they fade out by
   // animating the opacity via Blink paint.
-  float painted_opacity_;
+  float painted_opacity_ = 1.f;
 
-  float internal_contents_scale_;
+  float internal_contents_scale_ = 1.f;
   gfx::Size internal_content_bounds_;
 
-  bool jump_on_track_click_;
-  bool supports_drag_snap_back_;
-  int thumb_thickness_;
-  int thumb_length_;
+  bool jump_on_track_click_ = false;
+  bool supports_drag_snap_back_ = false;
+  int thumb_thickness_ = 0;
+  int thumb_length_ = 0;
   gfx::Rect back_button_rect_;
   gfx::Rect forward_button_rect_;
   gfx::Rect track_rect_;
+  std::optional<SkColor4f> thumb_color_;
+
+  bool uses_nine_patch_track_and_buttons_ = false;
+  gfx::Size track_and_buttons_image_bounds_;
+  gfx::Rect track_and_buttons_aperture_;
+  NinePatchGenerator track_and_buttons_patch_generator_;
+  std::vector<NinePatchGenerator::Patch> track_and_buttons_patches_;
 };
 
 }  // namespace cc

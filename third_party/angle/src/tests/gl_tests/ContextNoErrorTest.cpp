@@ -43,6 +43,9 @@ class ContextNoErrorTest : public ANGLETest<>
     GLuint mNaughtyTexture = 0;
 };
 
+class ContextNoErrorTestES3 : public ContextNoErrorTest
+{};
+
 class ContextNoErrorPPOTest31 : public ContextNoErrorTest
 {
   protected:
@@ -169,7 +172,7 @@ TEST_P(ContextNoErrorPPOTest31, DrawWithProgramThenPPO)
     ANGLE_SKIP_TEST_IF(!IsVulkan());
 
     ANGLE_GL_PROGRAM(simpleProgram, essl31_shaders::vs::Simple(), essl31_shaders::fs::Red());
-    ASSERT_NE(simpleProgram.get(), 0u);
+    ASSERT_NE(simpleProgram, 0u);
     EXPECT_GL_NO_ERROR();
 
     // Create two separable program objects from a
@@ -185,7 +188,7 @@ TEST_P(ContextNoErrorPPOTest31, DrawWithProgramThenPPO)
     EXPECT_GL_NO_ERROR();
 
     // Draw and expect red since program overrides PPO
-    drawQuad(simpleProgram.get(), essl31_shaders::PositionAttrib(), 0.5f);
+    drawQuad(simpleProgram, essl31_shaders::PositionAttrib(), 0.5f);
     EXPECT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::red);
 
@@ -352,7 +355,256 @@ TEST_P(ContextNoErrorTest, InvalidTextureType)
     ASSERT_GL_NO_ERROR();
 }
 
+// Tests that we can draw with a program that is relinking when GL_KHR_no_error is enabled.
+TEST_P(ContextNoErrorTestES3, DrawWithRelinkedProgram)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_KHR_no_error"));
+
+    int w = getWindowWidth();
+    int h = getWindowHeight();
+    glViewport(0, 0, w, h);
+
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    constexpr char kVS[] = R"(#version 300 es
+void main()
+{
+    vec2 position = vec2(-1, -1);
+    if (gl_VertexID == 1)
+        position = vec2(3, -1);
+    else if (gl_VertexID == 2)
+        position = vec2(-1, 3);
+    gl_Position = vec4(position, 0, 1);
+})";
+
+    GLuint vs    = CompileShader(GL_VERTEX_SHADER, kVS);
+    GLuint red   = CompileShader(GL_FRAGMENT_SHADER, essl3_shaders::fs::Red());
+    GLuint bad   = CompileShader(GL_FRAGMENT_SHADER, essl1_shaders::fs::Blue());
+    GLuint green = CompileShader(GL_FRAGMENT_SHADER, essl3_shaders::fs::Green());
+
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, red);
+    glLinkProgram(program);
+
+    // Use the program once; it's executable will be installed.
+    glUseProgram(program);
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(0, 0, w / 4, h);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    // Make it fail compilation, the draw should continue to use the old executable
+    glDetachShader(program, red);
+    glAttachShader(program, bad);
+    glLinkProgram(program);
+
+    glScissor(w / 4, 0, w / 2 - w / 4, h);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    // Relink the program while it's bound.  It should finish compiling before the following draw is
+    // attempted.
+    glDetachShader(program, bad);
+    glAttachShader(program, green);
+    glLinkProgram(program);
+
+    glScissor(w / 2, 0, w - w / 2, h);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    EXPECT_PIXEL_RECT_EQ(0, 0, w / 2, h, GLColor::red);
+    EXPECT_PIXEL_RECT_EQ(w / 2, 0, w - w / 2, h, GLColor::green);
+    ASSERT_GL_NO_ERROR();
+}
+
+// Tests that a program is resolved before draw calls.
+TEST_P(ContextNoErrorTestES3, DrawCommandsWaitOnProgramRelinking)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_KHR_no_error"));
+
+    int w = getWindowWidth();
+    int h = getWindowHeight();
+    glViewport(0, 0, w, h);
+
+    glClearColor(0, 0, 0, 1);
+
+    constexpr char kVS[] = R"(#version 300 es
+void main()
+{
+    vec2 position = vec2(-1, -1);
+    if (gl_VertexID == 1)
+        position = vec2(3, -1);
+    else if (gl_VertexID == 2)
+        position = vec2(-1, 3);
+    gl_Position = vec4(position, 0, 1);
+})";
+
+    GLuint vs    = CompileShader(GL_VERTEX_SHADER, kVS);
+    GLuint red   = CompileShader(GL_FRAGMENT_SHADER, essl3_shaders::fs::Red());
+    GLuint green = CompileShader(GL_FRAGMENT_SHADER, essl3_shaders::fs::Green());
+
+    enum class DrawType
+    {
+        DrawArrays,
+        DrawArraysInstanced,
+        MultiDrawArrays
+    };
+
+    for (auto drawType :
+         {DrawType::DrawArrays, DrawType::DrawArraysInstanced, DrawType::MultiDrawArrays})
+    {
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        GLuint program = glCreateProgram();
+        glAttachShader(program, vs);
+        glAttachShader(program, red);
+        glLinkProgram(program);
+        glUseProgram(program);
+
+        // Relink to green while the program is bound.
+        glDetachShader(program, red);
+        glAttachShader(program, green);
+        glLinkProgram(program);
+
+        // Draw must wait until relinking is done.
+        std::string command;
+        switch (drawType)
+        {
+            case DrawType::DrawArrays:
+                glDrawArrays(GL_TRIANGLES, 0, 3);
+                command = "DrawArrays";
+                break;
+            case DrawType::DrawArraysInstanced:
+                glDrawArraysInstanced(GL_TRIANGLES, 0, 3, 1);
+                command = "glDrawArraysInstanced";
+                break;
+            case DrawType::MultiDrawArrays:
+                if (IsGLExtensionEnabled("GL_ANGLE_multi_draw"))
+                {
+                    GLint firsts[1] = {0};
+                    GLint counts[1] = {3};
+                    glMultiDrawArraysANGLE(GL_TRIANGLES, firsts, counts, 1);
+                    command = "MultiDrawArrays";
+                }
+                break;
+        }
+        EXPECT_PIXEL_COLOR_EQ(w / 2, h / 2, GLColor::green) << command;
+        ASSERT_GL_NO_ERROR() << command;
+    }
+}
+
+class ContextNoErrorTestES31 : public ContextNoErrorTest
+{};
+
+// Tests that a program is resolved before indirect draw calls.
+TEST_P(ContextNoErrorTestES31, IndirectDrawCommandsWaitOnProgramRelinking)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_KHR_no_error"));
+
+    int w = getWindowWidth();
+    int h = getWindowHeight();
+    glViewport(0, 0, w, h);
+
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    constexpr char kVS[] = R"(#version 300 es
+void main()
+{
+    vec2 position = vec2(-1, -1);
+    if (gl_VertexID == 1)
+        position = vec2(3, -1);
+    else if (gl_VertexID == 2)
+        position = vec2(-1, 3);
+    gl_Position = vec4(position, 0, 1);
+})";
+
+    GLuint vs    = CompileShader(GL_VERTEX_SHADER, kVS);
+    GLuint red   = CompileShader(GL_FRAGMENT_SHADER, essl3_shaders::fs::Red());
+    GLuint green = CompileShader(GL_FRAGMENT_SHADER, essl3_shaders::fs::Green());
+
+    GLVertexArray vao;
+    glBindVertexArray(vao);
+
+    const GLushort indexData[3] = {0, 1, 2};
+    GLBuffer indexBuffer;
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6, indexData, GL_STATIC_DRAW);
+
+    const GLuint drawArraysData[4] = {3, 1, 0, 0};
+    GLBuffer drawArraysIndirectCommandBuffer;
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, drawArraysIndirectCommandBuffer);
+    glBufferData(GL_DRAW_INDIRECT_BUFFER, 16, drawArraysData, GL_STATIC_DRAW);
+
+    const GLuint drawElementsData[5] = {3, 1, 0, 0, 0};
+    GLBuffer drawElementsIndirectCommandBuffer;
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, drawElementsIndirectCommandBuffer);
+    glBufferData(GL_DRAW_INDIRECT_BUFFER, 20, drawElementsData, GL_STATIC_DRAW);
+
+    enum class DrawType
+    {
+        DrawArraysIndirect,
+        DrawElementsIndirect
+    };
+
+    for (auto drawType : {DrawType::DrawArraysIndirect, DrawType::DrawElementsIndirect})
+    {
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // Bind buffers before creating the program
+        switch (drawType)
+        {
+            case DrawType::DrawArraysIndirect:
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, drawArraysIndirectCommandBuffer);
+                break;
+            case DrawType::DrawElementsIndirect:
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+                glBindBuffer(GL_DRAW_INDIRECT_BUFFER, drawElementsIndirectCommandBuffer);
+                break;
+        }
+
+        GLuint program = glCreateProgram();
+        glAttachShader(program, vs);
+        glAttachShader(program, red);
+        glLinkProgram(program);
+        glUseProgram(program);
+
+        // Relink to green while the program is bound.
+        glDetachShader(program, red);
+        glAttachShader(program, green);
+        glLinkProgram(program);
+
+        // Draw must wait until relinking is done.
+        std::string command;
+        switch (drawType)
+        {
+            case DrawType::DrawArraysIndirect:
+                glDrawArraysIndirect(GL_TRIANGLES, nullptr);
+                command = "DrawArraysIndirect";
+                break;
+            case DrawType::DrawElementsIndirect:
+                glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, nullptr);
+                command = "DrawElementsIndirect";
+                break;
+        }
+        EXPECT_PIXEL_COLOR_EQ(w / 2, h / 2, GLColor::green) << command;
+        ASSERT_GL_NO_ERROR() << command;
+    }
+}
+
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(ContextNoErrorTest);
+
+#define ANGLE_ALL_MULTIDRAW_TEST_PLATFORMS_ES3                                             \
+    ES3_D3D11().enable(Feature::AlwaysEnableEmulatedMultidrawExtensions),                  \
+        ES3_OPENGL().enable(Feature::AlwaysEnableEmulatedMultidrawExtensions),             \
+        ES3_OPENGLES().enable(Feature::AlwaysEnableEmulatedMultidrawExtensions),           \
+        ES3_VULKAN().enable(Feature::AlwaysEnableEmulatedMultidrawExtensions),             \
+        ES3_VULKAN_SWIFTSHADER().enable(Feature::AlwaysEnableEmulatedMultidrawExtensions), \
+        ES3_METAL().enable(Feature::AlwaysEnableEmulatedMultidrawExtensions)
+ANGLE_INSTANTIATE_TEST(ContextNoErrorTestES3, ANGLE_ALL_MULTIDRAW_TEST_PLATFORMS_ES3);
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ContextNoErrorTestES31);
+ANGLE_INSTANTIATE_TEST_ES31(ContextNoErrorTestES31);
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ContextNoErrorPPOTest31);
 ANGLE_INSTANTIATE_TEST_ES31(ContextNoErrorPPOTest31);

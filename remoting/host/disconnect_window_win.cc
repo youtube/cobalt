@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
 #include <windows.h>
+
+#include <stddef.h>
 
 #include <cstdlib>
 #include <memory>
@@ -348,7 +349,8 @@ void DisconnectWindowWin::EndDialog() {
   auto_hide_timer_.Stop();
 
   if (client_session_control_) {
-    client_session_control_->DisconnectSession(protocol::OK);
+    client_session_control_->DisconnectSession(
+        ErrorCode::OK, "Disconnect window closed.", FROM_HERE);
   }
 }
 
@@ -375,7 +377,8 @@ void DisconnectWindowWin::ShowDialog() {
 
     // If the window still isn't visible, then disconnect the session.
     if (!IsWindowVisible(hwnd_)) {
-      client_session_control_->DisconnectSession(protocol::OK);
+      client_session_control_->DisconnectSession(
+          ErrorCode::OK, "Disconnect window is invisible.", FROM_HERE);
     }
   }
   was_auto_hidden_ = false;

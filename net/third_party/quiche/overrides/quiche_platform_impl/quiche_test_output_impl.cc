@@ -17,38 +17,37 @@
 
 namespace quiche {
 
-void QuicheRecordTestOutputToFile(absl::string_view filename,
-                                  absl::string_view data) {
-  std::string output_dir;
-  if (!base::Environment::Create()->GetVar("QUIC_TEST_OUTPUT_DIR",
-                                           &output_dir) ||
-      output_dir.empty()) {
+void QuicheRecordTestOutputToFile(std::string_view filename,
+                                  std::string_view data) {
+  std::string output_dir = base::Environment::Create()
+                               ->GetVar("QUIC_TEST_OUTPUT_DIR")
+                               .value_or(std::string());
+  if (output_dir.empty()) {
     return;
   }
 
   auto path = base::FilePath::FromUTF8Unsafe(output_dir)
                   .Append(base::FilePath::FromUTF8Unsafe(filename));
 
-  int bytes_written = base::WriteFile(path, data.data(), data.size());
-  if (bytes_written < 0) {
+  if (!base::WriteFile(path, base::as_byte_span(data))) {
     QUIC_LOG(WARNING) << "Failed to write into " << path;
     return;
   }
   QUIC_LOG(INFO) << "Recorded test output into " << path;
 }
 
-void QuicheSaveTestOutputImpl(absl::string_view filename,
-                              absl::string_view data) {
+void QuicheSaveTestOutputImpl(std::string_view filename,
+                              std::string_view data) {
   QuicheRecordTestOutputToFile(filename, data);
 }
 
-bool QuicheLoadTestOutputImpl(absl::string_view filename, std::string* data) {
-  std::string output_dir;
-  if (!base::Environment::Create()->GetVar("QUIC_TEST_OUTPUT_DIR",
-                                           &output_dir) ||
-      output_dir.empty()) {
+bool QuicheLoadTestOutputImpl(std::string_view filename, std::string* data) {
+  std::string output_dir = base::Environment::Create()
+                               ->GetVar("QUIC_TEST_OUTPUT_DIR")
+                               .value_or(std::string());
+  if (output_dir.empty()) {
     QUIC_LOG(WARNING) << "Failed to load " << filename
-                      << " because QUIC_TEST_OUTPUT_DIR is not set";
+                      << " because QUIC_TEST_OUTPUT_DIR is empty";
     return false;
   }
 
@@ -58,8 +57,7 @@ bool QuicheLoadTestOutputImpl(absl::string_view filename, std::string* data) {
   return base::ReadFileToString(path, data);
 }
 
-void QuicheRecordTraceImpl(absl::string_view identifier,
-                           absl::string_view data) {
+void QuicheRecordTraceImpl(std::string_view identifier, std::string_view data) {
   const testing::TestInfo* test_info =
       testing::UnitTest::GetInstance()->current_test_info();
 
@@ -76,7 +74,7 @@ void QuicheRecordTraceImpl(absl::string_view identifier,
   strftime(timestamp, sizeof(timestamp), "%Y%m%d%H%M%S", &now);
 
   std::string filename = base::StringPrintf(
-      "%s.%s.%s.%s.qtr", test_info->name(), test_info->test_case_name(),
+      "%s.%s.%s.%s.qtr", test_info->name(), test_info->test_suite_name(),
       identifier.data(), timestamp);
 
   QuicheRecordTestOutputToFile(filename, data);

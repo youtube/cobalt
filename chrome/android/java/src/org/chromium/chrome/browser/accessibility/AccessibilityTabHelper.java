@@ -4,21 +4,24 @@
 
 package org.chromium.chrome.browser.accessibility;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import org.chromium.base.UserData;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsAccessibility;
 import org.chromium.ui.base.WindowAndroid;
 
-/**
- *  Helper class that wraps accessibility state information for {Tab}.
- */
+/** Helper class that wraps accessibility state information for {Tab}. */
+@NullMarked
 public class AccessibilityTabHelper extends EmptyTabObserver implements UserData {
     public static final Class<AccessibilityTabHelper> USER_DATA_KEY = AccessibilityTabHelper.class;
 
     private final Tab mTab;
-    private WebContents mWebContents;
+    private @Nullable WebContents mWebContents;
 
     /**
      * Creates an instance of {AccessibilityTabHelper} for the given tab.
@@ -50,6 +53,7 @@ public class AccessibilityTabHelper extends EmptyTabObserver implements UserData
         assert tab.getWebContents() != null;
         WebContentsAccessibility wcax =
                 WebContentsAccessibility.fromWebContents(tab.getWebContents());
+        assumeNonNull(wcax);
 
         // For browser tabs, we want to set accessibility focus to the page when it loads. This
         // is not the default behavior for embedded web views.
@@ -57,10 +61,13 @@ public class AccessibilityTabHelper extends EmptyTabObserver implements UserData
 
         // Enable image descriptions feature normally, but not for Chrome Custom Tabs.
         wcax.setIsImageDescriptionsCandidate(!tab.isCustomTab());
+
+        // Enable Auto-disable Accessibility feature normally, but not for Chrome Custom Tabs.
+        wcax.setIsAutoDisableAccessibilityCandidate(!tab.isCustomTab());
     }
 
     @Override
-    public void onActivityAttachmentChanged(Tab tab, WindowAndroid window) {
+    public void onActivityAttachmentChanged(Tab tab, @Nullable WindowAndroid window) {
         // When the activity attachment changes, we communicate the current accessibility state
         // since the attachment change could be part of switching embedders (e.g. CCT to Chrome).
         if (tab.getWebContents() != null) updateWebContentsAccessibilityStateForTab(tab);

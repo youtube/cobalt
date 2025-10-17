@@ -6,11 +6,15 @@
 #define REMOTING_PROTOCOL_WEBRTC_TRANSPORT_H_
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/functional/callback_forward.h"
+#include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -19,13 +23,15 @@
 #include "crypto/hmac.h"
 #include "remoting/base/constants.h"
 #include "remoting/base/session_options.h"
+#include "remoting/protocol/network_settings.h"
 #include "remoting/protocol/peer_connection_controls.h"
+#include "remoting/protocol/port_allocator.h"
+#include "remoting/protocol/port_allocator_factory.h"
 #include "remoting/protocol/session_options_provider.h"
 #include "remoting/protocol/transport.h"
 #include "remoting/protocol/webrtc_data_stream_adapter.h"
 #include "remoting/protocol/webrtc_event_log_data.h"
 #include "remoting/signaling/signal_strategy.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/webrtc/api/peer_connection_interface.h"
 #include "third_party/webrtc/api/video_codecs/video_encoder_factory.h"
 
@@ -59,7 +65,10 @@ class WebrtcTransport : public Transport,
     virtual void OnWebrtcTransportConnected() = 0;
 
     // Called when there is an error connecting the session.
-    virtual void OnWebrtcTransportError(ErrorCode error) = 0;
+    virtual void OnWebrtcTransportError(
+        ErrorCode error,
+        std::string_view error_details,
+        const base::Location& error_location) = 0;
 
     // Called when the transport protocol has been changed. Note that this might
     // be called before the channels become ready.
@@ -72,9 +81,9 @@ class WebrtcTransport : public Transport,
 
     // Called when an incoming media stream is added or removed.
     virtual void OnWebrtcTransportMediaStreamAdded(
-        rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) = 0;
+        webrtc::scoped_refptr<webrtc::MediaStreamInterface> stream) = 0;
     virtual void OnWebrtcTransportMediaStreamRemoved(
-        rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) = 0;
+        webrtc::scoped_refptr<webrtc::MediaStreamInterface> stream) = 0;
 
     // Called when the transport route changes (for example, from relayed to
     // direct connection). Also called on initial connection.
@@ -84,7 +93,7 @@ class WebrtcTransport : public Transport,
   // |video_encoder_factory| can be nullptr if the connection is not used for
   // sending video.
   WebrtcTransport(
-      rtc::Thread* worker_thread,
+      webrtc::Thread* worker_thread,
       scoped_refptr<TransportContext> transport_context,
       std::unique_ptr<webrtc::VideoEncoderFactory> video_encoder_factory,
       EventHandler* event_handler);
@@ -104,6 +113,10 @@ class WebrtcTransport : public Transport,
   // any messages.
   std::unique_ptr<MessagePipe> CreateOutgoingChannel(const std::string& name);
 
+  // Applies network settings. This can be called after Start(), but negotiation
+  // will not start until the network settings are applied.
+  void ApplyNetworkSettings(const NetworkSettings& network_settings);
+
   // Transport implementations.
   void Start(Authenticator* authenticator,
              SendTransportInfoCallback send_transport_info_callback) override;
@@ -113,22 +126,24 @@ class WebrtcTransport : public Transport,
   const SessionOptions& session_options() const override;
 
   // PeerConnectionControls implementations.
-  void SetPreferredBitrates(absl::optional<int> min_bitrate_bps,
-                            absl::optional<int> max_bitrate_bps) override;
+  void SetPreferredBitrates(std::optional<int> min_bitrate_bps,
+                            std::optional<int> max_bitrate_bps) override;
   void RequestIceRestart() override;
   void RequestSdpRestart() override;
 
-  void Close(ErrorCode error);
+  void Close(ErrorCode error,
+             std::string_view error_details,
+             const base::Location& error_location);
 
   void ApplySessionOptions(const SessionOptions& options);
 
   // Called when a new audio transceiver has been created by the PeerConnection.
   void OnAudioTransceiverCreated(
-      rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+      webrtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
 
   // Called when a new video transceiver has been created by the PeerConnection.
   void OnVideoTransceiverCreated(
-      rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
+      webrtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
 
   // Transport layer protocol used to connect to the relay server or the peer.
   // Possible values are those defined in the protocol and relayProtocol fields
@@ -167,14 +182,17 @@ class WebrtcTransport : public Transport,
   void OnRemoteDescriptionSet(bool send_answer,
                               bool success,
                               const std::string& error);
+  void SendAnswer();
+  void OnCloseAfterDisconnectTimeout();
 
   // PeerConnection event handlers, called by PeerConnectionWrapper.
   void OnSignalingChange(
       webrtc::PeerConnectionInterface::SignalingState new_state);
-  void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
-  void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
+  void OnAddStream(webrtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
+  void OnRemoveStream(
+      webrtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
   void OnDataChannel(
-      rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
+      webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel);
   void OnRenegotiationNeeded();
   void OnIceConnectionChange(
       webrtc::PeerConnectionInterface::IceConnectionState new_state);
@@ -182,9 +200,9 @@ class WebrtcTransport : public Transport,
       webrtc::PeerConnectionInterface::IceGatheringState new_state);
   void OnIceCandidate(const webrtc::IceCandidateInterface* candidate);
   void OnIceSelectedCandidatePairChanged(
-      const cricket::CandidatePairChangeEvent& event);
+      const webrtc::CandidatePairChangeEvent& event);
   void OnStatsDelivered(
-      const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report);
+      const webrtc::scoped_refptr<const webrtc::RTCStatsReport>& report);
 
   // Returns the min (first element) and max (second element) bitrate for this
   // connection, taking into account any relay bitrate cap and client overrides.
@@ -203,9 +221,10 @@ class WebrtcTransport : public Transport,
 
   // Sets bitrates on the (video) sender. Called when a video sender is created,
   // but also called if the relay status changes.
-  void SetSenderBitrates(rtc::scoped_refptr<webrtc::RtpSenderInterface> sender,
-                         int min_bitrate_bps,
-                         int max_bitrate_bps);
+  void SetSenderBitrates(
+      webrtc::scoped_refptr<webrtc::RtpSenderInterface> sender,
+      int min_bitrate_bps,
+      int max_bitrate_bps);
 
   void RequestRtcStats();
   void RequestNegotiation();
@@ -218,8 +237,8 @@ class WebrtcTransport : public Transport,
   // |event_data_channel| have closed.  Note that |peer_connection_wrapper| is
   // always destroyed asynchronously to allow the callstack to unwind first.
   static void ClosePeerConnection(
-      rtc::scoped_refptr<webrtc::DataChannelInterface> control_data_channel,
-      rtc::scoped_refptr<webrtc::DataChannelInterface> event_data_channel,
+      webrtc::scoped_refptr<webrtc::DataChannelInterface> control_data_channel,
+      webrtc::scoped_refptr<webrtc::DataChannelInterface> event_data_channel,
       std::unique_ptr<PeerConnectionWrapper> peer_connection_wrapper,
       base::Time start_time);
 
@@ -238,7 +257,7 @@ class WebrtcTransport : public Transport,
 
   bool connected_ = false;
 
-  absl::optional<bool> connection_relayed_;
+  std::optional<bool> connection_relayed_;
 
   std::string transport_protocol_;
 
@@ -246,27 +265,32 @@ class WebrtcTransport : public Transport,
 
   std::unique_ptr<jingle_xmpp::XmlElement> pending_transport_info_message_;
   base::OneShotTimer transport_info_timer_;
+  // Timer that closes the transport after the ICE connection has become
+  // disconnected for the specified timeout.
+  base::OneShotTimer close_after_disconnect_timer_;
 
   std::vector<std::unique_ptr<webrtc::IceCandidateInterface>>
       pending_incoming_candidates_;
-
-  std::string preferred_video_codec_;
 
   SessionOptions session_options_;
 
   // Track the data channels so we can make sure they are closed before we
   // close the peer connection.  This prevents RTCErrors being thrown on the
   // other side of the WebRTC connection.
-  rtc::scoped_refptr<webrtc::DataChannelInterface> control_data_channel_;
-  rtc::scoped_refptr<webrtc::DataChannelInterface> event_data_channel_;
+  webrtc::scoped_refptr<webrtc::DataChannelInterface> control_data_channel_;
+  webrtc::scoped_refptr<webrtc::DataChannelInterface> event_data_channel_;
 
   // Preferred bitrates set by the client. nullopt if the client has not
   // provided any preferred bitrates.
-  absl::optional<int> preferred_min_bitrate_bps_;
-  absl::optional<int> preferred_max_bitrate_bps_;
+  std::optional<int> preferred_min_bitrate_bps_;
+  std::optional<int> preferred_max_bitrate_bps_;
 
   // Stores event log data generated by WebRTC for the PeerConnection.
   WebrtcEventLogData rtc_event_log_;
+
+  // Callback to apply network settings on the port allocator. Reset to null
+  // once network settings are applied.
+  PortAllocatorFactory::ApplyNetworkSettingsCallback apply_network_settings_;
 
   THREAD_CHECKER(thread_checker_);
 

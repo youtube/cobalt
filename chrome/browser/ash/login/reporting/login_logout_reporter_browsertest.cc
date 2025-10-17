@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -15,23 +16,23 @@
 #include "base/auto_reset.h"
 #include "base/run_loop.h"
 #include "chrome/browser/ash/app_mode/fake_cws.h"
-#include "chrome/browser/ash/login/app_mode/kiosk_launch_controller.h"
+#include "chrome/browser/ash/app_mode/kiosk_controller.h"
+#include "chrome/browser/ash/app_mode/kiosk_profile_load_failed_observer.h"
+#include "chrome/browser/ash/app_mode/kiosk_test_helper.h"
 #include "chrome/browser/ash/login/app_mode/test/kiosk_apps_mixin.h"
 #include "chrome/browser/ash/login/session/user_session_manager_test_api.h"
 #include "chrome/browser/ash/login/test/embedded_test_server_setup_mixin.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/login/test/oobe_screens_utils.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chrome/browser/ash/policy/core/device_local_account_policy_service.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
-#include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
-#include "chrome/browser/ash/settings/stub_cros_settings_provider.h"
+#include "chrome/browser/ash/policy/core/device_policy_cros_test_helper.h"
 #include "chrome/browser/extensions/browsertest_util.h"
 #include "chrome/browser/policy/messaging_layer/proto/synced/login_logout_event.pb.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/test/base/fake_gaia_mixin.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -41,6 +42,8 @@
 #include "chromeos/ash/components/login/auth/public/key.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
 #include "chromeos/ash/components/login/auth/stub_authenticator_builder.h"
+#include "chromeos/ash/components/login/login_state/login_state.h"
+#include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/dbus/missive/missive_client.h"
 #include "chromeos/dbus/missive/missive_client_test_observer.h"
@@ -56,10 +59,10 @@
 #include "extensions/browser/app_window/app_window.h"
 #include "extensions/browser/app_window/app_window_registry.h"
 #include "extensions/browser/app_window/native_app_window.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using chromeos::MissiveClient;
 using chromeos::MissiveClientTestObserver;
@@ -87,7 +90,7 @@ Record GetNextLoginLogoutRecord(MissiveClientTestObserver* observer) {
   return record;
 }
 
-absl::optional<Record> MaybeGetEnqueudLoginLogoutRecord() {
+std::optional<Record> MaybeGetEnqueuedLoginLogoutRecord() {
   const std::vector<Record>& records =
       MissiveClient::Get()->GetTestInterface()->GetEnqueuedRecords(
           Priority::SECURITY);
@@ -96,7 +99,7 @@ absl::optional<Record> MaybeGetEnqueudLoginLogoutRecord() {
       return record;
     }
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 class PublicSessionUserCreationWaiter
@@ -132,8 +135,7 @@ class PublicSessionUserCreationWaiter
   std::unique_ptr<base::RunLoop> local_state_changed_run_loop_;
 };
 
-class KioskProfileLoadFailedWaiter
-    : public KioskLaunchController::KioskProfileLoadFailedObserver {
+class KioskProfileLoadFailedWaiter : public KioskProfileLoadFailedObserver {
  public:
   KioskProfileLoadFailedWaiter() = default;
 
@@ -149,13 +151,11 @@ class KioskProfileLoadFailedWaiter
       // failure already took place.
       return;
     }
-    LoginDisplayHost::default_host()
-        ->GetKioskLaunchController()
-        ->AddKioskProfileLoadFailedObserver(this);
+    KioskController::Get().AddProfileLoadFailedObserver(this);
     run_loop_.Run();
   }
 
-  // KioskLaunchController::KioskProfileLoadFailedObserver:
+  // KioskProfileLoadFailedObserver:
   void OnKioskProfileLoadFailed() override { run_loop_.Quit(); }
 
  private:
@@ -173,14 +173,23 @@ class LoginLogoutReporterBrowserTest
  protected:
   LoginLogoutReporterBrowserTest() {
     login_manager_.set_session_restore_enabled();
-    scoped_testing_cros_settings_.device_settings()->SetBoolean(
-        kReportDeviceLoginLogout, true);
   }
 
   ~LoginLogoutReporterBrowserTest() override = default;
 
+  void SetUpLocalStatePrefService(PrefService* local_state) override {
+    policy::DevicePolicyCrosBrowserTest::SetUpLocalStatePrefService(
+        local_state);
+
+    policy_helper_.device_policy()
+        ->payload()
+        .mutable_device_reporting()
+        ->set_report_login_logout(true);
+    policy_helper_.RefreshDevicePolicy();
+  }
+
   void SetUpOnMainThread() override {
-    login_manager_.set_should_launch_browser(true);
+    login_manager_.SetShouldLaunchBrowser(true);
     FakeSessionManagerClient::Get()->set_supports_browser_restart(true);
     policy::DevicePolicyCrosBrowserTest::SetUpOnMainThread();
   }
@@ -209,8 +218,7 @@ class LoginLogoutReporterBrowserTest
                                      FakeGaiaMixin::kFakeUserGaiaId)};
 
   LoginManagerMixin login_manager_{&mixin_host_, {test_user_}};
-
-  ScopedTestingCrosSettings scoped_testing_cros_settings_;
+  policy::DevicePolicyCrosTestHelper policy_helper_;
 };
 
 IN_PROC_BROWSER_TEST_F(LoginLogoutReporterBrowserTest,
@@ -221,6 +229,9 @@ IN_PROC_BROWSER_TEST_F(LoginLogoutReporterBrowserTest,
   base::RunLoop().RunUntilIdle();
 
   Record login_record = GetNextLoginLogoutRecord(&observer);
+  ASSERT_TRUE(login_record.has_source_info());
+  EXPECT_THAT(login_record.source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
 
   LoginLogoutRecord login_record_data;
   ASSERT_TRUE(login_record_data.ParseFromString(login_record.data()));
@@ -232,6 +243,9 @@ IN_PROC_BROWSER_TEST_F(LoginLogoutReporterBrowserTest,
 
   Shell::Get()->session_controller()->RequestSignOut();
   Record logout_record = GetNextLoginLogoutRecord(&observer);
+  ASSERT_TRUE(logout_record.has_source_info());
+  EXPECT_THAT(logout_record.source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
 
   LoginLogoutRecord logout_record_data;
   ASSERT_TRUE(logout_record_data.ParseFromString(logout_record.data()));
@@ -248,6 +262,9 @@ IN_PROC_BROWSER_TEST_F(LoginLogoutReporterBrowserTest, LoginFailed) {
   base::RunLoop().RunUntilIdle();
 
   Record login_record = GetNextLoginLogoutRecord(&observer);
+  ASSERT_TRUE(login_record.has_source_info());
+  EXPECT_THAT(login_record.source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
 
   LoginLogoutRecord failed_login_record_data;
   ASSERT_TRUE(failed_login_record_data.ParseFromString(login_record.data()));
@@ -268,9 +285,6 @@ IN_PROC_BROWSER_TEST_F(LoginLogoutReporterBrowserTest, PRE_GuestLogin) {
   ASSERT_TRUE(LoginScreenTestApi::IsGuestButtonShown());
   ASSERT_TRUE(LoginScreenTestApi::ClickGuestButton());
 
-  test::WaitForGuestTosScreen();
-  test::TapGuestTosAccept();
-
   restart_job_waiter.Run();
   EXPECT_TRUE(FakeSessionManagerClient::Get()->restart_job_argv().has_value());
 }
@@ -285,12 +299,15 @@ IN_PROC_BROWSER_TEST_F(LoginLogoutReporterBrowserTest, GuestLogin) {
 
   // Check if the record is already enqueued in case it was enqueued before the
   // |observer| initialization.
-  absl::optional<Record> login_record = MaybeGetEnqueudLoginLogoutRecord();
+  std::optional<Record> login_record = MaybeGetEnqueuedLoginLogoutRecord();
 
   if (!login_record.has_value()) {
     // Record is not enqueued yet, so wait for it.
     login_record = GetNextLoginLogoutRecord(&observer);
   }
+  ASSERT_TRUE(login_record.value().has_source_info());
+  EXPECT_THAT(login_record.value().source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
 
   LoginLogoutRecord login_record_data;
   ASSERT_TRUE(login_record_data.ParseFromString(login_record->data()));
@@ -373,7 +390,7 @@ class LoginLogoutReporterPublicSessionBrowserTest
   const AccountId public_session_account_id_ =
       AccountId::FromUserEmail(policy::GenerateDeviceLocalAccountUserId(
           kPublicSessionUserEmail,
-          policy::DeviceLocalAccount::TYPE_PUBLIC_SESSION));
+          policy::DeviceLocalAccountType::kPublicSession));
 
   LoginManagerMixin login_manager_{&mixin_host_, {}};
 };
@@ -389,9 +406,12 @@ IN_PROC_BROWSER_TEST_F(LoginLogoutReporterPublicSessionBrowserTest,
   base::RunLoop().RunUntilIdle();
 
   user_manager::UserManager* user_manager = user_manager::UserManager::Get();
-  ASSERT_TRUE(user_manager->IsLoggedInAsPublicAccount());
+  ASSERT_TRUE(user_manager->IsLoggedInAsManagedGuestSession());
 
   Record login_record = GetNextLoginLogoutRecord(&observer);
+  ASSERT_TRUE(login_record.has_source_info());
+  EXPECT_THAT(login_record.source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
 
   LoginLogoutRecord login_record_data;
   ASSERT_TRUE(login_record_data.ParseFromString(login_record.data()));
@@ -404,20 +424,15 @@ IN_PROC_BROWSER_TEST_F(LoginLogoutReporterPublicSessionBrowserTest,
 
 class LoginLogoutReporterKioskBrowserTest
     : public MixinBasedInProcessBrowserTest {
- public:
-  LoginLogoutReporterKioskBrowserTest(
-      const LoginLogoutReporterKioskBrowserTest&) = delete;
-  LoginLogoutReporterKioskBrowserTest& operator=(
-      const LoginLogoutReporterKioskBrowserTest&) = delete;
-
  protected:
-  LoginLogoutReporterKioskBrowserTest() = default;
-
-  ~LoginLogoutReporterKioskBrowserTest() override = default;
+  LoginLogoutReporterKioskBrowserTest() {
+    // Force allow Chrome Apps in Kiosk, since they are default disabled since
+    // M138.
+    scoped_feature_list_.InitFromCommandLine("AllowChromeAppsInKioskSessions",
+                                             "");
+  }
 
   void SetUp() override {
-    skip_splash_wait_override_ =
-        KioskLaunchController::SkipSplashScreenWaitForTesting();
     login_manager_.set_session_restore_enabled();
 
     MixinBasedInProcessBrowserTest::SetUp();
@@ -434,7 +449,6 @@ class LoginLogoutReporterKioskBrowserTest
     MixinBasedInProcessBrowserTest::SetUpInProcessBrowserTestFixture();
 
     host_resolver()->AddRule("*", "127.0.0.1");
-    SessionManagerClient::InitializeFakeInMemory();
 
     ChromeDeviceSettingsProto& proto(policy_helper_.device_policy()->payload());
     KioskAppsMixin::AppendAutoLaunchKioskAccount(&proto);
@@ -447,36 +461,37 @@ class LoginLogoutReporterKioskBrowserTest
     extensions::browsertest_util::CreateAndInitializeLocalCache();
   }
 
-  std::string GetTestAppId() const { return KioskAppsMixin::kKioskAppId; }
+  std::string GetTestAppId() const { return KioskAppsMixin::kTestChromeAppId; }
 
  private:
   FakeCWS fake_cws_;
   policy::DevicePolicyCrosTestHelper policy_helper_;
-  std::unique_ptr<base::AutoReset<bool>> skip_splash_wait_override_;
+  base::AutoReset<bool> skip_splash_wait_override_ =
+      KioskTestHelper::SkipSplashScreenWait();
   EmbeddedTestServerSetupMixin embedded_test_server_{&mixin_host_,
                                                      embedded_test_server()};
 
   DeviceStateMixin device_state_{
       &mixin_host_, DeviceStateMixin::State::OOBE_COMPLETED_CLOUD_ENROLLED};
   LoginManagerMixin login_manager_{&mixin_host_, {}};
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(LoginLogoutReporterKioskBrowserTest,
                        LoginSuccessfulThenLogout) {
+  ASSERT_TRUE(::ash::LoginState::Get()->IsKioskSession());
   MissiveClientTestObserver observer(Destination::LOGIN_LOGOUT_EVENTS);
-  test::WaitForPrimaryUserSessionStart();
-
-  user_manager::UserManager* user_manager = user_manager::UserManager::Get();
-  ASSERT_TRUE(user_manager->IsLoggedInAsKioskApp());
 
   // Check if the record is already enqueued in case it was enqueued before the
   // |observer| initialization.
-  absl::optional<Record> login_record = MaybeGetEnqueudLoginLogoutRecord();
-
+  std::optional<Record> login_record = MaybeGetEnqueuedLoginLogoutRecord();
   if (!login_record.has_value()) {
     // Record is not enqueued yet, so wait for it.
     login_record = GetNextLoginLogoutRecord(&observer);
   }
+  ASSERT_TRUE(login_record.value().has_source_info());
+  EXPECT_THAT(login_record.value().source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
 
   LoginLogoutRecord login_record_data;
   ASSERT_TRUE(login_record_data.ParseFromString(login_record->data()));
@@ -525,7 +540,8 @@ class LoginLogoutReporterKioskFailedBrowserTest
     UserDataAuthClient::InitializeFake();
     FakeUserDataAuthClient::Get()->SetNextOperationError(
         FakeUserDataAuthClient::Operation::kStartAuthSession,
-        user_data_auth::CRYPTOHOME_ERROR_MOUNT_FATAL);
+        cryptohome::ErrorWrapper::CreateFromErrorCodeOnly(
+            user_data_auth::CRYPTOHOME_ERROR_MOUNT_FATAL));
   }
 };
 
@@ -543,12 +559,15 @@ IN_PROC_BROWSER_TEST_F(LoginLogoutReporterKioskFailedBrowserTest,
 
   // Check if the record is already enqueued in case it was enqueued before the
   // |observer| initialization.
-  absl::optional<Record> login_record = MaybeGetEnqueudLoginLogoutRecord();
+  std::optional<Record> login_record = MaybeGetEnqueuedLoginLogoutRecord();
 
   if (!login_record.has_value()) {
     // Record is not enqueued yet, so wait for it.
     login_record = GetNextLoginLogoutRecord(&observer);
   }
+  ASSERT_TRUE(login_record.value().has_source_info());
+  EXPECT_THAT(login_record.value().source_info().source(),
+              Eq(::reporting::SourceInfo::ASH));
 
   LoginLogoutRecord login_record_data;
   ASSERT_TRUE(login_record_data.ParseFromString(login_record->data()));

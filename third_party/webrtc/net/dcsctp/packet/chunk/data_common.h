@@ -48,10 +48,10 @@ class AnyDataChunk : public Chunk {
 
   StreamID stream_id() const { return data_.stream_id; }
   SSN ssn() const { return data_.ssn; }
-  MID message_id() const { return data_.message_id; }
+  MID mid() const { return data_.mid; }
   FSN fsn() const { return data_.fsn; }
   PPID ppid() const { return data_.ppid; }
-  rtc::ArrayView<const uint8_t> payload() const { return data_.payload; }
+  webrtc::ArrayView<const uint8_t> payload() const { return data_.payload; }
 
   // Extracts the Data from the chunk, as a destructive action.
   Data extract() && { return std::move(data_); }
@@ -59,7 +59,7 @@ class AnyDataChunk : public Chunk {
   AnyDataChunk(TSN tsn,
                StreamID stream_id,
                SSN ssn,
-               MID message_id,
+               MID mid,
                FSN fsn,
                PPID ppid,
                std::vector<uint8_t> payload,
@@ -67,7 +67,7 @@ class AnyDataChunk : public Chunk {
       : tsn_(tsn),
         data_(stream_id,
               ssn,
-              message_id,
+              mid,
               fsn,
               ppid,
               std::move(payload),

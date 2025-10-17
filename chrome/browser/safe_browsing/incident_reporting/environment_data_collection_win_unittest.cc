@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <string>
 
 #include "base/base_paths.h"
@@ -61,7 +62,13 @@ bool DllEntryContainsLspFeature(
 
 }  // namespace
 
-TEST(SafeBrowsingEnvironmentDataCollectionWinTest, CollectDlls) {
+// TODO(crbug.com/40926092) Disabled due to flakiness on Win10 dbg builders.
+#ifndef NDEBUG
+#define MAYBE_CollectDlls DISABLED_CollectDlls
+#else
+#define MAYBE_CollectDlls CollectDlls
+#endif
+TEST(SafeBrowsingEnvironmentDataCollectionWinTest, MAYBE_CollectDlls) {
   // This test will check if the CollectDlls method works by loading
   // a dll and then checking if we can find it within the process report.
   // Pick msvidc32.dll as it is present from WinXP to Win8 and yet rarely used.
@@ -84,7 +91,13 @@ TEST(SafeBrowsingEnvironmentDataCollectionWinTest, CollectDlls) {
   ASSERT_TRUE(dll.has_image_headers());
 }
 
-TEST(SafeBrowsingEnvironmentDataCollectionWinTest, RecordLspFeature) {
+// TODO(crbug.com/40926092) Disabled due to flakiness on Win10 dbg builders.
+#ifndef NDEBUG
+#define MAYBE_RecordLspFeature DISABLED_RecordLspFeature
+#else
+#define MAYBE_RecordLspFeature RecordLspFeature
+#endif
+TEST(SafeBrowsingEnvironmentDataCollectionWinTest, MAYBE_RecordLspFeature) {
   net::EnsureWinsockInit();
 
   // Populate our incident report with loaded modules.
@@ -123,9 +136,10 @@ TEST(SafeBrowsingEnvironmentDataCollectionWinTest, RecordLspFeature) {
 #if !defined(_WIN64)
 TEST(SafeBrowsingEnvironmentDataCollectionWinTest, VerifyLoadedModules) {
   //  Load the test modules.
-  std::vector<base::ScopedNativeLibrary> test_dlls(kTestDllNamesCount);
-  for (size_t i = 0; i < kTestDllNamesCount; ++i)
-    test_dlls[i] = base::ScopedNativeLibrary(base::FilePath(kTestDllNames[i]));
+  std::vector<base::ScopedNativeLibrary> test_dlls;
+  for (const wchar_t* test_dll : kTestDllNames) {
+    test_dlls.push_back(base::ScopedNativeLibrary(base::FilePath(test_dll)));
+  }
 
   // Edit the first byte of the function exported by the first module. Calling
   // GetModuleHandle so we do not increment the library ref count.
@@ -145,8 +159,7 @@ TEST(SafeBrowsingEnvironmentDataCollectionWinTest, VerifyLoadedModules) {
   ASSERT_EQ(1u, bytes_written);
 
   ClientIncidentReport_EnvironmentData_Process process_report;
-  CollectModuleVerificationData(kTestDllNames, kTestDllNamesCount,
-                                &process_report);
+  CollectModuleVerificationData(kTestDllNames, &process_report);
 
   // CollectModuleVerificationData should return the single modified module and
   // its modified export. The other module, being unmodified, is omitted from
@@ -181,15 +194,15 @@ TEST(SafeBrowsingEnvironmentDataCollectionWinTest, CollectRegistryData) {
   ASSERT_NO_FATAL_FAILURE(override_manager.OverrideRegistry(HKEY_CURRENT_USER));
 
   const wchar_t kRootKey[] = L"Software\\TestKey";
-  const RegistryKeyInfo kRegKeysToCollect[] = {
+  const std::array<RegistryKeyInfo, 1> kRegKeysToCollect = {{
       {HKEY_CURRENT_USER, kRootKey},
-  };
+  }};
   const wchar_t kSubKey[] = L"SubKey";
 
   // Check that if the key is not there, then the proto is left empty.
   google::protobuf::RepeatedPtrField<
       ClientIncidentReport_EnvironmentData_OS_RegistryKey> registry_data_pb;
-  CollectRegistryData(kRegKeysToCollect, 1, &registry_data_pb);
+  CollectRegistryData(kRegKeysToCollect, &registry_data_pb);
   EXPECT_EQ(0, registry_data_pb.size());
 
   base::win::RegKey key(
@@ -204,7 +217,7 @@ TEST(SafeBrowsingEnvironmentDataCollectionWinTest, CollectRegistryData) {
   ASSERT_EQ(ERROR_SUCCESS, key.WriteValue(kStringValueName, kStringData));
 
   registry_data_pb.Clear();
-  CollectRegistryData(kRegKeysToCollect, 1, &registry_data_pb);
+  CollectRegistryData(kRegKeysToCollect, &registry_data_pb);
 
   // Expect 1 registry key, 1 value.
   EXPECT_EQ(1, registry_data_pb.size());
@@ -223,7 +236,7 @@ TEST(SafeBrowsingEnvironmentDataCollectionWinTest, CollectRegistryData) {
   ASSERT_EQ(ERROR_SUCCESS, key.WriteValue(kDWORDValueName, kDWORDData));
 
   registry_data_pb.Clear();
-  CollectRegistryData(kRegKeysToCollect, 1, &registry_data_pb);
+  CollectRegistryData(kRegKeysToCollect, &registry_data_pb);
 
   // Expect 1 registry key, 2 values.
   EXPECT_EQ(1, registry_data_pb.size());
@@ -240,7 +253,7 @@ TEST(SafeBrowsingEnvironmentDataCollectionWinTest, CollectRegistryData) {
   ASSERT_EQ(ERROR_SUCCESS, key.Open(HKEY_CURRENT_USER, kRootKey, KEY_READ));
 
   registry_data_pb.Clear();
-  CollectRegistryData(kRegKeysToCollect, 1, &registry_data_pb);
+  CollectRegistryData(kRegKeysToCollect, &registry_data_pb);
 
   // Expect 1 subkey, 1 value.
   EXPECT_EQ(1, registry_data_pb.Get(0).key_size());

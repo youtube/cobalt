@@ -4,14 +4,22 @@
 
 #include "chrome/browser/web_applications/preinstalled_web_apps/google_drive.h"
 
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "ash/constants/web_app_id_constants.h"
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
-#include "chrome/browser/web_applications/preinstalled_app_install_features.h"
+#include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
 #include "chrome/browser/web_applications/preinstalled_web_apps/preinstalled_web_app_definition_utils.h"
-#include "chrome/browser/web_applications/web_app_id_constants.h"
+#include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/grit/preinstalled_web_apps_resources.h"
+#include "components/webapps/common/web_app_id.h"
+#include "third_party/blink/public/mojom/manifest/display_mode.mojom-shared.h"
+#include "url/gurl.h"
 
 namespace web_app {
 
@@ -102,11 +110,13 @@ constexpr Translation kNameTranslations[] = {
 
 }  // namespace
 
-ExternalInstallOptions GetConfigForGoogleDrive() {
+ExternalInstallOptions GetConfigForGoogleDrive(bool is_standalone) {
   ExternalInstallOptions options(
       /*install_url=*/GURL(
           "https://drive.google.com/drive/installwebapp?usp=chrome_default"),
-      /*user_display_mode=*/mojom::UserDisplayMode::kBrowser,
+      /*user_display_mode=*/
+      is_standalone ? mojom::UserDisplayMode::kStandalone
+                    : mojom::UserDisplayMode::kBrowser,
       /*install_source=*/ExternalInstallSource::kExternalDefault);
 
   options.user_type_allowlist = {"unmanaged", "managed", "child"};
@@ -116,17 +126,20 @@ ExternalInstallOptions GetConfigForGoogleDrive() {
 
   options.only_use_app_info_factory = true;
   options.app_info_factory = base::BindRepeating([]() {
-    auto info = std::make_unique<WebAppInstallInfo>();
+    GURL start_url = GURL("https://drive.google.com/?lfhs=2");
+    // `manifest_id` must remain fixed even if start_url changes.
+    webapps::ManifestId manifest_id = GenerateManifestIdFromStartUrlOnly(
+        GURL("https://drive.google.com/?lfhs=2"));
+    auto info = std::make_unique<WebAppInstallInfo>(manifest_id, start_url);
     info->title =
         base::UTF8ToUTF16(GetTranslatedName("Google Drive", kNameTranslations));
-    info->start_url = GURL("https://drive.google.com/?lfhs=2");
     info->scope = GURL("https://drive.google.com/");
     info->display_mode = DisplayMode::kStandalone;
     info->icon_bitmaps.any =
         LoadBundledIcons({IDR_PREINSTALLED_WEB_APPS_GOOGLE_DRIVE_ICON_192_PNG});
     return info;
   });
-  options.expected_app_id = kGoogleDriveAppId;
+  options.expected_app_id = ash::kGoogleDriveAppId;
 
   return options;
 }

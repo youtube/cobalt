@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include <stddef.h>
+
+#include <array>
+#include <string_view>
 
 #include "base/functional/bind.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -48,48 +55,48 @@ struct BrowserDescriptor {
   const char* display_name;
 };
 
-const BrowserDescriptor kBrowserDescriptors[] = {
-  {
-    "com.google.android.apps.chrome",
-    kChromeDefaultSocket,
-    "Chromium"
-  },
-  {
-    "com.chrome.canary",
-    kChromeDefaultSocket,
-    "Chrome Canary"
-  },
-  {
-    "com.chrome.dev",
-    kChromeDefaultSocket,
-    "Chrome Dev"
-  },
-  {
-    "com.chrome.beta",
-    kChromeDefaultSocket,
-    "Chrome Beta"
-  },
-  {
-    "com.android.chrome",
-    kChromeDefaultSocket,
-    kChromeDefaultName
-  },
-  {
-    "org.chromium.android_webview.shell",
-    "webview_devtools_remote",
-    "WebView Test Shell"
-  },
-  {
-    "org.chromium.content_shell_apk",
-    "content_shell_devtools_remote",
-    "Content Shell"
-  },
-  {
-    "org.chromium.chrome",
-    kChromeDefaultSocket,
-    "Chromium"
-  },
-};
+constexpr auto kBrowserDescriptors = std::to_array<BrowserDescriptor>({
+    {
+        "com.google.android.apps.chrome",
+        kChromeDefaultSocket,
+        "Chromium",
+    },
+    {
+        "com.chrome.canary",
+        kChromeDefaultSocket,
+        "Chrome Canary",
+    },
+    {
+        "com.chrome.dev",
+        kChromeDefaultSocket,
+        "Chrome Dev",
+    },
+    {
+        "com.chrome.beta",
+        kChromeDefaultSocket,
+        "Chrome Beta",
+    },
+    {
+        "com.android.chrome",
+        kChromeDefaultSocket,
+        kChromeDefaultName,
+    },
+    {
+        "org.chromium.android_webview.shell",
+        "webview_devtools_remote",
+        "WebView Test Shell",
+    },
+    {
+        "org.chromium.content_shell_apk",
+        "content_shell_devtools_remote",
+        "Content Shell",
+    },
+    {
+        "org.chromium.chrome",
+        kChromeDefaultSocket,
+        "Chromium",
+    },
+});
 
 const BrowserDescriptor* FindBrowserDescriptor(const std::string& package) {
   size_t count = std::size(kBrowserDescriptors);
@@ -123,9 +130,8 @@ void MapProcessesToPackages(const std::string& response,
   //
   // USER PID PPID VSIZE RSS WCHAN PC ? NAME
   //
-  for (const base::StringPiece& line :
-       base::SplitStringPiece(response, "\n", base::KEEP_WHITESPACE,
-                              base::SPLIT_WANT_NONEMPTY)) {
+  for (std::string_view line : base::SplitStringPiece(
+           response, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
     std::vector<std::string> fields =
         base::SplitString(line, " \r", base::KEEP_WHITESPACE,
                           base::SPLIT_WANT_NONEMPTY);
@@ -148,9 +154,8 @@ StringMap MapSocketsToProcesses(const std::string& response) {
   // We need to find records with paths starting from '@' (abstract socket)
   // and containing the channel pattern ("_devtools_remote").
   StringMap socket_to_pid;
-  for (const base::StringPiece& line :
-       base::SplitStringPiece(response, "\n", base::KEEP_WHITESPACE,
-                              base::SPLIT_WANT_NONEMPTY)) {
+  for (std::string_view line : base::SplitStringPiece(
+           response, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
     std::vector<std::string> fields =
         base::SplitString(line, " \r", base::KEEP_WHITESPACE,
                           base::SPLIT_WANT_NONEMPTY);
@@ -178,16 +183,15 @@ StringMap MapSocketsToProcesses(const std::string& response) {
   return socket_to_pid;
 }
 
-gfx::Size ParseScreenSize(base::StringPiece str) {
-  std::vector<base::StringPiece> pairs =
-      base::SplitStringPiece(str, "-", base::KEEP_WHITESPACE,
-                             base::SPLIT_WANT_NONEMPTY);
+gfx::Size ParseScreenSize(std::string_view str) {
+  std::vector<std::string_view> pairs = base::SplitStringPiece(
+      str, "-", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   if (pairs.size() != 2)
     return gfx::Size();
 
   int width;
   int height;
-  std::vector<base::StringPiece> numbers =
+  std::vector<std::string_view> numbers =
       base::SplitStringPiece(pairs[1].substr(1, pairs[1].size() - 2), ",",
                              base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   if (numbers.size() != 2 ||
@@ -199,11 +203,10 @@ gfx::Size ParseScreenSize(base::StringPiece str) {
 }
 
 gfx::Size ParseWindowPolicyResponse(const std::string& response) {
-  for (const base::StringPiece& line :
-      base::SplitStringPiece(response, "\r", base::KEEP_WHITESPACE,
-                             base::SPLIT_WANT_NONEMPTY)) {
+  for (std::string_view line : base::SplitStringPiece(
+           response, "\r", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
     size_t pos = line.find(kScreenSizePrefix);
-    if (pos != base::StringPiece::npos) {
+    if (pos != std::string_view::npos) {
       return ParseScreenSize(
           line.substr(pos + strlen(kScreenSizePrefix)));
     }
@@ -221,12 +224,11 @@ StringMap MapIdsToUsers(const std::string& response) {
   //     Created: +3d4h35m1s139ms ago
   //     Last logged in: +17m26s287ms ago
   StringMap id_to_username;
-  for (const base::StringPiece& line :
-       base::SplitStringPiece(response, "\r", base::KEEP_WHITESPACE,
-                              base::SPLIT_WANT_NONEMPTY)) {
+  for (std::string_view line : base::SplitStringPiece(
+           response, "\r", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
     size_t pos = line.find(kUserInfoPrefix);
     if (pos != std::string::npos) {
-      base::StringPiece fields = line.substr(pos + strlen(kUserInfoPrefix));
+      std::string_view fields = line.substr(pos + strlen(kUserInfoPrefix));
       size_t first_pos = fields.find_first_of(":");
       size_t last_pos = fields.find_last_of(":");
       if (first_pos != std::string::npos && last_pos != std::string::npos) {

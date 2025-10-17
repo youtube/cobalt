@@ -5,16 +5,17 @@
 #ifndef COMPONENTS_PAGE_LOAD_METRICS_BROWSER_OBSERVERS_AD_METRICS_PAGE_AD_DENSITY_TRACKER_H_
 #define COMPONENTS_PAGE_LOAD_METRICS_BROWSER_OBSERVERS_AD_METRICS_PAGE_AD_DENSITY_TRACKER_H_
 
+#include <base/containers/flat_map.h>
+
 #include <map>
+#include <optional>
 #include <set>
 
-#include <base/containers/flat_map.h>
 #include "base/memory/raw_ptr.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 #include "components/page_load_metrics/browser/observers/ad_metrics/page_ad_density_tracker.h"
 #include "components/page_load_metrics/browser/observers/ad_metrics/univariate_stats.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace page_load_metrics {
@@ -35,21 +36,20 @@ class PageAdDensityTracker {
     RectId(RectType rect_type, int id);
     RectId(const RectId& other);
 
+    friend bool operator==(const RectId&, const RectId&) = default;
+    friend auto operator<=>(const RectId&, const RectId&) = default;
+
     RectType rect_type;
 
     // For iframe, the id comes from the frame tree node id. For other elements
     // (e.g. main frame ad rectangles), the id comes from the node id from the
     // renderer.
     int id;
-
-    bool operator<(const RectId& rhs) const;
-    bool operator==(const RectId& rhs) const;
-    bool operator!=(const RectId& rhs) const;
   };
 
   struct AdDensityCalculationResult {
-    absl::optional<int> ad_density_by_height;
-    absl::optional<int> ad_density_by_area;
+    std::optional<int> ad_density_by_height;
+    std::optional<int> ad_density_by_area;
   };
 
   explicit PageAdDensityTracker(base::TickClock* clock = nullptr);

@@ -15,13 +15,24 @@
  */
 
 #include "src/trace_processor/sqlite/sqlite_utils.h"
-#include <bitset>
-#include <sstream>
-#include "perfetto/base/status.h"
 
-namespace perfetto {
-namespace trace_processor {
-namespace sqlite_utils {
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "perfetto/base/logging.h"
+#include "perfetto/base/status.h"
+#include "perfetto/ext/base/status_or.h"
+#include "perfetto/ext/base/string_utils.h"
+#include "perfetto/trace_processor/basic_types.h"
+#include "src/trace_processor/sqlite/scoped_db.h"
+
+namespace perfetto::trace_processor::sqlite::utils {
 namespace internal {
 namespace {
 std::string ToExpectedTypesString(ExpectedTypesSet expected_types) {
@@ -64,14 +75,12 @@ base::StatusOr<SqlValue> ExtractArgument(size_t argc,
     return MissingArgumentError(argument_name);
   }
 
-  SqlValue value = sqlite_utils::SqliteValueToSqlValue(argv[arg_index]);
-
+  SqlValue value = sqlite::utils::SqliteValueToSqlValue(argv[arg_index]);
   if (!expected_types.test(value.type)) {
     return InvalidArgumentTypeError(argument_name, arg_index, value.type,
                                     expected_types);
   }
-
-  return std::move(value);
+  return value;
 }
 }  // namespace internal
 
@@ -80,13 +89,13 @@ std::wstring SqliteValueToWString(sqlite3_value* value) {
   int len = sqlite3_value_bytes16(value);
   PERFETTO_CHECK(len >= 0);
   size_t count = static_cast<size_t>(len) / sizeof(wchar_t);
-  return std::wstring(
-      reinterpret_cast<const wchar_t*>(sqlite3_value_text16(value)), count);
+  return {reinterpret_cast<const wchar_t*>(sqlite3_value_text16(value)), count};
 }
 
-base::Status GetColumnsForTable(sqlite3* db,
-                                const std::string& raw_table_name,
-                                std::vector<SqliteTable::Column>& columns) {
+base::Status GetColumnsForTable(
+    sqlite3* db,
+    const std::string& raw_table_name,
+    std::vector<std::pair<SqlValue::Type, std::string>>& columns) {
   PERFETTO_DCHECK(columns.empty());
   char sql[1024];
   const char kRawSql[] = "SELECT name, type from pragma_table_info(\"%s\")";
@@ -136,6 +145,8 @@ base::Status GetColumnsForTable(sqlite3* db,
                base::CaseInsensitiveEqual(raw_type, "BOOLEAN") ||
                base::CaseInsensitiveEqual(raw_type, "INTEGER")) {
       type = SqlValue::Type::kLong;
+    } else if (base::CaseInsensitiveEqual(raw_type, "BLOB")) {
+      type = SqlValue::Type::kBytes;
     } else if (!*raw_type) {
       PERFETTO_DLOG("Unknown column type for %s %s", raw_table_name.c_str(),
                     name);
@@ -144,7 +155,7 @@ base::Status GetColumnsForTable(sqlite3* db,
       return base::ErrStatus("Unknown column type '%s' on table %s", raw_type,
                              raw_table_name.c_str());
     }
-    columns.emplace_back(columns.size(), name, type);
+    columns.emplace_back(type, name);
   }
 
   // Catch mis-spelt table names.
@@ -175,6 +186,61 @@ const char* SqliteTypeToFriendlyString(SqlValue::Type type) {
   PERFETTO_FATAL("For GCC");
 }
 
+base::Status CheckArgCount(const char* function_name,
+                           size_t argc,
+                           size_t expected_argc) {
+  if (argc == expected_argc) {
+    return base::OkStatus();
+  }
+  return base::ErrStatus("%s: expected %zu arguments, got %zu", function_name,
+                         expected_argc, argc);
+}
+
+base::StatusOr<int64_t> ExtractIntArg(const char* function_name,
+                                      const char* arg_name,
+                                      sqlite3_value* sql_value) {
+  SqlValue value = SqliteValueToSqlValue(sql_value);
+  std::optional<int64_t> result;
+
+  base::Status status = ExtractFromSqlValue(value, result);
+  if (!status.ok()) {
+    return base::ErrStatus("%s(%s): %s", function_name, arg_name,
+                           status.message().c_str());
+  }
+  PERFETTO_CHECK(result);
+  return *result;
+}
+
+base::StatusOr<double> ExtractDoubleArg(const char* function_name,
+                                        const char* arg_name,
+                                        sqlite3_value* sql_value) {
+  SqlValue value = SqliteValueToSqlValue(sql_value);
+  std::optional<double> result;
+
+  base::Status status = ExtractFromSqlValue(value, result);
+  if (!status.ok()) {
+    return base::ErrStatus("%s(%s): %s", function_name, arg_name,
+                           status.message().c_str());
+  }
+  PERFETTO_CHECK(result);
+  return *result;
+}
+
+base::StatusOr<std::string> ExtractStringArg(const char* function_name,
+                                             const char* arg_name,
+                                             sqlite3_value* sql_value) {
+  SqlValue value = SqliteValueToSqlValue(sql_value);
+  std::optional<const char*> result;
+
+  base::Status status = ExtractFromSqlValue(value, result);
+  if (!status.ok()) {
+    return base::ErrStatus("%s(%s): %s", function_name, arg_name,
+                           status.message().c_str());
+  }
+  PERFETTO_CHECK(result);
+  return std::string(*result);
+}
+
 base::Status TypeCheckSqliteValue(sqlite3_value* value,
                                   SqlValue::Type expected_type) {
   return TypeCheckSqliteValue(value, expected_type,
@@ -185,7 +251,7 @@ base::Status TypeCheckSqliteValue(sqlite3_value* value,
                                   SqlValue::Type expected_type,
                                   const char* expected_type_str) {
   SqlValue::Type actual_type =
-      sqlite_utils::SqliteTypeToSqlValueType(sqlite3_value_type(value));
+      sqlite::utils::SqliteTypeToSqlValueType(sqlite3_value_type(value));
   if (actual_type != SqlValue::Type::kNull && actual_type != expected_type) {
     return base::ErrStatus(
         "does not have expected type: expected %s, actual %s",
@@ -269,11 +335,9 @@ base::Status MissingArgumentError(const char* argument_name) {
 
 base::Status ToInvalidArgumentError(const char* argument_name,
                                     size_t arg_index,
-                                    const base::Status error) {
+                                    const base::Status& error) {
   return base::ErrStatus("argument %s at pos %zu: %s", argument_name,
                          arg_index + 1, error.message().c_str());
 }
 
-}  // namespace sqlite_utils
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor::sqlite::utils

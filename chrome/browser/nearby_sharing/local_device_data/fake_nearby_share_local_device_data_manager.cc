@@ -17,12 +17,9 @@ FakeNearbyShareLocalDeviceDataManager::Factory::~Factory() = default;
 
 std::unique_ptr<NearbyShareLocalDeviceDataManager>
 FakeNearbyShareLocalDeviceDataManager::Factory::CreateInstance(
-    PrefService* pref_service,
-    NearbyShareClientFactory* http_client_factory,
-    NearbyShareProfileInfoProvider* profile_info_provider) {
-  latest_pref_service_ = pref_service;
+    user_manager::User& user,
+    NearbyShareClientFactory* http_client_factory) {
   latest_http_client_factory_ = http_client_factory;
-  latest_profile_info_provider_ = profile_info_provider;
 
   auto instance = std::make_unique<FakeNearbyShareLocalDeviceDataManager>(
       kDefaultDeviceName);
@@ -32,7 +29,7 @@ FakeNearbyShareLocalDeviceDataManager::Factory::CreateInstance(
 }
 
 FakeNearbyShareLocalDeviceDataManager::UploadContactsCall::UploadContactsCall(
-    std::vector<nearbyshare::proto::Contact> contacts,
+    std::vector<nearby::sharing::proto::Contact> contacts,
     UploadCompleteCallback callback)
     : contacts(std::move(contacts)), callback(std::move(callback)) {}
 
@@ -44,7 +41,7 @@ FakeNearbyShareLocalDeviceDataManager::UploadContactsCall::
 
 FakeNearbyShareLocalDeviceDataManager::UploadCertificatesCall::
     UploadCertificatesCall(
-        std::vector<nearbyshare::proto::PublicCertificate> certificates,
+        std::vector<nearby::sharing::proto::PublicCertificate> certificates,
         UploadCompleteCallback callback)
     : certificates(std::move(certificates)), callback(std::move(callback)) {}
 
@@ -69,12 +66,12 @@ std::string FakeNearbyShareLocalDeviceDataManager::GetDeviceName() const {
   return device_name_;
 }
 
-absl::optional<std::string> FakeNearbyShareLocalDeviceDataManager::GetFullName()
+std::optional<std::string> FakeNearbyShareLocalDeviceDataManager::GetFullName()
     const {
   return full_name_;
 }
 
-absl::optional<std::string> FakeNearbyShareLocalDeviceDataManager::GetIconUrl()
+std::optional<std::string> FakeNearbyShareLocalDeviceDataManager::GetIconUrl()
     const {
   return icon_url_;
 }
@@ -107,19 +104,19 @@ void FakeNearbyShareLocalDeviceDataManager::DownloadDeviceData() {
 }
 
 void FakeNearbyShareLocalDeviceDataManager::UploadContacts(
-    std::vector<nearbyshare::proto::Contact> contacts,
+    std::vector<nearby::sharing::proto::Contact> contacts,
     UploadCompleteCallback callback) {
   upload_contacts_calls_.emplace_back(std::move(contacts), std::move(callback));
 }
 
 void FakeNearbyShareLocalDeviceDataManager::UploadCertificates(
-    std::vector<nearbyshare::proto::PublicCertificate> certificates,
+    std::vector<nearby::sharing::proto::PublicCertificate> certificates,
     UploadCompleteCallback callback) {
   upload_certificates_calls_.emplace_back(std::move(certificates),
                                           std::move(callback));
 }
 void FakeNearbyShareLocalDeviceDataManager::SetFullName(
-    const absl::optional<std::string>& full_name) {
+    const std::optional<std::string>& full_name) {
   if (full_name_ == full_name)
     return;
 
@@ -131,7 +128,7 @@ void FakeNearbyShareLocalDeviceDataManager::SetFullName(
 }
 
 void FakeNearbyShareLocalDeviceDataManager::SetIconUrl(
-    const absl::optional<std::string>& icon_url) {
+    const std::optional<std::string>& icon_url) {
   if (icon_url_ == icon_url)
     return;
 

@@ -2,10 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
+#include "chrome/browser/ui/tab_contents/chrome_web_contents_view_handle_drop.h"
+
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -15,12 +20,13 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/enterprise/connectors/analysis/clipboard_request_handler.h"
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_delegate.h"
-#include "chrome/browser/enterprise/connectors/analysis/fake_content_analysis_delegate.h"
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
+#include "chrome/browser/enterprise/connectors/test/deep_scanning_test_utils.h"
+#include "chrome/browser/enterprise/connectors/test/fake_clipboard_request_handler.h"
+#include "chrome/browser/enterprise/connectors/test/fake_content_analysis_delegate.h"
 #include "chrome/browser/policy/dm_token_utils.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_test_utils.h"
-#include "chrome/browser/ui/tab_contents/chrome_web_contents_view_handle_drop.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -31,16 +37,117 @@
 #include "content/public/common/drop_data.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-class ChromeWebContentsViewDelegateHandleOnPerformDrop : public testing::Test {
+class TestDragDropRequestHandler
+    : public enterprise_connectors::test::FakeClipboardRequestHandler {
  public:
-  ChromeWebContentsViewDelegateHandleOnPerformDrop() {
+  static std::unique_ptr<ClipboardRequestHandler> Create(
+      enterprise_connectors::test::FakeContentAnalysisDelegate* delegate,
+      enterprise_connectors::ContentAnalysisInfo* content_analysis_info,
+      safe_browsing::BinaryUploadService* upload_service,
+      Profile* profile,
+      GURL url,
+      Type type,
+      safe_browsing::DeepScanAccessPoint access_point,
+      enterprise_connectors::ContentMetaData::CopiedTextSource clipboard_source,
+      std::string content_transfer_method,
+      std::string data,
+      CompletionCallback callback) {
+    auto handler = base::WrapUnique(new TestDragDropRequestHandler(
+        content_analysis_info, upload_service, profile, std::move(url), type,
+        access_point, std::move(clipboard_source),
+        std::move(content_transfer_method), std::move(data),
+        std::move(callback)));
+    handler->delegate_ = delegate;
+    return handler;
+  }
+
+ protected:
+  using FakeClipboardRequestHandler::FakeClipboardRequestHandler;
+
+ private:
+  void UploadForDeepScanning(
+      std::unique_ptr<enterprise_connectors::ClipboardAnalysisRequest> request)
+      override {
+    ASSERT_EQ(request->reason(),
+              enterprise_connectors::ContentAnalysisRequest::DRAG_AND_DROP);
+
+    safe_browsing::BinaryUploadService::Request::Data data;
+    request->GetRequestData(base::BindLambdaForTesting(
+        [&data](safe_browsing::BinaryUploadService::Result,
+                safe_browsing::BinaryUploadService::Request::Data data_arg) {
+          data = std::move(data_arg);
+        }));
+
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&TestDragDropRequestHandler::OnContentAnalysisResponse,
+                       base::Unretained(this),
+                       safe_browsing::BinaryUploadService::Result::SUCCESS,
+                       delegate_->GetStatus(data.contents, base::FilePath())));
+  }
+};
+
+class DragDropTestContentAnalysisDelegate
+    : public enterprise_connectors::test::FakeContentAnalysisDelegate {
+ public:
+  DragDropTestContentAnalysisDelegate(StatusCallback status_callback,
+                                      std::string dm_token,
+                                      content::WebContents* web_contents,
+                                      Data data,
+                                      CompletionCallback callback)
+      : enterprise_connectors::test::FakeContentAnalysisDelegate(
+            base::DoNothing(),
+            std::move(status_callback),
+            std::move(dm_token),
+            web_contents,
+            std::move(data),
+            std::move(callback)) {}
+
+  static std::unique_ptr<ContentAnalysisDelegate> Create(
+      StatusCallback status_callback,
+      std::string dm_token,
+      content::WebContents* web_contents,
+      Data data,
+      CompletionCallback callback) {
+    auto ret = std::make_unique<DragDropTestContentAnalysisDelegate>(
+        std::move(status_callback), std::move(dm_token), web_contents,
+        std::move(data), std::move(callback));
+    enterprise_connectors::FilesRequestHandler::SetFactoryForTesting(
+        base::BindRepeating(
+            &enterprise_connectors::test::FakeFilesRequestHandler::Create,
+            base::BindRepeating(&DragDropTestContentAnalysisDelegate::
+                                    FakeUploadFileForDeepScanning,
+                                base::Unretained(ret.get()))));
+    enterprise_connectors::ClipboardRequestHandler::SetFactoryForTesting(
+        base::BindRepeating(TestDragDropRequestHandler::Create,
+                            base::Unretained(ret.get())));
+    return ret;
+  }
+
+ private:
+  void FakeUploadFileForDeepScanning(
+      safe_browsing::BinaryUploadService::Result result,
+      const base::FilePath& path,
+      std::unique_ptr<safe_browsing::BinaryUploadService::Request> request,
+      enterprise_connectors::test::FakeFilesRequestHandler::
+          FakeFileRequestCallback callback) override {
+    ASSERT_EQ(request->reason(),
+              enterprise_connectors::ContentAnalysisRequest::DRAG_AND_DROP);
+
+    enterprise_connectors::test::FakeContentAnalysisDelegate::
+        FakeUploadFileForDeepScanning(result, path, std::move(request),
+                                      std::move(callback));
+  }
+};
+
+class ChromeWebContentsViewDelegateHandleOnPerformingDrop
+    : public testing::Test {
+ public:
+  ChromeWebContentsViewDelegateHandleOnPerformingDrop() {
     EXPECT_TRUE(profile_manager_.SetUp());
     profile_ = profile_manager_.CreateTestingProfile("test-user");
   }
-
-  void RunUntilDone() { run_loop_->Run(); }
 
   content::WebContents* contents() {
     if (!web_contents_) {
@@ -63,24 +170,22 @@ class ChromeWebContentsViewDelegateHandleOnPerformDrop : public testing::Test {
               ],
               "block_until_verdict": 1
           })";
-      safe_browsing::SetAnalysisConnector(
+      enterprise_connectors::test::SetAnalysisConnector(
           profile_->GetPrefs(), enterprise_connectors::FILE_ATTACHED, kEnabled);
-      safe_browsing::SetAnalysisConnector(
+      enterprise_connectors::test::SetAnalysisConnector(
           profile_->GetPrefs(), enterprise_connectors::BULK_DATA_ENTRY,
           kEnabled);
     } else {
-      safe_browsing::ClearAnalysisConnector(
+      enterprise_connectors::test::ClearAnalysisConnector(
           profile_->GetPrefs(), enterprise_connectors::FILE_ATTACHED);
-      safe_browsing::ClearAnalysisConnector(
+      enterprise_connectors::test::ClearAnalysisConnector(
           profile_->GetPrefs(), enterprise_connectors::BULK_DATA_ENTRY);
     }
 
-    run_loop_ = std::make_unique<base::RunLoop>();
+    using FakeDelegate =
+        enterprise_connectors::test::FakeContentAnalysisDelegate;
 
-    using FakeDelegate = enterprise_connectors::FakeContentAnalysisDelegate;
-
-    policy::SetDMTokenForTesting(
-        policy::DMToken::CreateValidTokenForTesting("dm_token"));
+    policy::SetDMTokenForTesting(policy::DMToken::CreateValidToken("dm_token"));
     auto callback = base::BindLambdaForTesting(
         [this](const std::string& contents, const base::FilePath& path)
             -> enterprise_connectors::ContentAnalysisResponse {
@@ -118,13 +223,13 @@ class ChromeWebContentsViewDelegateHandleOnPerformDrop : public testing::Test {
           return response;
         });
     enterprise_connectors::ContentAnalysisDelegate::SetFactoryForTesting(
-        base::BindRepeating(
-            &enterprise_connectors::FakeContentAnalysisDelegate::Create,
-            run_loop_->QuitClosure(), callback, "dm_token"));
+        base::BindRepeating(&DragDropTestContentAnalysisDelegate::Create,
+                            callback, "dm_token"));
     enterprise_connectors::ContentAnalysisDelegate::DisableUIForTesting();
     enterprise_connectors::ContentAnalysisDelegate::
         SetOnAckAllRequestsCallbackForTesting(base::BindOnce(
-            &ChromeWebContentsViewDelegateHandleOnPerformDrop::OnAckAllActions,
+            &ChromeWebContentsViewDelegateHandleOnPerformingDrop::
+                OnAckAllActions,
             base::Unretained(this)));
   }
 
@@ -138,12 +243,14 @@ class ChromeWebContentsViewDelegateHandleOnPerformDrop : public testing::Test {
     EnableDeepScanning(enable);
     SetTextScanSucceeds(successful_text_scan);
 
-    bool called = false;
-    HandleOnPerformDrop(
+    base::RunLoop run_loop;
+
+    auto quit_closure = run_loop.QuitClosure();
+    HandleOnPerformingDrop(
         contents(), data,
         base::BindLambdaForTesting(
             [&data, &successful_text_scan, &successful_file_paths,
-             &called](absl::optional<content::DropData> result_data) {
+             quit_closure](std::optional<content::DropData> result_data) {
               if (successful_text_scan || !successful_file_paths.empty()) {
                 EXPECT_TRUE(result_data.has_value());
                 EXPECT_EQ(result_data->filenames.size(),
@@ -159,12 +266,10 @@ class ChromeWebContentsViewDelegateHandleOnPerformDrop : public testing::Test {
               } else {
                 EXPECT_FALSE(result_data.has_value());
               }
-              called = true;
+              quit_closure.Run();
             }));
-    if (enable)
-      RunUntilDone();
+    run_loop.Run();
 
-    EXPECT_TRUE(called);
     ASSERT_EQ(expected_requests_count_, current_requests_count_);
   }
 
@@ -211,12 +316,29 @@ class ChromeWebContentsViewDelegateHandleOnPerformDrop : public testing::Test {
       expected_final_actions_;
 };
 
-// When no drop data is specified, HandleOnPerformDrop() should indicate
+// When no drop data is specified, HandleOnPerformingDrop() should indicate
 // the caller can proceed, whether scanning is enabled or not.
-TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, NoData) {
+TEST_F(ChromeWebContentsViewDelegateHandleOnPerformingDrop, NoData) {
   content::DropData data;
 
   SetExpectedRequestsCount(0);
+  data.document_is_handling_drag = true;
+  RunTest(data, /*enable=*/false, /*successful_text_scan=*/true,
+          /*successful_file_paths*/ {});
+  RunTest(data, /*enable=*/true, /*successful_text_scan=*/true,
+          /*successful_file_paths*/ {});
+}
+
+// When drop data is specified, but document_is_handling_drag is false,
+// HandleOnPerformingDrop() should indicate the caller can proceed
+// and no scanning is done.
+TEST_F(ChromeWebContentsViewDelegateHandleOnPerformingDrop,
+       WithData_NoneDocOp) {
+  content::DropData data;
+  data.text = base::UTF8ToUTF16(large_text());
+
+  SetExpectedRequestsCount(0);
+  data.document_is_handling_drag = false;
   RunTest(data, /*enable=*/false, /*successful_text_scan=*/true,
           /*successful_file_paths*/ {});
   RunTest(data, /*enable=*/true, /*successful_text_scan=*/true,
@@ -224,8 +346,9 @@ TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, NoData) {
 }
 
 // Make sure DropData::url_title is handled correctly.
-TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, UrlTitle) {
+TEST_F(ChromeWebContentsViewDelegateHandleOnPerformingDrop, UrlTitle) {
   content::DropData data;
+  data.document_is_handling_drag = true;
   data.url_title = base::UTF8ToUTF16(large_text());
 
   SetExpectedRequestsCount(0);
@@ -245,8 +368,9 @@ TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, UrlTitle) {
 }
 
 // Make sure DropData::text is handled correctly.
-TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, Text) {
+TEST_F(ChromeWebContentsViewDelegateHandleOnPerformingDrop, Text) {
   content::DropData data;
+  data.document_is_handling_drag = true;
   data.text = base::UTF8ToUTF16(large_text());
 
   SetExpectedRequestsCount(0);
@@ -266,8 +390,9 @@ TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, Text) {
 }
 
 // Make sure DropData::html is handled correctly.
-TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, Html) {
+TEST_F(ChromeWebContentsViewDelegateHandleOnPerformingDrop, Html) {
   content::DropData data;
+  data.document_is_handling_drag = true;
   data.html = base::UTF8ToUTF16(large_text());
 
   SetExpectedRequestsCount(0);
@@ -287,7 +412,7 @@ TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, Html) {
 }
 
 // Make sure DropData::filenames is handled correctly.
-TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, Files) {
+TEST_F(ChromeWebContentsViewDelegateHandleOnPerformingDrop, Files) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
 
@@ -300,10 +425,11 @@ TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, Files) {
   ASSERT_TRUE(file_1.IsValid());
   ASSERT_TRUE(file_2.IsValid());
 
-  file_1.WriteAtCurrentPos("foo content", 11);
-  file_2.WriteAtCurrentPos("bar content", 11);
+  file_1.WriteAtCurrentPos(base::byte_span_from_cstring("foo content"));
+  file_2.WriteAtCurrentPos(base::byte_span_from_cstring("bar content"));
 
   content::DropData data;
+  data.document_is_handling_drag = true;
   data.filenames.emplace_back(path_1, path_1);
   data.filenames.emplace_back(path_2, path_2);
 
@@ -329,7 +455,7 @@ TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, Files) {
 }
 
 // Make sure DropData::filenames directories are handled correctly.
-TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, Directories) {
+TEST_F(ChromeWebContentsViewDelegateHandleOnPerformingDrop, Directories) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
 
@@ -347,10 +473,11 @@ TEST_F(ChromeWebContentsViewDelegateHandleOnPerformDrop, Directories) {
   for (const auto& path : {path_1, path_2, path_3, path_4, path_5}) {
     base::File file(path, base::File::FLAG_CREATE | base::File::FLAG_WRITE);
     ASSERT_TRUE(file.IsValid());
-    file.WriteAtCurrentPos("foo content", 11);
+    file.WriteAtCurrentPos(base::byte_span_from_cstring("foo content"));
   }
 
   content::DropData data;
+  data.document_is_handling_drag = true;
   data.filenames.emplace_back(folder_1, folder_1);
   data.filenames.emplace_back(path_4, path_4);
   data.filenames.emplace_back(path_5, path_5);

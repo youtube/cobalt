@@ -6,8 +6,7 @@
 
 #include "base/logging.h"
 
-namespace ash {
-namespace smb_client {
+namespace ash::smb_client {
 
 SmbMountResult TranslateErrorToMountResult(smbprovider::ErrorType error) {
   switch (error) {
@@ -50,9 +49,7 @@ SmbMountResult TranslateErrorToMountResult(smbprovider::ErrorType error) {
     case smbprovider::ERROR_COPY_FAILED:
     case smbprovider::ERROR_OPERATION_PENDING:
       NOTREACHED() << "Unexpected smbprovider error: " << (int)error;
-      return SmbMountResult::kUnknownFailure;
   }
 }
 
-}  // namespace smb_client
-}  // namespace ash
+}  // namespace ash::smb_client

@@ -18,11 +18,12 @@
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_url_error.h"
 #include "third_party/blink/public/public_buildflags.h"
-#include "ui/base/layout.h"
+
+namespace webcrypto {
+class WebCryptoImpl;
+}  // namespace webcrypto
 
 namespace content {
-
-class WebCryptoImpl;
 
 class CONTENT_EXPORT BlinkPlatformImpl : public blink::Platform {
  public:
@@ -36,9 +37,11 @@ class CONTENT_EXPORT BlinkPlatformImpl : public blink::Platform {
   size_t MaxDecodedImageBytes() override;
   bool IsLowEndDevice() override;
   void RecordAction(const blink::UserMetricsAction&) override;
+  bool HasDataResource(int resource_id) const override;
   blink::WebData GetDataResource(int resource_id,
                                  ui::ResourceScaleFactor scale_factor) override;
   std::string GetDataResourceString(int resource_id) override;
+  base::RefCountedMemory* GetDataResourceBytes(int resource_id) override;
   blink::WebString QueryLocalizedString(int resource_id) override;
   blink::WebString QueryLocalizedString(int resource_id,
                                         const blink::WebString& value) override;

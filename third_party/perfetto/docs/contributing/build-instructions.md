@@ -1,22 +1,23 @@
 # Perfetto build instructions
 
-The source of truth for the Perfetto codebase lives in AOSP:
-https://android.googlesource.com/platform/external/perfetto/
+The source of truth for the Perfetto codebase is
+https://github.com/google/perfetto
 
-A read-only mirror is also available at https://github.com/google/perfetto .
+A copy is also available in the Android tree under /external/perfetto and is
+updated with the regular Android release cadence.
 
 Perfetto can be built both from the Android tree (AOSP) and standalone.
-Standalone builds are meant only for local testing and are not shipped.
+Standalone builds are meant only for local testing.
 Due to the reduced dependencies, the standalone workflow is faster to iterate on
 and the suggested way to work on Perfetto, unless you are working on code that
 has non-NDK depedencies into Android internals. Profilers and internal HAL/AIDL
 dependencies will not be built in the standalone build.
 
-If you are chromium contributor, AOSP is still the place you should send CLs to.
+If you are chromium contributor, GitHub is the place you should send PRs to.
 The code inside chromium's
 [third_party/perfetto](https://source.chromium.org/chromium/chromium/src/+/main:third_party/perfetto/?q=f:third_party%2Fperfetto&ss=chromium)
 is a direct mirror of the AOSP repo. The
-[AOSP->Chromium autoroller](https://autoroll.skia.org/r/perfetto-chromium-autoroll)
+[GitHub->Chromium autoroller](https://autoroll.skia.org/r/perfetto-chromium-autoroll)
 takes care of keeping chromium's DEPS up to date.
 
 ## Standalone builds
@@ -24,7 +25,7 @@ takes care of keeping chromium's DEPS up to date.
 #### Get the code
 
 ```bash
-git clone https://android.googlesource.com/platform/external/perfetto/
+git clone https://github.com/google/perfetto
 ```
 
 #### Pull dependent libraries and toolchains
@@ -92,7 +93,7 @@ tools/ninja -C out/android \
 
 Follow these instructions if you are an AOSP contributor.
 
-The source code lives in [`external/perfetto` in the AOSP tree](https://cs.android.com/android/platform/superproject/+/master:external/perfetto/).
+The source code lives in [`external/perfetto` in the AOSP tree](https://cs.android.com/android/platform/superproject/main/+/main:external/perfetto/).
 
 Follow the instructions on https://source.android.com/setup/build/building .
 
@@ -163,6 +164,28 @@ to skip the build steps.
 Script `ui/run-unittests` also supports `--watch` parameter, which would
 restart the testing when the underlying source files are changed. This can be
 used in conjunction with `--no-build`, and on its own as well.
+
+### Formatting & Linting
+
+We use `eslint` to lint TypeScript and JavaScript, and `prettier` to format
+TypeScript, JavaScript, and SCSS.
+
+To auto-format all source files, run ui/format-sources, which takes care of
+running both prettier and eslint on the changed files:
+
+```bash
+# By default it formats only files that changed from the upstream Git branch
+# (typicaly origin/main).
+# Pass --all for formatting all files under ui/src
+ui/format-sources
+```
+
+For VSCode users, we recommend using the eslint & prettier extensions to handle
+this entirely from within the IDE. See the
+[Useful Extensions](#useful-extensions) section on how to set this up.
+
+Presubmit checks require no formatting or linting issues, so fix all issues
+using the commands above before submitting a patch.
 
 ## Build files
 
@@ -486,6 +509,7 @@ If you are using VS Code we suggest the following extensions:
 - [GNFormat](https://marketplace.visualstudio.com/items?itemName=persidskiy.vscode-gnformat)
 - [ESlint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
 - [markdownlint](https://marketplace.visualstudio.com/items?itemName=DavidAnson.vscode-markdownlint)
+- [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
 
 #### Useful settings
 
@@ -504,6 +528,17 @@ In `.vscode/settings.json`:
     "--completion-style=detailed",
     "--header-insertion=never"
   ],
+  "eslint.workingDirectories": [
+    "./ui",
+  ],
+  "prettier.configPath": "ui/.prettierrc.yml",
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[scss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
 }
 ```
 

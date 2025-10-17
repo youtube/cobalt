@@ -8,6 +8,7 @@
 
 #include <limits>
 
+#include "common/span.h"
 #include "common/utilities.h"
 #include "compiler/preprocessor/numeric_lex.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
@@ -100,14 +101,12 @@ bool IsInterpolationOut(TQualifier qualifier)
 }
 }  // anonymous namespace
 
-float NumericLexFloat32OutOfRangeToInfinity(const std::string &str)
+float NumericLexFloat32OutOfRangeToInfinity(const std::string &str, bool preserveDenorms)
 {
     // Parses a decimal string using scientific notation into a floating point number.
-    // Out-of-range values are converted to infinity. Values that are too small to be
-    // represented are converted to zero.
-
-    // The mantissa in decimal scientific notation. The magnitude of the mantissa integer does not
-    // matter.
+    // Out-of-range values are converted to infinity, and values that are too small to be
+    // represented are converted to zero (unless `preserveDenorms` is set). The mantissa in decimal
+    // scientific notation. The magnitude of the mantissa integer does not matter.
     unsigned int decimalMantissa = 0;
     size_t i                     = 0;
     bool decimalPointSeen        = false;
@@ -210,37 +209,60 @@ float NumericLexFloat32OutOfRangeToInfinity(const std::string &str)
             }
         }
     }
+
     // Do the calculation in 64-bit to avoid overflow.
     long long exponentLong =
         static_cast<long long>(exponent) + static_cast<long long>(exponentOffset);
+
     if (exponentLong > std::numeric_limits<float>::max_exponent10)
     {
         return std::numeric_limits<float>::infinity();
     }
-    else if (exponentLong < std::numeric_limits<float>::min_exponent10)
+
+    if (!preserveDenorms)
     {
-        return 0.0f;
+        // In 32-bit float, min_exponent10 is -37 but min() is
+        // 1.1754943E-38. 10^-37 may be the "minimum negative integer such
+        // that 10 raised to that power is a normalized float", but being
+        // constrained to powers of ten it's above min() (which is 2^-126).
+        // Values below min() are flushed to zero near the end of this
+        // function anyway so (AFAICT) this comparison is only done to ensure
+        // that the exponent will not make the pow() call (below) overflow.
+        // Comparing against -38 (min_exponent10 - 1) will do the trick.
+        if (exponentLong < std::numeric_limits<float>::min_exponent10 - 1)
+        {
+            return 0.0f;
+        }
     }
+
     // The exponent is in range, so we need to actually evaluate the float.
     exponent     = static_cast<int>(exponentLong);
     double value = decimalMantissa;
 
     // Calculate the exponent offset to normalize the mantissa.
     int normalizationExponentOffset = 1 - mantissaDecimalDigits;
+
     // Apply the exponent.
     value *= std::pow(10.0, static_cast<double>(exponent + normalizationExponentOffset));
+
     if (value > static_cast<double>(std::numeric_limits<float>::max()))
     {
         return std::numeric_limits<float>::infinity();
     }
-    if (value < static_cast<double>(std::numeric_limits<float>::min()))
+
+    if (!preserveDenorms)
     {
-        return 0.0f;
+        if (static_cast<float>(value) < std::numeric_limits<float>::min())
+        {
+            return 0.0f;
+        }
     }
+
+    // The below cast will correctly generate denormalized values
     return static_cast<float>(value);
 }
 
-bool strtof_clamp(const std::string &str, float *value)
+bool strtof_clamp(const std::string &str, float *value, bool preserveDenorms)
 {
     // Custom float parsing that can handle the following corner cases:
     //   1. The decimal mantissa is very small but the exponent is very large, putting the resulting
@@ -250,7 +272,7 @@ bool strtof_clamp(const std::string &str, float *value)
     //   3. The value is out-of-range and should be evaluated as infinity.
     //   4. The value is too small and should be evaluated as zero.
     // See ESSL 3.00.6 section 4.1.4 for the relevant specification.
-    *value = NumericLexFloat32OutOfRangeToInfinity(str);
+    *value = NumericLexFloat32OutOfRangeToInfinity(str, preserveDenorms);
     return !gl::isInf(*value);
 }
 
@@ -390,8 +412,8 @@ GLenum GLVariableType(const TType &type)
         case EbtPixelLocalANGLE:
         case EbtIPixelLocalANGLE:
         case EbtUPixelLocalANGLE:
-            // TODO(anglebug.com/7279): For now, we can expect PLS handles to be rewritten to images
-            // before anyone calls into here.
+            // TODO(anglebug.com/40096838): For now, we can expect PLS handles to be rewritten to
+            // images before anyone calls into here.
             [[fallthrough]];
         default:
             UNREACHABLE();
@@ -411,9 +433,6 @@ GLenum GLVariablePrecision(const TType &type)
                 return GL_MEDIUM_FLOAT;
             case EbpLow:
                 return GL_LOW_FLOAT;
-            case EbpUndefined:
-                // Desktop specs do not use precision
-                return GL_NONE;
             default:
                 UNREACHABLE();
         }
@@ -428,9 +447,6 @@ GLenum GLVariablePrecision(const TType &type)
                 return GL_MEDIUM_INT;
             case EbpLow:
                 return GL_LOW_INT;
-            case EbpUndefined:
-                // Desktop specs do not use precision
-                return GL_NONE;
             default:
                 UNREACHABLE();
         }
@@ -445,7 +461,7 @@ ImmutableString ArrayString(const TType &type)
     if (!type.isArray())
         return ImmutableString("");
 
-    const TSpan<const unsigned int> &arraySizes     = type.getArraySizes();
+    const angle::Span<const unsigned int> &arraySizes = type.getArraySizes();
     constexpr const size_t kMaxDecimalDigitsPerSize = 10u;
     ImmutableStringBuilder arrayString(arraySizes.size() * (kMaxDecimalDigitsPerSize + 2u));
     for (auto arraySizeIter = arraySizes.rbegin(); arraySizeIter != arraySizes.rend();
@@ -454,7 +470,7 @@ ImmutableString ArrayString(const TType &type)
         arrayString << "[";
         if (*arraySizeIter > 0)
         {
-            arrayString.appendDecimal(*arraySizeIter);
+            arrayString << *arraySizeIter;
         }
         arrayString << "]";
     }
@@ -748,6 +764,8 @@ bool IsBuiltinFragmentInputVariable(TQualifier qualifier)
         case EvqHelperInvocation:
         case EvqLastFragData:
         case EvqLastFragColor:
+        case EvqLastFragDepth:
+        case EvqLastFragStencil:
             return true;
         default:
             break;
@@ -770,6 +788,11 @@ bool IsFragmentOutput(TQualifier qualifier)
         default:
             return false;
     }
+}
+
+bool IsOutputNULL(ShShaderOutput output)
+{
+    return output == SH_NULL_OUTPUT;
 }
 
 bool IsOutputESSL(ShShaderOutput output)
@@ -804,20 +827,23 @@ bool IsOutputHLSL(ShShaderOutput output)
     {
         case SH_HLSL_3_0_OUTPUT:
         case SH_HLSL_4_1_OUTPUT:
-        case SH_HLSL_4_0_FL9_3_OUTPUT:
             return true;
         default:
             break;
     }
     return false;
 }
-bool IsOutputVulkan(ShShaderOutput output)
+bool IsOutputSPIRV(ShShaderOutput output)
 {
     return output == SH_SPIRV_VULKAN_OUTPUT;
 }
-bool IsOutputMetalDirect(ShShaderOutput output)
+bool IsOutputMSL(ShShaderOutput output)
 {
     return output == SH_MSL_METAL_OUTPUT;
+}
+bool IsOutputWGSL(ShShaderOutput output)
+{
+    return output == SH_WGSL_OUTPUT;
 }
 
 bool IsInShaderStorageBlock(TIntermTyped *node)
@@ -887,114 +913,6 @@ bool IsSpecWithFunctionBodyNewScope(ShShaderSpec shaderSpec, int shaderVersion)
     return (shaderVersion == 100 && !sh::IsWebGLBasedSpec(shaderSpec));
 }
 
-ImplicitTypeConversion GetConversion(TBasicType t1, TBasicType t2)
-{
-    if (t1 == t2)
-        return ImplicitTypeConversion::Same;
-
-    switch (t1)
-    {
-        case EbtInt:
-            switch (t2)
-            {
-                case EbtInt:
-                    UNREACHABLE();
-                    break;
-                case EbtUInt:
-                    return ImplicitTypeConversion::Invalid;
-                case EbtFloat:
-                    return ImplicitTypeConversion::Left;
-                default:
-                    return ImplicitTypeConversion::Invalid;
-            }
-            break;
-        case EbtUInt:
-            switch (t2)
-            {
-                case EbtInt:
-                    return ImplicitTypeConversion::Invalid;
-                case EbtUInt:
-                    UNREACHABLE();
-                    break;
-                case EbtFloat:
-                    return ImplicitTypeConversion::Left;
-                default:
-                    return ImplicitTypeConversion::Invalid;
-            }
-            break;
-        case EbtFloat:
-            switch (t2)
-            {
-                case EbtInt:
-                case EbtUInt:
-                    return ImplicitTypeConversion::Right;
-                case EbtFloat:
-                    UNREACHABLE();
-                    break;
-                default:
-                    return ImplicitTypeConversion::Invalid;
-            }
-            break;
-        default:
-            return ImplicitTypeConversion::Invalid;
-    }
-    return ImplicitTypeConversion::Invalid;
-}
-
-bool IsValidImplicitConversion(sh::ImplicitTypeConversion conversion, TOperator op)
-{
-    switch (conversion)
-    {
-        case sh::ImplicitTypeConversion::Same:
-            return true;
-        case sh::ImplicitTypeConversion::Left:
-            switch (op)
-            {
-                case EOpEqual:
-                case EOpNotEqual:
-                case EOpLessThan:
-                case EOpGreaterThan:
-                case EOpLessThanEqual:
-                case EOpGreaterThanEqual:
-                case EOpAdd:
-                case EOpSub:
-                case EOpMul:
-                case EOpDiv:
-                    return true;
-                default:
-                    break;
-            }
-            break;
-        case sh::ImplicitTypeConversion::Right:
-            switch (op)
-            {
-                case EOpAssign:
-                case EOpInitialize:
-                case EOpEqual:
-                case EOpNotEqual:
-                case EOpLessThan:
-                case EOpGreaterThan:
-                case EOpLessThanEqual:
-                case EOpGreaterThanEqual:
-                case EOpAdd:
-                case EOpSub:
-                case EOpMul:
-                case EOpDiv:
-                case EOpAddAssign:
-                case EOpSubAssign:
-                case EOpMulAssign:
-                case EOpDivAssign:
-                    return true;
-                default:
-                    break;
-            }
-            break;
-        case sh::ImplicitTypeConversion::Invalid:
-            break;
-    }
-    return false;
-}
-
 bool IsPrecisionApplicableToType(TBasicType type)
 {
     switch (type)
@@ -1003,7 +921,7 @@ bool IsPrecisionApplicableToType(TBasicType type)
         case EbtUInt:
         case EbtFloat:
             // TODO: find all types where precision is applicable; for example samplers.
-            // http://anglebug.com/6132
+            // http://anglebug.com/42264661
             return true;
         default:
             return false;
@@ -1013,8 +931,9 @@ bool IsPrecisionApplicableToType(TBasicType type)
 bool IsRedeclarableBuiltIn(const ImmutableString &name)
 {
     return name == "gl_ClipDistance" || name == "gl_CullDistance" || name == "gl_FragDepth" ||
-           name == "gl_LastFragData" || name == "gl_LastFragColorARM" || name == "gl_PerVertex" ||
-           name == "gl_Position" || name == "gl_PointSize";
+           name == "gl_LastFragData" || name == "gl_LastFragColorARM" ||
+           name == "gl_LastFragDepthARM" || name == "gl_LastFragStencilARM" ||
+           name == "gl_PerVertex" || name == "gl_Position" || name == "gl_PointSize";
 }
 
 size_t FindFieldIndex(const TFieldList &fieldList, const char *fieldName)
@@ -1028,6 +947,27 @@ size_t FindFieldIndex(const TFieldList &fieldList, const char *fieldName)
     }
     UNREACHABLE();
     return 0;
+}
+
+Declaration ViewDeclaration(TIntermDeclaration &declNode, uint32_t index)
+{
+    ASSERT(declNode.getChildCount() > index);
+    TIntermNode *childNode = declNode.getChildNode(index);
+    ASSERT(childNode);
+    TIntermSymbol *symbolNode;
+    if ((symbolNode = childNode->getAsSymbolNode()))
+    {
+        return {*symbolNode, nullptr};
+    }
+    else
+    {
+        TIntermBinary *initNode = childNode->getAsBinaryNode();
+        ASSERT(initNode);
+        ASSERT(initNode->getOp() == TOperator::EOpInitialize);
+        symbolNode = initNode->getLeft()->getAsSymbolNode();
+        ASSERT(symbolNode);
+        return {*symbolNode, initNode->getRight()};
+    }
 }
 
 }  // namespace sh

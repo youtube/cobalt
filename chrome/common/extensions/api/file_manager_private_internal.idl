@@ -28,8 +28,12 @@ namespace fileManagerPrivateInternal {
     DOMString query;
     fileManagerPrivate.SearchType types;
     long maxResults;
-    double timestamp;
+    double modifiedTimestamp;
     fileManagerPrivate.FileCategory category;
+  };
+  dictionary CrostiniSharedPathResponse {
+    EntryDescription[] entries;
+    boolean firstForSession;
   };
 
   callback SimpleCallback = void();
@@ -39,15 +43,12 @@ namespace fileManagerPrivateInternal {
   callback AddFileWatchCallback = void(optional boolean success);
   callback RemoveFileWatchCallback = void(optional boolean success);
   callback GetCustomActionsCallback = void(fileSystemProvider.Action[] actions);
-  callback ComputeChecksumCallback = void(DOMString checksum);
   callback GetMimeTypeCallback = void(DOMString result);
   callback GetContentMimeTypeCallback = void(DOMString result);
   callback GetContentMetadataCallback = void(
       fileManagerPrivate.MediaMetadata result);
   callback ExecuteTaskCallback = void(fileManagerPrivate.TaskResult result);
   callback GetFileTasksCallback = void(fileManagerPrivate.ResultingTasks resultingTasks);
-  callback GetUrlCallback = void(DOMString url);
-  callback GetUrlCallback = void(DOMString url);
   callback GetDisallowedTransfersCallback =
       void(EntryDescription[] entries);
   callback GetDlpMetadataCallback =
@@ -55,16 +56,15 @@ namespace fileManagerPrivateInternal {
   callback GetDriveQuotaMetadataCallback =
       void(optional fileManagerPrivate.DriveQuotaMetadata driveQuotaMetadata);
   callback IOTaskIdCallback = void(long taskId);
-  callback ZipSelectionCallback = void(long zipId, double totalBytes);
   callback ValidatePathNameLengthCallback = void(boolean result);
   callback GetDirectorySizeCallback = void(double size);
   callback GetRecentFilesCallback = void(EntryDescription[] entries);
   callback GetCrostiniSharedPathsCallback =
-      void(EntryDescription[] entries, boolean firstForSession);
+      void(CrostiniSharedPathResponse response);
   callback GetLinuxPackageInfoCallback =
       void(fileManagerPrivate.LinuxPackageInfo linux_package_info);
   callback InstallLinuxPackageCallback =
-      void(fileManagerPrivate.InstallLinuxPackageResponse response);
+      void(fileManagerPrivate.InstallLinuxPackageStatus status);
   callback GetThumbnailCallback = void(DOMString ThumbnailDataUrl);
   callback BooleanCallback = void(boolean result);
   callback GetVolumeRootCallback = void(EntryDescription rootDir);
@@ -72,8 +72,9 @@ namespace fileManagerPrivateInternal {
   callback SearchFilesCallback = void(EntryDescription[] entries);
 
   interface Functions {
-    static void resolveIsolatedEntries(DOMString[] urls,
-                                       ResolveIsolatedEntriesCallback callback);
+    static void resolveIsolatedEntries(
+        DOMString[] urls,
+        ResolveIsolatedEntriesCallback callback);
     static void getEntryProperties(
         DOMString[] urls,
         fileManagerPrivate.EntryPropertyName[] names,
@@ -84,97 +85,96 @@ namespace fileManagerPrivateInternal {
     static void removeFileWatch(
         DOMString url,
         RemoveFileWatchCallback callback);
-    static void getCustomActions(DOMString[] urls,
-                                 GetCustomActionsCallback callback);
-    static void executeCustomAction(DOMString[] urls,
-                                    DOMString actionId,
-                                    SimpleCallback callback);
-    static void computeChecksum(DOMString url,
-                                ComputeChecksumCallback callback);
-    static void getMimeType(DOMString url,
-                            GetMimeTypeCallback callback);
-    static void getContentMimeType(DOMString blobUUID,
-                                   GetContentMimeTypeCallback callback);
-    static void getContentMetadata(DOMString blobUUID,
-                                   DOMString mimeType,
-                                   boolean includeImages,
-                                   GetContentMetadataCallback callback);
-    static void pinDriveFile(DOMString url,
-                             boolean pin,
-                             SimpleCallback callback);
-    static void executeTask(fileManagerPrivate.FileTaskDescriptor descriptor,
-                            DOMString[] urls,
-                            ExecuteTaskCallback callback);
-    static void searchFiles(SearchFilesParams searchParams, SearchFilesCallback callback);
-    static void setDefaultTask(fileManagerPrivate.FileTaskDescriptor descriptor,
-                               DOMString[] urls,
-                               DOMString[] mimeTypes,
-                               SimpleCallback callback);
-    static void getFileTasks(DOMString[] urls,
-                             DOMString[] dlpSourceUrls,
-                             GetFileTasksCallback callback);
-    static void getDownloadUrl(DOMString url, GetUrlCallback callback);
-    static void getDisallowedTransfers(DOMString[] entries,
-                                       DOMString destinationEntry,
-                                       boolean isMove,
-                                       GetDisallowedTransfersCallback callback);
-    static void getDlpMetadata(DOMString[] entries,
-                               GetDlpMetadataCallback callback);
-    static void getDriveQuotaMetadata(DOMString url,
-                                      GetDriveQuotaMetadataCallback callback);
-    static void zipSelection(DOMString parentUrl,
-                             DOMString[] urls,
-                             DOMString destName,
-                             ZipSelectionCallback callback);
+    static void getCustomActions(
+        DOMString[] urls,
+        GetCustomActionsCallback callback);
+    static void executeCustomAction(
+        DOMString[] urls,
+        DOMString actionId,
+        SimpleCallback callback);
+    static void getContentMimeType(
+        DOMString blobUUID,
+        GetContentMimeTypeCallback callback);
+    static void getContentMetadata(
+        DOMString blobUUID,
+        DOMString mimeType,
+        boolean includeImages,
+        GetContentMetadataCallback callback);
+    static void pinDriveFile(
+        DOMString url,
+        boolean pin,
+        SimpleCallback callback);
+    static void executeTask(
+        fileManagerPrivate.FileTaskDescriptor descriptor,
+        DOMString[] urls,
+        ExecuteTaskCallback callback);
+    static void searchFiles(
+        SearchFilesParams searchParams, SearchFilesCallback callback);
+    static void setDefaultTask(
+        fileManagerPrivate.FileTaskDescriptor descriptor,
+        DOMString[] urls,
+        DOMString[] mimeTypes,
+        SimpleCallback callback);
+    static void getFileTasks(
+        DOMString[] urls,
+        DOMString[] dlpSourceUrls,
+        GetFileTasksCallback callback);
+    static void getDisallowedTransfers(
+        DOMString[] entries,
+        DOMString destinationEntry,
+        boolean isMove,
+        GetDisallowedTransfersCallback callback);
+    static void getDlpMetadata(
+        DOMString[] entries,
+        GetDlpMetadataCallback callback);
+    static void getDriveQuotaMetadata(
+        DOMString url,
+        GetDriveQuotaMetadataCallback callback);
     static void validatePathNameLength(
         DOMString parentUrl,
         DOMString name,
         ValidatePathNameLengthCallback callback);
-    static void getDirectorySize(DOMString url,
-                                 GetDirectorySizeCallback callback);
-    static void getVolumeRoot(fileManagerPrivate.GetVolumeRootOptions options,
-                              GetVolumeRootCallback callback);
-    static void getRecentFiles(fileManagerPrivate.SourceRestriction restriction,
-                               fileManagerPrivate.FileCategory file_category,
-                               boolean invalidate_cache,
-                               GetRecentFilesCallback callback);
-    static void sharePathsWithCrostini(DOMString vmName, DOMString[] urls,
-                                       boolean persist,
-                                       SimpleCallback callback);
-    static void unsharePathWithCrostini(DOMString vmName, DOMString url,
-                                        SimpleCallback callback);
-    static void getCrostiniSharedPaths(boolean observeFirstForSession,
-                                       DOMString vmName,
-                                       GetCrostiniSharedPathsCallback callback);
-    static void getLinuxPackageInfo(DOMString url,
-                                    GetLinuxPackageInfoCallback callback);
-    static void installLinuxPackage(DOMString url,
-                                    InstallLinuxPackageCallback callback);
-    static void importCrostiniImage(DOMString url);
-    static void getDriveThumbnail(DOMString url,
-                                  boolean cropToSquare,
-                                  GetThumbnailCallback callback);
-    static void getPdfThumbnail(DOMString url,
-                                long width,
-                                long height,
-                                GetThumbnailCallback callback);
-    static void getArcDocumentsProviderThumbnail(DOMString url,
-                                                 long widthHint,
-                                                 long heightHint,
-                                                 GetThumbnailCallback callback);
-    static void sharesheetHasTargets(DOMString[] urls, BooleanCallback callback);
-    static void invokeSharesheet(
-        DOMString[] urls,
-        fileManagerPrivate.SharesheetLaunchSource launchSource,
-        DOMString[] dlpSourceUrls,
+    static void getDirectorySize(
+        DOMString url,
+        GetDirectorySizeCallback callback);
+    static void getVolumeRoot(
+        fileManagerPrivate.GetVolumeRootOptions options,
+        GetVolumeRootCallback callback);
+    static void getRecentFiles(
+        fileManagerPrivate.SourceRestriction restriction,
+        DOMString query,
+        long cutoff_days,
+        fileManagerPrivate.FileCategory file_category,
+        boolean invalidate_cache,
+        GetRecentFilesCallback callback);
+    static void sharePathsWithCrostini(
+        DOMString vmName, DOMString[] urls,
+        boolean persist,
         SimpleCallback callback);
-    static void toggleAddedToHoldingSpace(DOMString[] urls, boolean add,
+    static void unsharePathWithCrostini(
+        DOMString vmName, DOMString url,
+        SimpleCallback callback);
+    static void getCrostiniSharedPaths(
+        boolean observeFirstForSession,
+        DOMString vmName,
+        GetCrostiniSharedPathsCallback callback);
+    static void getLinuxPackageInfo(
+        DOMString url,
+        GetLinuxPackageInfoCallback callback);
+    static void installLinuxPackage(
+        DOMString url,
+        InstallLinuxPackageCallback callback);
+    static void importCrostiniImage(DOMString url);
+    static void toggleAddedToHoldingSpace(
+        DOMString[] urls, boolean add,
                                           optional SimpleCallback callback);
-    static void startIOTask(fileManagerPrivate.IOTaskType type,
-                            DOMString[] urls,
-                            IOTaskParams params,
-                            optional IOTaskIdCallback callback);
-    static void parseTrashInfoFiles(DOMString[] urls,
-                                    ParseTrashInfoFilesCallback callback);
+    static void startIOTask(
+        fileManagerPrivate.IoTaskType type,
+        DOMString[] urls,
+        IOTaskParams params,
+        optional IOTaskIdCallback callback);
+    static void parseTrashInfoFiles(
+        DOMString[] urls,
+        ParseTrashInfoFilesCallback callback);
   };
 };

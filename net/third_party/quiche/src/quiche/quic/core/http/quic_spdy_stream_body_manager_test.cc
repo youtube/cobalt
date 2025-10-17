@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <numeric>
 #include <string>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
@@ -27,18 +28,21 @@ class QuicSpdyStreamBodyManagerTest : public QuicTest {
 
 TEST_F(QuicSpdyStreamBodyManagerTest, HasBytesToRead) {
   EXPECT_FALSE(body_manager_.HasBytesToRead());
+  EXPECT_EQ(body_manager_.ReadableBytes(), 0u);
   EXPECT_EQ(0u, body_manager_.total_body_bytes_received());
 
   const QuicByteCount header_length = 3;
   EXPECT_EQ(header_length, body_manager_.OnNonBody(header_length));
 
   EXPECT_FALSE(body_manager_.HasBytesToRead());
+  EXPECT_EQ(body_manager_.ReadableBytes(), 0u);
   EXPECT_EQ(0u, body_manager_.total_body_bytes_received());
 
   std::string body(1024, 'a');
   body_manager_.OnBody(body);
 
   EXPECT_TRUE(body_manager_.HasBytesToRead());
+  EXPECT_EQ(body_manager_.ReadableBytes(), 1024u);
   EXPECT_EQ(1024u, body_manager_.total_body_bytes_received());
 }
 
@@ -103,6 +107,7 @@ TEST_F(QuicSpdyStreamBodyManagerTest, OnBodyConsumed) {
     }
 
     EXPECT_FALSE(body_manager_.HasBytesToRead());
+    EXPECT_EQ(body_manager_.ReadableBytes(), 0u);
   }
 }
 
@@ -277,6 +282,25 @@ TEST_F(QuicSpdyStreamBodyManagerTest, ReadBody) {
     EXPECT_EQ(read_body.size() < received_body.size(),
               body_manager.HasBytesToRead());
   }
+}
+
+TEST_F(QuicSpdyStreamBodyManagerTest, Clear) {
+  const QuicByteCount header_length = 3;
+  EXPECT_EQ(header_length, body_manager_.OnNonBody(header_length));
+
+  std::string body("foo");
+  body_manager_.OnBody(body);
+
+  EXPECT_TRUE(body_manager_.HasBytesToRead());
+
+  body_manager_.Clear();
+
+  EXPECT_FALSE(body_manager_.HasBytesToRead());
+
+  iovec iov;
+  size_t total_bytes_read = 5;
+  EXPECT_EQ(0, body_manager_.PeekBody(&iov, 1));
+  EXPECT_EQ(0u, body_manager_.ReadBody(&iov, 1, &total_bytes_read));
 }
 
 }  // anonymous namespace

@@ -14,7 +14,7 @@
 #include "base/values.h"
 #include "components/media_router/common/discovery/media_sink_internal.h"
 #include "components/media_router/common/mojom/media_router.mojom.h"
-#include "components/media_router/common/providers/cast/channel/cast_socket.h"
+#include "components/media_router/common/providers/cast/channel/cast_device_capability.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_address.h"
 #include "net/base/port_util.h"
@@ -23,6 +23,9 @@
 namespace media_router {
 
 namespace {
+
+using cast_channel::CastDeviceCapability;
+using cast_channel::CastDeviceCapabilitySet;
 
 constexpr char kSinkDictKey[] = "sink";
 constexpr char kSinkIdKey[] = "sink_id";
@@ -34,30 +37,28 @@ constexpr char kIpAddressKey[] = "ip_address";
 constexpr char kModelName[] = "model_name";
 constexpr char kDefaultAccessCodeModelName[] = "Chromecast Cast Moderator";
 
-uint8_t ConvertDeviceCapabilitiesToInt(
+CastDeviceCapabilitySet ConvertDeviceCapabilities(
     chrome_browser_media::proto::DeviceCapabilities proto) {
-  // Meaning of capacity value for each bit:
-  // NONE: 0,
-  // VIDEO_OUT: 1 << 0,
-  // VIDEO_IN: 1 << 1,
-  // AUDIO_OUT: 1 << 2,
-  // AUDIO_IN: 1 << 3,
-  // DEV_MODE: 1 << 4,
-  uint8_t bool_sum = 0;
-  if (proto.video_out())
-    bool_sum += 1 << 0;
-  if (proto.video_in())
-    bool_sum += 1 << 1;
-  if (proto.audio_out())
-    bool_sum += 1 << 2;
-  if (proto.audio_in())
-    bool_sum += 1 << 3;
-  if (proto.dev_mode())
-    bool_sum += 1 << 4;
-  return bool_sum;
+  CastDeviceCapabilitySet capabilities;
+  if (proto.video_out()) {
+    capabilities.Put(CastDeviceCapability::kVideoOut);
+  }
+  if (proto.video_in()) {
+    capabilities.Put(CastDeviceCapability::kVideoIn);
+  }
+  if (proto.audio_out()) {
+    capabilities.Put(CastDeviceCapability::kAudioOut);
+  }
+  if (proto.audio_in()) {
+    capabilities.Put(CastDeviceCapability::kAudioIn);
+  }
+  if (proto.dev_mode()) {
+    capabilities.Put(CastDeviceCapability::kDevMode);
+  }
+  return capabilities;
 }
 
-absl::optional<net::IPAddress> GetIPAddress(NetworkInfo network_info) {
+std::optional<net::IPAddress> GetIPAddress(NetworkInfo network_info) {
   net::IPAddress ip_address;
   const std::string& ip_v6_address = network_info.ip_v6_address();
   const std::string& ip_v4_address = network_info.ip_v4_address();
@@ -69,31 +70,31 @@ absl::optional<net::IPAddress> GetIPAddress(NetworkInfo network_info) {
              ip_address.AssignFromIPLiteral(ip_v4_address)) {
     return ip_address;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 }  // namespace
 
-std::pair<absl::optional<MediaSinkInternal>, CreateCastMediaSinkResult>
+std::pair<std::optional<MediaSinkInternal>, CreateCastMediaSinkResult>
 CreateAccessCodeMediaSink(const DiscoveryDevice& discovery_device) {
   if (!discovery_device.has_network_info()) {
-    return std::make_pair(absl::nullopt,
+    return std::make_pair(std::nullopt,
                           CreateCastMediaSinkResult::kMissingNetworkInfo);
   }
-  absl::optional<net::IPAddress> ip_address =
+  std::optional<net::IPAddress> ip_address =
       GetIPAddress(discovery_device.network_info());
   if (!ip_address.has_value()) {
     return std::make_pair(
-        absl::nullopt, CreateCastMediaSinkResult::kMissingOrInvalidIPAddress);
+        std::nullopt, CreateCastMediaSinkResult::kMissingOrInvalidIPAddress);
   }
 
   const std::string& unique_id = discovery_device.id();
   if (unique_id.empty()) {
-    return std::make_pair(absl::nullopt, CreateCastMediaSinkResult::kMissingID);
+    return std::make_pair(std::nullopt, CreateCastMediaSinkResult::kMissingID);
   }
 
   const std::string& display_name = discovery_device.display_name();
   if (display_name.empty()) {
-    return std::make_pair(absl::nullopt,
+    return std::make_pair(std::nullopt,
                           CreateCastMediaSinkResult::kMissingFriendlyName);
   }
 
@@ -102,21 +103,21 @@ CreateAccessCodeMediaSink(const DiscoveryDevice& discovery_device) {
   int port_value = kCastControlPort;
   // Convert port from string to int
   if (!port.empty() && !base::StringToInt(port, &port_value)) {
-    return std::make_pair(absl::nullopt,
+    return std::make_pair(std::nullopt,
                           CreateCastMediaSinkResult::kMissingOrInvalidPort);
   }
   if (!net::IsPortValid(port_value)) {
-    return std::make_pair(absl::nullopt,
+    return std::make_pair(std::nullopt,
                           CreateCastMediaSinkResult::kMissingOrInvalidPort);
   }
   uint16_t valid_port = static_cast<uint16_t>(port_value);
   extra_data.ip_endpoint = net::IPEndPoint(ip_address.value(), valid_port);
   if (!discovery_device.has_device_capabilities()) {
     return std::make_pair(
-        absl::nullopt, CreateCastMediaSinkResult::kMissingDeviceCapabilities);
+        std::nullopt, CreateCastMediaSinkResult::kMissingDeviceCapabilities);
   }
   extra_data.capabilities =
-      ConvertDeviceCapabilitiesToInt(discovery_device.device_capabilities());
+      ConvertDeviceCapabilities(discovery_device.device_capabilities());
   extra_data.discovery_type = CastDiscoveryType::kAccessCodeManualEntry;
   // Various pieces of Chrome make decisions about how to support casting based
   // on the device's model name, generally speaking treating anything that
@@ -138,12 +139,14 @@ CreateAccessCodeMediaSink(const DiscoveryDevice& discovery_device) {
   return std::make_pair(cast_sink, CreateCastMediaSinkResult::kOk);
 }
 
-base::Value CreateValueDictFromMediaSinkInternal(
+base::Value::Dict CreateValueDictFromMediaSinkInternal(
     const MediaSinkInternal& sink) {
   const CastSinkExtraData& extra_data = sink.cast_data();
 
   base::Value::Dict extra_data_dict;
-  extra_data_dict.Set(kCapabilitiesKey, extra_data.capabilities);
+  extra_data_dict.Set(
+      kCapabilitiesKey,
+      static_cast<int>(extra_data.capabilities.ToEnumBitmask()));
   extra_data_dict.Set(kPortKey, extra_data.ip_endpoint.port());
   extra_data_dict.Set(kIpAddressKey,
                       extra_data.ip_endpoint.address().ToString());
@@ -157,7 +160,7 @@ base::Value CreateValueDictFromMediaSinkInternal(
   value_dict.Set(kSinkDictKey, std::move(sink_dict));
   value_dict.Set(kExtraDataDictKey, std::move(extra_data_dict));
 
-  return base::Value(std::move(value_dict));
+  return value_dict;
 }
 
 // This stored dict looks like:
@@ -172,45 +175,54 @@ base::Value CreateValueDictFromMediaSinkInternal(
 //       "ip_address": ""192.0.2.146"",
 //     },
 //   }
-absl::optional<MediaSinkInternal> ParseValueDictIntoMediaSinkInternal(
+std::optional<MediaSinkInternal> ParseValueDictIntoMediaSinkInternal(
     const base::Value::Dict& value_dict) {
   const auto* extra_data_dict = value_dict.FindDict(kExtraDataDictKey);
-  if (!extra_data_dict)
-    return absl::nullopt;
+  if (!extra_data_dict) {
+    return std::nullopt;
+  }
 
   net::IPAddress ip_address;
   const std::string* ip_address_string =
       extra_data_dict->FindString(kIpAddressKey);
-  if (!ip_address_string)
-    return absl::nullopt;
-  if (!ip_address.AssignFromIPLiteral(*ip_address_string))
-    return absl::nullopt;
+  if (!ip_address_string) {
+    return std::nullopt;
+  }
+  if (!ip_address.AssignFromIPLiteral(*ip_address_string)) {
+    return std::nullopt;
+  }
 
-  absl::optional<int> port = extra_data_dict->FindInt(kPortKey);
-  if (!port.has_value())
-    return absl::nullopt;
+  std::optional<int> port = extra_data_dict->FindInt(kPortKey);
+  if (!port.has_value()) {
+    return std::nullopt;
+  }
 
-  absl::optional<int> capabilities = extra_data_dict->FindInt(kCapabilitiesKey);
-  if (!capabilities.has_value())
-    return absl::nullopt;
+  std::optional<int> capabilities = extra_data_dict->FindInt(kCapabilitiesKey);
+  if (!capabilities.has_value()) {
+    return std::nullopt;
+  }
 
   CastSinkExtraData extra_data;
   extra_data.ip_endpoint = net::IPEndPoint(ip_address, port.value());
-  extra_data.capabilities = capabilities.value();
+  extra_data.capabilities =
+      CastDeviceCapabilitySet::FromEnumBitmask(capabilities.value());
   extra_data.discovery_type = CastDiscoveryType::kAccessCodeRememberedDevice;
   const std::string* model_name = extra_data_dict->FindString(kModelName);
   extra_data.model_name =
       model_name ? *model_name : kDefaultAccessCodeModelName;
 
   const auto* sink_dict = value_dict.FindDict(kSinkDictKey);
-  if (!sink_dict)
-    return absl::nullopt;
+  if (!sink_dict) {
+    return std::nullopt;
+  }
   const std::string* sink_id = sink_dict->FindString(kSinkIdKey);
-  if (!sink_id)
-    return absl::nullopt;
+  if (!sink_id) {
+    return std::nullopt;
+  }
   const std::string* display_name = sink_dict->FindString(kDisplayNameKey);
-  if (!display_name)
-    return absl::nullopt;
+  if (!display_name) {
+    return std::nullopt;
+  }
 
   MediaSink sink(*sink_id, *display_name,
                  GetCastSinkIconType(extra_data.capabilities),
@@ -256,32 +268,30 @@ AccessCodeCastAddSinkResult AddSinkResultMetricsHelper(
       return AccessCodeCastAddSinkResult::kProfileSyncError;
     case AddSinkResultCode::INTERNAL_MEDIA_ROUTER_ERROR:
       return AccessCodeCastAddSinkResult::kInternalMediaRouterError;
-    default:
-      NOTREACHED();
-      return AccessCodeCastAddSinkResult::kUnknownError;
   }
+  NOTREACHED();
 }
 
-absl::optional<net::IPEndPoint> GetIPEndPointFromValueDict(
+std::optional<net::IPEndPoint> GetIPEndPointFromValueDict(
     const base::Value::Dict& value_dict) {
   const auto* extra_data_dict = value_dict.FindDict(kExtraDataDictKey);
   if (!extra_data_dict) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   net::IPAddress ip_address;
   const std::string* ip_address_string =
       extra_data_dict->FindString(kIpAddressKey);
   if (!ip_address_string) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   if (!ip_address.AssignFromIPLiteral(*ip_address_string)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  absl::optional<int> port = extra_data_dict->FindInt(kPortKey);
+  std::optional<int> port = extra_data_dict->FindInt(kPortKey);
   if (!port.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return net::IPEndPoint(ip_address, port.value());

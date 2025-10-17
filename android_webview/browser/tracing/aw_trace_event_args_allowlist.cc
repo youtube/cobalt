@@ -2,10 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "android_webview/browser/tracing/aw_trace_event_args_allowlist.h"
 
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/pattern.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
@@ -16,9 +21,7 @@ namespace {
 struct AllowlistEntry {
   const char* category_name;
   const char* event_name;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #global-scope
-  RAW_PTR_EXCLUSION const char* const* arg_name_filter;
+  raw_ptr<const char* const> arg_name_filter;
 };
 
 const char* const kMemoryDumpAllowedArgs[] = {"dumps", nullptr};

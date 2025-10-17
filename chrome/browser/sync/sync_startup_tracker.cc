@@ -4,16 +4,17 @@
 
 #include "chrome/browser/sync/sync_startup_tracker.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "base/notreached.h"
-#include "components/sync/driver/sync_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/sync/service/sync_service.h"
 
 namespace {
 
 constexpr base::TimeDelta kDefaultWaitTimeout = base::Seconds(10);
 
-absl::optional<base::TimeDelta> g_wait_timeout = kDefaultWaitTimeout;
+std::optional<base::TimeDelta> g_wait_timeout = kDefaultWaitTimeout;
 
 }  // namespace
 
@@ -75,7 +76,6 @@ SyncStartupTracker::GetServiceStartupState(syncer::SyncService* sync_service) {
   switch (sync_service->GetTransportState()) {
     case syncer::SyncService::TransportState::DISABLED:
       NOTREACHED();
-      break;
     case syncer::SyncService::TransportState::START_DEFERRED:
     case syncer::SyncService::TransportState::INITIALIZING:
       // No error detected yet, but the sync engine hasn't started up yet, so
@@ -92,13 +92,12 @@ SyncStartupTracker::GetServiceStartupState(syncer::SyncService* sync_service) {
   }
 
   NOTREACHED();
-  return ServiceStartupState::kError;
 }
 
 namespace testing {
 
 ScopedSyncStartupTimeoutOverride::ScopedSyncStartupTimeoutOverride(
-    absl::optional<base::TimeDelta> wait_timeout) {
+    std::optional<base::TimeDelta> wait_timeout) {
   old_wait_timeout_ = g_wait_timeout;
   g_wait_timeout = wait_timeout;
 }

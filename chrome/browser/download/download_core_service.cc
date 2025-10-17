@@ -14,7 +14,7 @@ DownloadCoreService::DownloadCoreService() = default;
 DownloadCoreService::~DownloadCoreService() = default;
 
 // static
-int DownloadCoreService::NonMaliciousDownloadCountAllProfiles() {
+int DownloadCoreService::BlockingShutdownCountAllProfiles() {
   std::vector<Profile*> profiles(
       g_browser_process->profile_manager()->GetLoadedProfiles());
 
@@ -24,7 +24,7 @@ int DownloadCoreService::NonMaliciousDownloadCountAllProfiles() {
     // profiles, like the System Profile.
     if (DownloadCoreService* service =
             DownloadCoreServiceFactory::GetForBrowserContext(*it)) {
-      count += service->NonMaliciousDownloadCount();
+      count += service->BlockingShutdownCount();
     }
 
     std::vector<Profile*> otr_profiles = (*it)->GetAllOffTheRecordProfiles();
@@ -33,7 +33,7 @@ int DownloadCoreService::NonMaliciousDownloadCountAllProfiles() {
       // profiles, like the System Profile.
       if (DownloadCoreService* otr_service =
               DownloadCoreServiceFactory::GetForBrowserContext(otr)) {
-        count += otr_service->NonMaliciousDownloadCount();
+        count += otr_service->BlockingShutdownCount();
       }
     }
   }
@@ -42,7 +42,7 @@ int DownloadCoreService::NonMaliciousDownloadCountAllProfiles() {
 }
 
 // static
-void DownloadCoreService::CancelAllDownloads() {
+void DownloadCoreService::CancelAllDownloads(CancelDownloadsTrigger trigger) {
   std::vector<Profile*> profiles(
       g_browser_process->profile_manager()->GetLoadedProfiles());
   for (auto it = profiles.begin(); it < profiles.end(); ++it) {
@@ -50,7 +50,7 @@ void DownloadCoreService::CancelAllDownloads() {
     // profiles, like the System Profile.
     if (DownloadCoreService* service =
             DownloadCoreServiceFactory::GetForBrowserContext(*it)) {
-      service->CancelDownloads();
+      service->CancelDownloads(trigger);
     }
   }
 }

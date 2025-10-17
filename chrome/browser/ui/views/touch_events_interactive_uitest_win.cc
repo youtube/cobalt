@@ -11,9 +11,9 @@
 #include "ui/aura/test/env_test_helper.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_tree_host.h"
-#include "ui/base/models/simple_menu_model.h"
 #include "ui/base/test/ui_controls.h"
 #include "ui/events/gestures/gesture_recognizer_impl.h"
+#include "ui/menus/simple_menu_model.h"
 #include "ui/views/controls/menu/menu_runner.h"
 
 namespace {
@@ -30,7 +30,7 @@ class TouchEventHandler : public ui::EventHandler {
   TouchEventHandler(const TouchEventHandler&) = delete;
   TouchEventHandler& operator=(const TouchEventHandler&) = delete;
 
-  ~TouchEventHandler() override {}
+  ~TouchEventHandler() override = default;
 
   // OnTouchEvent will simulate a second touch event (at |touch_point|) to force
   // recursion in event handling.
@@ -62,7 +62,8 @@ class TouchEventHandler : public ui::EventHandler {
   void OnTouchEvent(ui::TouchEvent* event) override {
     max_call_depth_ = std::max(++call_depth_, max_call_depth_);
 
-    if (recursion_enabled_ && (event->type() == ui::ET_TOUCH_RELEASED)) {
+    if (recursion_enabled_ &&
+        (event->type() == ui::EventType::kTouchReleased)) {
       recursion_enabled_ = false;
       ui_controls::SendTouchEvents(ui_controls::kTouchPress, 1,
                                    touch_point_.x(), touch_point_.y());
@@ -70,11 +71,11 @@ class TouchEventHandler : public ui::EventHandler {
     }
 
     switch (event->type()) {
-      case ui::ET_TOUCH_PRESSED:
+      case ui::EventType::kTouchPressed:
         num_touch_presses_++;
         num_pointers_down_++;
         break;
-      case ui::ET_TOUCH_RELEASED:
+      case ui::EventType::kTouchReleased:
         num_pointers_down_--;
         if (!quit_closure_.is_null() && num_pointers_down_ == 0) {
           quit_closure_.Run();
@@ -112,10 +113,10 @@ class TestingGestureRecognizer : public ui::GestureRecognizerImpl {
   bool ProcessTouchEventPreDispatch(ui::TouchEvent* event,
                                     ui::GestureConsumer* consumer) override {
     switch (event->type()) {
-      case ui::ET_TOUCH_PRESSED:
+      case ui::EventType::kTouchPressed:
         num_touch_press_events_++;
         break;
-      case ui::ET_TOUCH_RELEASED:
+      case ui::EventType::kTouchReleased:
         num_touch_release_events_++;
         break;
       default:
@@ -204,7 +205,7 @@ VIEW_TEST(TouchEventsViewTest, MAYBE_CheckWindowsNativeMessageForTouchEvents)
 
 class TouchEventsRecursiveViewTest : public TouchEventsViewTest {
  public:
-  TouchEventsRecursiveViewTest() {}
+  TouchEventsRecursiveViewTest() = default;
 
   TouchEventsRecursiveViewTest(const TouchEventsRecursiveViewTest&) = delete;
   TouchEventsRecursiveViewTest& operator=(const TouchEventsRecursiveViewTest&) =

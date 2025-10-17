@@ -32,7 +32,6 @@ class HitTester {
   // Builds a R-Tree from the underlying data.
   void Build(const PaintPreviewFrameProto& proto);
   void Build(const std::vector<LinkData>& links);
-  void Build(const std::vector<LinkDataProto>& links);
 
   // Returns false if the underlying rtree is not valid.
   bool IsValid();
@@ -40,9 +39,6 @@ class HitTester {
   // Finds all rects in the provided data that intersect with query and returns
   // a vector of non-owning pointers to corresponding GURLs.
   void HitTest(const gfx::Rect& query, std::vector<const GURL*>* results) const;
-
-  // Clears all data.
-  void Reset();
 
  private:
   cc::RTree<GURL> rtree_;

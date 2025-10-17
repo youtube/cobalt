@@ -10,13 +10,13 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
-#include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "components/update_client/crx_downloader_factory.h"
 #include "components/update_client/net/network_chromium.h"
+#include "components/update_client/test_utils.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
 #include "net/base/net_errors.h"
@@ -28,20 +28,12 @@
 using base::ContentsEqual;
 
 namespace update_client {
-
 namespace {
 
-const char kTestFileName[] = "jebgalgnebhfojomionfpkfelancnnkf.crx";
+constexpr char kTestFileName[] = "jebgalgnebhfojomionfpkfelancnnkf.crx";
 
-const char hash_jebg[] =
+constexpr char hash_jebg[] =
     "7ab32f071cd9b5ef8e0d7913be161f532d98b3e9fa284a7cd8059c3409ce0498";
-
-base::FilePath MakeTestFilePath(const char* file) {
-  base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
-  return path.AppendASCII("components/test/data/update_client")
-      .AppendASCII(file);
-}
 
 }  // namespace
 
@@ -126,8 +118,9 @@ void CrxDownloaderTest::TearDown() {
 }
 
 void CrxDownloaderTest::Quit() {
-  if (!quit_closure_.is_null())
+  if (!quit_closure_.is_null()) {
     std::move(quit_closure_).Run();
+  }
 }
 
 void CrxDownloaderTest::DownloadComplete(const CrxDownloader::Result& result) {
@@ -138,8 +131,9 @@ void CrxDownloaderTest::DownloadComplete(const CrxDownloader::Result& result) {
 
 void CrxDownloaderTest::DownloadProgress(int64_t downloaded_bytes,
                                          int64_t total_bytes) {
-  if (downloaded_bytes != -1 && total_bytes != -1)
+  if (downloaded_bytes != -1 && total_bytes != -1) {
     EXPECT_LE(downloaded_bytes, total_bytes);
+  }
   downloaded_bytes_ = downloaded_bytes;
   total_bytes_ = total_bytes;
   ++num_progress_calls_;
@@ -177,7 +171,6 @@ void CrxDownloaderTest::RunThreads() {
   RunThreadsUntilIdle();
 }
 
-// TODO(crbug.com/1104691): rewrite the tests to not use RunUntilIdle().
 void CrxDownloaderTest::RunThreadsUntilIdle() {
   task_environment_.RunUntilIdle();
   base::RunLoop().RunUntilIdle();
@@ -193,6 +186,7 @@ TEST_F(CrxDownloaderTest, NoUrl) {
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(static_cast<int>(CrxDownloaderError::NO_URL),
             download_complete_result_.error);
+  EXPECT_EQ(download_complete_result_.extra_code1, 0);
   EXPECT_TRUE(download_complete_result_.response.empty());
   EXPECT_EQ(0, num_progress_calls_);
 }
@@ -207,6 +201,7 @@ TEST_F(CrxDownloaderTest, NoHash) {
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(static_cast<int>(CrxDownloaderError::NO_HASH),
             download_complete_result_.error);
+  EXPECT_EQ(download_complete_result_.extra_code1, 0);
   EXPECT_TRUE(download_complete_result_.response.empty());
   EXPECT_EQ(0, num_progress_calls_);
 }
@@ -216,7 +211,7 @@ TEST_F(CrxDownloaderTest, OneUrl) {
   const GURL expected_crx_url =
       GURL("http://localhost/download/jebgalgnebhfojomionfpkfelancnnkf.crx");
 
-  const base::FilePath test_file(MakeTestFilePath(kTestFileName));
+  const base::FilePath test_file(GetTestFilePath(kTestFileName));
   AddResponse(expected_crx_url, test_file, net::OK);
 
   crx_downloader_->StartDownloadFromUrl(
@@ -227,6 +222,7 @@ TEST_F(CrxDownloaderTest, OneUrl) {
 
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(0, download_complete_result_.error);
+  EXPECT_EQ(0, download_complete_result_.extra_code1);
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
   EXPECT_TRUE(
@@ -242,7 +238,7 @@ TEST_F(CrxDownloaderTest, OneUrlBadHash) {
   const GURL expected_crx_url =
       GURL("http://localhost/download/jebgalgnebhfojomionfpkfelancnnkf.crx");
 
-  const base::FilePath test_file(MakeTestFilePath(kTestFileName));
+  const base::FilePath test_file(GetTestFilePath(kTestFileName));
   AddResponse(expected_crx_url, test_file, net::OK);
 
   crx_downloader_->StartDownloadFromUrl(
@@ -257,6 +253,7 @@ TEST_F(CrxDownloaderTest, OneUrlBadHash) {
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(static_cast<int>(CrxDownloaderError::BAD_HASH),
             download_complete_result_.error);
+  EXPECT_EQ(download_complete_result_.extra_code1, 0);
   EXPECT_TRUE(download_complete_result_.response.empty());
 
   EXPECT_LE(1, num_progress_calls_);
@@ -268,7 +265,7 @@ TEST_F(CrxDownloaderTest, TwoUrls) {
   const GURL expected_crx_url =
       GURL("http://localhost/download/jebgalgnebhfojomionfpkfelancnnkf.crx");
 
-  const base::FilePath test_file(MakeTestFilePath(kTestFileName));
+  const base::FilePath test_file(GetTestFilePath(kTestFileName));
   AddResponse(expected_crx_url, test_file, net::OK);
 
   std::vector<GURL> urls;
@@ -283,6 +280,7 @@ TEST_F(CrxDownloaderTest, TwoUrls) {
 
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(0, download_complete_result_.error);
+  EXPECT_EQ(0, download_complete_result_.extra_code1);
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
   EXPECT_TRUE(
@@ -298,7 +296,7 @@ TEST_F(CrxDownloaderTest, TwoUrls_FirstInvalid) {
   const GURL no_file_url =
       GURL("http://localhost/download/ihfokbkgjpifnbbojhneepfflplebdkc.crx");
 
-  const base::FilePath test_file(MakeTestFilePath(kTestFileName));
+  const base::FilePath test_file(GetTestFilePath(kTestFileName));
   AddResponse(expected_crx_url, test_file, net::OK);
   AddResponse(no_file_url, base::FilePath(), net::ERR_FILE_NOT_FOUND);
 
@@ -314,6 +312,7 @@ TEST_F(CrxDownloaderTest, TwoUrls_FirstInvalid) {
 
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(0, download_complete_result_.error);
+  EXPECT_EQ(0, download_complete_result_.extra_code1);
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
   EXPECT_TRUE(
@@ -342,7 +341,7 @@ TEST_F(CrxDownloaderTest, TwoUrls_SecondInvalid) {
   const GURL no_file_url =
       GURL("http://localhost/download/ihfokbkgjpifnbbojhneepfflplebdkc.crx");
 
-  const base::FilePath test_file(MakeTestFilePath(kTestFileName));
+  const base::FilePath test_file(GetTestFilePath(kTestFileName));
   AddResponse(expected_crx_url, test_file, net::OK);
   AddResponse(no_file_url, base::FilePath(), net::ERR_FILE_NOT_FOUND);
 
@@ -358,6 +357,7 @@ TEST_F(CrxDownloaderTest, TwoUrls_SecondInvalid) {
 
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_EQ(0, download_complete_result_.error);
+  EXPECT_EQ(0, download_complete_result_.extra_code1);
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
   EXPECT_TRUE(
@@ -387,6 +387,7 @@ TEST_F(CrxDownloaderTest, TwoUrls_BothInvalid) {
 
   EXPECT_EQ(1, num_download_complete_calls_);
   EXPECT_NE(0, download_complete_result_.error);
+  EXPECT_EQ(0, download_complete_result_.extra_code1);
   EXPECT_TRUE(download_complete_result_.response.empty());
 
   const auto download_metrics = crx_downloader_->download_metrics();

@@ -54,18 +54,14 @@ class AnnotationTokenizerTest(unittest.TestCase):
     self.assertEqual(')', tokenizer.advance('right_paren'))
     self.assertEqual(')', tokenizer.advance('right_paren'))
 
-  def testConcatenatedStrings(self):
-    tokenizer = Tokenizer('"hello " + "world" + "!"', 'foo.java', 22)
-    self.assertEqual('hello ', tokenizer.advance('string_literal'))
-    self.assertEqual('+', tokenizer.advance('plus'))
-    self.assertEqual('world', tokenizer.advance('string_literal'))
-    self.assertEqual('+', tokenizer.advance('plus'))
-    self.assertEqual('!', tokenizer.advance('string_literal'))
-
   def testAdvanceMultiline(self):
     tokenizer = Tokenizer('\n\tR"(the quick\nbrown\nfox)"', 'foo.txt', 33)
     self.assertEqual(
         'the quick\nbrown\nfox', tokenizer.advance('string_literal'))
+
+  def testAdvanceTextBlock(self):
+    tokenizer = Tokenizer('\n """\n  the quick\n  red\n  fox"""', 'foo.txt', 2)
+    self.assertEqual('the quick\nred\nfox', tokenizer.advance('string_literal'))
 
   def testAdvanceErrorPaths(self):
     tokenizer = Tokenizer('  hello , ', 'foo.txt', 33)
@@ -99,10 +95,10 @@ class AnnotationTokenizerTest(unittest.TestCase):
   def testEscaping(self):
     tokenizer = Tokenizer(
         '''
-      "\\"abc \\\\\\" def \\\\\\""
+      "\\"ab\\nc \\\\\\" def \\\\\\""
       "string ends here:\\\\" this is not part of the string"
     ''', 'foo.txt', 33)
-    self.assertEqual('"abc \\" def \\"', tokenizer.advance('string_literal'))
+    self.assertEqual('"ab\nc \\" def \\"', tokenizer.advance('string_literal'))
     self.assertEqual('string ends here:\\', tokenizer.advance('string_literal'))
 
 

@@ -4,6 +4,7 @@
 
 #include "content/browser/shared_storage/shared_storage_budget_charger.h"
 
+#include "base/metrics/histogram_functions.h"
 #include "components/services/storage/shared_storage/shared_storage_manager.h"
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
@@ -31,7 +32,7 @@ void SharedStorageBudgetCharger::DidStartNavigation(
   RenderFrameHostImpl* initiator_frame_host =
       navigation_handle->GetInitiatorFrameToken().has_value()
           ? RenderFrameHostImpl::FromFrameToken(
-                navigation_handle->GetInitiatorProcessID(),
+                navigation_handle->GetInitiatorProcessId(),
                 navigation_handle->GetInitiatorFrameToken().value())
           : nullptr;
 
@@ -76,7 +77,7 @@ void SharedStorageBudgetCharger::DidStartNavigation(
     }
 
     shared_storage_manager->MakeBudgetWithdrawal(
-        metadata->origin, metadata->budget_to_charge, base::DoNothing());
+        metadata->site, metadata->budget_to_charge, base::DoNothing());
   }
 }
 

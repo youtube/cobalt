@@ -34,7 +34,6 @@ ConsistencyGoldenPolicy ConvertProcessorPolicyToGoldenPolicy(
   }
 
   NOTREACHED();
-  return UNSPECIFIED_POLICY;
 }
 
 // Converts the representation of a day of week used by the goldens to the one
@@ -57,7 +56,6 @@ const char* ConvertGoldenDayToProcessorDay(ConsistencyGoldenEffectiveDay day) {
       return utils::kSunday;
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
@@ -88,7 +86,8 @@ base::Value::Dict ConvertGoldenInputToProcessorInput(
         utils::CreateTime(window_limit.ends_at().hour(),
                           window_limit.ends_at().minute()),
         window_limit.has_last_updated_millis()
-            ? base::Time::FromJavaTime(window_limit.last_updated_millis())
+            ? base::Time::FromMillisecondsSinceUnixEpoch(
+                  window_limit.last_updated_millis())
             : default_last_updated);
   }
 
@@ -101,7 +100,8 @@ base::Value::Dict ConvertGoldenInputToProcessorInput(
         &policy, ConvertGoldenDayToProcessorDay(usage_limit.effective_day()),
         base::Minutes(usage_limit.usage_quota_mins()),
         usage_limit.has_last_updated_millis()
-            ? base::Time::FromJavaTime(usage_limit.last_updated_millis())
+            ? base::Time::FromMillisecondsSinceUnixEpoch(
+                  usage_limit.last_updated_millis())
             : default_last_updated);
   }
 
@@ -112,7 +112,8 @@ base::Value::Dict ConvertGoldenInputToProcessorInput(
     if (override_entry.action() == UNLOCK_UNTIL_LOCK_DEADLINE) {
       utils::AddOverrideWithDuration(
           &policy, usage_time_limit::TimeLimitOverride::Action::kUnlock,
-          base::Time::FromJavaTime(override_entry.created_at_millis()),
+          base::Time::FromMillisecondsSinceUnixEpoch(
+              override_entry.created_at_millis()),
           base::Milliseconds(override_entry.duration_millis()));
     } else {
       utils::AddOverride(
@@ -120,7 +121,8 @@ base::Value::Dict ConvertGoldenInputToProcessorInput(
           override_entry.action() == LOCK
               ? usage_time_limit::TimeLimitOverride::Action::kLock
               : usage_time_limit::TimeLimitOverride::Action::kUnlock,
-          base::Time::FromJavaTime(override_entry.created_at_millis()));
+          base::Time::FromMillisecondsSinceUnixEpoch(
+              override_entry.created_at_millis()));
     }
   }
 
@@ -147,13 +149,13 @@ ConsistencyGoldenOutput ConvertProcessorOutputToGoldenOutput(
 
   if (state.is_locked) {
     golden_output.set_next_unlocking_time_millis(
-        state.next_unlock_time.ToJavaTime());
+        state.next_unlock_time.InMillisecondsSinceUnixEpoch());
   }
 
   return golden_output;
 }
 
-absl::optional<usage_time_limit::State>
+std::optional<usage_time_limit::State>
 GenerateUnlockUsageLimitOverrideStateFromInput(
     const ConsistencyGoldenInput& input) {
   const ConsistencyGoldenOverride* usage_limit_override = nullptr;
@@ -167,7 +169,7 @@ GenerateUnlockUsageLimitOverrideStateFromInput(
   }
 
   if (!usage_limit_override)
-    return absl::nullopt;
+    return std::nullopt;
 
   usage_time_limit::State previous_state;
   previous_state.is_locked = true;
@@ -177,7 +179,8 @@ GenerateUnlockUsageLimitOverrideStateFromInput(
 
   // Usage limit started one minute before the override was created.
   previous_state.time_usage_limit_started =
-      base::Time::FromJavaTime(usage_limit_override->created_at_millis()) -
+      base::Time::FromMillisecondsSinceUnixEpoch(
+          usage_limit_override->created_at_millis()) -
       base::Minutes(1);
 
   return previous_state;

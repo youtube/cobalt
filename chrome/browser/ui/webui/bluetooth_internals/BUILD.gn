@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
 source_set("bluetooth_internals") {
@@ -15,11 +14,13 @@ source_set("bluetooth_internals") {
 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
-  public_deps = [ "//device/bluetooth:deprecated_experimental_mojo" ]
+  public_deps = [
+    "//chrome/browser:browser_public_dependencies",
+    "//device/bluetooth:deprecated_experimental_mojo",
+  ]
 
   deps = [
     ":mojo_bindings",
-    "//build:chromeos_buildflags",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/resources/bluetooth_internals:resources",
     "//chrome/common",
@@ -28,9 +29,15 @@ source_set("bluetooth_internals") {
     "//ui/webui",
   ]
 
-  if (is_chromeos_ash) {
-    deps += [ "//chrome/browser/ash" ]
+  if (is_chromeos) {
+    deps += [
+      "//ash/public/cpp",
+      "//chrome/browser/ash/bluetooth",
+      "//chromeos/ash/components/dbus/debug_daemon",
+      "//chromeos/ash/services/bluetooth_config/public/mojom",
+    ]
   }
+
   if (is_android) {
     deps += [
       "//components/permissions:permissions",
@@ -42,7 +49,6 @@ source_set("bluetooth_internals") {
 mojom("mojo_bindings") {
   sources = [ "bluetooth_internals.mojom" ]
   webui_module_path = "/"
-  use_typescript_sources = true
 
   deps =
       [ "//device/bluetooth/public/mojom:deprecated_experimental_interfaces" ]

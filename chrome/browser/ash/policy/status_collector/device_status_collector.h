@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/check_deref.h"
 #include "base/containers/circular_deque.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
@@ -58,6 +59,7 @@ namespace policy {
 
 class EnterpriseActivityStorage;
 class DeviceStatusCollectorState;
+class ReportingUserTracker;
 
 // TODO(b/216131674): Remove this.
 enum class CrosHealthdCollectionMode { kFull, kBattery };
@@ -149,6 +151,7 @@ class DeviceStatusCollector : public StatusCollector,
   // Pool. Caller is responsible for passing already initialized |pref_service|.
   DeviceStatusCollector(
       PrefService* pref_service,
+      ReportingUserTracker* reporting_user_tracker,
       ash::system::StatisticsProvider* provider,
       ManagedSessionService* managed_session_service,
       const VolumeInfoFetcher& volume_info_fetcher,
@@ -159,6 +162,13 @@ class DeviceStatusCollector : public StatusCollector,
       const EMMCLifetimeFetcher& emmc_lifetime_fetcher,
       const StatefulPartitionInfoFetcher& stateful_partition_info_fetcher,
       const GraphicsStatusFetcher& graphics_status_fetcher,
+      // Please do not add new code that uses the crashes reported here. These
+      // crashes are now reported via the Encrypted Reporting Pipeline (ERP)
+      // located at
+      // chrome/browser/ash/policy/reporting/metrics_reporting/fatal_crash/.
+      // However, the crash reported via this pipeline may still be used by the
+      // server and some customers. Please consult relevant parties if cleaning
+      // up crash reporting here is desired.
       const CrashReportInfoFetcher& crash_report_info_fetcher,
       base::Clock* clock = base::DefaultClock::GetInstance());
 
@@ -166,6 +176,7 @@ class DeviceStatusCollector : public StatusCollector,
   // Blocking Pool. Caller is responsible for passing already initialized
   // |pref_service|.
   DeviceStatusCollector(PrefService* pref_service,
+                        ReportingUserTracker* reporting_user_tracker,
                         ash::system::StatisticsProvider* provider,
                         ManagedSessionService* managed_session_service);
 
@@ -191,6 +202,10 @@ class DeviceStatusCollector : public StatusCollector,
 
   // The total number of hardware resource usage samples cached internally.
   static const unsigned int kMaxResourceUsageSamples = 10;
+
+  EnterpriseActivityStorage& GetActivityStorageForTesting() {
+    return CHECK_DEREF(activity_storage_.get());
+  }
 
  protected:
   using PowerStatusCallback = base::OnceCallback<void(
@@ -230,7 +245,7 @@ class DeviceStatusCollector : public StatusCollector,
   void ClearCachedMemoryUsage();
 
   // Callbacks from chromeos::VersionLoader.
-  void OnOSVersion(const absl::optional<std::string>& version);
+  void OnOSVersion(const std::optional<std::string>& version);
   void OnOSFirmware(std::pair<const std::string&, const std::string&> version);
 
   // Callbacks from `chromeos::TpmManagerClient`.
@@ -264,6 +279,8 @@ class DeviceStatusCollector : public StatusCollector,
   bool GetRunningKioskApp(
       enterprise_management::DeviceStatusReportRequest* status);
   bool GetDeviceBootMode(
+      enterprise_management::DeviceStatusReportRequest* status);
+  bool GetDemoModeDimensions(
       enterprise_management::DeviceStatusReportRequest* status);
   void GetStorageStatus(scoped_refptr<DeviceStatusCollectorState> state);
   void GetGraphicsStatus(scoped_refptr<DeviceStatusCollectorState>
@@ -337,7 +354,9 @@ class DeviceStatusCollector : public StatusCollector,
   bool IncludeEmailsInActivityReports() const;
 
   // Pref service that is mainly used to store activity periods for reporting.
-  const raw_ptr<PrefService, ExperimentalAsh> pref_service_;
+  const raw_ptr<PrefService> pref_service_;
+
+  const raw_ptr<ReportingUserTracker> reporting_user_tracker_;
 
   // The last time an idle state check was performed.
   base::Time last_idle_check_;
@@ -417,7 +436,7 @@ class DeviceStatusCollector : public StatusCollector,
   PowerStatusCallback power_status_callback_;
 
   // Power manager client. Used to listen to power changed events.
-  const raw_ptr<chromeos::PowerManagerClient, ExperimentalAsh> power_manager_;
+  const raw_ptr<chromeos::PowerManagerClient> power_manager_;
 
   base::ScopedObservation<chromeos::PowerManagerClient,
                           chromeos::PowerManagerClient::Observer>

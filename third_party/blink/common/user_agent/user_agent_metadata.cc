@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 
+#include "base/containers/contains.h"
+#include "base/containers/span.h"
 #include "base/pickle.h"
 #include "net/http/structured_headers.h"
 #include "third_party/blink/public/common/features.h"
@@ -11,7 +15,7 @@
 namespace blink {
 
 namespace {
-constexpr uint32_t kVersion = 2u;
+constexpr uint32_t kVersion = 3u;
 }  // namespace
 
 UserAgentBrandVersion::UserAgentBrandVersion(const std::string& ua_brand,
@@ -50,21 +54,32 @@ const std::string UserAgentMetadata::SerializeBrandMajorVersionList() {
   return SerializeBrandVersionList(brand_version_list);
 }
 
+const std::string UserAgentMetadata::SerializeFormFactors() {
+  net::structured_headers::List structured;
+  for (auto& ff : form_factors) {
+    structured.push_back(net::structured_headers::ParameterizedMember(
+        net::structured_headers::Item(ff), {}));
+  }
+  return SerializeList(structured).value_or("");
+}
+
 // static
-absl::optional<std::string> UserAgentMetadata::Marshal(
-    const absl::optional<UserAgentMetadata>& in) {
-  if (!in)
-    return absl::nullopt;
+std::optional<std::string> UserAgentMetadata::Marshal(
+    const std::optional<UserAgentMetadata>& in) {
+  if (!in) {
+    return std::nullopt;
+  }
   base::Pickle out;
   out.WriteUInt32(kVersion);
 
-  out.WriteUInt32(in->brand_version_list.size());
+  out.WriteUInt32(base::checked_cast<uint32_t>(in->brand_version_list.size()));
   for (const auto& brand_version : in->brand_version_list) {
     out.WriteString(brand_version.brand);
     out.WriteString(brand_version.version);
   }
 
-  out.WriteUInt32(in->brand_full_version_list.size());
+  out.WriteUInt32(
+      base::checked_cast<uint32_t>(in->brand_full_version_list.size()));
   for (const auto& brand_version : in->brand_full_version_list) {
     out.WriteString(brand_version.brand);
     out.WriteString(brand_version.version);
@@ -78,64 +93,82 @@ absl::optional<std::string> UserAgentMetadata::Marshal(
   out.WriteBool(in->mobile);
   out.WriteString(in->bitness);
   out.WriteBool(in->wow64);
+
+  out.WriteUInt32(base::checked_cast<uint32_t>(in->form_factors.size()));
+  for (const auto& form_factors : in->form_factors) {
+    out.WriteString(form_factors);
+  }
   return std::string(reinterpret_cast<const char*>(out.data()), out.size());
 }
 
 // static
-absl::optional<UserAgentMetadata> UserAgentMetadata::Demarshal(
-    const absl::optional<std::string>& encoded) {
+std::optional<UserAgentMetadata> UserAgentMetadata::Demarshal(
+    const std::optional<std::string>& encoded) {
   if (!encoded)
-    return absl::nullopt;
+    return std::nullopt;
 
-  base::Pickle pickle(encoded->data(), encoded->size());
+  base::Pickle pickle =
+      base::Pickle::WithUnownedBuffer(base::as_byte_span(encoded.value()));
   base::PickleIterator in(pickle);
 
   uint32_t version;
   UserAgentMetadata out;
   if (!in.ReadUInt32(&version) || version != kVersion)
-    return absl::nullopt;
+    return std::nullopt;
 
   uint32_t brand_version_size;
   if (!in.ReadUInt32(&brand_version_size))
-    return absl::nullopt;
+    return std::nullopt;
   for (uint32_t i = 0; i < brand_version_size; i++) {
     UserAgentBrandVersion brand_version;
     if (!in.ReadString(&brand_version.brand))
-      return absl::nullopt;
+      return std::nullopt;
     if (!in.ReadString(&brand_version.version))
-      return absl::nullopt;
+      return std::nullopt;
     out.brand_version_list.push_back(std::move(brand_version));
   }
 
   uint32_t brand_full_version_size;
   if (!in.ReadUInt32(&brand_full_version_size))
-    return absl::nullopt;
+    return std::nullopt;
   for (uint32_t i = 0; i < brand_full_version_size; i++) {
     UserAgentBrandVersion brand_version;
     if (!in.ReadString(&brand_version.brand))
-      return absl::nullopt;
+      return std::nullopt;
     if (!in.ReadString(&brand_version.version))
-      return absl::nullopt;
+      return std::nullopt;
     out.brand_full_version_list.push_back(std::move(brand_version));
   }
 
   if (!in.ReadString(&out.full_version))
-    return absl::nullopt;
+    return std::nullopt;
   if (!in.ReadString(&out.platform))
-    return absl::nullopt;
+    return std::nullopt;
   if (!in.ReadString(&out.platform_version))
-    return absl::nullopt;
+    return std::nullopt;
   if (!in.ReadString(&out.architecture))
-    return absl::nullopt;
+    return std::nullopt;
   if (!in.ReadString(&out.model))
-    return absl::nullopt;
+    return std::nullopt;
   if (!in.ReadBool(&out.mobile))
-    return absl::nullopt;
+    return std::nullopt;
   if (!in.ReadString(&out.bitness))
-    return absl::nullopt;
+    return std::nullopt;
   if (!in.ReadBool(&out.wow64))
-    return absl::nullopt;
-  return absl::make_optional(std::move(out));
+    return std::nullopt;
+  uint32_t form_factors_size;
+  if (!in.ReadUInt32(&form_factors_size)) {
+    return std::nullopt;
+  }
+  std::string form_factors;
+  form_factors.reserve(form_factors_size);
+  for (uint32_t i = 0; i < form_factors_size; i++) {
+    if (!in.ReadString(&form_factors)) {
+      return std::nullopt;
+    }
+    out.form_factors.push_back(std::move(form_factors));
+  }
+  return std::make_optional(std::move(out));
 }
 
 bool UserAgentBrandVersion::operator==(const UserAgentBrandVersion& a) const {
@@ -148,7 +181,8 @@ bool operator==(const UserAgentMetadata& a, const UserAgentMetadata& b) {
          a.full_version == b.full_version && a.platform == b.platform &&
          a.platform_version == b.platform_version &&
          a.architecture == b.architecture && a.model == b.model &&
-         a.mobile == b.mobile && a.bitness == b.bitness && a.wow64 == b.wow64;
+         a.mobile == b.mobile && a.bitness == b.bitness && a.wow64 == b.wow64 &&
+         a.form_factors == b.form_factors;
 }
 
 // static

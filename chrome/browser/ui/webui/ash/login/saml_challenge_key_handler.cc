@@ -11,15 +11,15 @@
 #include "base/values.h"
 #include "chrome/browser/ash/attestation/tpm_challenge_key_result.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
-#include "chrome/browser/enterprise/connectors/device_trust/prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
+#include "components/enterprise/device_trust/prefs.h"
 #include "components/prefs/pref_service.h"
 
-using enterprise_connectors::kContextAwareAccessSignalsAllowlistPref;
+using enterprise_connectors::kUserContextAwareAccessSignalsAllowlistPref;
 
 namespace ash {
 
@@ -52,12 +52,15 @@ bool UrlMatchesPattern(const GURL& url, const base::Value::List& patterns) {
 bool AreContextAwareAccessSignalsEnabledForUrl(const GURL& url,
                                                const Profile* profile) {
   const PrefService* prefs = profile->GetPrefs();
-  if (!prefs || !prefs->HasPrefPath(kContextAwareAccessSignalsAllowlistPref))
+  if (!prefs ||
+      !prefs->HasPrefPath(kUserContextAwareAccessSignalsAllowlistPref)) {
     return false;
+  }
 
-  return prefs->IsManagedPreference(kContextAwareAccessSignalsAllowlistPref) &&
+  return prefs->IsManagedPreference(
+             kUserContextAwareAccessSignalsAllowlistPref) &&
          UrlMatchesPattern(
-             url, prefs->GetList(kContextAwareAccessSignalsAllowlistPref));
+             url, prefs->GetList(kUserContextAwareAccessSignalsAllowlistPref));
 }
 
 void LogVerifiedAccessForSAMLDeviceTrustMatchesEndpoints(bool is_matching) {
@@ -149,13 +152,13 @@ void SamlChallengeKeyHandler::BuildChallengeResponse() {
   tpm_key_challenger_ =
       std::make_unique<attestation::TpmChallengeKeyWithTimeout>();
   tpm_key_challenger_->BuildResponse(
-      GetTpmResponseTimeout(), attestation::KEY_DEVICE, profile_,
+      GetTpmResponseTimeout(), ::attestation::ENTERPRISE_MACHINE, profile_,
       base::BindOnce(&SamlChallengeKeyHandler::ReturnResult,
                      weak_factory_.GetWeakPtr()),
       decoded_challenge_, /*register_key=*/false,
       /*key_crypto_type=*/::attestation::KEY_TYPE_RSA,
       /*key_name_for_spkac=*/"",
-      /*signals=*/absl::nullopt);
+      /*signals=*/std::nullopt);
 }
 
 base::TimeDelta SamlChallengeKeyHandler::GetTpmResponseTimeout() const {
@@ -172,8 +175,8 @@ void SamlChallengeKeyHandler::ReturnResult(
     LOG(WARNING) << "Device attestation error: " << result.GetErrorMessage();
   }
 
-  std::string encoded_result_data;
-  base::Base64Encode(result.challenge_response, &encoded_result_data);
+  std::string encoded_result_data =
+      base::Base64Encode(result.challenge_response);
 
   js_result.Set(kSuccessField, result.IsSuccess());
   js_result.Set(kResponseField, encoded_result_data);

@@ -4,12 +4,11 @@
 
 #include "chrome/updater/mac/keystone/ksinstall.h"
 
-#include "base/memory/raw_ptr.h"
-
 #import <Foundation/Foundation.h>
 #import <getopt.h>
-
 #import <stdio.h>
+
+#include <optional>
 #include <string>
 
 #include "base/at_exit.h"
@@ -20,6 +19,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/task/single_thread_task_executor.h"
@@ -53,31 +53,17 @@ class KSInstallApp : public App {
 
 void KSInstallApp::Uninstall(base::OnceCallback<void(int)> callback) {
   base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock()}, base::BindOnce([]() {
-        UpdaterScope scope =
-            (geteuid() == 0) ? UpdaterScope::kSystem : UpdaterScope::kUser;
-        const absl::optional<base::FilePath>& keystone_path =
-            GetKeystoneFolderPath(scope);
-
+      FROM_HERE, {base::MayBlock()}, base::BindOnce([] {
+        const std::optional<base::FilePath>& keystone_path =
+            GetKeystoneFolderPath((geteuid() == 0) ? UpdaterScope::kSystem
+                                                   : UpdaterScope::kUser);
         if (!keystone_path ||
             !base::DeletePathRecursively(
-                keystone_path->AppendASCII(KEYSTONE_NAME ".bundle"))) {
+                keystone_path->Append(KEYSTONE_NAME ".bundle"))) {
           PLOG(ERROR) << "Couldn't find/delete Keystone path.";
           return false;
         }
-        if (IsSystemInstall(scope)) {
-          return base::DeleteFile(
-              GetLibraryFolderPath(scope)
-                  ->Append("LaunchDaemons")
-                  .Append("com.google.keystone.daemon.plist"));
-        } else {
-          base::FilePath launch_agent_dir =
-              GetLibraryFolderPath(scope)->Append("LaunchAgents");
-          return base::DeleteFile(launch_agent_dir.Append(
-                     "com.google.keystone.agent.plist")) &&
-                 base::DeleteFile(launch_agent_dir.Append(
-                     "com.google.keystone.xpcservice.plist"));
-        }
+        return true;
       }),
       base::BindOnce(
           [](base::OnceCallback<void(int)> cb, bool result) {
@@ -135,7 +121,7 @@ int KSInstallMain(int argc, char* argv[]) {
   updater::InitLogging(GetUpdaterScope());
   InitializeThreadPool("keystone");
   const base::ScopedClosureRunner shutdown_thread_pool(
-      base::BindOnce([]() { base::ThreadPoolInstance::Get()->Shutdown(); }));
+      base::BindOnce([] { base::ThreadPoolInstance::Get()->Shutdown(); }));
   base::SingleThreadTaskExecutor main_task_executor(base::MessagePumpType::UI);
   return MakeKSInstallApp(argc, argv)->Run();
 }

@@ -25,6 +25,10 @@ class StructuredHeadersParserImpl : public mojom::StructuredHeadersParser {
   // mojom::StructuredHeadersParser:
   void ParseItem(const std::string& header,
                  ParseItemCallback callback) override;
+  void ParseList(const std::string& header,
+                 ParseListCallback callback) override;
+  void ParseDictionary(const std::string& header,
+                       ParseDictionaryCallback callback) override;
 };
 
 }  // namespace data_decoder

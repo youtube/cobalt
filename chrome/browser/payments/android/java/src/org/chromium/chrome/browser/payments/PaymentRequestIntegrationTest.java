@@ -20,10 +20,13 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
-import org.chromium.base.test.util.JniMocker;
+import org.chromium.chrome.browser.autofill.PersonalDataManager;
+import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
 import org.chromium.chrome.browser.payments.test_support.MockPaymentUiServiceBuilder;
 import org.chromium.chrome.browser.payments.test_support.PaymentRequestParamsBuilder;
 import org.chromium.chrome.browser.payments.ui.PaymentUiService;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileJni;
 import org.chromium.components.payments.AndroidPaymentApp;
 import org.chromium.components.payments.ErrorMessageUtil;
 import org.chromium.components.payments.ErrorMessageUtilJni;
@@ -38,7 +41,12 @@ import org.chromium.components.payments.PaymentAppService;
 import org.chromium.components.payments.PaymentAppType;
 import org.chromium.components.payments.PaymentMethodCategory;
 import org.chromium.components.payments.PaymentRequestService;
-import org.chromium.components.payments.test_support.ShadowPaymentFeatureList;
+import org.chromium.components.payments.PaymentRequestWebContentsData;
+import org.chromium.components.payments.PaymentRequestWebContentsDataJni;
+import org.chromium.components.payments.test_support.DefaultPaymentFeatureConfig;
+import org.chromium.content.browser.webcontents.WebContentsImpl;
+import org.chromium.content.browser.webcontents.WebContentsImplJni;
+import org.chromium.content_public.browser.NavigationController;
 import org.chromium.payments.mojom.PaymentErrorReason;
 import org.chromium.payments.mojom.PaymentRequest;
 import org.chromium.payments.mojom.PaymentRequestClient;
@@ -55,39 +63,63 @@ import java.util.Set;
  * ChromePaymentRequest and PaymentAppService.
  */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(manifest = Config.NONE, shadows = {ShadowPaymentFeatureList.class})
+@Config(manifest = Config.NONE)
 public class PaymentRequestIntegrationTest {
+    private static final int NATIVE_WEB_CONTENTS_ANDROID = 1;
     private static final String STRINGIFIED_DETAILS = "test stringifiedDetails";
     private final ArgumentCaptor<InstrumentDetailsCallback> mPaymentAppCallbackCaptor =
             ArgumentCaptor.forClass(InstrumentDetailsCallback.class);
     private String mInstrumentMethodName = "https://www.chromium.org";
     private int mPaymentAppType = PaymentAppType.SERVICE_WORKER_APP;
 
-    @Rule
-    public MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.WARN);
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.WARN);
 
-    @Rule
-    public JniMocker mJniMocker = new JniMocker();
+    @Mock private ErrorMessageUtil.Natives mErrorMessageUtilMock;
+    @Mock private NavigationController mNavigationController;
+    @Mock private WebContentsImpl.Natives mWebContentsJniMock;
+    @Mock private Profile.Natives mProfileJniMock;
+    @Mock private PaymentRequestWebContentsData.Natives mWebContentsDataJniMock;
 
-    @Mock
-    private ErrorMessageUtil.Natives mErrorMessageUtilMock;
+    @Mock private PersonalDataManager mPersonalDataManager;
 
     private PaymentRequestClient mClient;
     private PaymentAppFactoryInterface mFactory;
     private PaymentApp mPaymentApp;
     private boolean mWaitForUpdatedDetails;
+    private boolean mIsUserGestureShow;
+    private PaymentRequestWebContentsData mPaymentRequestWebContentsData;
 
     @Before
     public void setUp() {
-        mJniMocker.mock(ErrorMessageUtilJni.TEST_HOOKS, mErrorMessageUtilMock);
-        Mockito.doAnswer(args -> {
-                   String[] methods = args.getArgument(0);
-                   return "(Mock) Not supported error: " + Arrays.toString(methods);
-               })
+        WebContentsImplJni.setInstanceForTesting(mWebContentsJniMock);
+        WebContentsImpl webContentsImpl =
+                Mockito.spy(
+                        WebContentsImpl.create(NATIVE_WEB_CONTENTS_ANDROID, mNavigationController));
+        // We don't mock the WebContentsObserverProxy, so mock the observer behaviour.
+        Mockito.doNothing().when(webContentsImpl).addObserver(Mockito.any());
+        webContentsImpl.initializeForTesting();
+
+        ProfileJni.setInstanceForTesting(mProfileJniMock);
+
+        PersonalDataManagerFactory.setInstanceForTesting(mPersonalDataManager);
+
+        mPaymentRequestWebContentsData = new PaymentRequestWebContentsData(webContentsImpl);
+        PaymentRequestWebContentsData.setInstanceForTesting(mPaymentRequestWebContentsData);
+
+        PaymentRequestWebContentsDataJni.setInstanceForTesting(mWebContentsDataJniMock);
+        Mockito.doNothing().when(mWebContentsDataJniMock).recordActivationlessShow(Mockito.any());
+        Mockito.doReturn(false).when(mWebContentsDataJniMock).hadActivationlessShow(Mockito.any());
+
+        ErrorMessageUtilJni.setInstanceForTesting(mErrorMessageUtilMock);
+        Mockito.doAnswer(
+                        args -> {
+                            String[] methods = args.getArgument(0);
+                            return "(Mock) Not supported error: " + Arrays.toString(methods);
+                        })
                 .when(mErrorMessageUtilMock)
                 .getNotSupportedErrorMessage(Mockito.any());
 
-        ShadowPaymentFeatureList.setDefaultStatuses();
+        DefaultPaymentFeatureConfig.setDefaultFlagConfigurationForTesting();
         PaymentRequestService.resetShowingPaymentRequestForTest();
         PaymentAppService.getInstance().resetForTest();
 
@@ -101,9 +133,10 @@ public class PaymentRequestIntegrationTest {
     }
 
     private PaymentApp mockPaymentApp() {
-        PaymentApp app = mPaymentAppType == PaymentAppType.NATIVE_MOBILE_APP
-                ? Mockito.mock(AndroidPaymentApp.class)
-                : Mockito.mock(PaymentApp.class);
+        PaymentApp app =
+                mPaymentAppType == PaymentAppType.NATIVE_MOBILE_APP
+                        ? Mockito.mock(AndroidPaymentApp.class)
+                        : Mockito.mock(PaymentApp.class);
         Set<String> methodNames = new HashSet<>();
         methodNames.add(mInstrumentMethodName);
         Mockito.doReturn(methodNames).when(app).getInstrumentMethodNames();
@@ -143,13 +176,14 @@ public class PaymentRequestIntegrationTest {
     private PaymentRequestParamsBuilder defaultBuilder(PaymentUiService uiService) {
         mPaymentApp = mockPaymentApp();
         mFactory = Mockito.mock(PaymentAppFactoryInterface.class);
-        Mockito.doAnswer((args) -> {
-                   PaymentAppFactoryDelegate delegate = args.getArgument(0);
-                   delegate.onCanMakePaymentCalculated(true);
-                   delegate.onPaymentAppCreated(mPaymentApp);
-                   delegate.onDoneCreatingPaymentApps(mFactory);
-                   return null;
-               })
+        Mockito.doAnswer(
+                        (args) -> {
+                            PaymentAppFactoryDelegate delegate = args.getArgument(0);
+                            delegate.onCanMakePaymentCalculated(true);
+                            delegate.onPaymentAppCreated(mPaymentApp);
+                            delegate.onDoneCreatingPaymentApps(mFactory);
+                            return null;
+                        })
                 .when(mFactory)
                 .create(Mockito.any());
         PaymentRequestParamsBuilder builder =
@@ -159,20 +193,31 @@ public class PaymentRequestIntegrationTest {
     }
 
     private void show(PaymentRequest request) {
-        request.show(mWaitForUpdatedDetails);
+        request.show(mWaitForUpdatedDetails, mIsUserGestureShow);
     }
 
     private void assertInvokePaymentAppCalled() {
         Mockito.verify(mPaymentApp, Mockito.times(1))
-                .invokePaymentApp(Mockito.any(), Mockito.any(), Mockito.anyString(),
-                        Mockito.anyString(), Mockito.any(), Mockito.any(), Mockito.any(),
-                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
+                .invokePaymentApp(
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.anyString(),
+                        Mockito.anyString(),
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(),
                         mPaymentAppCallbackCaptor.capture());
     }
 
     private void simulatePaymentAppRespond() {
-        mPaymentAppCallbackCaptor.getValue().onInstrumentDetailsReady(
-                mInstrumentMethodName, STRINGIFIED_DETAILS, new PayerData());
+        mPaymentAppCallbackCaptor
+                .getValue()
+                .onInstrumentDetailsReady(
+                        mInstrumentMethodName, STRINGIFIED_DETAILS, new PayerData());
     }
 
     void setInstrumentMethodName(String methodName) {
@@ -201,15 +246,17 @@ public class PaymentRequestIntegrationTest {
     @Test
     @Feature({"Payments"})
     public void testBuildPaymentRequestUiErrorFailsPayment() {
-        PaymentRequest request = defaultBuilder(
-                defaultUiServiceBuilder()
-                        .setBuildPaymentRequestUIResult("Error_BuildPaymentRequestUIResult")
-                        .build())
-                                         .buildAndInit();
+        PaymentRequest request =
+                defaultBuilder(
+                                defaultUiServiceBuilder()
+                                        .setBuildPaymentRequestUiResult(
+                                                "Error_BuildPaymentRequestUiResult")
+                                        .build())
+                        .buildAndInit();
         assertNoError();
 
         show(request);
-        assertError("Error_BuildPaymentRequestUIResult", PaymentErrorReason.NOT_SUPPORTED);
+        assertError("Error_BuildPaymentRequestUiResult", PaymentErrorReason.NOT_SUPPORTED);
     }
 
     @Test
@@ -221,7 +268,8 @@ public class PaymentRequestIntegrationTest {
         assertNoError();
 
         show(request);
-        assertError("(Mock) Not supported error: [https://www.chromium.org]",
+        assertError(
+                "(Mock) Not supported error: [https://www.chromium.org]",
                 PaymentErrorReason.NOT_SUPPORTED);
     }
 
@@ -231,10 +279,11 @@ public class PaymentRequestIntegrationTest {
         setInstrumentMethodName(MethodStrings.GOOGLE_PLAY_BILLING);
         setAndroidPaymentApp();
         JourneyLogger journeyLogger = Mockito.mock(JourneyLogger.class);
-        PaymentRequest request = defaultBuilder()
-                                         .setJourneyLogger(journeyLogger)
-                                         .setSupportedMethod(MethodStrings.GOOGLE_PLAY_BILLING)
-                                         .buildAndInit();
+        PaymentRequest request =
+                defaultBuilder()
+                        .setJourneyLogger(journeyLogger)
+                        .setSupportedMethod(MethodStrings.GOOGLE_PLAY_BILLING)
+                        .buildAndInit();
         show(request);
         List<Integer> expectedMethods = new ArrayList<>();
         expectedMethods.add(PaymentMethodCategory.PLAY_BILLING);

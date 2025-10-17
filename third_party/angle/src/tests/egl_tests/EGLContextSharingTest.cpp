@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common/tls.h"
 #include "test_utils/ANGLETest.h"
 #include "test_utils/MultiThreadSteps.h"
 #include "test_utils/angle_test_configs.h"
@@ -768,12 +769,143 @@ TEST_P(EGLContextSharingTest, DeleteReaderOfSharedTexture)
     }
 }
 
+// Tests that Context will be destroyed in thread cleanup callback and it is safe to call GLES APIs.
+TEST_P(EGLContextSharingTest, ThreadCleanupCallback)
+{
+    ANGLE_SKIP_TEST_IF(!platformSupportsMultithreading());
+    ANGLE_SKIP_TEST_IF(!IsAndroid());
+
+    EGLWindow *window = getEGLWindow();
+    EGLDisplay dpy    = window->getDisplay();
+    EGLConfig config  = window->getConfig();
+
+    EGLContext context = window->createContext(EGL_NO_CONTEXT, nullptr);
+    EXPECT_NE(context, EGL_NO_CONTEXT);
+
+    EGLint pbufferAttributes[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
+    EGLSurface surface         = eglCreatePbufferSurface(dpy, config, pbufferAttributes);
+    EXPECT_NE(surface, EGL_NO_SURFACE);
+
+    auto registerThreadCleanupCallback = []() {
+#if defined(ANGLE_PLATFORM_ANDROID)
+        static pthread_once_t once = PTHREAD_ONCE_INIT;
+        static TLSIndex tlsIndex   = TLS_INVALID_INDEX;
+
+        auto createThreadCleanupTLSIndex = []() {
+            auto threadCleanupCallback = [](void *) {
+                // From the point of view of this test Context is still current.
+                glFinish();
+                // Test expects that Context will be destroyed here.
+                eglReleaseThread();
+            };
+            tlsIndex = CreateTLSIndex(threadCleanupCallback);
+        };
+        pthread_once(&once, createThreadCleanupTLSIndex);
+        ASSERT(tlsIndex != TLS_INVALID_INDEX);
+
+        // Set any non nullptr value.
+        SetTLSValue(tlsIndex, &once);
+#endif
+    };
+
+    std::thread thread([&]() {
+        registerThreadCleanupCallback();
+
+        eglMakeCurrent(dpy, surface, surface, context);
+        ASSERT_EGL_SUCCESS();
+
+        // Clear and read back to make sure thread uses context.
+        glClearColor(1.0, 0.0, 0.0, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        EXPECT_PIXEL_EQ(0, 0, 255, 0, 0, 255);
+
+        // Destroy context and surface while still current.
+        eglDestroyContext(dpy, context);
+        ASSERT_EGL_SUCCESS();
+        eglDestroySurface(dpy, surface);
+        ASSERT_EGL_SUCCESS();
+    });
+
+    thread.join();
+
+    // Check if context was actually destroyed.
+    EGLint val;
+    EXPECT_EGL_FALSE(eglQueryContext(dpy, context, EGL_CONTEXT_CLIENT_TYPE, &val));
+    EXPECT_EQ(eglGetError(), EGL_BAD_CONTEXT);
+}
+
+// Tests that Context will be automatically unmade from current on thread exit.
+TEST_P(EGLContextSharingTest, UnmakeFromCurrentOnThreadExit)
+{
+    ANGLE_SKIP_TEST_IF(!platformSupportsMultithreading());
+    ANGLE_SKIP_TEST_IF(!IsAndroid());
+
+    EGLWindow *window = getEGLWindow();
+    EGLDisplay dpy    = window->getDisplay();
+    EGLConfig config  = window->getConfig();
+
+    EGLContext context = window->createContext(EGL_NO_CONTEXT, nullptr);
+    EXPECT_NE(context, EGL_NO_CONTEXT);
+
+    EGLint pbufferAttributes[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
+    EGLSurface surface         = eglCreatePbufferSurface(dpy, config, pbufferAttributes);
+    EXPECT_NE(surface, EGL_NO_SURFACE);
+
+    std::mutex mutex;
+    std::condition_variable condVar;
+    enum class Step
+    {
+        Start,
+        ThreadMakeCurrent,
+        Finish,
+        Abort,
+    };
+    Step currentStep = Step::Start;
+    ThreadSynchronization<Step> threadSynchronization(&currentStep, &mutex, &condVar);
+
+    std::thread thread([&]() {
+        eglMakeCurrent(dpy, surface, surface, context);
+        ASSERT_EGL_SUCCESS();
+
+        threadSynchronization.nextStep(Step::ThreadMakeCurrent);
+        ASSERT_TRUE(threadSynchronization.waitForStep(Step::Finish));
+
+        // Clear and read back to make sure thread uses context.
+        glClearColor(1.0, 0.0, 0.0, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        EXPECT_PIXEL_EQ(0, 0, 255, 0, 0, 255);
+    });
+
+    // Wait while Context is made current in the thread.
+    ASSERT_TRUE(threadSynchronization.waitForStep(Step::ThreadMakeCurrent));
+
+    // This should fail because context is already current in other thread.
+    eglMakeCurrent(dpy, surface, surface, context);
+    EXPECT_EQ(eglGetError(), EGL_BAD_ACCESS);
+
+    // Finish the thread.
+    threadSynchronization.nextStep(Step::Finish);
+    thread.join();
+
+    // This should succeed, because thread is finished so context is no longer current.
+    eglMakeCurrent(dpy, surface, surface, context);
+    EXPECT_EGL_SUCCESS();
+    eglMakeCurrent(dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    ASSERT_EGL_SUCCESS();
+
+    // Destroy context and surface.
+    eglDestroyContext(dpy, context);
+    ASSERT_EGL_SUCCESS();
+    eglDestroySurface(dpy, surface);
+    ASSERT_EGL_SUCCESS();
+}
+
 // Test that an inactive but alive thread doesn't prevent memory cleanup.
 TEST_P(EGLContextSharingTestNoFixture, InactiveThreadDoesntPreventCleanup)
 {
-    EGLint dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(),
-                          EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE, GetParam().getDeviceType(),
-                          EGL_NONE};
+    EGLAttrib dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(),
+                             EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE, GetParam().getDeviceType(),
+                             EGL_NONE};
 
     // Synchronization tools to ensure the two threads are interleaved as designed by this test.
     std::mutex mutex;
@@ -797,8 +929,8 @@ TEST_P(EGLContextSharingTestNoFixture, InactiveThreadDoesntPreventCleanup)
 
         ASSERT_TRUE(threadSynchronization.waitForStep(Step::Start));
 
-        mDisplay = eglGetPlatformDisplayEXT(
-            EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
+        mDisplay = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
+                                         reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
         EXPECT_TRUE(mDisplay != EGL_NO_DISPLAY);
         EXPECT_EGL_TRUE(eglInitialize(mDisplay, nullptr, nullptr));
 
@@ -868,7 +1000,7 @@ TEST_P(EGLContextSharingTestNoFixture, InactiveThreadDoesntPreventCleanup)
 // Test that eglTerminate() with a thread doesn't cause other threads to crash.
 TEST_P(EGLContextSharingTestNoFixture, EglTerminateMultiThreaded)
 {
-    // http://anglebug.com/6208
+    // http://anglebug.com/42264731
     // The following EGL calls led to a crash in eglMakeCurrent():
     //
     // Thread A: eglMakeCurrent(context A)
@@ -876,8 +1008,8 @@ TEST_P(EGLContextSharingTestNoFixture, EglTerminateMultiThreaded)
     //        B: eglTerminate() <<--- this release context A
     // Thread A: eglMakeCurrent(context B)
 
-    EGLint dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
-    mDisplay           = eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE,
+    EGLAttrib dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
+    mDisplay              = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
                                                   reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
     EXPECT_TRUE(mDisplay != EGL_NO_DISPLAY);
     EXPECT_EGL_TRUE(eglInitialize(mDisplay, nullptr, nullptr));
@@ -894,7 +1026,7 @@ TEST_P(EGLContextSharingTestNoFixture, EglTerminateMultiThreaded)
 
     // Must be after the eglMakeCurrent() so renderer string is initialized.
     ANGLE_SKIP_TEST_IF(!platformSupportsMultithreading());
-    // TODO(http://www.anglebug.com/6304): Fails with OpenGL ES backend.
+    // TODO(http://anglebug.com/42264822): Fails with OpenGL ES backend.
     ANGLE_SKIP_TEST_IF(IsOpenGLES());
 
     EXPECT_TRUE(eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
@@ -931,8 +1063,8 @@ TEST_P(EGLContextSharingTestNoFixture, EglTerminateMultiThreaded)
         ASSERT_TRUE(threadSynchronization.waitForStep(Step::Thread1Terminate));
 
         // First Display was terminated, so we need to create a new one to create a new Context.
-        mDisplay = eglGetPlatformDisplayEXT(
-            EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
+        mDisplay = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
+                                         reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
         EXPECT_TRUE(mDisplay != EGL_NO_DISPLAY);
         EXPECT_EGL_TRUE(eglInitialize(mDisplay, nullptr, nullptr));
         config = EGL_NO_CONFIG_KHR;
@@ -994,8 +1126,8 @@ TEST_P(EGLContextSharingTestNoFixture, EglTerminateMultiThreaded)
 // errors.
 TEST_P(EGLContextSharingTestNoFixture, EglDestoryContextManyTimesSameContext)
 {
-    EGLint dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
-    mDisplay           = eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE,
+    EGLAttrib dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
+    mDisplay              = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
                                                   reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
     EXPECT_TRUE(mDisplay != EGL_NO_DISPLAY);
     EXPECT_EGL_TRUE(eglInitialize(mDisplay, nullptr, nullptr));
@@ -1012,7 +1144,7 @@ TEST_P(EGLContextSharingTestNoFixture, EglDestoryContextManyTimesSameContext)
 
     // Must be after the eglMakeCurrent() so renderer string is initialized.
     ANGLE_SKIP_TEST_IF(!platformSupportsMultithreading());
-    // TODO(http://www.anglebug.com/6304): Fails with OpenGL ES backend.
+    // TODO(http://anglebug.com/42264822): Fails with OpenGL ES backend.
     ANGLE_SKIP_TEST_IF(IsOpenGLES());
 
     EXPECT_TRUE(eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
@@ -1049,8 +1181,8 @@ TEST_P(EGLContextSharingTestNoFixture, EglDestoryContextManyTimesSameContext)
         ASSERT_TRUE(threadSynchronization.waitForStep(Step::Thread1Terminate));
 
         // First Display was terminated, so we need to create a new one to create a new Context.
-        mDisplay = eglGetPlatformDisplayEXT(
-            EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
+        mDisplay = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
+                                         reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
         EXPECT_TRUE(mDisplay != EGL_NO_DISPLAY);
         EXPECT_EGL_TRUE(eglInitialize(mDisplay, nullptr, nullptr));
         config = EGL_NO_CONFIG_KHR;
@@ -1130,8 +1262,8 @@ TEST_P(EGLContextSharingTestNoFixture, EglTerminateMultipleTimes)
     //   eglDestroySurface(srf1)
     //   eglTerminate(shared-display)
 
-    EGLint dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
-    mDisplay           = eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE,
+    EGLAttrib dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
+    mDisplay              = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
                                                   reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
     EXPECT_TRUE(mDisplay != EGL_NO_DISPLAY);
     EXPECT_EGL_TRUE(eglInitialize(mDisplay, nullptr, nullptr));
@@ -1150,8 +1282,8 @@ TEST_P(EGLContextSharingTestNoFixture, EglTerminateMultipleTimes)
     EXPECT_EGL_TRUE(eglMakeCurrent(mDisplay, mSurface, mSurface, mContexts[1]));
 
     // Must be after the eglMakeCurrent() so renderer string is initialized.
-    // TODO(http://www.anglebug.com/6304): Fails with Mac + OpenGL backend.
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsOpenGL());
+    // TODO(http://anglebug.com/42264822): Fails with Mac + OpenGL backend.
+    ANGLE_SKIP_TEST_IF(IsMac() && IsOpenGL());
 
     EXPECT_TRUE(eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
 
@@ -1173,8 +1305,8 @@ TEST_P(EGLContextSharingTestNoFixture, EglTerminateMultipleTimes)
 // Test that we can eglSwapBuffers in one thread while another thread renders to a texture.
 TEST_P(EGLContextSharingTestNoFixture, SwapBuffersShared)
 {
-    EGLint dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
-    mDisplay           = eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE,
+    EGLAttrib dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
+    mDisplay              = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
                                                   reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
     EXPECT_TRUE(mDisplay != EGL_NO_DISPLAY);
     EXPECT_EGL_TRUE(eglInitialize(mDisplay, nullptr, nullptr));
@@ -1296,16 +1428,24 @@ TEST_P(EGLContextSharingTestNoSyncTextureUploads, NoSync)
 {
     EGLDisplay display = getEGLWindow()->getDisplay();
     EGLConfig config   = getEGLWindow()->getConfig();
-    EGLSurface surface = getEGLWindow()->getSurface();
 
     const EGLint inShareGroupContextAttribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+    const EGLint pbufferAttributes[]          = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
 
-    mContexts[0] = eglCreateContext(display, config, nullptr, inShareGroupContextAttribs);
-    mContexts[1] = eglCreateContext(display, config, mContexts[0], inShareGroupContextAttribs);
-    ASSERT_EGL_SUCCESS();
+    constexpr size_t kThreadCount    = 2;
+    EGLSurface surface[kThreadCount] = {EGL_NO_SURFACE, EGL_NO_SURFACE};
 
-    ASSERT_NE(EGL_NO_CONTEXT, mContexts[0]);
-    ASSERT_NE(EGL_NO_CONTEXT, mContexts[1]);
+    for (size_t t = 0; t < kThreadCount; ++t)
+    {
+        mContexts[t] = eglCreateContext(display, config, t == 0 ? EGL_NO_CONTEXT : mContexts[0],
+                                        inShareGroupContextAttribs);
+        ASSERT_EGL_SUCCESS();
+        ASSERT_NE(EGL_NO_CONTEXT, mContexts[t]);
+
+        surface[t] = eglCreatePbufferSurface(display, config, pbufferAttributes);
+        EXPECT_EGL_SUCCESS();
+        ASSERT_NE(EGL_NO_SURFACE, surface[t]);
+    }
 
     GLTexture textureFromCtx0;
     constexpr size_t kTextureCount = 10;
@@ -1329,7 +1469,7 @@ TEST_P(EGLContextSharingTestNoSyncTextureUploads, NoSync)
         ThreadSynchronization<Step> threadSynchronization(&currentStep, &mutex, &condVar);
 
         ASSERT_TRUE(threadSynchronization.waitForStep(Step::Start));
-        ASSERT_EGL_TRUE(eglMakeCurrent(display, surface, surface, mContexts[0]));
+        ASSERT_EGL_TRUE(eglMakeCurrent(display, surface[0], surface[0], mContexts[0]));
         ASSERT_EGL_SUCCESS();
         threadSynchronization.nextStep(Step::Ctx0Current);
 
@@ -1366,13 +1506,15 @@ TEST_P(EGLContextSharingTestNoSyncTextureUploads, NoSync)
 
         threadSynchronization.nextStep(Step::TexturesDone);
         ASSERT_TRUE(threadSynchronization.waitForStep(Step::Finish));
+        ASSERT_EGL_TRUE(eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+        ASSERT_EGL_SUCCESS();
     });
 
     std::thread samplingThread = std::thread([&]() {
         ThreadSynchronization<Step> threadSynchronization(&currentStep, &mutex, &condVar);
 
         ASSERT_TRUE(threadSynchronization.waitForStep(Step::Ctx0Current));
-        ASSERT_EGL_TRUE(eglMakeCurrent(display, surface, surface, mContexts[1]));
+        ASSERT_EGL_TRUE(eglMakeCurrent(display, surface[1], surface[1], mContexts[1]));
         ASSERT_EGL_SUCCESS();
         threadSynchronization.nextStep(Step::Ctx1Current);
 
@@ -1412,6 +1554,8 @@ TEST_P(EGLContextSharingTestNoSyncTextureUploads, NoSync)
         EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::blue);
 
         threadSynchronization.nextStep(Step::Finish);
+        ASSERT_EGL_TRUE(eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+        ASSERT_EGL_SUCCESS();
     });
 
     creatingThread.join();
@@ -1419,8 +1563,126 @@ TEST_P(EGLContextSharingTestNoSyncTextureUploads, NoSync)
 
     ASSERT_NE(currentStep, Step::Abort);
     ASSERT_EGL_SUCCESS();
+
+    for (size_t t = 0; t < kThreadCount; ++t)
+    {
+        ASSERT_EGL_TRUE(eglDestroySurface(display, surface[t]));
+        ASSERT_EGL_SUCCESS();
+    }
 }
 
+// Tests that creating a context and immediately destroying it works when no surface has been
+// created.
+TEST_P(EGLContextSharingTestNoFixture, ImmediateContextDestroyAfterCreation)
+{
+    EGLAttrib dispattrs[3] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
+    mDisplay               = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
+                                                   reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
+    EXPECT_TRUE(mDisplay != EGL_NO_DISPLAY);
+    EXPECT_EGL_TRUE(eglInitialize(mDisplay, nullptr, nullptr));
+
+    EGLConfig config = EGL_NO_CONFIG_KHR;
+    EXPECT_TRUE(chooseConfig(&config));
+
+    // Create a context and immediately destroy it.  Note that no window surface should be created
+    // for this test.  Regression test for platforms that expose multiple queue families in Vulkan,
+    // and ANGLE defers creation of the device until a surface is created.  In this case, the
+    // context is being destroyed before a queue is ever created.
+    EXPECT_TRUE(createContext(config, &mContexts[0]));
+    EXPECT_TRUE(SafeDestroyContext(mDisplay, mContexts[0]));
+    ASSERT_EGL_SUCCESS();
+}
+
+class EGLPriorityContextSharingTestNoFixture : public EGLContextSharingTest
+{
+  public:
+    EGLPriorityContextSharingTestNoFixture() : EGLContextSharingTest() {}
+
+    void testSetUp() override
+    {
+        mMajorVersion          = GetParam().majorVersion;
+        EGLAttrib dispattrs[3] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(),
+                                  EGL_NONE};
+        mDisplay               = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
+                                                       reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
+        EXPECT_TRUE(mDisplay != EGL_NO_DISPLAY);
+        EXPECT_EGL_TRUE(eglInitialize(mDisplay, nullptr, nullptr));
+    }
+
+    void testTearDown() override
+    {
+        ASSERT_EGL_SUCCESS() << "Error during EGLPriorityContextSharingTestNoFixture TearDown";
+    }
+
+    bool chooseConfig(EGLConfig *config) const
+    {
+        bool result          = false;
+        EGLint count         = 0;
+        EGLint clientVersion = mMajorVersion == 3 ? EGL_OPENGL_ES3_BIT : EGL_OPENGL_ES2_BIT;
+        EGLint attribs[]     = {EGL_RENDERABLE_TYPE, clientVersion, EGL_SURFACE_TYPE,
+                                EGL_WINDOW_BIT | EGL_PBUFFER_BIT, EGL_NONE};
+
+        result = eglChooseConfig(mDisplay, attribs, config, 1, &count);
+        EXPECT_EGL_TRUE(result && (count > 0));
+        return result;
+    }
+
+    EGLDisplay mDisplay  = EGL_NO_DISPLAY;
+    const EGLint kWidth  = 64;
+    const EGLint kHeight = 64;
+    EGLint mMajorVersion = 0;
+};
+
+// Tests that create and destroy higher priority shared context
+TEST_P(EGLPriorityContextSharingTestNoFixture, MultiContextsCreateDestroy)
+{
+    ANGLE_SKIP_TEST_IF(!IsEGLDisplayExtensionEnabled(mDisplay, "EGL_IMG_context_priority"));
+
+    EGLConfig config = EGL_NO_CONFIG_KHR;
+    EXPECT_TRUE(chooseConfig(&config));
+
+    // Initialize contexts
+    constexpr size_t kContextCount = 2;
+
+    EGLSurface surface[kContextCount] = {EGL_NO_SURFACE, EGL_NO_SURFACE};
+    EGLContext ctx[kContextCount]     = {EGL_NO_CONTEXT, EGL_NO_CONTEXT};
+
+    EGLint priorities[kContextCount] = {EGL_CONTEXT_PRIORITY_LOW_IMG,
+                                        EGL_CONTEXT_PRIORITY_HIGH_IMG};
+
+    EGLint pbufferAttributes[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE, EGL_NONE};
+
+    EGLint attributes[] = {EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_NONE, EGL_NONE};
+
+    for (size_t t = 0; t < kContextCount; ++t)
+    {
+        surface[t] = eglCreatePbufferSurface(mDisplay, config, pbufferAttributes);
+        EXPECT_EGL_SUCCESS();
+
+        attributes[1] = priorities[t];
+
+        ctx[t] = eglCreateContext(mDisplay, config, t == 0 ? EGL_NO_CONTEXT : ctx[0], attributes);
+        EXPECT_NE(EGL_NO_CONTEXT, ctx[t]);
+        EXPECT_EGL_SUCCESS();
+
+        eglMakeCurrent(mDisplay, surface[t], surface[t], ctx[t]);
+        EXPECT_EGL_SUCCESS();
+    }
+
+    eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    for (size_t t = 0; t < kContextCount; ++t)
+    {
+        eglDestroySurface(mDisplay, surface[t]);
+        eglDestroyContext(mDisplay, ctx[t]);
+        EXPECT_EGL_SUCCESS();
+    }
+
+    eglTerminate(mDisplay);
+    mDisplay = EGL_NO_DISPLAY;
+    ASSERT_EGL_SUCCESS();
+    eglReleaseThread();
+    ASSERT_EGL_SUCCESS();
+}
 }  // anonymous namespace
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EGLContextSharingTest);
@@ -1429,12 +1691,15 @@ ANGLE_INSTANTIATE_TEST(EGLContextSharingTest,
                        ES2_D3D11(),
                        ES3_D3D11(),
                        ES2_METAL(),
+                       ES3_METAL(),
                        ES2_OPENGL(),
                        ES3_OPENGL(),
                        ES2_VULKAN(),
                        ES3_VULKAN());
 
 ANGLE_INSTANTIATE_TEST(EGLContextSharingTestNoFixture,
+                       WithNoFixture(ES2_METAL()),
+                       WithNoFixture(ES3_METAL()),
                        WithNoFixture(ES2_OPENGLES()),
                        WithNoFixture(ES3_OPENGLES()),
                        WithNoFixture(ES2_OPENGL()),
@@ -1446,3 +1711,6 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EGLContextSharingTestNoSyncTexture
 ANGLE_INSTANTIATE_TEST(EGLContextSharingTestNoSyncTextureUploads,
                        ES2_VULKAN().enable(Feature::ForceSubmitImmutableTextureUpdates),
                        ES3_VULKAN().enable(Feature::ForceSubmitImmutableTextureUpdates));
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EGLPriorityContextSharingTestNoFixture);
+ANGLE_INSTANTIATE_TEST(EGLPriorityContextSharingTestNoFixture, WithNoFixture(ES3_VULKAN()));

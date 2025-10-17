@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/subresource_filter/tools/rule_parser/rule_parser.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "components/subresource_filter/tools/rule_parser/rule.h"
 #include "components/subresource_filter/tools/rule_parser/rule_options.h"
 #include "components/url_pattern_index/proto/rules.pb.h"
@@ -17,7 +22,7 @@ namespace subresource_filter {
 
 namespace {
 
-void ParseAndExpectUrlRule(base::StringPiece line,
+void ParseAndExpectUrlRule(std::string_view line,
                            const UrlRule& expected_rule) {
   UrlRule canonicalized_rule = expected_rule;
   canonicalized_rule.Canonicalize();
@@ -33,7 +38,7 @@ void ParseAndExpectUrlRule(base::StringPiece line,
   EXPECT_EQ(canonicalized_rule, parser.url_rule());
 }
 
-void ParseAndExpectCssRule(base::StringPiece line,
+void ParseAndExpectCssRule(std::string_view line,
                            const CssRule& expected_rule) {
   CssRule canonicalized_rule = expected_rule;
   canonicalized_rule.Canonicalize();
@@ -55,7 +60,9 @@ TEST(RuleParserTest, ParseComment) {
   RuleParser parser;
 
   static const char* kLines[] = {
-      "! this is a comment", "   ! this is a comment too", "[ and this",
+      "! this is a comment",
+      "   ! this is a comment too",
+      "[ and this",
       "    [ as well as this",
   };
 
@@ -80,7 +87,8 @@ TEST(RuleParserTest, UrlRuleMatchCase) {
     const char* line;
     bool expected_match_case;
   } kTestCases[] = {
-      {"example.com$image", false}, {"example.com$image,match-case", true},
+      {"example.com$image", false},
+      {"example.com$image,match-case", true},
   };
   RuleParser parser;
   for (const auto& test_case : kTestCases) {
@@ -155,7 +163,8 @@ TEST(RuleParserTest, ParseMultipleTypeOptions) {
 
 TEST(RuleParserTest, ParseContradictingTypeOptions) {
   static const char* kLines[2] = {
-      "?param=$image,~image", "?param=$popup,image,~image",
+      "?param=$image,~image",
+      "?param=$popup,image,~image",
   };
 
   for (size_t i = 0; i < 2; ++i) {
@@ -207,8 +216,10 @@ TEST(RuleParserTest, ParseUrlRuleAnchors) {
     expected_rule.anchor_left = left_anchor.type;
 
     for (const auto& right_anchor : kAnchors) {
-      if (right_anchor.type == url_pattern_index::proto::ANCHOR_TYPE_SUBDOMAIN)
+      if (right_anchor.type ==
+          url_pattern_index::proto::ANCHOR_TYPE_SUBDOMAIN) {
         continue;
+      }
       expected_rule.anchor_right = right_anchor.type;
       std::string line = left_anchor.literal + kLine + right_anchor.literal;
       if (left_anchor.type != url_pattern_index::proto::ANCHOR_TYPE_NONE ||

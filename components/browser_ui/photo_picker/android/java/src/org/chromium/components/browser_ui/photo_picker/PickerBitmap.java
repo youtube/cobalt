@@ -4,19 +4,22 @@
 
 package org.chromium.components.browser_ui.photo_picker;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.net.Uri;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.VisibleForTesting;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.text.DateFormat;
 import java.util.Date;
 
-/**
- * A class to keep track of the meta data associated with a an image in the photo picker.
- */
+/** A class to keep track of the meta data associated with a an image in the photo picker. */
+@NullMarked
 public class PickerBitmap implements Comparable<PickerBitmap> {
     // The possible types of tiles involved in the viewer. Note that the values for PICTURE and
     // VIDEO matter, because they are used to prioritize still images over videos in the priority
@@ -31,22 +34,22 @@ public class PickerBitmap implements Comparable<PickerBitmap> {
     }
 
     // The URI of the bitmap to show.
-    private Uri mUri;
+    private final @Nullable Uri mUri;
 
     // When the bitmap was last modified on disk.
-    private long mLastModified;
+    private final long mLastModified;
 
     // The type of tile involved.
-    @TileTypes
-    private int mType;
+    @TileTypes private final int mType;
 
     /**
      * The PickerBitmap constructor.
+     *
      * @param uri The URI for the bitmap to show.
      * @param lastModified When the bitmap was last modified on disk.
      * @param type The type of tile involved.
      */
-    public PickerBitmap(Uri uri, long lastModified, @TileTypes int type) {
+    public PickerBitmap(@Nullable Uri uri, long lastModified, @TileTypes int type) {
         // PICTURE must have a lower value than VIDEO, in order for the priority queue in
         // PickerCategoryView to prioritize still images ahead of video.
         assert TileTypes.PICTURE < TileTypes.VIDEO;
@@ -58,18 +61,22 @@ public class PickerBitmap implements Comparable<PickerBitmap> {
 
     /**
      * Accessor for the URI.
+     *
      * @return The URI for this PickerBitmap object.
      */
-    public Uri getUri() {
+    public @Nullable Uri getUri() {
         return mUri;
     }
 
     /**
      * Accessor for the filename.
+     *
      * @return The filename (without the extension and path).
      */
     public String getFilenameWithoutExtension() {
+        assumeNonNull(mUri);
         String filePath = mUri.getPath();
+        assumeNonNull(filePath);
         int index = filePath.lastIndexOf("/");
         if (index == -1) return filePath;
         return filePath.substring(index + 1, filePath.length());
@@ -77,6 +84,7 @@ public class PickerBitmap implements Comparable<PickerBitmap> {
 
     /**
      * Accessor for the last modified date.
+     *
      * @return The last modified date in string format.
      */
     public String getLastModifiedString() {
@@ -85,6 +93,7 @@ public class PickerBitmap implements Comparable<PickerBitmap> {
 
     /**
      * Accessor for the tile type.
+     *
      * @return The type of tile involved for this bitmap object.
      */
     @TileTypes
@@ -94,6 +103,7 @@ public class PickerBitmap implements Comparable<PickerBitmap> {
 
     /**
      * A comparison function for PickerBitmaps (results in a last-modified first sort).
+     *
      * @param other The PickerBitmap to compare it to.
      * @return 0, 1, or -1, depending on which is bigger.
      */
@@ -104,9 +114,9 @@ public class PickerBitmap implements Comparable<PickerBitmap> {
 
     /**
      * Accessor for the last modified date (for testing use only).
+     *
      * @return The last modified date.
      */
-    @VisibleForTesting
     public long getLastModifiedForTesting() {
         return mLastModified;
     }

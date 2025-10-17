@@ -167,11 +167,12 @@ void ShillDataCollector::CollectDataAndDetectPII(
 }
 
 void ShillDataCollector::OnGetManagerProperties(
-    absl::optional<base::Value::Dict> result) {
+    std::optional<base::Value::Dict> result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!result) {
-    SupportToolError error = {SupportToolErrorCode::kDataCollectorError,
-                              "ManagerPropertiesCallback Failed"};
+    SupportToolError error = {
+        SupportToolErrorCode::kDataCollectorError,
+        "ShillDataCollector: ManagerPropertiesCallback failed"};
     std::move(data_collector_done_callback_).Run(/*error=*/error);
     return;
   }
@@ -215,7 +216,7 @@ void ShillDataCollector::OnGetManagerProperties(
 
 void ShillDataCollector::OnGetDevice(
     const std::string& device_path,
-    absl::optional<base::Value::Dict> properties) {
+    std::optional<base::Value::Dict> properties) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!properties) {
     collector_err_["Device"].emplace_back(device_path);
@@ -254,7 +255,7 @@ void ShillDataCollector::AddDeviceAndRequestIPConfigs(
 void ShillDataCollector::OnGetIPConfig(
     const std::string& device_path,
     const std::string& ip_config_path,
-    absl::optional<base::Value::Dict> properties) {
+    std::optional<base::Value::Dict> properties) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!properties) {
     collector_err_["IPConfig"].emplace_back(
@@ -283,7 +284,7 @@ void ShillDataCollector::AddIPConfig(const std::string& device_path,
 
 void ShillDataCollector::OnGetService(
     const std::string& service_path,
-    absl::optional<base::Value::Dict> properties) {
+    std::optional<base::Value::Dict> properties) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!properties) {
     collector_err_["Service"].emplace_back(service_path);
@@ -303,7 +304,7 @@ base::Value::Dict ShillDataCollector::ExpandProperties(
   // Converts UIData from a string to a dictionary.
   std::string* ui_data = dict.FindString(shill::kUIDataProperty);
   if (ui_data) {
-    absl::optional<base::Value::Dict> ui_data_dict =
+    std::optional<base::Value::Dict> ui_data_dict =
         chromeos::onc::ReadDictionaryFromJson(*ui_data);
     if (ui_data_dict.has_value()) {
       dict.Set(shill::kUIDataProperty, base::Value(std::move(*ui_data_dict)));
@@ -316,10 +317,12 @@ base::Value::Dict ShillDataCollector::ExpandProperties(
         *dict.FindString(shill::kNameProperty));
   } else if (base::StartsWith(object_path, kDevicePrefix,
                               base::CompareCase::SENSITIVE)) {
-    // Only detects "Address" in the top level Device dictionary, not globally
-    // (which would mask IPConfigs which get anonymized separately).
     pii_map_[redaction::PIIType::kSSID].insert(
         *dict.FindString(shill::kNameProperty));
+    // Only detects "Address" in the top level Device dictionary, not globally
+    // (which would mask IPConfigs which get anonymized separately).
+    pii_map_[redaction::PIIType::kMACAddress].insert(
+        *dict.FindString(shill::kAddressProperty));
   }
   std::set<redaction::PIIType> empty = {};
   DetectOrScrubPIIInDictionary(dict, /*scrub=*/false,
@@ -343,19 +346,22 @@ void ShillDataCollector::OnPIIDetected(PIIMap detected_pii) {
   for (auto& entry : detected_pii)
     pii_map_[entry.first].insert(entry.second.begin(), entry.second.end());
   // Generates error message, if any.
-  std::string message;
+  std::string collector_errors;
   for (const auto& err : collector_err_) {
     if (err.second.size()) {
-      base::StrAppend(&message, {"Get ", err.first, " Properties Failed for : ",
-                                 base::JoinString(err.second, ", "), "\n"});
+      base::StrAppend(&collector_errors,
+                      {"Get ", err.first, " Properties Failed for : ",
+                       base::JoinString(err.second, ", "), "\n"});
     }
   }
-  if (message.size()) {
-    SupportToolError error = {SupportToolErrorCode::kDataCollectorError,
-                              std::move(message)};
+  if (collector_errors.size()) {
+    SupportToolError error = {
+        SupportToolErrorCode::kDataCollectorError,
+        base::StrCat({"ShillDataCollector had errors collecting data: ",
+                      collector_errors})};
     std::move(data_collector_done_callback_).Run(/*error=*/error);
   } else {
-    std::move(data_collector_done_callback_).Run(/*error=*/absl::nullopt);
+    std::move(data_collector_done_callback_).Run(/*error=*/std::nullopt);
   }
 }
 
@@ -409,10 +415,10 @@ void ShillDataCollector::OnFilesWritten(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!success) {
     SupportToolError error = {SupportToolErrorCode::kDataCollectorError,
-                              "Failed on data export."};
+                              "ShillDataCollector failed on data export."};
     std::move(on_exported_callback).Run(error);
     return;
   }
   shill_log_.clear();
-  std::move(on_exported_callback).Run(/*error=*/absl::nullopt);
+  std::move(on_exported_callback).Run(/*error=*/std::nullopt);
 }

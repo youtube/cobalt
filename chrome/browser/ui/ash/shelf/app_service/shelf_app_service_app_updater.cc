@@ -9,19 +9,22 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/app_update.h"
+#include "components/services/app_service/public/cpp/types_util.h"
 
 ShelfAppServiceAppUpdater::ShelfAppServiceAppUpdater(
     Delegate* delegate,
     content::BrowserContext* browser_context)
     : ShelfAppUpdater(delegate, browser_context) {
-  apps::AppServiceProxy* proxy = apps::AppServiceProxyFactory::GetForProfile(
-      Profile::FromBrowserContext(browser_context));
+  auto* cache = &apps::AppServiceProxyFactory::GetForProfile(
+                     Profile::FromBrowserContext(browser_context))
+                     ->AppRegistryCache();
 
-  proxy->AppRegistryCache().ForEachApp([this](const apps::AppUpdate& update) {
-    if (update.Readiness() == apps::Readiness::kReady)
+  cache->ForEachApp([this](const apps::AppUpdate& update) {
+    if (update.Readiness() == apps::Readiness::kReady) {
       this->installed_apps_.insert(update.AppId());
+    }
   });
-  Observe(&proxy->AppRegistryCache());
+  app_registry_cache_observer_.Observe(cache);
 }
 
 ShelfAppServiceAppUpdater::~ShelfAppServiceAppUpdater() = default;
@@ -55,6 +58,7 @@ void ShelfAppServiceAppUpdater::OnAppUpdate(const apps::AppUpdate& update) {
         }
         return;
       case apps::Readiness::kDisabledByPolicy:
+      case apps::Readiness::kDisabledByLocalSettings:
         if (update.ShowInShelfChanged()) {
           OnShowInShelfChangedForAppDisabledByPolicy(
               app_id, update.ShowInShelf().value_or(false));
@@ -70,11 +74,12 @@ void ShelfAppServiceAppUpdater::OnAppUpdate(const apps::AppUpdate& update) {
     }
   }
 
-  if (update.PolicyIdsChanged())
+  if (update.PolicyIdsChanged()) {
     delegate()->OnAppInstalled(browser_context(), app_id);
+  }
 
   if (update.ShowInShelfChanged()) {
-    if (update.Readiness() == apps::Readiness::kDisabledByPolicy) {
+    if (apps_util::IsDisabled(update.Readiness())) {
       OnShowInShelfChangedForAppDisabledByPolicy(
           app_id, update.ShowInShelf().value_or(false));
     } else {
@@ -88,13 +93,14 @@ void ShelfAppServiceAppUpdater::OnAppUpdate(const apps::AppUpdate& update) {
     return;
   }
 
-  if (update.ShortNameChanged())
+  if (update.ShortNameChanged()) {
     delegate()->OnAppUpdated(browser_context(), app_id, /*reload_icon=*/false);
+  }
 }
 
 void ShelfAppServiceAppUpdater::OnAppRegistryCacheWillBeDestroyed(
     apps::AppRegistryCache* cache) {
-  Observe(nullptr);
+  app_registry_cache_observer_.Reset();
 }
 
 void ShelfAppServiceAppUpdater::OnShowInShelfChangedForAppDisabledByPolicy(

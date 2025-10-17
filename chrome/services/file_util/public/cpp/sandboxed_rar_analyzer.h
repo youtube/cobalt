@@ -10,6 +10,7 @@
 #include "base/memory/ref_counted_delete_on_sequence.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/types/optional_ref.h"
 #include "chrome/services/file_util/public/cpp/temporary_file_getter.h"
 #include "chrome/services/file_util/public/mojom/file_util_service.mojom.h"
 #include "chrome/services/file_util/public/mojom/safe_archive_analyzer.mojom.h"
@@ -28,11 +29,13 @@ class SandboxedRarAnalyzer {
  public:
   using ResultCallback =
       base::OnceCallback<void(const safe_browsing::ArchiveAnalyzerResults&)>;
+  using WrappedFilePtr = std::unique_ptr<base::File, base::OnTaskRunnerDeleter>;
 
   // Factory function for creating SandboxedRarAnalyzers with the appropriate
   // deleter.
   static std::unique_ptr<SandboxedRarAnalyzer, base::OnTaskRunnerDeleter>
   CreateAnalyzer(const base::FilePath& rar_file_path,
+                 base::optional_ref<const std::string> password,
                  ResultCallback callback,
                  mojo::PendingRemote<chrome::mojom::FileUtilService> service);
 
@@ -50,6 +53,7 @@ class SandboxedRarAnalyzer {
  private:
   SandboxedRarAnalyzer(
       const base::FilePath& rar_file_path,
+      base::optional_ref<const std::string> password,
       ResultCallback callback,
       mojo::PendingRemote<chrome::mojom::FileUtilService> service);
 
@@ -58,7 +62,7 @@ class SandboxedRarAnalyzer {
 
   // Starts the utility process and sends it a request to analyze the file
   // |file|.
-  void AnalyzeFile(base::File file);
+  void AnalyzeFile(WrappedFilePtr file);
 
   // The response containing the file analyze results.
   void AnalyzeFileDone(const safe_browsing::ArchiveAnalyzerResults& results);
@@ -69,6 +73,9 @@ class SandboxedRarAnalyzer {
   // The file path of the file to analyze.
   const base::FilePath file_path_;
 
+  // The password to use for encrypted entries.
+  const std::optional<std::string> password_;
+
   // Callback invoked on the UI thread with the file analyze results.
   ResultCallback callback_;
 
@@ -76,6 +83,9 @@ class SandboxedRarAnalyzer {
   mojo::Remote<chrome::mojom::FileUtilService> service_;
   mojo::Remote<chrome::mojom::SafeArchiveAnalyzer> remote_analyzer_;
   TemporaryFileGetter temp_file_getter_;
+
+  // Task runner for blocking file operations
+  const scoped_refptr<base::SequencedTaskRunner> file_task_runner_;
 
   base::WeakPtrFactory<SandboxedRarAnalyzer> weak_ptr_factory_{this};
 };

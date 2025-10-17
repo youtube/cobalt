@@ -77,7 +77,8 @@ void PasswordProtectionService::MaybeStartProtectedPasswordEntryRequest(
       LoginReputationClientRequest::PASSWORD_REUSE_EVENT;
   ReusedPasswordAccountType reused_password_account_type =
       GetPasswordProtectionReusedPasswordAccountType(password_type, username);
-
+  bool can_show_interstitial =
+      CanShowInterstitial(reused_password_account_type, main_frame_url);
   if (IsSupportedPasswordTypeForPinging(password_type)) {
     if (CanSendPing(LoginReputationClientRequest::PASSWORD_REUSE_EVENT,
                     main_frame_url, reused_password_account_type)) {
@@ -92,13 +93,18 @@ void PasswordProtectionService::MaybeStartProtectedPasswordEntryRequest(
           trigger_type, main_frame_url, reused_password_account_type);
       LogNoPingingReason(trigger_type, reason, reused_password_account_type);
 
+      if (reason == RequestOutcome::PASSWORD_ALERT_MODE) {
+        MaybeReportPasswordReuseDetected(
+            main_frame_url, username, password_type, /*is_phishing_url=*/false,
+            can_show_interstitial);
+      }
       if (reused_password_account_type.is_account_syncing())
         MaybeLogPasswordReuseLookupEvent(web_contents, reason, password_type,
                                          nullptr);
     }
   }
 
-  if (CanShowInterstitial(reused_password_account_type, main_frame_url)) {
+  if (can_show_interstitial) {
     LogPasswordAlertModeOutcome(RequestOutcome::SUCCEEDED,
                                 reused_password_account_type);
     username_for_last_shown_warning_ = username;
@@ -119,15 +125,40 @@ void PasswordProtectionService::StartRequest(
         matching_reused_credentials,
     LoginReputationClientRequest::TriggerType trigger_type,
     bool password_field_exists) {
-  DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
   scoped_refptr<PasswordProtectionRequest> request(
       new PasswordProtectionRequestContent(
           web_contents, main_frame_url, password_form_action,
           password_form_frame_url, web_contents->GetContentsMimeType(),
           username, password_type, matching_reused_credentials, trigger_type,
           password_field_exists, this, GetRequestTimeoutInMS()));
-  request->Start();
+  StartRequestInternal(std::move(request));
+}
 
+void PasswordProtectionService::StartRequestForTesting(
+    WebContents* web_contents,
+    const GURL& main_frame_url,
+    const GURL& password_form_action,
+    const GURL& password_form_frame_url,
+    const std::string& username,
+    PasswordType password_type,
+    const std::vector<password_manager::MatchingReusedCredential>&
+        matching_reused_credentials,
+    LoginReputationClientRequest::TriggerType trigger_type,
+    bool password_field_exists) {
+  scoped_refptr<PasswordProtectionRequest> request =
+      PasswordProtectionRequestContent::CreateForTesting(
+          web_contents, main_frame_url, password_form_action,
+          password_form_frame_url, web_contents->GetContentsMimeType(),
+          username, password_type, matching_reused_credentials, trigger_type,
+          password_field_exists, this, GetRequestTimeoutInMS());
+
+  StartRequestInternal(std::move(request));
+}
+
+void PasswordProtectionService::StartRequestInternal(
+    scoped_refptr<PasswordProtectionRequest> request) {
+  DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
+  request->Start();
   pending_requests_.insert(std::move(request));
 }
 
@@ -171,14 +202,6 @@ PasswordProtectionService::MaybeCreateCommitDeferringCondition(
   }
   return nullptr;
 }
-
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
-void PasswordProtectionService::GetPhishingDetector(
-    service_manager::InterfaceProvider* provider,
-    mojo::Remote<mojom::PhishingDetector>* phishing_detector) {
-  provider->GetInterface(phishing_detector->BindNewPipeAndPassReceiver());
-}
-#endif
 
 void PasswordProtectionService::RemoveWarningRequestsByWebContents(
     content::WebContents* web_contents) {

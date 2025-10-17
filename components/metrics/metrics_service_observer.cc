@@ -4,6 +4,8 @@
 
 #include "components/metrics/metrics_service_observer.h"
 
+#include <string_view>
+
 #include "base/base64.h"
 #include "base/callback_list.h"
 #include "base/files/file_util.h"
@@ -19,10 +21,11 @@ namespace {
 
 MetricsServiceObserver::Log::Event CreateEventStruct(
     MetricsLogsEventManager::LogEvent event,
-    base::StringPiece message) {
+    std::string_view message) {
   MetricsServiceObserver::Log::Event event_struct;
   event_struct.event = event;
-  event_struct.timestampMs = base::Time::Now().ToJsTimeIgnoringNull();
+  event_struct.timestampMs =
+      base::Time::Now().InMillisecondsFSinceUnixEpochIgnoringNull();
   if (!message.empty()) {
     event_struct.message = std::string(message);
   }
@@ -81,9 +84,11 @@ std::string CreateReasonToString(
     case MetricsLogsEventManager::CreateReason::kStability:
       return "Reason: Stability metrics from previous session";
     case MetricsLogsEventManager::CreateReason::kIndependent:
-      // TODO(crbug/1363747): Give more insight here (e.g. "independent log
+      // TODO(crbug.com/40238818): Give more insight here (e.g. "independent log
       // generated from pma file").
       return "Reason: Independent log";
+    case MetricsLogsEventManager::CreateReason::kOutOfBand:
+      return "Reason: Manually triggered by client";
   }
 }
 
@@ -104,9 +109,9 @@ MetricsServiceObserver::Log::Event::operator=(const Event&) = default;
 MetricsServiceObserver::Log::Event::~Event() = default;
 
 void MetricsServiceObserver::OnLogCreated(
-    base::StringPiece log_hash,
-    base::StringPiece log_data,
-    base::StringPiece log_timestamp,
+    std::string_view log_hash,
+    std::string_view log_data,
+    std::string_view log_timestamp,
     metrics::MetricsLogsEventManager::CreateReason reason) {
   DCHECK(!GetLogFromHash(log_hash));
 
@@ -135,8 +140,8 @@ void MetricsServiceObserver::OnLogCreated(
 }
 
 void MetricsServiceObserver::OnLogEvent(MetricsLogsEventManager::LogEvent event,
-                                        base::StringPiece log_hash,
-                                        base::StringPiece message) {
+                                        std::string_view log_hash,
+                                        std::string_view message) {
   Log* log = GetLogFromHash(log_hash);
 
   // If this observer is not aware of any logs with the given |log_hash|, do
@@ -152,7 +157,7 @@ void MetricsServiceObserver::OnLogEvent(MetricsLogsEventManager::LogEvent event,
 }
 
 void MetricsServiceObserver::OnLogType(
-    absl::optional<MetricsLog::LogType> log_type) {
+    std::optional<MetricsLog::LogType> log_type) {
   uma_log_type_ = log_type;
 }
 
@@ -167,13 +172,11 @@ bool MetricsServiceObserver::ExportLogsAsJson(bool include_log_proto_data,
       DCHECK_EQ(service_type_, MetricsServiceType::UMA);
       log_dict.Set("type", LogTypeToString(log->type.value()));
     }
-    log_dict.Set("hash", base::HexEncode(log->hash.data(), log->hash.length()));
+    log_dict.Set("hash", base::HexEncode(log->hash));
     log_dict.Set("timestamp", log->timestamp);
 
     if (include_log_proto_data) {
-      std::string base64_encoded_data;
-      base::Base64Encode(log->data, &base64_encoded_data);
-      log_dict.Set("data", base64_encoded_data);
+      log_dict.Set("data", base::Base64Encode(log->data));
     }
 
     log_dict.Set("size", static_cast<int>(log->data.length()));
@@ -217,7 +220,7 @@ base::CallbackListSubscription MetricsServiceObserver::AddNotifiedCallback(
 }
 
 MetricsServiceObserver::Log* MetricsServiceObserver::GetLogFromHash(
-    base::StringPiece log_hash) {
+    std::string_view log_hash) {
   auto it = indexed_logs_.find(log_hash);
   return it != indexed_logs_.end() ? it->second : nullptr;
 }

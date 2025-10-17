@@ -40,9 +40,11 @@ TEST_F(ApplyBlockElementCommandTest, selectionCrossingOverBody) {
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
   Selection().SetSelection(
       SelectionInDOMTree::Builder()
-          .SetBaseAndExtent(
-              Position(GetDocument().documentElement(), 1),
-              Position(GetDocument().getElementById("va")->firstChild(), 2))
+          .SetBaseAndExtent(Position(GetDocument().documentElement(), 1),
+                            Position(GetDocument()
+                                         .getElementById(AtomicString("va"))
+                                         ->firstChild(),
+                                     2))
           .Build(),
       SetSelectionOptions());
 
@@ -68,11 +70,10 @@ TEST_F(ApplyBlockElementCommandTest, visibilityChangeDuringCommand) {
   GetDocument().setDesignMode("on");
 
   UpdateAllLifecyclePhasesForTest();
-  Selection().SetSelection(
-      SelectionInDOMTree::Builder()
-          .Collapse(Position(GetDocument().QuerySelector("li"), 0))
-          .Build(),
-      SetSelectionOptions());
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .Collapse(Position(QuerySelector("li"), 0))
+                               .Build(),
+                           SetSelectionOptions());
 
   auto* command = MakeGarbageCollected<IndentOutdentCommand>(
       GetDocument(), IndentOutdentCommand::kIndent);
@@ -91,8 +92,8 @@ TEST_F(ApplyBlockElementCommandTest, IndentHeadingIntoBlockquote) {
       "<h6><button><table></table></button></h6>"
       "<object></object>"
       "</div>");
-  Element* button = GetDocument().QuerySelector("button");
-  Element* object = GetDocument().QuerySelector("object");
+  Element* button = QuerySelector("button");
+  Element* object = QuerySelector("object");
   Selection().SetSelection(SelectionInDOMTree::Builder()
                                .Collapse(Position(button, 0))
                                .Extend(Position(object, 0))
@@ -162,11 +163,10 @@ TEST_F(ApplyBlockElementCommandTest,
       SetSelectionOptions());
   auto* command = MakeGarbageCollected<FormatBlockCommand>(GetDocument(),
                                                            html_names::kPreTag);
-  // Shouldn't crash here.
-  EXPECT_FALSE(command->Apply());
+  EXPECT_TRUE(command->Apply());
   EXPECT_EQ(
-      "<table>^</table>"
-      "<kbd style=\"-webkit-user-modify:read-only\"><button>|</button></kbd>",
+      "<pre><table>|</table></pre>"
+      "<kbd style=\"-webkit-user-modify:read-only\"><button></button></kbd>",
       GetSelectionTextFromBody());
 }
 
@@ -175,7 +175,7 @@ TEST_F(ApplyBlockElementCommandTest, FormatBlockWithDirectChildrenOfRoot) {
   GetDocument().setDesignMode("on");
   DocumentFragment* fragment = DocumentFragment::Create(GetDocument());
   Element* root = GetDocument().documentElement();
-  fragment->ParseXML("a<div>b</div>c", root);
+  fragment->ParseXML("a<div>b</div>c", root, ASSERT_NO_EXCEPTION);
   root->setTextContent("");
   root->appendChild(fragment);
   UpdateAllLifecyclePhasesForTest();
@@ -299,12 +299,9 @@ TEST_F(ApplyBlockElementCommandTest, IndentOutdentLinesCrash) {
       GetDocument(), IndentOutdentCommand::kOutdent);
 
   // Shouldn't crash, and the empty line between b and c should be preserved.
-  // TODO(editing-dev): Get rid of the empty blockquote.
   EXPECT_TRUE(outdent->Apply());
   EXPECT_EQ(
       "<div contenteditable>"
-      "<blockquote style=\"margin: 0 0 0 40px; border: none; padding: "
-      "0px;\"></blockquote>"
       "^a<br>"
       "b|<br><br>"
       "c"
@@ -344,11 +341,9 @@ TEST_F(ApplyBlockElementCommandTest, IndentOutdentLinesWithJunkCrash) {
   EXPECT_TRUE(outdent->Apply());
 
   // TODO(editing-dev): The result is wrong. We should preserve the empty line
-  // between b and c, and get rid of the empty blockquote.
+  // between b and c.
   EXPECT_EQ(
       "<div contenteditable>"
-      "<blockquote style=\"margin: 0 0 0 40px; border: none; padding: "
-      "0px;\"></blockquote>"
       "^a<br>"
       "b|"
       "<!----><br>"

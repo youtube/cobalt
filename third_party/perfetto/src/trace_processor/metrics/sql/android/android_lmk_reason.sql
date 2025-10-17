@@ -14,13 +14,14 @@
 -- limitations under the License.
 --
 
+INCLUDE PERFETTO MODULE android.memory.lmk;
+
 SELECT RUN_METRIC('android/android_ion.sql');
-SELECT RUN_METRIC('android/android_lmk.sql');
 SELECT RUN_METRIC('android/process_mem.sql');
 SELECT RUN_METRIC('android/process_metadata.sql');
 
 DROP VIEW IF EXISTS android_lmk_reason_output;
-CREATE VIEW android_lmk_reason_output AS
+CREATE PERFETTO VIEW android_lmk_reason_output AS
 WITH
 total_ion_name AS (
   SELECT
@@ -35,7 +36,7 @@ oom_score_at_lmk_time AS (
     lmk_events.ts,
     oom_score_span.upid,
     oom_score_val
-  FROM lmk_events
+  FROM android_lmk_events lmk_events
   JOIN oom_score_span ON (
     lmk_events.ts
     BETWEEN oom_score_span.ts
@@ -45,7 +46,7 @@ ion_at_lmk_time AS (
   SELECT
     lmk_events.ts,
     CAST(ion_timeline.value AS INT) AS ion_size
-  FROM lmk_events
+  FROM android_lmk_events lmk_events
   JOIN ion_timeline ON (
     lmk_events.ts
     BETWEEN ion_timeline.ts
@@ -61,11 +62,11 @@ lmk_process_sizes AS (
     shmem_rss_val,
     swap_val,
     rss_and_swap_val
-  FROM lmk_events
+  FROM android_lmk_events lmk_events
   JOIN rss_and_swap_span
   WHERE lmk_events.ts
-    BETWEEN rss_and_swap_span.ts
-    AND rss_and_swap_span.ts + MAX(rss_and_swap_span.dur - 1, 0)
+  BETWEEN rss_and_swap_span.ts
+  AND rss_and_swap_span.ts + MAX(rss_and_swap_span.dur - 1, 0)
 ),
 lmk_process_sizes_output AS (
   SELECT ts, RepeatedField(AndroidLmkReasonMetric_Process(
@@ -90,7 +91,7 @@ SELECT AndroidLmkReasonMetric(
       'ion_heaps_bytes', ion_size,
       'processes', processes
       ))
-    FROM lmk_events
+    FROM android_lmk_events
     LEFT JOIN oom_score_at_lmk_time USING (ts, upid)
     LEFT JOIN ion_at_lmk_time USING (ts)
     LEFT JOIN lmk_process_sizes_output USING (ts)

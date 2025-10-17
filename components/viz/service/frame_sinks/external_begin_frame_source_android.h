@@ -6,14 +6,15 @@
 #define COMPONENTS_VIZ_SERVICE_FRAME_SINKS_EXTERNAL_BEGIN_FRAME_SOURCE_ANDROID_H_
 
 #include <jni.h>
+
 #include <memory>
+#include <optional>
 
 #include "base/android/jni_weak_ref.h"
 #include "base/time/time.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
 #include "components/viz/service/viz_service_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace viz {
 
@@ -40,11 +41,6 @@ class VIZ_SERVICE_EXPORT ExternalBeginFrameSourceAndroid
                jlong period_micros);
   void UpdateRefreshRate(float refresh_rate) override;
 
-  // BeginFrameSource:
-  void SetDynamicBeginFrameDeadlineOffsetSource(
-      DynamicBeginFrameDeadlineOffsetSource*
-          dynamic_begin_frame_deadline_offset_source) override;
-
  private:
   class AChoreographerImpl;
 
@@ -53,9 +49,8 @@ class VIZ_SERVICE_EXPORT ExternalBeginFrameSourceAndroid
 
   void SetEnabled(bool enabled);
   void OnVSyncImpl(int64_t time_nanos,
-                   int64_t deadline_nanos,
                    base::TimeDelta vsync_period,
-                   absl::optional<PossibleDeadlines> possible_deadlines);
+                   std::optional<PossibleDeadlines> possible_deadlines);
 
   std::unique_ptr<AChoreographerImpl> achoreographer_;
   base::android::ScopedJavaGlobalRef<jobject> j_object_;

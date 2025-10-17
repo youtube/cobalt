@@ -8,7 +8,6 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details about the presubmit API built into depot_tools.
 """
 
-USE_PYTHON3 = True
 
 PRESUBMIT_VERSION = '2.0.0'
 
@@ -17,10 +16,12 @@ EXTRA_PATHS_COMPONENTS = [
     ('build', 'fuchsia', 'test'),
     ('build', 'util'),
     ('testing', ),
+    ('third_party', 'blink', 'tools'),
     ('third_party', 'catapult', 'common', 'py_utils'),
     ('third_party', 'catapult', 'devil'),
     ('third_party', 'catapult', 'telemetry'),
     ('third_party', 'catapult', 'third_party', 'typ'),
+    ('third_party', 'catapult', 'tracing'),
     ('tools', 'perf'),
 ]
 
@@ -58,6 +59,19 @@ def CheckGpuTestsUnittests(input_api, output_api):
   return input_api.RunTests([command])
 
 
+def CheckMachineTimesUnittests(input_api, output_api):
+  """Runs the unittests for the machine_times directory."""
+  return input_api.canned_checks.RunUnitTestsInDirectory(
+      input_api,
+      output_api,
+      input_api.os_path.join(input_api.PresubmitLocalPath(),
+                             'machine_times'), [r'^.+_unittest\.py$'],
+      env=_GetGpuEnv(input_api),
+      run_on_python2=False,
+      run_on_python3=True,
+      skip_shebang_check=True)
+
+
 def CheckUnexpectedPassesUnittests(input_api, output_api):
   """Runs the unittests for the unexpected_passes directory."""
   return input_api.canned_checks.RunUnitTestsInDirectory(
@@ -65,10 +79,7 @@ def CheckUnexpectedPassesUnittests(input_api, output_api):
       output_api,
       input_api.os_path.join(input_api.PresubmitLocalPath(),
                              'unexpected_passes'), [r'^.+_unittest\.py$'],
-      env=_GetGpuEnv(input_api),
-      run_on_python2=False,
-      run_on_python3=True,
-      skip_shebang_check=True)
+      env=_GetGpuEnv(input_api))
 
 
 def CheckFlakeSuppressorUnittests(input_api, output_api):
@@ -78,10 +89,7 @@ def CheckFlakeSuppressorUnittests(input_api, output_api):
       output_api,
       input_api.os_path.join(input_api.PresubmitLocalPath(),
                              'flake_suppressor'), [r'^.+_unittest\.py$'],
-      env=_GetGpuEnv(input_api),
-      run_on_python2=False,
-      run_on_python3=True,
-      skip_shebang_check=True)
+      env=_GetGpuEnv(input_api))
 
 
 def CheckValidateTagConsistency(input_api, output_api):
@@ -92,8 +100,7 @@ def CheckValidateTagConsistency(input_api, output_api):
                                   'validate_tag_consistency.py', 'validate'
                               ],
                               kwargs={},
-                              message=output_api.PresubmitError,
-                              python3=True)
+                              message=output_api.PresubmitError)
   return input_api.RunTests([command])
 
 
@@ -103,7 +110,10 @@ def CheckForNewSkipExpectations(input_api, output_api):
   expectation_file_dir = input_api.os_path.join(input_api.PresubmitLocalPath(),
                                                 'gpu_tests',
                                                 'test_expectations')
-  file_filter = lambda f: f.AbsoluteLocalPath().startswith(expectation_file_dir)
+
+  def file_filter(f):
+    return f.AbsoluteLocalPath().startswith(expectation_file_dir)
+
   for affected_file in input_api.AffectedFiles(file_filter=file_filter):
     for _, line in affected_file.ChangedContents():
       if input_api.re.search(r'\[\s*Skip\s*\]', line):
@@ -112,14 +122,15 @@ def CheckForNewSkipExpectations(input_api, output_api):
   if new_skips:
     warnings = []
     for affected_file, line in new_skips:
-      warnings.append('  Line "%s" in file %s' %
-                      (line, affected_file.LocalPath()))
+      warnings.append(f'  Line "{line}" in file {affected_file.LocalPath()}')
+    warnings_str = '\n'.join(warnings)
     result.append(
         output_api.PresubmitPromptWarning(
-            'Suspected new Skip expectations found:\n%s\nPlease only use such '
-            'expectations when they are strictly necessary, e.g. the test is '
-            'impacting other tests. Otherwise, opt for a '
-            'Failure/RetryOnFailure expectation.' % '\n'.join(warnings)))
+            f'Suspected new Skip expectations found:\n'
+            f'{warnings_str}\n'
+            f'Please only use such expectations when they are strictly '
+            f'necessary, e.g. the test is impacting other tests. Otherwise, '
+            f'opt for a Failure/RetryOnFailure expectation.'))
   return result
 
 
@@ -135,7 +146,7 @@ def CheckPylint(input_api, output_api):
       output_api,
       extra_paths_list=pylint_extra_paths,
       pylintrc='pylintrc',
-      version='2.7')
+      version='3.2')
   return input_api.RunTests(pylint_checks)
 
 

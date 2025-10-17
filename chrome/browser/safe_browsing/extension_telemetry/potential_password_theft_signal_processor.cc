@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,10 +29,6 @@ void PotentialPasswordTheftSignalProcessor::ProcessSignal(
     const ExtensionSignal& signal) {
   DCHECK(signal.GetType() == ExtensionSignalType::kRemoteHostContacted ||
          signal.GetType() == ExtensionSignalType::kPasswordReuse);
-  if (!base::FeatureList::IsEnabled(
-          safe_browsing::kExtensionTelemetryPotentialPasswordTheft)) {
-    return;
-  }
   base::Time signal_creation_time = base::Time::NowFromSystemTime();
   extensions::ExtensionId extension_id;
   // Process remote host contacted signal.
@@ -260,7 +256,6 @@ PotentialPasswordTheftSignalProcessor::
     }
   }
   NOTREACHED();
-  return extension_telemetry_pw_account_type;
 }
 
 bool PotentialPasswordTheftSignalProcessor::IsPasswordQueueEmptyForTest() {

@@ -21,7 +21,7 @@ namespace jni {
 
 ScopedJavaLocalRef<jobject> NativeToJavaRtpSender(
     JNIEnv* env,
-    rtc::scoped_refptr<RtpSenderInterface> sender);
+    scoped_refptr<RtpSenderInterface> sender);
 
 }  // namespace jni
 }  // namespace webrtc

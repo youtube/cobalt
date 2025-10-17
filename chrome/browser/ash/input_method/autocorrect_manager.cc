@@ -10,6 +10,7 @@
 #include "base/i18n/case_conversion.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/levenshtein_distance.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -18,17 +19,17 @@
 #include "chrome/browser/ash/input_method/assistive_window_properties.h"
 #include "chrome/browser/ash/input_method/autocorrect_enums.h"
 #include "chrome/browser/ash/input_method/autocorrect_prefs.h"
-#include "chrome/browser/ash/input_method/ime_rules_config.h"
 #include "chrome/browser/ash/input_method/suggestion_enums.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/ui/ash/keyboard/chrome_keyboard_controller_client.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
+#include "chromeos/ash/services/federated/public/mojom/tables.mojom.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "components/strings/grit/components_strings.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
-#include "ui/base/ime/ash/extension_ime_util.h"
 #include "ui/base/ime/ash/ime_bridge.h"
-#include "ui/base/ime/ash/input_method_manager.h"
 #include "ui/base/ime/ash/text_input_target.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/events/keycodes/dom/dom_code.h"
@@ -43,21 +44,12 @@ constexpr int kDistanceUntilUnderlineHides = 3;
 constexpr int kMaxValidationTries = 4;
 constexpr base::TimeDelta kVeryFastInteractionPeriod = base::Milliseconds(200);
 constexpr base::TimeDelta kFastInteractionPeriod = base::Milliseconds(500);
-constexpr int kUndoWindowShowSettingMaxCount = 5;
+constexpr int kUndoWindowShowSettingMaxCount = 50;
 constexpr char kUndoWindowShowSettingCount[] = "undo_window.show_setting_count";
 
 bool IsVkAutocorrect() {
   return ChromeKeyboardControllerClient::HasInstance() &&
          ChromeKeyboardControllerClient::Get()->is_keyboard_enabled();
-}
-
-bool IsCurrentInputMethodExperimentalMultilingual() {
-  auto* input_method_manager = InputMethodManager::Get();
-  if (!input_method_manager) {
-    return false;
-  }
-  return extension_ime_util::IsExperimentalMultilingual(
-      input_method_manager->GetActiveIMEState()->GetCurrentInputMethod().id());
 }
 
 bool IsUsEnglishId(const std::string& engine_id) {
@@ -159,10 +151,6 @@ void LogAutocorrectAppCompatibilityUkm(AutocorrectActions action,
 void LogAssistiveAutocorrectDelay(base::TimeDelta delay) {
   base::UmaHistogramMediumTimes("InputMethod.Assistive.Autocorrect.Delay",
                                 delay);
-  if (IsCurrentInputMethodExperimentalMultilingual()) {
-    base::UmaHistogramMediumTimes(
-        "InputMethod.MultilingualExperiment.Autocorrect.Delay", delay);
-  }
 }
 
 void LogAssistiveAutocorrectActionLatency(
@@ -255,45 +243,6 @@ AutocorrectRejectionBreakdown LogSelectionEditInteractions(
   return AutocorrectRejectionBreakdown::kRejectedSelectedInvalidRange;
 }
 
-// Returns the Levenshtein distance between |str1| and |str2|.
-// Which is the minimum number of single-character edits (i.e. insertions,
-// deletions or substitutions) required to change one word into the other.
-// https://en.wikipedia.org/wiki/Levenshtein_distance
-int GetLevenshteinDistance(const std::u16string& str1,
-                           const std::u16string& str2) {
-  if (str1.size() > str2.size()) {
-    return GetLevenshteinDistance(str2, str1);
-  }
-  if (str1.size() + static_cast<size_t>(kMaxEditDistance) < str2.size()) {
-    return kMaxEditDistance;
-  }
-
-  std::vector<int> row(str1.size() + 1);
-  for (size_t i = 0; i < row.size(); ++i) {
-    row[i] = static_cast<int>(i);
-  }
-
-  for (size_t i = 0; i < str2.size(); ++i) {
-    ++row[0];
-    int previous = static_cast<int>(i);
-    bool under_cutoff = false;
-    for (size_t j = 0; j < str1.size(); ++j) {
-      int old_row = row[j + 1];
-      int cost = str2[i] == str1[j] ? 0 : 1;
-      row[j + 1] = std::min(std::min(row[j], row[j + 1]) + 1, previous + cost);
-      if (row[j + 1] < kMaxEditDistance) {
-        under_cutoff = true;
-      }
-      previous = old_row;
-    }
-
-    if (!under_cutoff) {
-      return kMaxEditDistance;
-    }
-  }
-  return row[str1.size()];
-}
-
 void MeasureAndLogAssistiveAutocorrectEditDistance(
     const std::u16string& original_text,
     const std::u16string& suggested_text,
@@ -301,8 +250,8 @@ void MeasureAndLogAssistiveAutocorrectEditDistance(
     const bool virtual_keyboard_visible) {
   const int text_length =
       std::min(static_cast<int>(original_text.length()), kMaxEditDistance);
-  const int distance = std::min(
-      GetLevenshteinDistance(original_text, suggested_text), kMaxEditDistance);
+  const int distance = base::LevenshteinDistance(original_text, suggested_text,
+                                                 kMaxEditDistance - 1);
   if (text_length <= 0 || distance <= 0) {
     return;
   }
@@ -464,11 +413,6 @@ void AutocorrectManager::ProcessSetAutocorrectRangeDone(
     return;
   }
 
-  in_diacritical_autocorrect_session_ =
-      IsCurrentInputMethodExperimentalMultilingual() &&
-      diacritics_insensitive_string_comparator_.Equal(original_text,
-                                                      current_text);
-
   pending_autocorrect_ = AutocorrectManager::PendingAutocorrectState(
       /*original_text=*/original_text, /*suggested_text=*/current_text,
       /*start_time=*/base::TimeTicks::Now(),
@@ -482,13 +426,23 @@ void AutocorrectManager::ProcessSetAutocorrectRangeDone(
 
   LogAssistiveAutocorrectAction(AutocorrectActions::kUnderlined);
   RecordAssistiveCoverage(AssistiveType::kAutocorrectUnderlined);
+
+  if (ChromeMetricsServiceAccessor::IsMetricsAndCrashReportingEnabled() &&
+      base::FeatureList::IsEnabled(features::kAutocorrectFederatedPhh)) {
+    // Report `original_text` to the Federated Service.
+    federated_manager_.ReportSingleString(
+        /*table_id*/ chromeos::federated::mojom::FederatedExampleTableId::
+            INPUT_AUTOCORRECT,
+        /*example_feature_name*/ "original_text",
+        /*example_str*/ base::UTF16ToUTF8(original_text));
+  }
 }
 
 void AutocorrectManager::RecordPendingMetricsAwaitingKeyPress() {
   if (pending_user_pref_metric_ && IsVkAutocorrect()) {
     // We only want to record a pending user pref metric if the user is
     // currently using the physical keyboard.
-    pending_user_pref_metric_ = absl::nullopt;
+    pending_user_pref_metric_ = std::nullopt;
   }
 
   if (pending_user_pref_metric_) {
@@ -496,7 +450,7 @@ void AutocorrectManager::RecordPendingMetricsAwaitingKeyPress() {
     RecordPhysicalKeyboardAutocorrectPref(
         engine_id,
         GetPhysicalKeyboardAutocorrectPref(*(profile_->GetPrefs()), engine_id));
-    pending_user_pref_metric_ = absl::nullopt;
+    pending_user_pref_metric_ = std::nullopt;
   }
 
   if (pending_suggestion_provider_metric_ && IsVkAutocorrect()) {
@@ -504,13 +458,13 @@ void AutocorrectManager::RecordPendingMetricsAwaitingKeyPress() {
     // the callback used to inform Chromium of the AutocorrectSuggestionProvider
     // used in the IME service. Once it does then we can record this same metric
     // for the virtual keyboard.
-    pending_suggestion_provider_metric_ = absl::nullopt;
+    pending_suggestion_provider_metric_ = std::nullopt;
   }
 
   if (pending_suggestion_provider_metric_) {
     RecordSuggestionProviderMetric(
         /*provider=*/pending_suggestion_provider_metric_->provider);
-    pending_suggestion_provider_metric_ = absl::nullopt;
+    pending_suggestion_provider_metric_ = std::nullopt;
   }
 }
 
@@ -554,17 +508,6 @@ void AutocorrectManager::LogAssistiveAutocorrectAction(
     }
     base::UmaHistogramEnumeration(
         "InputMethod.Assistive.AutocorrectV2.Actions.PK", action);
-  }
-
-  if (IsCurrentInputMethodExperimentalMultilingual()) {
-    base::UmaHistogramEnumeration(
-        "InputMethod.MultilingualExperiment.Autocorrect.Actions", action);
-
-    if (in_diacritical_autocorrect_session_) {
-      base::UmaHistogramEnumeration(
-          "InputMethod.MultilingualExperiment.DiacriticalAutocorrect.Actions",
-          action);
-    }
   }
 }
 
@@ -752,11 +695,12 @@ void AutocorrectManager::OnActivate(const std::string& engine_id) {
   active_engine_id_ = engine_id;
   // Reset the previously stored suggestion_provider, we should expect a new
   // provider to be returned on the next OnConnectedToSuggestionProvider call.
-  suggestion_provider_ = absl::nullopt;
+  suggestion_provider_ = std::nullopt;
 
   PrefService* pref_service = profile_->GetPrefs();
   auto autocorrect_pref =
       GetPhysicalKeyboardAutocorrectPref(*pref_service, engine_id);
+
   if (base::FeatureList::IsEnabled(features::kAutocorrectByDefault) &&
       autocorrect_pref == AutocorrectPreference::kDefault &&
       IsUsEnglishId(engine_id) &&
@@ -765,7 +709,7 @@ void AutocorrectManager::OnActivate(const std::string& engine_id) {
       // login screens, guest sessions, etc). Make sure we are only recording
       // this metric when a real user has logged into their profile.
       ProfileHelper::IsUserProfile(profile_) && profile_->IsRegularProfile() &&
-      !profile_->IsGuestSession()) {
+      !profile_->IsGuestSession() && !chromeos::IsKioskSession()) {
     SetPhysicalKeyboardAutocorrectAsEnabledByDefault(pref_service, engine_id);
   }
 }
@@ -773,7 +717,8 @@ void AutocorrectManager::OnActivate(const std::string& engine_id) {
 bool AutocorrectManager::OnKeyEvent(const ui::KeyEvent& event) {
   RecordPendingMetricsAwaitingKeyPress();
 
-  if (!pending_autocorrect_.has_value() || event.type() != ui::ET_KEY_PRESSED) {
+  if (!pending_autocorrect_.has_value() ||
+      event.type() != ui::EventType::kKeyPressed) {
     return false;
   }
   // TODO(b:253549747): call pending_autocorrect_->last_key_event.reset() if
@@ -785,8 +730,13 @@ bool AutocorrectManager::OnKeyEvent(const ui::KeyEvent& event) {
     return false;
   }
 
-  if (event.code() == ui::DomCode::ARROW_UP ||
-      event.code() == ui::DomCode::TAB) {
+  if (event.code() == ui::DomCode::ESCAPE) {
+    HideUndoWindow();
+    return true;
+  }
+  if (!event.IsAltDown() && !event.IsControlDown() &&
+      (event.code() == ui::DomCode::ARROW_UP ||
+       event.code() == ui::DomCode::TAB)) {
     HighlightButtons(/*should_highlight_undo=*/true,
                      /*should_highlight_learn_more=*/false);
     return true;
@@ -890,8 +840,8 @@ void AutocorrectManager::OnSurroundingTextChanged(
     // TODO(b/161490813): Fix logic for text replace.
 
     // Count characters added between two calls of the event.
-    pending_autocorrect_->num_inserted_chars += text.length() -
-        pending_autocorrect_->text_length;
+    pending_autocorrect_->num_inserted_chars +=
+        text.length() - pending_autocorrect_->text_length;
   }
   pending_autocorrect_->text_length = text.length();
 
@@ -907,10 +857,6 @@ void AutocorrectManager::OnSurroundingTextChanged(
 
   // If cursor is inside autocorrect range (inclusive), show undo window and
   // record relevant metrics.
-  // On Lacros, the async behaviors accidentally delay the update of autocorrect
-  // range after the onSurroundingTextChanged. When users delete a few
-  // characters of the suggested words, this code still uses the outdated range,
-  // hence allowing the undo window to show.
   // TODO(b/278616918): Consider remove the
   // IsAutocorrectSuggestionInSurroundingText logic once async behaviors are
   // corrected.
@@ -939,9 +885,7 @@ void AutocorrectManager::OnFocus(int context_id) {
   }
 
   if (base::FeatureList::IsEnabled(ash::features::kImeRuleConfig)) {
-    GetTextFieldContextualInfo(
-        base::BindOnce(&AutocorrectManager::OnTextFieldContextualInfoChanged,
-                       base::Unretained(this)));
+    OnTextFieldContextualInfoChanged(GetTextFieldContextualInfo());
   }
 
   num_handled_autocorrect_in_text_field_ = 0;
@@ -1027,17 +971,14 @@ void AutocorrectManager::UndoAutocorrect() {
     // This will not quite work properly if there is text actually highlighted,
     // and cursor is at end of the highlight block, but no easy way around it.
     // First delete everything before cursor.
-    DCHECK(autocorrect_range.Contains(surrounding_text.selection_range));
+    DCHECK(surrounding_text.selection_range.IsBoundedBy(autocorrect_range));
     const uint32_t before =
         surrounding_text.selection_range.start() - autocorrect_range.start();
     const uint32_t after =
         autocorrect_range.end() - surrounding_text.selection_range.end();
-    input_context->DeleteSurroundingText(before, after);
 
-    // Replace with the original text.
-    input_context->CommitText(
-        pending_autocorrect_->original_text,
-        ui::TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
+    input_context->ReplaceSurroundingText(before, after,
+                                          pending_autocorrect_->original_text);
   }
 
   MeasureAndLogAssistiveAutocorrectQualityBreakdown(
@@ -1050,8 +991,8 @@ void AutocorrectManager::UndoAutocorrect() {
   pending_autocorrect_.reset();
 }
 
-void AutocorrectManager::ShowUndoWindow(
-  gfx::Range range, const std::u16string& text) {
+void AutocorrectManager::ShowUndoWindow(gfx::Range range,
+                                        const std::u16string& text) {
   if (!pending_autocorrect_.has_value() ||
       !pending_autocorrect_->is_validated ||
       pending_autocorrect_->undo_window_visible) {
@@ -1068,8 +1009,7 @@ void AutocorrectManager::ShowUndoWindow(
       pending_autocorrect_->learn_more_button_visible;
   properties.announce_string = l10n_util::GetStringFUTF16(
       IDS_SUGGESTION_AUTOCORRECT_UNDO_WINDOW_SHOWN,
-      pending_autocorrect_->original_text,
-      autocorrected_text);
+      pending_autocorrect_->original_text, autocorrected_text);
   suggestion_handler_->SetAssistiveWindowProperties(context_id_, properties,
                                                     &error);
 
@@ -1196,13 +1136,12 @@ void AutocorrectManager::AcceptOrClearPendingAutocorrect() {
     // Non-empty autocorrect range means that the user has not modified
     // autocorrect suggestion to invalidate it. So, it is considered as
     // accepted.
-    LogAssistiveAutocorrectAction(
-      AutocorrectActions::kUserAcceptedAutocorrect);
+    LogAssistiveAutocorrectAction(AutocorrectActions::kUserAcceptedAutocorrect);
   } else {
     MeasureAndLogAssistiveAutocorrectQualityBreakdown(
         AutocorrectActions::kUserActionClearedUnderline);
     LogAssistiveAutocorrectAction(
-      AutocorrectActions::kUserActionClearedUnderline);
+        AutocorrectActions::kUserActionClearedUnderline);
   }
 
   if (input_context) {
@@ -1216,7 +1155,8 @@ void AutocorrectManager::AcceptOrClearPendingAutocorrect() {
 
 void AutocorrectManager::OnTextFieldContextualInfoChanged(
     const TextFieldContextualInfo& info) {
-  disabled_by_rule_ = IsAutoCorrectDisabled(info);
+  disabled_by_rule_ =
+      denylist_.Contains(info.tab_url) || chromeos::IsKioskSession();
   if (disabled_by_rule_) {
     LogAssistiveAutocorrectInternalState(
         AutocorrectInternalStates::kAppIsInDenylist);
@@ -1238,8 +1178,10 @@ bool AutocorrectManager::DisabledByInvalidExperimentContext() {
   // autocorrect.
   return !(
       suggestion_provider_ &&
-      suggestion_provider_ ==
-          ime::AutocorrectSuggestionProvider::kUsEnglish840 &&
+      (suggestion_provider_ ==
+           ime::AutocorrectSuggestionProvider::kUsEnglish840 ||
+       suggestion_provider_ ==
+           ime::AutocorrectSuggestionProvider::kUsEnglish840V2) &&
       base::FeatureList::IsEnabled(ash::features::kImeFstDecoderParamsUpdate));
 }
 
@@ -1256,7 +1198,7 @@ AutocorrectManager::PendingAutocorrectState::PendingAutocorrectState(
       learn_more_button_visible(learn_more_button_visible) {}
 
 AutocorrectManager::PendingAutocorrectState::PendingAutocorrectState(
-  const PendingAutocorrectState& other) = default;
+    const PendingAutocorrectState& other) = default;
 
 AutocorrectManager::PendingAutocorrectState::~PendingAutocorrectState() =
     default;

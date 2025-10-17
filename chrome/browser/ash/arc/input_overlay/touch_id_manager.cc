@@ -12,7 +12,7 @@
 
 namespace arc::input_overlay {
 namespace {
-// 32 should be enough for touch IDs as |kNumTouchEvdevSlots| is 20.
+// 32 should be enough for touch IDs as `kNumTouchEvdevSlots` is 20.
 constexpr int kMaxTouchIDs = 32;
 }  // namespace
 
@@ -21,7 +21,7 @@ TouchIdManager* TouchIdManager::GetInstance() {
   return instance.get();
 }
 
-TouchIdManager::TouchIdManager() {}
+TouchIdManager::TouchIdManager() = default;
 TouchIdManager::~TouchIdManager() = default;
 
 int TouchIdManager::ObtainTouchID() {

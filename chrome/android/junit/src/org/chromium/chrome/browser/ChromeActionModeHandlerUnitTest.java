@@ -6,12 +6,15 @@ package org.chromium.chrome.browser;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ResolveInfo;
+import android.graphics.Rect;
 import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -19,11 +22,13 @@ import android.view.MenuItem;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
@@ -33,9 +38,11 @@ import org.robolectric.shadows.ShadowPackageManager;
 import org.chromium.base.Callback;
 import org.chromium.base.PackageManagerUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.locale.LocaleManagerDelegate;
+import org.chromium.chrome.browser.readaloud.ReadAloudController;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin;
 import org.chromium.chrome.browser.tab.Tab;
@@ -49,26 +56,30 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Unit tests for the {@link ChromeActionModeHandler}.
- */
+/** Unit tests for the {@link ChromeActionModeHandler}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class ChromeActionModeHandlerUnitTest {
-    @Mock
-    private Tab mTab;
-    @Mock
-    private ActionModeCallbackHelper mActionModeCallbackHelper;
-    @Mock
-    private ActionMode mActionMode;
-    @Mock
-    private Menu mMenu;
-    @Mock
-    private ShareDelegate mShareDelegate;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private Tab mTab;
+    @Mock private ActionModeCallbackHelper mActionModeCallbackHelper;
+    @Mock private ActionMode mActionMode;
+    @Mock private Menu mMenu;
+    @Mock private ShareDelegate mShareDelegate;
+    @Mock private ReadAloudController mReadAloudController;
+    @Mock private BrowserControlsStateProvider mControlsState;
 
-    private class TestChromeActionModeCallback extends ChromeActionModeHandler.ActionModeCallback {
+    private class TestChromeActionModeCallback
+            extends ChromeActionModeHandler.ChromeActionModeCallback {
         TestChromeActionModeCallback(Tab tab, ActionModeCallbackHelper helper) {
-            super(tab, null, urlParams -> {}, () -> mShareDelegate);
+            super(
+                    tab,
+                    null,
+                    urlParams -> {},
+                    true,
+                    () -> mShareDelegate,
+                    mControlsState,
+                    () -> mReadAloudController);
         }
 
         @Override
@@ -81,7 +92,6 @@ public class ChromeActionModeHandlerUnitTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
 
         mActionModeCallback =
                 Mockito.spy(new TestChromeActionModeCallback(mTab, mActionModeCallbackHelper));
@@ -99,8 +109,9 @@ public class ChromeActionModeHandlerUnitTest {
         mActionModeCallback.onCreateActionMode(mActionMode, mMenu);
 
         Mockito.verify(mActionModeCallbackHelper)
-                .setAllowedMenuItems(ActionModeCallbackHelper.MENU_ITEM_PROCESS_TEXT
-                        | ActionModeCallbackHelper.MENU_ITEM_SHARE);
+                .setAllowedMenuItems(
+                        ActionModeCallbackHelper.MENU_ITEM_PROCESS_TEXT
+                                | ActionModeCallbackHelper.MENU_ITEM_SHARE);
     }
 
     @Test
@@ -110,9 +121,10 @@ public class ChromeActionModeHandlerUnitTest {
         mActionModeCallback.onCreateActionMode(mActionMode, mMenu);
 
         Mockito.verify(mActionModeCallbackHelper)
-                .setAllowedMenuItems(ActionModeCallbackHelper.MENU_ITEM_PROCESS_TEXT
-                        | ActionModeCallbackHelper.MENU_ITEM_SHARE
-                        | ActionModeCallbackHelper.MENU_ITEM_WEB_SEARCH);
+                .setAllowedMenuItems(
+                        ActionModeCallbackHelper.MENU_ITEM_PROCESS_TEXT
+                                | ActionModeCallbackHelper.MENU_ITEM_SHARE
+                                | ActionModeCallbackHelper.MENU_ITEM_WEB_SEARCH);
     }
 
     @Test
@@ -122,13 +134,15 @@ public class ChromeActionModeHandlerUnitTest {
         Mockito.when(mActionModeCallbackHelper.isActionModeValid()).thenReturn(true);
         Mockito.when(mActionModeCallbackHelper.getSelectedText()).thenReturn("OhHai");
 
-        LocaleManagerDelegate delegate = Mockito.spy(new LocaleManagerDelegate() {
-            @Override
-            public void showSearchEnginePromoIfNeeded(
-                    Activity activity, Callback<Boolean> onSearchEngineFinalized) {
-                onSearchEngineFinalized.onResult(true);
-            }
-        });
+        LocaleManagerDelegate delegate =
+                Mockito.spy(
+                        new LocaleManagerDelegate() {
+                            @Override
+                            public void showSearchEnginePromoIfNeeded(
+                                    Activity activity, Callback<Boolean> onSearchEngineFinalized) {
+                                onSearchEngineFinalized.onResult(true);
+                            }
+                        });
 
         LocaleManager.getInstance().setDelegateForTest(delegate);
 
@@ -184,7 +198,8 @@ public class ChromeActionModeHandlerUnitTest {
             String packageName = item.getIntent().getComponent().getPackageName();
             if (browserPackageNames.contains(packageName)
                     || launcherPackageNames.contains(packageName)) {
-                Assert.assertFalse("Browser or home launcher application should be filtered out",
+                Assert.assertFalse(
+                        "Browser or home launcher application should be filtered out",
                         item.isVisible());
             } else {
                 Assert.assertTrue(
@@ -217,6 +232,62 @@ public class ChromeActionModeHandlerUnitTest {
         Mockito.verify(mActionModeCallbackHelper).onActionItemClicked(any(), eq(shareItem));
     }
 
+    @Test
+    public void testMaybePauseReadAloudOnActionItemClicked() {
+        Mockito.when(mActionModeCallbackHelper.isActionModeValid()).thenReturn(true);
+        MenuItem item = Mockito.mock(MenuItem.class);
+        Intent intent = new Intent();
+        doReturn(intent).when(item).getIntent();
+
+        mActionModeCallback.onActionItemClicked(mActionMode, item);
+        verify(mReadAloudController).maybePauseForOutgoingIntent(eq(intent));
+    }
+
+    @Test
+    public void testAvoidOverlapWithTopControls() {
+        final int topControlsHeight = 150;
+        final int height = 80;
+        Mockito.when(mControlsState.getTopControlsHeight()).thenReturn(topControlsHeight);
+
+        // Set up for the case where top controls are hidden.
+        Mockito.when(mControlsState.getBrowserControlHiddenRatio()).thenReturn(1.f);
+
+        // If there's enough space between the selected text and the top of the content view for
+        // action mode, the content rect is left untouched.
+        int top = topControlsHeight * 3;
+        Rect outRect = new Rect(20, top, 500, top + height);
+        mActionModeCallback.onGetContentRect(mActionMode, null, outRect);
+        Assert.assertEquals(top, outRect.top);
+        Assert.assertEquals(height, outRect.height());
+
+        // Not enough space for action mode to fit in. The content rect is left untouched.
+        top = topControlsHeight;
+        outRect = new Rect(20, top, 500, top + height);
+        mActionModeCallback.onGetContentRect(mActionMode, null, outRect);
+        Assert.assertEquals(top, outRect.top);
+        Assert.assertEquals(height, outRect.height());
+
+        // Set up for the case where top controls are visible.
+        Mockito.when(mControlsState.getBrowserControlHiddenRatio()).thenReturn(0.f);
+
+        // We have enough space for action mode to fit in. The content rect is left untouched.
+        top = topControlsHeight * 3;
+        outRect = new Rect(20, top, 500, top + height);
+        mActionModeCallback.onGetContentRect(mActionMode, null, outRect);
+        Assert.assertEquals(top, outRect.top);
+        Assert.assertEquals(height, outRect.height());
+
+        // Not enough space for action mode to fit in. Verify that |onGetContentRect| bloated
+        // the content rect (top got taller) so action mode won't fit between the top controls
+        // and the selected text, therefore will be positioned below the text. This helps action
+        // mode avoid overlapping top controls.
+        top = topControlsHeight;
+        outRect = new Rect(20, top, 500, top + height);
+        mActionModeCallback.onGetContentRect(mActionMode, null, outRect);
+        Assert.assertEquals(top - topControlsHeight, outRect.top);
+        Assert.assertEquals(topControlsHeight + height, outRect.height());
+    }
+
     private ResolveInfo createResolveInfo(String packageName) {
         ResolveInfo resolveInfo = new ResolveInfo();
         ActivityInfo activityInfo = new ActivityInfo();
@@ -226,11 +297,12 @@ public class ChromeActionModeHandlerUnitTest {
     }
 
     private void addMenuItem(Menu menu, int order, String packageName) {
-        menu.add(R.id.select_action_menu_text_processing_menus, Menu.NONE, order, "title")
-                .setIntent(new Intent()
-                                   .setAction(Intent.ACTION_PROCESS_TEXT)
-                                   .setType("text/plain")
-                                   .putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
-                                   .setClassName(packageName, "foo"));
+        menu.add(R.id.select_action_menu_text_processing_items, Menu.NONE, order, "title")
+                .setIntent(
+                        new Intent()
+                                .setAction(Intent.ACTION_PROCESS_TEXT)
+                                .setType("text/plain")
+                                .putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
+                                .setClassName(packageName, "foo"));
     }
 }

@@ -2,20 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chromeos/ash/services/device_sync/cryptauth_key_proof_computer_impl.h"
+
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "chromeos/ash/services/device_sync/cryptauth_key.h"
 #include "chromeos/ash/services/device_sync/cryptauth_key_proof_computer.h"
-#include "chromeos/ash/services/device_sync/cryptauth_key_proof_computer_impl.h"
 #include "chromeos/ash/services/device_sync/proto/cryptauth_common.pb.h"
 #include "crypto/ec_private_key.h"
 #include "crypto/ec_signature_creator.h"
 #include "crypto/hmac.h"
 #include "crypto/signature_verifier.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -103,9 +104,9 @@ TEST(DeviceSyncCryptAuthKeyProofComputerImplTest,
                    ByteVectorToString(kTestPrivateKeyBytes),
                    CryptAuthKey::Status::kActive, cryptauthv2::KeyType::P256);
 
-  absl::optional<std::string> key_proof =
+  std::optional<std::string> key_proof =
       CryptAuthKeyProofComputerImpl::Factory::Create()->ComputeKeyProof(
-          key, kTestPayload, kAsymmetricTestSalt, absl::nullopt /* info */);
+          key, kTestPayload, kAsymmetricTestSalt, std::nullopt /* info */);
   EXPECT_TRUE(key_proof);
 
   // Verify the key proof which should be of the form:
@@ -126,19 +127,20 @@ TEST(DeviceSyncCryptAuthKeyProofComputerImplTest,
   CryptAuthKey key(ByteVectorToString(kTestSymmetricKeyBytes),
                    CryptAuthKey::Status::kActive, cryptauthv2::KeyType::RAW256);
 
-  absl::optional<std::string> key_proof =
+  std::optional<std::string> key_proof =
       CryptAuthKeyProofComputerImpl::Factory::Create()->ComputeKeyProof(
           key, kTestPayload, ByteVectorToString(kSymmetricTestSaltBytes),
           ByteVectorToString(kSymmetricTestInfoBytes));
 
   EXPECT_TRUE(key_proof);
+  auto hmac = base::as_byte_span(*key_proof)
+                  .to_fixed_extent<crypto::hash::kSha256Size>();
 
   // Verify the key proof which should be of the form:
   //     HMAC(HKDF(|key|, |salt|, |info|), |payload|)
-  crypto::HMAC hmac(crypto::HMAC::HashAlgorithm::SHA256);
-  EXPECT_TRUE(
-      hmac.Init(ByteVectorToString(kExpectedDerivedSymmetricKey32Bytes)));
-  EXPECT_TRUE(hmac.Verify(kTestPayload, *key_proof));
+  EXPECT_TRUE(crypto::hmac::VerifySha256(kExpectedDerivedSymmetricKey32Bytes,
+                                         base::as_byte_span(kTestPayload),
+                                         *hmac));
 }
 
 TEST(DeviceSyncCryptAuthKeyProofComputerImplTest,
@@ -146,16 +148,17 @@ TEST(DeviceSyncCryptAuthKeyProofComputerImplTest,
   CryptAuthKey key(ByteVectorToString(kTestSymmetricKeyBytes),
                    CryptAuthKey::Status::kActive, cryptauthv2::KeyType::RAW128);
 
-  absl::optional<std::string> key_proof =
+  std::optional<std::string> key_proof =
       CryptAuthKeyProofComputerImpl::Factory::Create()->ComputeKeyProof(
           key, kTestPayload, ByteVectorToString(kSymmetricTestSaltBytes),
           ByteVectorToString(kSymmetricTestInfoBytes));
   EXPECT_TRUE(key_proof);
+  auto hmac = base::as_byte_span(*key_proof)
+                  .to_fixed_extent<crypto::hash::kSha256Size>();
 
-  crypto::HMAC hmac(crypto::HMAC::HashAlgorithm::SHA256);
-  EXPECT_TRUE(
-      hmac.Init(ByteVectorToString(kExpectedDerivedSymmetricKey16Bytes)));
-  EXPECT_TRUE(hmac.Verify(kTestPayload, *key_proof));
+  EXPECT_TRUE(crypto::hmac::VerifySha256(kExpectedDerivedSymmetricKey16Bytes,
+                                         base::as_byte_span(kTestPayload),
+                                         *hmac));
 }
 
 TEST(DeviceSyncCryptAuthKeyProofComputerImplTest,
@@ -163,9 +166,9 @@ TEST(DeviceSyncCryptAuthKeyProofComputerImplTest,
   CryptAuthKey key("public_key", "non_pkcs8_private_key",
                    CryptAuthKey::Status::kActive, cryptauthv2::KeyType::P256);
 
-  absl::optional<std::string> key_proof =
+  std::optional<std::string> key_proof =
       CryptAuthKeyProofComputerImpl::Factory::Create()->ComputeKeyProof(
-          key, kTestPayload, kAsymmetricTestSalt, absl::nullopt /* info */);
+          key, kTestPayload, kAsymmetricTestSalt, std::nullopt /* info */);
 
   EXPECT_FALSE(key_proof);
 }

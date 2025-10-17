@@ -10,6 +10,8 @@
 #include <memory>
 
 #include "base/synchronization/lock.h"
+#include "base/time/time.h"
+#include "base/types/expected.h"
 #include "third_party/blink/renderer/bindings/core/v8/serialization/serialized_script_value.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
@@ -26,27 +28,31 @@ class RTCEncodedAudioFrameDelegate
     : public WTF::ThreadSafeRefCounted<RTCEncodedAudioFrameDelegate> {
  public:
   explicit RTCEncodedAudioFrameDelegate(
-      std::unique_ptr<webrtc::TransformableFrameInterface> webrtc_frame,
-      Vector<uint32_t> contributing_sources,
-      absl::optional<uint16_t> sequence_number);
+      std::unique_ptr<webrtc::TransformableAudioFrameInterface> webrtc_frame,
+      webrtc::ArrayView<const unsigned int> contributing_sources,
+      std::optional<uint16_t> sequence_number);
 
-  uint32_t Timestamp() const;
-  DOMArrayBuffer* CreateDataBuffer() const;
+  uint32_t RtpTimestamp() const;
+  DOMArrayBuffer* CreateDataBuffer(v8::Isolate* isolate) const;
   void SetData(const DOMArrayBuffer* data);
-  absl::optional<uint32_t> Ssrc() const;
-  absl::optional<uint8_t> PayloadType() const;
-  absl::optional<uint16_t> SequenceNumber() const;
+  base::expected<void, String> SetRtpTimestamp(uint32_t timestamp);
+  std::optional<uint32_t> Ssrc() const;
+  std::optional<uint8_t> PayloadType() const;
+  std::optional<std::string> MimeType() const;
+  std::optional<uint16_t> SequenceNumber() const;
   Vector<uint32_t> ContributingSources() const;
-  std::unique_ptr<webrtc::TransformableFrameInterface> PassWebRtcFrame();
-  std::unique_ptr<webrtc::TransformableFrameInterface> CloneWebRtcFrame(
-      String& exception_message);
+  std::optional<base::TimeTicks> ReceiveTime() const;
+  std::optional<base::TimeTicks> CaptureTime() const;
+  std::optional<base::TimeDelta> SenderCaptureTimeOffset() const;
+  std::unique_ptr<webrtc::TransformableAudioFrameInterface> PassWebRtcFrame();
+  std::unique_ptr<webrtc::TransformableAudioFrameInterface> CloneWebRtcFrame();
 
  private:
   mutable base::Lock lock_;
-  std::unique_ptr<webrtc::TransformableFrameInterface> webrtc_frame_
+  std::unique_ptr<webrtc::TransformableAudioFrameInterface> webrtc_frame_
       GUARDED_BY(lock_);
-  Vector<uint32_t> contributing_sources_ GUARDED_BY(lock_);
-  absl::optional<uint16_t> sequence_number_ GUARDED_BY(lock_);
+  const Vector<uint32_t> contributing_sources_;
+  const std::optional<uint16_t> sequence_number_;
 };
 
 class MODULES_EXPORT RTCEncodedAudioFramesAttachment

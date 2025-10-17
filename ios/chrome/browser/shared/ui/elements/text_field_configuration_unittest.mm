@@ -8,10 +8,6 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using TextFieldConfigurationTest = PlatformTest;
 
 // Tests that invoking start and stop on the coordinator presents and dismisses
@@ -23,9 +19,9 @@ TEST_F(TextFieldConfigurationTest, Init) {
       accessibilityIdentifier:@"A11y"
        autocapitalizationType:UITextAutocapitalizationTypeNone
               secureTextEntry:YES];
-  EXPECT_TRUE([configuration.text isEqualToString:@"Text"]);
-  EXPECT_TRUE([configuration.placeholder isEqualToString:@"Placehorder"]);
-  EXPECT_TRUE([configuration.accessibilityIdentifier isEqualToString:@"A11y"]);
+  EXPECT_NSEQ(configuration.text, @"Text");
+  EXPECT_NSEQ(configuration.placeholder, @"Placehorder");
+  EXPECT_NSEQ(configuration.accessibilityIdentifier, @"A11y");
   EXPECT_EQ(UITextAutocapitalizationTypeNone,
             configuration.autocapitalizationType);
   EXPECT_TRUE(configuration.secureTextEntry);

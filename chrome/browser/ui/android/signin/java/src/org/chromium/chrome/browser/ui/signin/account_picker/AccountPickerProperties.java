@@ -8,7 +8,7 @@ import android.view.View.OnClickListener;
 
 import androidx.annotation.IntDef;
 
-import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.signin.services.DisplayableProfileData;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -16,15 +16,12 @@ import org.chromium.ui.modelutil.PropertyModel;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * Properties for account picker.
- */
+/** Properties for account picker. */
+@NullMarked
 class AccountPickerProperties {
     private AccountPickerProperties() {}
 
-    /**
-     * Properties for "add account" row in account picker.
-     */
+    /** Properties for "add account" row in account picker. */
     static class AddAccountRowProperties {
         static final PropertyModel.ReadableObjectPropertyKey<OnClickListener> ON_CLICK_LISTENER =
                 new PropertyModel.ReadableObjectPropertyKey<>("on_click_listener");
@@ -40,32 +37,33 @@ class AccountPickerProperties {
         }
     }
 
-    /**
-     * Properties for account row in account picker.
-     */
+    /** Properties for account row in account picker. */
     static class ExistingAccountRowProperties {
         static final PropertyModel.WritableObjectPropertyKey<DisplayableProfileData> PROFILE_DATA =
                 new PropertyModel.WritableObjectPropertyKey<>("profile_data");
-        static final PropertyModel
-                .ReadableObjectPropertyKey<Callback<DisplayableProfileData>> ON_CLICK_LISTENER =
+        static final PropertyModel.WritableBooleanPropertyKey IS_CURRENTLY_SELECTED =
+                new PropertyModel.WritableBooleanPropertyKey("is_currently_selected");
+        static final PropertyModel.ReadableObjectPropertyKey<Runnable> ON_CLICK_LISTENER =
                 new PropertyModel.ReadableObjectPropertyKey<>("on_click_listener");
 
-        static final PropertyKey[] ALL_KEYS = new PropertyKey[] {PROFILE_DATA, ON_CLICK_LISTENER};
+        static final PropertyKey[] ALL_KEYS =
+                new PropertyKey[] {PROFILE_DATA, IS_CURRENTLY_SELECTED, ON_CLICK_LISTENER};
 
         private ExistingAccountRowProperties() {}
 
         static PropertyModel createModel(
-                DisplayableProfileData profileData, Callback<DisplayableProfileData> listener) {
+                DisplayableProfileData profileData,
+                boolean isCurrentlySelected,
+                Runnable listener) {
             return new PropertyModel.Builder(ALL_KEYS)
                     .with(PROFILE_DATA, profileData)
+                    .with(IS_CURRENTLY_SELECTED, isCurrentlySelected)
                     .with(ON_CLICK_LISTENER, listener)
                     .build();
         }
     }
 
-    /**
-     * Item types of account picker.
-     */
+    /** Item types of account picker. */
     @IntDef({ItemType.EXISTING_ACCOUNT_ROW, ItemType.ADD_ACCOUNT_ROW})
     @Retention(RetentionPolicy.SOURCE)
     @interface ItemType {

@@ -11,10 +11,6 @@
 #import "ios/web/public/web_client.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 namespace {
@@ -49,8 +45,9 @@ bool BrowserURLRewriter::RewriteURLWithWriters(
     const std::vector<BrowserURLRewriter::URLRewriter>& rewriters) {
   bool rewritten = false;
   for (URLRewriter rewriter : rewriters) {
-    if ((rewritten = rewriter(url, browser_state)))
+    if ((rewritten = rewriter(url, browser_state))) {
       break;
+    }
   }
   return rewritten;
 }
@@ -63,8 +60,9 @@ BrowserURLRewriterImpl* BrowserURLRewriterImpl::GetInstance() {
 
 BrowserURLRewriterImpl::BrowserURLRewriterImpl() {
   web::WebClient* web_client = web::GetWebClient();
-  if (web_client)
+  if (web_client) {
     web_client->PostBrowserURLRewriterCreation(this);
+  }
 
   // view-source:
   AddURLRewriter(&HandleViewSource);

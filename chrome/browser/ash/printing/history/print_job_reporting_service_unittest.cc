@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/printing/history/print_job_reporting_service.h"
 
+#include <string_view>
+
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -11,6 +13,7 @@
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/printing/history/print_job_info.pb.h"
 #include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
+#include "chrome/browser/ash/settings/stub_cros_settings_provider.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "components/account_id/account_id.h"
 #include "components/policy/proto/device_management_backend.pb.h"
@@ -53,9 +56,9 @@ em::PrintJobEvent CreateJobEvent(
   job_config->set_status(status);
   base::Time time;
   EXPECT_TRUE(base::Time::FromUTCString("14 Feb 2021 10:00", &time));
-  job_config->set_creation_timestamp_ms(time.ToJavaTime());
+  job_config->set_creation_timestamp_ms(time.InMillisecondsSinceUnixEpoch());
   EXPECT_TRUE(base::Time::FromUTCString("14 Feb 2021 10:30", &time));
-  job_config->set_completion_timestamp_ms(time.ToJavaTime());
+  job_config->set_completion_timestamp_ms(time.InMillisecondsSinceUnixEpoch());
   job_config->set_number_of_pages(10);
   // Print settings
   auto* settings = job_config->mutable_settings();
@@ -86,10 +89,10 @@ print::PrintJobInfo CreateJobInfo(const std::string id,
   info.set_status(status);
   base::Time time;
   EXPECT_TRUE(base::Time::FromUTCString("14 Feb 2021 10:00", &time));
-  info.set_creation_time(time.ToJavaTime());
-  info.set_creation_time(time.ToJavaTime());
+  info.set_creation_time(time.InMillisecondsSinceUnixEpoch());
+  info.set_creation_time(time.InMillisecondsSinceUnixEpoch());
   EXPECT_TRUE(base::Time::FromUTCString("14 Feb 2021 10:30", &time));
-  info.set_completion_time(time.ToJavaTime());
+  info.set_completion_time(time.InMillisecondsSinceUnixEpoch());
   info.set_number_of_pages(10);
   // Print settings
   auto* settings = info.mutable_settings();
@@ -289,7 +292,7 @@ class PrintJobReportingServiceTest : public ::testing::Test {
             base::ThreadPool::CreateSequencedTaskRunner({})));
     EXPECT_CALL(*report_queue, AddRecord)
         .WillRepeatedly(
-            [this](base::StringPiece record, ::reporting::Priority priority,
+            [this](std::string_view record, ::reporting::Priority priority,
                    ::reporting::ReportQueue::EnqueueCallback callback) {
               em::PrintJobEvent event;
               event.ParseFromString(std::string(record));

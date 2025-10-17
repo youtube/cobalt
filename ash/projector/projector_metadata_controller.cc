@@ -4,19 +4,16 @@
 
 #include "ash/projector/projector_metadata_controller.h"
 
+#include "ash/projector/projector_metadata_model.h"
 #include "ash/projector/projector_metrics.h"
 #include "ash/projector/projector_ui_controller.h"
-#include "ash/public/cpp/projector/projector_controller.h"
-#include "ash/strings/grit/ash_strings.h"
 #include "ash/webui/projector_app/public/cpp/projector_app_constants.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/task/current_thread.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
-#include "media/mojo/mojom/speech_recognition.mojom.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 
 namespace ash {
@@ -55,6 +52,7 @@ void ProjectorMetadataController::OnRecordingStarted() {
   metadata_ = std::make_unique<ProjectorMetadata>();
   metadata_->SetCaptionLanguage(
       GetFormattedLangauge(icu::Locale::getDefault()));
+  metadata_->SetMetadataVersionNumber(MetadataVersionNumber::kV2);
 }
 
 void ProjectorMetadataController::RecordTranscription(
@@ -64,6 +62,7 @@ void ProjectorMetadataController::RecordTranscription(
   const auto& timing = speech_result.timing_information;
   metadata_->AddTranscript(std::make_unique<ProjectorTranscript>(
       timing->audio_start_time, timing->audio_end_time,
+      /*group_id=*/timing->audio_start_time.InMilliseconds(),
       speech_result.transcription, timing->hypothesis_parts.value()));
 }
 
@@ -81,9 +80,8 @@ void ProjectorMetadataController::RecordKeyIdea() {
 void ProjectorMetadataController::SaveMetadata(
     const base::FilePath& video_file_path) {
   DCHECK(metadata_);
-  // TODO(b/200330118): Finalize on the metadata file naming convention.
   const base::FilePath path =
-      video_file_path.AddExtension(kProjectorMetadataFileExtension);
+      video_file_path.AddExtension(kProjectorV2MetadataFileExtension);
 
   // Save metadata.
   auto metadata_str = metadata_->Serialize();

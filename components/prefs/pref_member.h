@@ -111,9 +111,9 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase : public PrefObserver {
 
   void MoveToSequence(scoped_refptr<base::SequencedTaskRunner> task_runner);
 
-  // PrefObserver
+  // PrefObserver:
   void OnPreferenceChanged(PrefService* service,
-                           const std::string& pref_name) override;
+                           std::string_view pref_name) override;
 
   void VerifyValuePrefName() const {
     DCHECK(!pref_name_.empty());
@@ -159,12 +159,12 @@ class PrefMember : public subtle::PrefMemberBase {
  public:
   // Defer initialization to an Init method so it's easy to make this class be
   // a member variable.
-  PrefMember() {}
+  PrefMember() = default;
 
   PrefMember(const PrefMember&) = delete;
   PrefMember& operator=(const PrefMember&) = delete;
 
-  virtual ~PrefMember() {}
+  ~PrefMember() override = default;
 
   // Do the actual initialization of the class.  Use the two-parameter
   // version if you don't want any notifications of changes.  This
@@ -274,7 +274,7 @@ class PrefMember : public subtle::PrefMemberBase {
     }
 
    protected:
-    ~Internal() override {}
+    ~Internal() override = default;
 
     COMPONENTS_PREFS_EXPORT bool UpdateValueInternal(
         const base::Value& value) const override;
@@ -302,7 +302,7 @@ class PrefMember : public subtle::PrefMemberBase {
 //
 // FEATURES="noclean nostrip" USE="-chrome_debug -chrome_remoting
 // -chrome_internal -chrome_pdf component_build"
-// ~/trunk/goma/goma-wrapper cros_chrome_make --board=${BOARD}
+// cros_chrome_make --board=${BOARD}
 // --install --runhooks
 
 template <>

@@ -12,7 +12,8 @@
 namespace ui {
 
 int CalculateIdleTime() {
-  base::TimeDelta idle_time = base::TimeTicks::Now() -
+  const base::TimeDelta idle_time =
+      base::TimeTicks::Now() -
       ui::UserActivityDetector::Get()->last_activity_time();
   return static_cast<int>(idle_time.InSeconds());
 }
@@ -21,7 +22,13 @@ bool CheckIdleStateIsLocked() {
   if (IdleStateForTesting().has_value())
     return IdleStateForTesting().value() == IDLE_STATE_LOCKED;
 
-  return ash::SessionManagerClient::Get()->IsScreenLocked();
+  // Note that the client can be null in e.g. Ash unit tests, which can cause a
+  // crash if a browser or OS subsystem wants to know if the computer is locked.
+  //
+  // If it is not possible to check the locked state, assume the system isn't
+  // locked.
+  return ash::SessionManagerClient::Get() &&
+         ash::SessionManagerClient::Get()->IsScreenLocked();
 }
 
 }  // namespace ui

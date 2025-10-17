@@ -6,6 +6,7 @@
 #define CHROMEOS_ASH_SERVICES_NETWORK_HEALTH_PUBLIC_CPP_NETWORK_HEALTH_HELPER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -28,9 +29,9 @@ class NetworkHealthHelper
   NetworkHealthHelper& operator=(const NetworkHealthHelper&) = delete;
   ~NetworkHealthHelper() override;
 
-  // Returns the portal state of the default network if the default network is
-  // set and is a WiFi network, otherwise returns false.
-  bool IsWiFiPortalState();
+  // If the default network is set and is a WiFi network, returns the portal
+  // state of the default network, otherwise returns kUnknown.
+  chromeos::network_config::mojom::PortalState WiFiPortalState();
 
   // chromeos::network_health::mojom::NetworkEventsObserver:
   void OnConnectionStateChanged(

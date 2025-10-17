@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/css/properties/css_property.h"
 
+#include "base/compiler_specific.h"
 #include "third_party/blink/renderer/core/css/cssom/cross_thread_unsupported_value.h"
 #include "third_party/blink/renderer/core/css/cssom/style_value_factory.h"
 #include "third_party/blink/renderer/core/css/properties/computed_style_utils.h"
@@ -14,7 +15,7 @@
 namespace blink {
 
 const CSSProperty& GetCSSPropertyVariable() {
-  return To<CSSProperty>(GetCSSPropertyVariableInternal());
+  return To<CSSProperty>(*GetPropertyInternal(CSSPropertyID::kVariable));
 }
 
 bool CSSProperty::HasEqualCSSPropertyName(const CSSProperty& other) const {
@@ -39,9 +40,10 @@ std::unique_ptr<CrossThreadStyleValue>
 CSSProperty::CrossThreadStyleValueFromComputedStyle(
     const ComputedStyle& computed_style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   const CSSValue* css_value = CSSValueFromComputedStyle(
-      computed_style, layout_object, allow_visited_style);
+      computed_style, layout_object, allow_visited_style, value_phase);
   if (!css_value) {
     return std::make_unique<CrossThreadUnsupportedValue>("");
   }
@@ -57,11 +59,12 @@ CSSProperty::CrossThreadStyleValueFromComputedStyle(
 const CSSValue* CSSProperty::CSSValueFromComputedStyle(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   const CSSProperty& resolved_property =
-      ResolveDirectionAwareProperty(style.Direction(), style.GetWritingMode());
+      ToPhysical(style.GetWritingDirection());
   return resolved_property.CSSValueFromComputedStyleInternal(
-      style, layout_object, allow_visited_style);
+      style, layout_object, allow_visited_style, value_phase);
 }
 
 void CSSProperty::FilterWebExposedCSSPropertiesIntoVector(
@@ -72,7 +75,7 @@ void CSSProperty::FilterWebExposedCSSPropertiesIntoVector(
   DCHECK(out_vector.empty());
   out_vector.reserve(property_count);
   for (unsigned i = 0; i < property_count; i++) {
-    const CSSProperty& property = Get(properties[i]);
+    const CSSProperty& property = Get(UNSAFE_TODO(properties[i]));
     if (property.IsWebExposed(execution_context)) {
       out_vector.push_back(&property);
     }

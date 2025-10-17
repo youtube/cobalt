@@ -2,7 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/disk_cache/blockfile/bitmap.h"
+
+#include <array>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(BitmapTest, OverAllocate) {
@@ -19,7 +27,7 @@ TEST(BitmapTest, DefaultConstructor) {
   disk_cache::Bitmap map;
   EXPECT_EQ(0, map.Size());
   EXPECT_EQ(0, map.ArraySize());
-  EXPECT_TRUE(nullptr == map.GetMap());
+  EXPECT_TRUE(nullptr == map.GetMapForTesting());
 }
 
 TEST(BitmapTest, Basics) {
@@ -89,12 +97,12 @@ TEST(BitmapTest, Resize) {
 TEST(BitmapTest, Map) {
   // Tests Set/GetMap and the constructor that takes an array.
   const int kMapSize = 80;
-  char local_map[kMapSize];
+  std::array<char, kMapSize> local_map;
   for (int i = 0; i < kMapSize; i++)
     local_map[i] = static_cast<char>(i);
 
   disk_cache::Bitmap bitmap(kMapSize * 8, false);
-  bitmap.SetMap(reinterpret_cast<uint32_t*>(local_map), kMapSize / 4);
+  bitmap.SetMap(reinterpret_cast<uint32_t*>(local_map.data()), kMapSize / 4);
   for (int i = 0; i < kMapSize; i++) {
     if (i % 2)
       EXPECT_TRUE(bitmap.Get(i * 8));
@@ -102,16 +110,16 @@ TEST(BitmapTest, Map) {
       EXPECT_FALSE(bitmap.Get(i * 8));
   }
 
-  EXPECT_EQ(0, memcmp(local_map, bitmap.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(local_map.data(), bitmap.GetMapForTesting(), kMapSize));
 
   // Now let's create a bitmap that shares local_map as storage.
-  disk_cache::Bitmap bitmap2(reinterpret_cast<uint32_t*>(local_map),
+  disk_cache::Bitmap bitmap2(reinterpret_cast<uint32_t*>(local_map.data()),
                              kMapSize * 8, kMapSize / 4);
-  EXPECT_EQ(0, memcmp(local_map, bitmap2.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(local_map.data(), bitmap2.GetMapForTesting(), kMapSize));
 
   local_map[kMapSize / 2] = 'a';
-  EXPECT_EQ(0, memcmp(local_map, bitmap2.GetMap(), kMapSize));
-  EXPECT_NE(0, memcmp(local_map, bitmap.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(local_map.data(), bitmap2.GetMapForTesting(), kMapSize));
+  EXPECT_NE(0, memcmp(local_map.data(), bitmap.GetMapForTesting(), kMapSize));
 }
 
 TEST(BitmapTest, SetAll) {
@@ -123,14 +131,14 @@ TEST(BitmapTest, SetAll) {
   memset(zeros, 0, kMapSize);
 
   disk_cache::Bitmap map(kMapSize * 8, true);
-  EXPECT_EQ(0, memcmp(zeros, map.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(zeros, map.GetMapForTesting(), kMapSize));
   map.SetAll(true);
-  EXPECT_EQ(0, memcmp(ones, map.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(ones, map.GetMapForTesting(), kMapSize));
   map.SetAll(false);
-  EXPECT_EQ(0, memcmp(zeros, map.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(zeros, map.GetMapForTesting(), kMapSize));
   map.SetAll(true);
   map.Clear();
-  EXPECT_EQ(0, memcmp(zeros, map.GetMap(), kMapSize));
+  EXPECT_EQ(0, memcmp(zeros, map.GetMapForTesting(), kMapSize));
 }
 
 TEST(BitmapTest, Range) {

@@ -8,10 +8,6 @@
 
 #import "ios/web_view/shell/shell_risk_data_loader.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @interface ShellAutofillDelegate ()
 
 // Autofill controller.
@@ -21,7 +17,8 @@
 @property(nonatomic, strong) ShellRiskDataLoader* riskDataLoader;
 
 // Returns an action for a suggestion.
-- (UIAlertAction*)actionForSuggestion:(CWVAutofillSuggestion*)suggestion;
+- (UIAlertAction*)actionForSuggestion:(CWVAutofillSuggestion*)suggestion
+                              atIndex:(NSInteger)index;
 
 @end
 
@@ -70,8 +67,10 @@
                                  style:UIAlertActionStyleCancel
                                handler:nil];
     [alertController addAction:cancelAction];
-    for (CWVAutofillSuggestion* suggestion in suggestions) {
-      [alertController addAction:[self actionForSuggestion:suggestion]];
+    for (NSUInteger i = 0; i < suggestions.count; ++i) {
+      CWVAutofillSuggestion* suggestion = suggestions[i];
+      [alertController addAction:[self actionForSuggestion:suggestion
+                                                   atIndex:i]];
     }
 
     [[self anyKeyWindow].rootViewController
@@ -93,7 +92,7 @@
                           frameID:(NSString*)frameID
                             value:(NSString*)value
                     userInitiated:(BOOL)userInitiated {
-  // TODO(crbug.com/1323932): Fetching suggestions has an important side effect
+  // TODO(crbug.com/40224850): Fetching suggestions has an important side effect
   // of calling PasswordFormManager::UpdateStateOnUserInput. This will ensure
   // that the typed information can be remembered during the save dialogue.
   // Make this method a no-op once the bug is fixed.
@@ -363,25 +362,32 @@
                                                      completion:nil];
 }
 
+- (void)autofillControllerDidLoginWithExistingPassword:
+    (CWVAutofillController*)autofillController {
+  NSLog(@"User logged in with an existing password");
+}
+
 #pragma mark - Private Methods
 
-- (UIAlertAction*)actionForSuggestion:(CWVAutofillSuggestion*)suggestion {
+- (UIAlertAction*)actionForSuggestion:(CWVAutofillSuggestion*)suggestion
+                              atIndex:(NSInteger)index {
   NSString* title =
       [NSString stringWithFormat:@"%@ %@", suggestion.value,
                                  suggestion.displayDescription ?: @""];
   __weak ShellAutofillDelegate* weakSelf = self;
-  return [UIAlertAction
-      actionWithTitle:title
-                style:UIAlertActionStyleDefault
-              handler:^(UIAlertAction* action) {
-                ShellAutofillDelegate* strongSelf = weakSelf;
-                if (!strongSelf) {
-                  return;
-                }
-                [strongSelf.autofillController acceptSuggestion:suggestion
-                                              completionHandler:nil];
-                [[self anyKeyWindow] endEditing:YES];
-              }];
+  return [UIAlertAction actionWithTitle:title
+                                  style:UIAlertActionStyleDefault
+                                handler:^(UIAlertAction* action) {
+                                  ShellAutofillDelegate* strongSelf = weakSelf;
+                                  if (!strongSelf) {
+                                    return;
+                                  }
+                                  [strongSelf.autofillController
+                                       acceptSuggestion:suggestion
+                                                atIndex:index
+                                      completionHandler:nil];
+                                  [[self anyKeyWindow] endEditing:YES];
+                                }];
 }
 
 #pragma mark - Private

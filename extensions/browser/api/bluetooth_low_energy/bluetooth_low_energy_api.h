@@ -6,6 +6,7 @@
 #define EXTENSIONS_BROWSER_API_BLUETOOTH_LOW_ENERGY_BLUETOOTH_LOW_ENERGY_API_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_set>
 
@@ -21,7 +22,6 @@
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/extension_function_histogram_value.h"
 #include "extensions/common/api/bluetooth_low_energy.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace extensions {
 class BluetoothApiAdvertisement;
@@ -82,7 +82,7 @@ class BluetoothLowEnergyExtensionFunction : public ExtensionFunction {
   ResponseAction Run() override;
 
   // Implemented by individual bluetoothLowEnergy extension functions to perform
-  // the body of the function. This invoked asynchonously after Run after
+  // the body of the function. This invoked asynchronously after Run after
   // the BluetoothLowEnergyEventRouter has obtained a handle on the
   // BluetoothAdapter.
   virtual void DoWork() = 0;
@@ -92,6 +92,12 @@ class BluetoothLowEnergyExtensionFunction : public ExtensionFunction {
   // false otherwise. This method is called before DoWork() to allow early exit
   // in the case of invalid params.
   virtual bool ParseParams() = 0;
+
+  // Sugar for responding with no arguments.
+  void EmptyResponse();
+
+  // Sugar for responding with the error string corresponding to `status`.
+  void RespondWithErrorStatus(BluetoothLowEnergyEventRouter::Status status);
 
   raw_ptr<BluetoothLowEnergyEventRouter> event_router_;
 
@@ -136,7 +142,7 @@ class BluetoothLowEnergyConnectFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::Connect::Params> params_;
+  std::optional<bluetooth_low_energy::Connect::Params> params_;
 
  private:
   void ConnectCallback(BluetoothLowEnergyEventRouter::Status status);
@@ -157,13 +163,7 @@ class BluetoothLowEnergyDisconnectFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::Disconnect::Params> params_;
-
- private:
-  // Success and error callbacks, called by
-  // BluetoothLowEnergyEventRouter::Disconnect.
-  void SuccessCallback();
-  void ErrorCallback(BluetoothLowEnergyEventRouter::Status status);
+  std::optional<bluetooth_low_energy::Disconnect::Params> params_;
 };
 
 class BluetoothLowEnergyGetServiceFunction
@@ -181,7 +181,7 @@ class BluetoothLowEnergyGetServiceFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::GetService::Params> params_;
+  std::optional<bluetooth_low_energy::GetService::Params> params_;
 };
 
 class BluetoothLowEnergyGetServicesFunction
@@ -199,7 +199,7 @@ class BluetoothLowEnergyGetServicesFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::GetServices::Params> params_;
+  std::optional<bluetooth_low_energy::GetServices::Params> params_;
 };
 
 class BluetoothLowEnergyGetCharacteristicFunction
@@ -217,7 +217,7 @@ class BluetoothLowEnergyGetCharacteristicFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::GetCharacteristic::Params> params_;
+  std::optional<bluetooth_low_energy::GetCharacteristic::Params> params_;
 };
 
 class BluetoothLowEnergyGetCharacteristicsFunction
@@ -235,7 +235,7 @@ class BluetoothLowEnergyGetCharacteristicsFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::GetCharacteristics::Params> params_;
+  std::optional<bluetooth_low_energy::GetCharacteristics::Params> params_;
 };
 
 class BluetoothLowEnergyGetIncludedServicesFunction
@@ -253,7 +253,7 @@ class BluetoothLowEnergyGetIncludedServicesFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::GetIncludedServices::Params> params_;
+  std::optional<bluetooth_low_energy::GetIncludedServices::Params> params_;
 };
 
 class BluetoothLowEnergyGetDescriptorFunction
@@ -271,7 +271,7 @@ class BluetoothLowEnergyGetDescriptorFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::GetDescriptor::Params> params_;
+  std::optional<bluetooth_low_energy::GetDescriptor::Params> params_;
 };
 
 class BluetoothLowEnergyGetDescriptorsFunction
@@ -289,7 +289,7 @@ class BluetoothLowEnergyGetDescriptorsFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::GetDescriptors::Params> params_;
+  std::optional<bluetooth_low_energy::GetDescriptors::Params> params_;
 };
 
 class BluetoothLowEnergyReadCharacteristicValueFunction
@@ -307,13 +307,12 @@ class BluetoothLowEnergyReadCharacteristicValueFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::ReadCharacteristicValue::Params> params_;
+  std::optional<bluetooth_low_energy::ReadCharacteristicValue::Params> params_;
 
  private:
-  // Success and error callbacks, called by
+  // Success callback, called by
   // BluetoothLowEnergyEventRouter::ReadCharacteristicValue.
   void SuccessCallback();
-  void ErrorCallback(BluetoothLowEnergyEventRouter::Status status);
 
   // The instance ID of the requested characteristic.
   std::string instance_id_;
@@ -334,14 +333,12 @@ class BluetoothLowEnergyWriteCharacteristicValueFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::WriteCharacteristicValue::Params>
-      params_;
+  std::optional<bluetooth_low_energy::WriteCharacteristicValue::Params> params_;
 
  private:
-  // Success and error callbacks, called by
+  // Success callback, called by
   // BluetoothLowEnergyEventRouter::WriteCharacteristicValue.
   void SuccessCallback();
-  void ErrorCallback(BluetoothLowEnergyEventRouter::Status status);
 
   // The instance ID of the requested characteristic.
   std::string instance_id_;
@@ -363,14 +360,8 @@ class BluetoothLowEnergyStartCharacteristicNotificationsFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::StartCharacteristicNotifications::Params>
+  std::optional<bluetooth_low_energy::StartCharacteristicNotifications::Params>
       params_;
-
- private:
-  // Success and error callbacks, called by
-  // BluetoothLowEnergyEventRouter::StartCharacteristicNotifications.
-  void SuccessCallback();
-  void ErrorCallback(BluetoothLowEnergyEventRouter::Status status);
 };
 
 class BluetoothLowEnergyStopCharacteristicNotificationsFunction
@@ -389,14 +380,8 @@ class BluetoothLowEnergyStopCharacteristicNotificationsFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::StopCharacteristicNotifications::Params>
+  std::optional<bluetooth_low_energy::StopCharacteristicNotifications::Params>
       params_;
-
- private:
-  // Success and error callbacks, called by
-  // BluetoothLowEnergyEventRouter::StopCharacteristicNotifications.
-  void SuccessCallback();
-  void ErrorCallback(BluetoothLowEnergyEventRouter::Status status);
 };
 
 class BluetoothLowEnergyReadDescriptorValueFunction
@@ -414,13 +399,12 @@ class BluetoothLowEnergyReadDescriptorValueFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::ReadDescriptorValue::Params> params_;
+  std::optional<bluetooth_low_energy::ReadDescriptorValue::Params> params_;
 
  private:
-  // Success and error callbacks, called by
+  // Success callback, called by
   // BluetoothLowEnergyEventRouter::ReadDescriptorValue.
   void SuccessCallback();
-  void ErrorCallback(BluetoothLowEnergyEventRouter::Status status);
 
   // The instance ID of the requested descriptor.
   std::string instance_id_;
@@ -441,13 +425,12 @@ class BluetoothLowEnergyWriteDescriptorValueFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::WriteDescriptorValue::Params> params_;
+  std::optional<bluetooth_low_energy::WriteDescriptorValue::Params> params_;
 
  private:
-  // Success and error callbacks, called by
+  // Success callback, called by
   // BluetoothLowEnergyEventRouter::WriteDescriptorValue.
   void SuccessCallback();
-  void ErrorCallback(BluetoothLowEnergyEventRouter::Status status);
 
   // The instance ID of the requested descriptor.
   std::string instance_id_;
@@ -497,7 +480,7 @@ class BluetoothLowEnergyRegisterAdvertisementFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::RegisterAdvertisement::Params> params_;
+  std::optional<bluetooth_low_energy::RegisterAdvertisement::Params> params_;
 
  private:
   void SuccessCallback(scoped_refptr<device::BluetoothAdvertisement>);
@@ -519,7 +502,7 @@ class BluetoothLowEnergyUnregisterAdvertisementFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::UnregisterAdvertisement::Params> params_;
+  std::optional<bluetooth_low_energy::UnregisterAdvertisement::Params> params_;
 
  private:
   void SuccessCallback(int advertisement_id);
@@ -543,7 +526,6 @@ class BluetoothLowEnergyResetAdvertisingFunction
   bool ParseParams() override;
 
  private:
-  void SuccessCallback();
   void ErrorCallback(device::BluetoothAdvertisement::ErrorCode status);
 };
 
@@ -562,10 +544,9 @@ class BluetoothLowEnergySetAdvertisingIntervalFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::SetAdvertisingInterval::Params> params_;
+  std::optional<bluetooth_low_energy::SetAdvertisingInterval::Params> params_;
 
  private:
-  void SuccessCallback();
   void ErrorCallback(device::BluetoothAdvertisement::ErrorCode status);
 };
 
@@ -586,7 +567,7 @@ class BluetoothLowEnergyCreateServiceFunction
 
   // Causes link error on Windows. API will never be on Windows, so #ifdefing.
 #if !BUILDFLAG(IS_WIN)
-  absl::optional<bluetooth_low_energy::CreateService::Params> params_;
+  std::optional<bluetooth_low_energy::CreateService::Params> params_;
 #endif
 };
 
@@ -605,7 +586,7 @@ class BluetoothLowEnergyCreateCharacteristicFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::CreateCharacteristic::Params> params_;
+  std::optional<bluetooth_low_energy::CreateCharacteristic::Params> params_;
 };
 
 class BluetoothLowEnergyNotifyCharacteristicValueChangedFunction
@@ -624,7 +605,7 @@ class BluetoothLowEnergyNotifyCharacteristicValueChangedFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::NotifyCharacteristicValueChanged::Params>
+  std::optional<bluetooth_low_energy::NotifyCharacteristicValueChanged::Params>
       params_;
 };
 
@@ -643,7 +624,7 @@ class BluetoothLowEnergyCreateDescriptorFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::CreateDescriptor::Params> params_;
+  std::optional<bluetooth_low_energy::CreateDescriptor::Params> params_;
 };
 
 class BluetoothLowEnergyRegisterServiceFunction
@@ -661,11 +642,7 @@ class BluetoothLowEnergyRegisterServiceFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::RegisterService::Params> params_;
-
- private:
-  void SuccessCallback();
-  void ErrorCallback(BluetoothLowEnergyEventRouter::Status status);
+  std::optional<bluetooth_low_energy::RegisterService::Params> params_;
 };
 
 class BluetoothLowEnergyUnregisterServiceFunction
@@ -683,13 +660,7 @@ class BluetoothLowEnergyUnregisterServiceFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::UnregisterService::Params> params_;
-
- private:
-  // Success and error callbacks, called by
-  // BluetoothLowEnergyEventRouter::RegisterService.
-  void SuccessCallback();
-  void ErrorCallback(BluetoothLowEnergyEventRouter::Status status);
+  std::optional<bluetooth_low_energy::UnregisterService::Params> params_;
 };
 
 class BluetoothLowEnergyRemoveServiceFunction
@@ -707,7 +678,7 @@ class BluetoothLowEnergyRemoveServiceFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::RemoveService::Params> params_;
+  std::optional<bluetooth_low_energy::RemoveService::Params> params_;
 };
 
 class BluetoothLowEnergySendRequestResponseFunction
@@ -725,7 +696,7 @@ class BluetoothLowEnergySendRequestResponseFunction
   void DoWork() override;
   bool ParseParams() override;
 
-  absl::optional<bluetooth_low_energy::SendRequestResponse::Params> params_;
+  std::optional<bluetooth_low_energy::SendRequestResponse::Params> params_;
 };
 
 }  // namespace api

@@ -5,6 +5,7 @@
 #include "ui/base/models/menu_model.h"
 
 #include "ui/base/models/image_model.h"
+#include "ui/base/resource/resource_bundle.h"
 
 namespace ui {
 
@@ -24,6 +25,10 @@ bool MenuModel::IsAlertedAt(size_t index) const {
 }
 
 bool MenuModel::IsNewFeatureAt(size_t index) const {
+  return false;
+}
+
+bool MenuModel::GetForceShowAcceleratorForItemAt(size_t index) const {
   return false;
 }
 
@@ -81,7 +86,10 @@ std::u16string MenuModel::GetAccessibleNameAt(size_t index) const {
 }
 
 const gfx::FontList* MenuModel::GetLabelFontListAt(size_t index) const {
-  return nullptr;
+  return (GetTypeAt(index) == ui::MenuModel::TYPE_TITLE)
+             ? &ui::ResourceBundle::GetSharedInstance().GetFontList(
+                   ui::ResourceBundle::BoldFont)
+             : nullptr;
 }
 
 // Default implementation ignores the event flags.
@@ -97,18 +105,18 @@ void MenuModel::SetMenuModelDelegate(MenuModelDelegate* delegate) {
   menu_model_delegate_ = delegate;
 }
 
-absl::optional<ui::ColorId> MenuModel::GetForegroundColorId(size_t index) {
-  return absl::nullopt;
+std::optional<ui::ColorId> MenuModel::GetForegroundColorId(size_t index) {
+  return std::nullopt;
 }
 
-absl::optional<ui::ColorId> MenuModel::GetSubmenuBackgroundColorId(
+std::optional<ui::ColorId> MenuModel::GetSubmenuBackgroundColorId(
     size_t index) {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<ui::ColorId> MenuModel::GetSelectedBackgroundColorId(
+std::optional<ui::ColorId> MenuModel::GetSelectedBackgroundColorId(
     size_t index) {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace ui

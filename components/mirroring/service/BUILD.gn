@@ -11,22 +11,22 @@ component("mirroring_service") {
     "captured_audio_input.h",
     "media_remoter.cc",
     "media_remoter.h",
-    "message_dispatcher.cc",
-    "message_dispatcher.h",
     "mirror_settings.cc",
     "mirror_settings.h",
     "mirroring_features.cc",
     "mirroring_features.h",
+    "mirroring_gpu_factories_factory.cc",
+    "mirroring_gpu_factories_factory.h",
+    "mirroring_logger.cc",
+    "mirroring_logger.h",
     "mirroring_service.cc",
     "mirroring_service.h",
     "openscreen_message_port.cc",
     "openscreen_message_port.h",
-    "openscreen_rpc_dispatcher.cc",
-    "openscreen_rpc_dispatcher.h",
     "openscreen_session_host.cc",
     "openscreen_session_host.h",
-    "receiver_response.cc",
-    "receiver_response.h",
+    "openscreen_stats_client.cc",
+    "openscreen_stats_client.h",
     "remoting_sender.cc",
     "remoting_sender.h",
     "rpc_dispatcher.h",
@@ -34,14 +34,6 @@ component("mirroring_service") {
     "rpc_dispatcher_impl.h",
     "rtp_stream.cc",
     "rtp_stream.h",
-    "session.cc",
-    "session.h",
-    "session_logger.cc",
-    "session_logger.h",
-    "udp_socket_client.cc",
-    "udp_socket_client.h",
-    "value_util.cc",
-    "value_util.h",
     "video_capture_client.cc",
     "video_capture_client.h",
   ]
@@ -49,10 +41,8 @@ component("mirroring_service") {
   public_deps = [ "//base" ]
 
   deps = [
-    "//build:chromeos_buildflags",
     "//components/mirroring/mojom:service",
     "//components/openscreen_platform",
-    "//components/version_info",
     "//crypto",
     "//gpu/config",
     "//media",
@@ -60,7 +50,6 @@ component("mirroring_service") {
     "//media/capture/mojom:video_capture",
     "//media/cast:common",
     "//media/cast:encoding",
-    "//media/cast:net",
     "//media/cast:sender",
     "//media/cast/openscreen:config_conversions",
     "//media/cast/openscreen:decoder_buffer_reader",
@@ -74,8 +63,6 @@ component("mirroring_service") {
     "//mojo/public/cpp/bindings",
     "//mojo/public/cpp/system",
     "//net",
-    "//services/network/public/cpp",
-    "//services/network/public/mojom",
     "//services/viz/public/cpp/gpu",
     "//third_party/jsoncpp",  # Required by Open Screen API.
     "//third_party/openscreen/src/cast/streaming:common",
@@ -84,7 +71,12 @@ component("mirroring_service") {
     "//ui/gfx",
   ]
 
-  include_dirs = [ "//third_party/openscreen/src" ]
+  # Make sure to use the Chromium protobuf headers, and not the ones in
+  # //third_party/openscreen/src/third_party/protobuf. direct include_dirs
+  # takes precedence over those pulled in from configs.
+  include_dirs = [ "//third_party/protobuf/src" ]
+  configs +=
+      [ "//third_party/openscreen/src/build_overrides:openscreen_include_dirs" ]
   defines = [ "IS_MIRRORING_SERVICE_IMPL" ]
 }
 
@@ -97,16 +89,14 @@ source_set("unittests") {
     "fake_video_capture_host.cc",
     "fake_video_capture_host.h",
     "media_remoter_unittest.cc",
-    "message_dispatcher_unittest.cc",
     "openscreen_message_port_unittest.cc",
-    "openscreen_rpc_dispatcher_unittest.cc",
     "openscreen_session_host_unittest.cc",
-    "receiver_response_unittest.cc",
+    "openscreen_stats_client_unittest.cc",
     "remoting_sender_unittest.cc",
+    "rpc_dispatcher_impl_unittest.cc",
     "rtp_stream_unittest.cc",
-    "session_logger_unittest.cc",
-    "session_unittest.cc",
-    "udp_socket_client_unittest.cc",
+    "value_util.cc",
+    "value_util.h",
     "video_capture_client_unittest.cc",
   ]
 
@@ -116,11 +106,13 @@ source_set("unittests") {
     "//base/test:test_support",
     "//components/mirroring/mojom:service",
     "//components/openscreen_platform",
+    "//gpu:test_support",
+    "//gpu/ipc/common:test_support",
     "//media",
     "//media:test_support",
     "//media/capture/mojom:video_capture",
     "//media/cast:common",
-    "//media/cast:net",
+    "//media/cast:encoding",
     "//media/cast:sender",
     "//media/cast:test_support",
     "//media/cast/openscreen:remoting_utils",
@@ -138,5 +130,10 @@ source_set("unittests") {
     "//third_party/openscreen/src/cast/streaming:sender",
   ]
 
-  include_dirs = [ "//third_party/openscreen/src" ]
+  # Make sure to use the Chromium protobuf headers, and not the ones in
+  # //third_party/openscreen/src/third_party/protobuf. direct include_dirs
+  # takes precedence over those pulled in from configs.
+  include_dirs = [ "//third_party/protobuf/src" ]
+  configs +=
+      [ "//third_party/openscreen/src/build_overrides:openscreen_include_dirs" ]
 }

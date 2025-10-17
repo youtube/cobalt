@@ -11,14 +11,11 @@
       ]
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV id='target3'",
+      "name": "LayoutBlockFlow (positioned) DIV id='target3'",
       "position": [420, 20],
       "bounds": [100, 100],
       "contentsOpaque": true,
-      "backgroundColor": "#0000FF",
-      "invalidations": [
-        [0, 0, 100, 100]
-      ]
+      "backgroundColor": "#0000FF"
     }
   ]
 }

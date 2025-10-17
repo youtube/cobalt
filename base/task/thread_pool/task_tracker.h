@@ -9,15 +9,14 @@
 #include <functional>
 #include <limits>
 #include <memory>
-#include <queue>
+#include <optional>
 #include <string>
 
-#include "base/atomicops.h"
+#include "base/atomic_sequence_num.h"
 #include "base/base_export.h"
 #include "base/containers/circular_deque.h"
 #include "base/functional/callback_forward.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/common/checked_lock.h"
 #include "base/task/common/task_annotator.h"
@@ -33,6 +32,8 @@ namespace base {
 class ConditionVariable;
 
 namespace internal {
+
+class JobTaskSource;
 
 // Determines which tasks are allowed to run.
 enum class CanRunPolicy {
@@ -112,6 +113,9 @@ class BASE_EXPORT TaskTracker {
   // true.
   RegisteredTaskSource RegisterTaskSource(
       scoped_refptr<TaskSource> task_source);
+
+  // Informs this TaskTracker that |task_source| is about to be queued.
+  void WillEnqueueJob(JobTaskSource* task_source);
 
   // Returns true if a task with |priority| can run under to the current policy.
   bool CanRunPriority(TaskPriority priority) const;
@@ -199,6 +203,13 @@ class BASE_EXPORT TaskTracker {
   // Invokes all |flush_callbacks_for_testing_| if any in a lock-safe manner.
   void InvokeFlushCallbacksForTesting();
 
+  // Adds ThreadPool related trace event metadata to the event `ctx`. Notably,
+  // records sequence information, as well as priority/execution mode.
+  void EmitThreadPoolTraceEventMetadata(perfetto::EventContext& ctx,
+                                        const TaskTraits& traits,
+                                        TaskSource* task_source,
+                                        const SequenceToken& token);
+
   // Dummy frames to allow identification of shutdown behavior in a stack trace.
   void RunContinueOnShutdown(Task& task,
                              const TaskTraits& traits,
@@ -254,7 +265,7 @@ class BASE_EXPORT TaskTracker {
 
   // Signaled when |num_incomplete_task_sources_| is or reaches zero or when
   // shutdown completes.
-  const std::unique_ptr<ConditionVariable> flush_cv_;
+  ConditionVariable flush_cv_;
 
   // All invoked, if any, when |num_incomplete_task_sources_| is zero or when
   // shutdown completes.
@@ -266,7 +277,10 @@ class BASE_EXPORT TaskTracker {
 
   // Event instantiated when shutdown starts and signaled when shutdown
   // completes.
-  std::unique_ptr<WaitableEvent> shutdown_event_ GUARDED_BY(shutdown_lock_);
+  std::optional<WaitableEvent> shutdown_event_ GUARDED_BY(shutdown_lock_);
+
+  // Used to generate unique |PendingTask::sequence_num| when posting tasks.
+  AtomicSequenceNumber sequence_nums_;
 
   // Ensures all state (e.g. dangling cleaned up workers) is coalesced before
   // destroying the TaskTracker (e.g. in test environments).

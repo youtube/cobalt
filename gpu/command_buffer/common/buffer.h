@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <utility>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
@@ -23,24 +24,28 @@ class GPU_EXPORT BufferBacking {
   virtual ~BufferBacking() = default;
   virtual const base::UnsafeSharedMemoryRegion& shared_memory_region() const;
   virtual base::UnguessableToken GetGUID() const;
-  virtual void* GetMemory() const = 0;
+  void* GetMemory() {
+    return const_cast<void*>(std::as_const(*this).GetMemory());
+  }
+  virtual const void* GetMemory() const = 0;
   virtual uint32_t GetSize() const = 0;
 };
 
 class GPU_EXPORT MemoryBufferBacking : public BufferBacking {
  public:
-  explicit MemoryBufferBacking(uint32_t size);
+  explicit MemoryBufferBacking(uint32_t size, uint32_t alignment = 0);
 
   MemoryBufferBacking(const MemoryBufferBacking&) = delete;
   MemoryBufferBacking& operator=(const MemoryBufferBacking&) = delete;
 
   ~MemoryBufferBacking() override;
-  void* GetMemory() const override;
+  const void* GetMemory() const override;
   uint32_t GetSize() const override;
 
  private:
   std::unique_ptr<char[]> memory_;
   uint32_t size_;
+  uint32_t alignment_;
 };
 
 
@@ -57,7 +62,7 @@ class GPU_EXPORT SharedMemoryBufferBacking : public BufferBacking {
   ~SharedMemoryBufferBacking() override;
   const base::UnsafeSharedMemoryRegion& shared_memory_region() const override;
   base::UnguessableToken GetGUID() const override;
-  void* GetMemory() const override;
+  const void* GetMemory() const override;
   uint32_t GetSize() const override;
 
  private:
@@ -74,7 +79,8 @@ class GPU_EXPORT Buffer : public base::RefCountedThreadSafe<Buffer> {
   Buffer& operator=(const Buffer&) = delete;
 
   BufferBacking* backing() const { return backing_.get(); }
-  void* memory() const { return memory_; }
+  void* memory() { return memory_; }
+  const void* memory() const { return memory_; }
   uint32_t size() const { return size_; }
 
   // Returns nullptr if the address overflows the memory.
@@ -108,9 +114,10 @@ inline scoped_refptr<Buffer> MakeBufferFromSharedMemory(
       std::move(shared_memory_region), std::move(shared_memory_mapping)));
 }
 
-inline scoped_refptr<Buffer> MakeMemoryBuffer(uint32_t size) {
+inline scoped_refptr<Buffer> MakeMemoryBuffer(uint32_t size,
+                                              uint32_t alignment = 0) {
   return base::MakeRefCounted<Buffer>(
-      std::make_unique<MemoryBufferBacking>(size));
+      std::make_unique<MemoryBufferBacking>(size, alignment));
 }
 
 // Generates a process unique buffer ID which can be safely used with

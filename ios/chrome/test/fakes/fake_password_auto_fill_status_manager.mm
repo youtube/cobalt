@@ -3,11 +3,8 @@
 // found in the LICENSE file.
 
 #import "ios/chrome/test/fakes/fake_password_auto_fill_status_manager.h"
-#import "ios/chrome/browser/ui/settings/utils/password_auto_fill_status_observer.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/settings/ui_bundled/utils/password_auto_fill_status_observer.h"
 
 // This interface declaration provides access to the super class's private
 // property self.observers.

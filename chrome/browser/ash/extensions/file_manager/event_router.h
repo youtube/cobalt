@@ -9,17 +9,17 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
-#include "ash/components/arc/session/arc_service_manager.h"
-#include "ash/public/cpp/tablet_mode_observer.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/time/time.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
+#include "chrome/browser/ash/drive/file_system_util.h"
 #include "chrome/browser/ash/extensions/file_manager/device_event_router.h"
 #include "chrome/browser/ash/extensions/file_manager/drivefs_event_router.h"
+#include "chrome/browser/ash/extensions/file_manager/office_tasks.h"
 #include "chrome/browser/ash/extensions/file_manager/system_notification_manager.h"
 #include "chrome/browser/ash/file_manager/file_manager_copy_or_move_hook_delegate.h"
 #include "chrome/browser/ash/file_manager/file_watcher.h"
@@ -30,15 +30,19 @@
 #include "chrome/browser/ash/guest_os/guest_os_share_path.h"
 #include "chrome/browser/ash/guest_os/public/guest_os_mount_provider.h"
 #include "chrome/browser/ash/guest_os/public/guest_os_mount_provider_registry.h"
+#include "chrome/browser/ash/policy/skyvault/local_user_files_policy_observer.h"
+#include "chrome/browser/ui/webui/ash/cloud_upload/cloud_upload_util.h"
 #include "chrome/common/extensions/api/file_manager_private.h"
-#include "chromeos/ash/components/disks/disk_mount_manager.h"
 #include "chromeos/ash/components/settings/timezone_settings.h"
-#include "components/arc/intent_helper/arc_intent_helper_observer.h"
+#include "chromeos/ash/experiences/arc/intent_helper/arc_intent_helper_observer.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
+#include "chromeos/dbus/dlp/dlp_client.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "extensions/browser/extension_registry_observer.h"
 #include "services/network/public/cpp/network_connection_tracker.h"
 #include "storage/browser/file_system/file_system_operation.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/display/display_observer.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -49,26 +53,29 @@ using OutputsType =
     extensions::api::file_manager_private::ProgressStatus::OutputsType;
 using file_manager::util::EntryDefinition;
 
-namespace file_manager {
+namespace display {
+enum class TabletState;
+}  // namespace display
 
-namespace {
-class RecalculateTasksObserver;
-}  // namespace
+namespace file_manager {
 
 // Monitors changes in disk mounts, network connection state and preferences
 // affecting File Manager. Dispatches appropriate File Browser events.
 class EventRouter
     : public KeyedService,
-      public network::NetworkConnectionTracker::NetworkConnectionObserver,
-      public extensions::ExtensionRegistryObserver,
-      public ash::system::TimezoneSettings::Observer,
-      public VolumeManagerObserver,
-      public arc::ArcIntentHelperObserver,
-      public drive::DriveIntegrationServiceObserver,
-      public guest_os::GuestOsSharePath::Observer,
-      public ash::TabletModeObserver,
-      public file_manager::io_task::IOTaskController::Observer,
-      public guest_os::GuestOsMountProviderRegistry::Observer {
+      extensions::ExtensionRegistryObserver,
+      ash::system::TimezoneSettings::Observer,
+      VolumeManagerObserver,
+      arc::ArcIntentHelperObserver,
+      drive::DriveIntegrationService::Observer,
+      guest_os::GuestOsSharePath::Observer,
+      display::DisplayObserver,
+      file_manager::io_task::IOTaskController::Observer,
+      guest_os::GuestOsMountProviderRegistry::Observer,
+      chromeos::DlpClient::Observer,
+      apps::AppRegistryCache::Observer,
+      network::NetworkConnectionTracker::NetworkConnectionObserver,
+      policy::local_user_files::LocalUserFilesPolicyObserver {
  public:
   using DispatchDirectoryChangeEventImplCallback =
       base::RepeatingCallback<void(const base::FilePath& virtual_path,
@@ -84,7 +91,7 @@ class EventRouter
 
   // arc::ArcIntentHelperObserver overrides.
   void OnIntentFiltersUpdated(
-      const absl::optional<std::string>& package_name) override;
+      const std::optional<std::string>& package_name) override;
 
   // KeyedService overrides.
   void Shutdown() override;
@@ -116,9 +123,6 @@ class EventRouter
       const storage::FileSystemURL& file_system_url,
       const url::Origin& listener_origin,
       storage::WatcherManager::ChangeType change_type);
-
-  // network::NetworkConnectionTracker::NetworkConnectionObserver overrides.
-  void OnConnectionChanged(network::mojom::ConnectionType type) override;
 
   // extensions::ExtensionRegistryObserver overrides
   void OnExtensionLoaded(content::BrowserContext* browser_context,
@@ -161,10 +165,12 @@ class EventRouter
   void SetDispatchDirectoryChangeEventImplForTesting(
       const DispatchDirectoryChangeEventImplCallback& callback);
 
-  // DriveIntegrationServiceObserver override.
+  // DriveIntegrationService::Observer implementation.
   void OnFileSystemMountFailed() override;
+  void OnDriveConnectionStatusChanged(
+      drive::util::ConnectionStatus status) override;
 
-  // guest_os::GuestOsSharePath::Observer overrides.
+  // GuestOsSharePath::Observer implementation.
   void OnPersistedPathRegistered(const std::string& vm_name,
                                  const base::FilePath& path) override;
   void OnUnshare(const std::string& vm_name,
@@ -172,9 +178,8 @@ class EventRouter
   void OnGuestRegistered(const guest_os::GuestId& guest) override;
   void OnGuestUnregistered(const guest_os::GuestId& guest) override;
 
-  // ash:TabletModeObserver overrides.
-  void OnTabletModeStarted() override;
-  void OnTabletModeEnded() override;
+  // display::DisplayObserver overrides.
+  void OnDisplayTabletStateChanged(display::TabletState state) override;
 
   // Notifies FilesApp that file drop to Plugin VM was not in a shared directory
   // and failed FilesApp will show the "Move to Windows files" dialog.
@@ -196,6 +201,28 @@ class EventRouter
 
   // Broadcast to Files app frontend that file tasks might have changed.
   void BroadcastOnAppsUpdatedEvent();
+
+  drivefs::SyncState GetDriveSyncStateForPath(const base::FilePath& drive_path);
+
+  // chromeos::DlpClient::Observer override.
+  void OnFilesAddedToDlpDaemon(
+      const std::vector<base::FilePath>& files) override;
+
+  // apps::AppRegistryCache::Observer:
+  void OnAppUpdate(const apps::AppUpdate& update) override;
+  void OnAppRegistryCacheWillBeDestroyed(
+      apps::AppRegistryCache* cache) override;
+
+  // network::NetworkConnectionTracker::NetworkConnectionObserver:
+  void OnConnectionChanged(const network::mojom::ConnectionType type) override;
+
+  // policy::local_user_files::Observer:
+  void OnLocalUserFilesPolicyChanged() override;
+
+  // Records that there's a `CloudOpenTask` for the `file_url`.
+  bool AddCloudOpenTask(const storage::FileSystemURL& file_url);
+  // Removes the record of a `CloudOpenTask` for the `file_url`.
+  void RemoveCloudOpenTask(const storage::FileSystemURL& file_url);
 
   // Use this method for unit tests to bypass checking if there are any SWA
   // windows.
@@ -257,10 +284,6 @@ class EventRouter
 
   void NotifyDriveConnectionStatusChanged();
 
-  void DisplayDriveConfirmDialog(
-      const drivefs::mojom::DialogReason& reason,
-      base::OnceCallback<void(drivefs::mojom::DialogResult)> callback);
-
   // Used by `file_manager::ScopedSuppressDriveNotificationsForPath` to prevent
   // Drive notifications for a given file identified by its relative Drive path.
   void SuppressDriveNotificationsForFilePath(
@@ -278,24 +301,54 @@ class EventRouter
       std::unique_ptr<file_manager::util::EntryDefinitionList>
           entry_definition_list);
 
+  // Notifies Files app frontend that some files have changed.
+  void OnFilesChanged(
+      const std::vector<base::FilePath>& files,
+      extensions::api::file_manager_private::ChangeType change_type);
+
+  // Broadcast a directory change event for directories and files in
+  // `files_to_directory_map`.
+  void BroadcastDirectoryChangeEvent(
+      const std::map<base::FilePath, std::vector<base::FilePath>>&
+          files_to_directory_map,
+      const GURL& listener_url,
+      extensions::api::file_manager_private::ChangeType change_type);
+
+  // Broadcast a directory change event for the files listed in `changed_files`
+  // belonging to a filesystem described by `info`.
+  void BroadcastDirectoryChangeEventOnFilesystemInfoResolved(
+      GURL listener_url,
+      std::vector<base::FilePath> changed_files,
+      extensions::api::file_manager_private::ChangeType change_type,
+      base::File::Error result,
+      const storage::FileSystemInfo& info,
+      const base::FilePath& dir_path,
+      storage::FileSystemContext::ResolvedEntryType);
+
   // Broadcast the `event_status` to all open SWA windows.
   void BroadcastIOTask(
       const file_manager_private::ProgressStatus& event_status);
 
   std::map<base::FilePath, std::unique_ptr<FileWatcher>> file_watchers_;
   std::unique_ptr<PrefChangeRegistrar> pref_change_registrar_;
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
 
   std::unique_ptr<SystemNotificationManager> notification_manager_;
+  std::unique_ptr<OfficeTasks> office_tasks_;
   std::unique_ptr<DeviceEventRouter> device_event_router_;
-  std::unique_ptr<DriveFsEventRouter> drivefs_event_router_;
-  std::unique_ptr<RecalculateTasksObserver> recalculate_tasks_observer_;
+  const std::unique_ptr<DriveFsEventRouter> drivefs_event_router_;
 
   DispatchDirectoryChangeEventImplCallback
       dispatch_directory_change_event_impl_;
 
   // Set this to true to ignore the DoFilesSwaWindowsExist check for testing.
   bool force_broadcasting_for_testing_ = false;
+
+  base::ScopedObservation<apps::AppRegistryCache,
+                          apps::AppRegistryCache::Observer>
+      app_registry_cache_observer_{this};
+
+  display::ScopedDisplayObserver display_observer_{this};
 
   // Note: This should remain the last member so it'll be destroyed and
   // invalidate the weak pointers before any other members are destroyed.

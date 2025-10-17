@@ -30,6 +30,9 @@
 #include "protos/perfetto/trace/trace_packet_defaults.pbzero.h"
 #include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
 #include "protos/perfetto/trace/track_event/track_descriptor.pbzero.h"
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_MAC)
+#include <os/signpost.h>
+#endif
 
 using perfetto::protos::pbzero::ClockSnapshot;
 
@@ -42,6 +45,8 @@ void TrackEventSessionObserver::OnStop(const DataSourceBase::StopArgs&) {}
 void TrackEventSessionObserver::WillClearIncrementalState(
     const DataSourceBase::ClearIncrementalStateArgs&) {}
 
+TrackEventTlsStateUserData::~TrackEventTlsStateUserData() = default;
+
 namespace internal {
 
 BaseTrackEventInternedDataIndex::~BaseTrackEventInternedDataIndex() = default;
@@ -51,6 +56,7 @@ namespace {
 static constexpr const char kLegacySlowPrefix[] = "disabled-by-default-";
 static constexpr const char kSlowTag[] = "slow";
 static constexpr const char kDebugTag[] = "debug";
+static constexpr const char kFilteredEventName[] = "FILTERED";
 
 constexpr auto kClockIdIncremental =
     TrackEventIncrementalState::kClockIdIncremental;
@@ -417,6 +423,18 @@ void TrackEventInternal::ResetIncrementalState(
           thread_time_counter_track.uuid);
     }
 
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_MAC)
+    // Emit a MacOS point-of-interest signpost to synchronize Mac profiler time
+    // with boot time.
+    // TODO(leszeks): Consider allowing synchronization against other clocks
+    // than boot time.
+    static os_log_t log_handle = os_log_create(
+        "dev.perfetto.clock_sync", OS_LOG_CATEGORY_POINTS_OF_INTEREST);
+    os_signpost_event_emit(
+        log_handle, OS_SIGNPOST_ID_EXCLUSIVE, "boottime", "%" PRId64,
+        static_cast<uint64_t>(perfetto::base::GetBootTimeNs().count()));
+#endif
+
     if (tls_state.default_clock != static_cast<uint32_t>(GetClockId())) {
       ClockSnapshot* clocks = packet->set_clock_snapshot();
       // Trace clock.
@@ -450,9 +468,11 @@ void TrackEventInternal::ResetIncrementalState(
   // trace points won't explicitly reference it. We also write the process
   // descriptor from every thread that writes trace events to ensure it gets
   // emitted at least once.
+  incr_state->seen_tracks.insert(default_track.uuid);
   WriteTrackDescriptor(default_track, trace_writer, incr_state, tls_state,
                        sequence_timestamp);
 
+  incr_state->seen_tracks.insert(ProcessTrack::Current().uuid);
   WriteTrackDescriptor(ProcessTrack::Current(), trace_writer, incr_state,
                        tls_state, sequence_timestamp);
 
@@ -513,7 +533,10 @@ void TrackEventInternal::WriteEventName(StaticString event_name,
 void TrackEventInternal::WriteEventName(perfetto::DynamicString event_name,
                                         perfetto::EventContext& event_ctx,
                                         const TrackEventTlsState& tls_state) {
-  if (PERFETTO_LIKELY(!tls_state.filter_dynamic_event_names)) {
+  if (PERFETTO_UNLIKELY(tls_state.filter_dynamic_event_names)) {
+    event_ctx.event()->set_name(kFilteredEventName,
+                                sizeof(kFilteredEventName) - 1);
+  } else {
     event_ctx.event()->set_name(event_name.value, event_name.length);
   }
 }
@@ -522,14 +545,14 @@ void TrackEventInternal::WriteEventName(perfetto::DynamicString event_name,
 EventContext TrackEventInternal::WriteEvent(
     TraceWriterBase* trace_writer,
     TrackEventIncrementalState* incr_state,
-    const TrackEventTlsState& tls_state,
+    TrackEventTlsState& tls_state,
     const Category* category,
     perfetto::protos::pbzero::TrackEvent::Type type,
     const TraceTimestamp& timestamp,
     bool on_current_thread_track) {
   PERFETTO_DCHECK(!incr_state->was_cleared);
   auto packet = NewTracePacket(trace_writer, incr_state, tls_state, timestamp);
-  EventContext ctx(std::move(packet), incr_state, &tls_state);
+  EventContext ctx(trace_writer, std::move(packet), incr_state, &tls_state);
 
   auto track_event = ctx.event();
   if (type != protos::pbzero::TrackEvent::TYPE_UNSPECIFIED)

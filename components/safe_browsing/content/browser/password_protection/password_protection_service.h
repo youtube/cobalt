@@ -36,8 +36,6 @@ using PasswordReuseEvent =
     safe_browsing::LoginReputationClientRequest::PasswordReuseEvent;
 using ReusedPasswordType = safe_browsing::LoginReputationClientRequest::
     PasswordReuseEvent::ReusedPasswordType;
-using SyncAccountType =
-    LoginReputationClientRequest::PasswordReuseEvent::SyncAccountType;
 
 struct PasswordReuseInfo {
   PasswordReuseInfo();
@@ -58,6 +56,20 @@ class PasswordProtectionService : public PasswordProtectionServiceBase {
   // instance. This function also insert this request object in |requests_| for
   // record keeping.
   void StartRequest(
+      content::WebContents* web_contents,
+      const GURL& main_frame_url,
+      const GURL& password_form_action,
+      const GURL& password_form_frame_url,
+      const std::string& username,
+      PasswordType password_type,
+      const std::vector<password_manager::MatchingReusedCredential>&
+          matching_reused_credentials,
+      LoginReputationClientRequest::TriggerType trigger_type,
+      bool password_field_exists);
+
+  // Same as above but uses a PasswordProtectionRequest that avoids sending
+  // real requests that can be used for testing.
+  void StartRequestForTesting(
       content::WebContents* web_contents,
       const GURL& main_frame_url,
       const GURL& password_form_action,
@@ -109,16 +121,8 @@ class PasswordProtectionService : public PasswordProtectionServiceBase {
 
 #if BUILDFLAG(IS_ANDROID)
   // Returns the referring app info that starts the activity.
-  virtual LoginReputationClientRequest::ReferringAppInfo GetReferringAppInfo(
+  virtual ReferringAppInfo GetReferringAppInfo(
       content::WebContents* web_contents) = 0;
-#endif
-
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
-  // Binds the |phishing_detector| to the appropriate interface, as provided by
-  // |provider|.
-  virtual void GetPhishingDetector(
-      service_manager::InterfaceProvider* provider,
-      mojo::Remote<mojom::PhishingDetector>* phishing_detector);
 #endif
 
   // Called when a new navigation is starting to create a deferring condition
@@ -129,6 +133,8 @@ class PasswordProtectionService : public PasswordProtectionServiceBase {
       content::NavigationHandle& navigation_handle);
 
  protected:
+  void StartRequestInternal(scoped_refptr<PasswordProtectionRequest> request);
+
   void RemoveWarningRequestsByWebContents(content::WebContents* web_contents);
 
   bool IsModalWarningShowingInWebContents(content::WebContents* web_contents);

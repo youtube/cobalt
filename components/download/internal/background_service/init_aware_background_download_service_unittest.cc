@@ -44,6 +44,10 @@ class InitAwareBackgroundDownloadServiceTest : public testing::Test {
         std::move(controller));
   }
 
+  void TearDown() override {
+    controller_ = nullptr;
+  }
+
  protected:
   raw_ptr<test::MockController> controller_;
   std::unique_ptr<InitAwareBackgroundDownloadService> service_;
@@ -90,12 +94,12 @@ TEST_F(InitAwareBackgroundDownloadServiceTest, TestApiPassThrough) {
 
     histogram_tester.ExpectBucketCount(
         "Download.Service.Request.ClientAction",
-        static_cast<base::HistogramBase::Sample>(
+        static_cast<base::HistogramBase::Sample32>(
             stats::ServiceApiAction::START_DOWNLOAD),
         1);
     histogram_tester.ExpectBucketCount(
         "Download.Service.Request.ClientAction.__Test__",
-        static_cast<base::HistogramBase::Sample>(
+        static_cast<base::HistogramBase::Sample32>(
             stats::ServiceApiAction::START_DOWNLOAD),
         1);
     histogram_tester.ExpectTotalCount("Download.Service.Request.ClientAction",

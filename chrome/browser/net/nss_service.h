@@ -29,7 +29,7 @@ class NSSCertDatabase;
 // Ownership of the `NSSCertDatabase` is not transferred, and the lifetime
 // should only be considered valid for the current Task.
 //
-// TODO(https://crbug.com/1186373): Provide better lifetime guarantees.
+// TODO(crbug.com/40753707): Provide better lifetime guarantees.
 using NssCertDatabaseGetter = base::OnceCallback<net::NSSCertDatabase*(
     base::OnceCallback<void(net::NSSCertDatabase*)> callback)>;
 
@@ -62,15 +62,13 @@ class NssService : public KeyedService {
       base::OnceCallback<void(net::NSSCertDatabase*)> callback);
 
  private:
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Owns and manages access to the net::NSSCertDatabaseChromeOS.
   class NSSCertDatabaseChromeOSManager;
 
   // Created on the UI thread, but after that, initialized, accessed, and
   // destroyed exclusively on the IO thread.
   std::unique_ptr<NSSCertDatabaseChromeOSManager> nss_cert_database_manager_;
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  raw_ptr<content::BrowserContext> context_;
 #endif
 };
 

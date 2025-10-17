@@ -3,7 +3,6 @@ load("@org_tensorflow//tensorflow/lite/core/shims:cc_library_with_tflite.bzl", "
 default_visibility = ["//tensorflow_lite_support:internal"]
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = default_visibility,
     licenses = ["notice"],  # Apache 2.0
 )
@@ -13,7 +12,7 @@ cc_library_with_tflite(
     srcs = ["processor.cc"],
     hdrs = ["processor.h"],
     tflite_deps = [
-        "@org_tensorflow//tensorflow/lite/core/shims:common",
+        "@org_tensorflow//tensorflow/lite/c:common",
         "//tensorflow_lite_support/cc/task/core:tflite_engine",
     ],
     deps = [
@@ -27,9 +26,24 @@ cc_library_with_tflite(
 
 cc_library_with_tflite(
     name = "image_preprocessor",
-    srcs = ["image_preprocessor.cc"],
     hdrs = ["image_preprocessor.h"],
+    # Note, order of dependencies is significant here: image_preprocess_impl
+    # needs to precede frame_buffer_utils.  This is needed in order to
+    # ensure that the object file for frame_buffer_utils.cc ends up _after_
+    # the object file for image_preprocessor.cc on the link line, despite
+    # the image_preprocessor_impl only depending on frame_buffer_utils_h
+    # (the target for the header file only) not on frame_buffer_utils (which
+    # is the target that contains frame_buffer_utils.cc).  That order in the
+    # link line is needed to avoid a "ld: error: backward reference detected"
+    # error from the linker, due to the reference in image_preprocessor.cc to
+    # a symbol defined in frame_buffer_utils.cc.  That's why this dependency
+    # needs to be listed in 'more_deps' (which come after 'tflite_deps')
+    # rather than in 'deps' (which come before 'tflite_deps').
+    more_deps = [
+        "//tensorflow_lite_support/cc/task/vision/utils:frame_buffer_utils",  # build_cleaner: keep
+    ],
     tflite_deps = [
+        ":image_preprocessor_impl",
         ":processor",
         "//tensorflow_lite_support/cc/task/vision/utils:image_tensor_specs",
     ],
@@ -38,7 +52,24 @@ cc_library_with_tflite(
         "//tensorflow_lite_support/cc/task/core:task_utils",
         "//tensorflow_lite_support/cc/task/vision/core:frame_buffer",
         "//tensorflow_lite_support/cc/task/vision/proto:bounding_box_proto_inc",
-        "//tensorflow_lite_support/cc/task/vision/utils:frame_buffer_utils",
+    ],
+)
+
+cc_library_with_tflite(
+    name = "image_preprocessor_impl",
+    srcs = ["image_preprocessor.cc"],
+    hdrs = ["image_preprocessor.h"],
+    tflite_deps = [
+        ":processor",
+        "//tensorflow_lite_support/cc/task/vision/utils:image_tensor_specs",
+    ],
+    visibility = ["//visibility:private"],
+    deps = [
+        "//tensorflow_lite_support/cc/port:status_macros",
+        "//tensorflow_lite_support/cc/task/core:task_utils",
+        "//tensorflow_lite_support/cc/task/vision/core:frame_buffer",
+        "//tensorflow_lite_support/cc/task/vision/proto:bounding_box_proto_inc",
+        "//tensorflow_lite_support/cc/task/vision/utils:frame_buffer_utils_h",
         "@com_google_absl//absl/memory",
     ],
 )
@@ -222,6 +253,5 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:span",
-        "@eigen//:eigen3",
     ],
 )

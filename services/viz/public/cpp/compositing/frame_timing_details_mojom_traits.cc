@@ -4,6 +4,7 @@
 
 #include "services/viz/public/cpp/compositing/frame_timing_details_mojom_traits.h"
 
+#include "services/viz/public/cpp/compositing/begin_frame_args_mojom_traits.h"
 #include "ui/gfx/mojom/presentation_feedback_mojom_traits.h"
 #include "ui/gfx/mojom/swap_timings_mojom_traits.h"
 
@@ -16,9 +17,11 @@ bool Traits::Read(viz::mojom::FrameTimingDetailsDataView data,
                   viz::FrameTimingDetails* out) {
   return data.ReadReceivedCompositorFrameTimestamp(
              &out->received_compositor_frame_timestamp) &&
+         data.ReadEmbeddedFrameTimestamp(&out->embedded_frame_timestamp) &&
          data.ReadDrawStartTimestamp(&out->draw_start_timestamp) &&
          data.ReadSwapTimings(&out->swap_timings) &&
-         data.ReadPresentationFeedback(&out->presentation_feedback);
+         data.ReadPresentationFeedback(&out->presentation_feedback) &&
+         data.ReadFrameId(&out->frame_id);
 }
 
 }  // namespace mojo

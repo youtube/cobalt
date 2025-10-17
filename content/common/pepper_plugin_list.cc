@@ -7,12 +7,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <string_view>
+
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -30,9 +31,9 @@ const size_t kMaxPluginsToRegisterFromCommandLine = 64;
 
 // Returns true if the plugin can be registered from the command line.
 bool IsAllowedFromCommandLine(const ContentPluginInfo& plugin) {
-  // TODO(crbug.com/1134683): Empty the allowlist.
+  // TODO(crbug.com/40151562): Empty the allowlist.
   static constexpr auto kMimeTypeAllowlist =
-      base::MakeFixedFlatSet<base::StringPiece>({
+      base::MakeFixedFlatSet<std::string_view>({
           "application/x-blink-deprecated-test-plugin",
           "application/x-blink-test-plugin",
           "application/x-ppapi-tests",
@@ -174,7 +175,13 @@ bool MakePepperPluginInfo(const WebPluginInfo& webplugin_info,
 
 void ComputePepperPluginList(std::vector<ContentPluginInfo>* plugins) {
   GetContentClient()->AddPlugins(plugins);
-  ComputePluginsFromCommandLine(plugins);
+  // It would be nice to gate this behind a field trial but this happens too
+  // early in the startup process. We allow loading from command line for
+  // testing but don't allow for general use cases.
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kAllowCommandLinePlugins)) {
+    ComputePluginsFromCommandLine(plugins);
+  }
 }
 
 }  // namespace content

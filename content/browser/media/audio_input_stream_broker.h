@@ -5,6 +5,7 @@
 #ifndef CONTENT_BROWSER_MEDIA_AUDIO_INPUT_STREAM_BROKER_H_
 #define CONTENT_BROWSER_MEDIA_AUDIO_INPUT_STREAM_BROKER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
@@ -19,12 +20,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/media/renderer_audio_input_stream_factory.mojom.h"
-
-namespace media {
-class UserInputMonitorBase;
-}
 
 namespace content {
 
@@ -40,7 +36,6 @@ class CONTENT_EXPORT AudioInputStreamBroker final
       const std::string& device_id,
       const media::AudioParameters& params,
       uint32_t shared_memory_count,
-      media::UserInputMonitorBase* user_input_monitor,
       bool enable_agc,
       media::mojom::AudioProcessingConfigPtr processing_config,
       AudioStreamBroker::DeleterCallback deleter,
@@ -60,9 +55,9 @@ class CONTENT_EXPORT AudioInputStreamBroker final
 
  private:
   void StreamCreated(mojo::PendingRemote<media::mojom::AudioInputStream> stream,
-                     media::mojom::ReadOnlyAudioDataPipePtr data_pipe,
+                     media::mojom::ReadWriteAudioDataPipePtr data_pipe,
                      bool initially_muted,
-                     const absl::optional<base::UnguessableToken>& stream_id);
+                     const std::optional<base::UnguessableToken>& stream_id);
 
   void ObserverBindingLost(uint32_t reason, const std::string& description);
   void ClientBindingLost();
@@ -71,7 +66,6 @@ class CONTENT_EXPORT AudioInputStreamBroker final
   const std::string device_id_;
   media::AudioParameters params_;
   const uint32_t shared_memory_count_;
-  const raw_ptr<media::UserInputMonitorBase> user_input_monitor_;
   const bool enable_agc_;
 
   // Indicates that CreateStream has been called, but not StreamCreated.

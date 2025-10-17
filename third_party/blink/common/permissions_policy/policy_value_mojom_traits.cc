@@ -26,7 +26,6 @@ bool UnionTraits<blink::mojom::PolicyValueDataView, blink::PolicyValue>::Read(
       break;
   }
   NOTREACHED();
-  return false;
 }
 
 }  // namespace mojo

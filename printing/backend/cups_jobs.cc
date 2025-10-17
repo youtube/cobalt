@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "printing/backend/cups_jobs.h"
 
 #include <cups/ipp.h>
@@ -10,18 +15,20 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/containers/contains.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/version.h"
 #include "printing/backend/cups_deleters.h"
+#include "printing/backend/cups_helper.h"
 #include "printing/backend/cups_ipp_helper.h"
+#include "printing/backend/cups_weak_functions.h"
 #include "printing/printer_status.h"
 
 namespace printing {
@@ -36,15 +43,22 @@ constexpr char kPrinterState[] = "printer-state";
 constexpr char kPrinterStateReasons[] = "printer-state-reasons";
 constexpr char kPrinterStateMessage[] = "printer-state-message";
 
-constexpr base::StringPiece kPrinterMakeAndModel = "printer-make-and-model";
-constexpr base::StringPiece kIppVersionsSupported = "ipp-versions-supported";
-constexpr base::StringPiece kIppFeaturesSupported = "ipp-features-supported";
-constexpr base::StringPiece kDocumentFormatSupported =
+constexpr std::string_view kPrinterMakeAndModel = "printer-make-and-model";
+constexpr std::string_view kIppVersionsSupported = "ipp-versions-supported";
+constexpr std::string_view kIppFeaturesSupported = "ipp-features-supported";
+constexpr std::string_view kDocumentFormatSupported =
     "document-format-supported";
-constexpr base::StringPiece kOauthAuthorizationServerUri =
+constexpr std::string_view kDocumentFormatPreferred =
+    "document-format-preferred";
+constexpr std::string_view kDocumentFormatDefault = "document-format-default";
+constexpr std::string_view kOauthAuthorizationServerUri =
     "oauth-authorization-server-uri";
-constexpr base::StringPiece kOauthAuthorizationScope =
+constexpr std::string_view kOauthAuthorizationScope =
     "oauth-authorization-scope";
+constexpr std::string_view kUrfSupported = "urf-supported";
+constexpr std::string_view kPdfVersions = "pdf-versions";
+constexpr std::string_view kMopriaCertified = "mopria-certified";
+constexpr std::string_view kPrinterKind = "printer-kind";
 
 // job attributes
 constexpr char kJobUri[] = "job-uri";
@@ -111,6 +125,7 @@ constexpr char kDeveloperLow[] = "developer-low";
 constexpr char kDeveloperEmpty[] = "developer-empty";
 constexpr char kInterpreterResourceUnavailable[] =
     "interpreter-resource-unavailable";
+constexpr char kCupsPkiExpired[] = "cups-pki-expired";
 
 constexpr char kIppScheme[] = "ipp";
 constexpr char kIppsScheme[] = "ipps";
@@ -122,11 +137,14 @@ constexpr int kHttpConnectTimeoutMs = 1000;
 constexpr std::array<const char* const, 3> kPrinterAttributes{
     {kPrinterState, kPrinterStateReasons, kPrinterStateMessage}};
 
-constexpr std::array<const char* const, 9> kPrinterInfoAndStatus{
+constexpr std::array<const char* const, 15> kPrinterInfoAndStatus{
     {kPrinterMakeAndModel.data(), kIppVersionsSupported.data(),
      kIppFeaturesSupported.data(), kDocumentFormatSupported.data(),
      kPrinterState, kPrinterStateReasons, kPrinterStateMessage,
-     kOauthAuthorizationServerUri.data(), kOauthAuthorizationScope.data()}};
+     kOauthAuthorizationServerUri.data(), kOauthAuthorizationScope.data(),
+     kDocumentFormatPreferred.data(), kDocumentFormatDefault.data(),
+     kUrfSupported.data(), kPdfVersions.data(), kMopriaCertified.data(),
+     kPrinterKind.data()}};
 
 // Converts an IPP attribute `attr` to the appropriate JobState enum.
 CupsJob::JobState ToJobState(ipp_attribute_t* attr) {
@@ -149,18 +167,15 @@ CupsJob::JobState ToJobState(ipp_attribute_t* attr) {
       return CupsJob::STOPPED;
     default:
       NOTREACHED() << "Unidentifed state " << state;
-      break;
   }
-
-  return CupsJob::UNKNOWN;
 }
 
 // Returns the Reason corresponding to the string `reason`.  Returns
 // `PReason::kUnknownReason` if the string is not recognized.
-PrinterStatus::PrinterReason::Reason ToReason(base::StringPiece reason) {
+PrinterStatus::PrinterReason::Reason ToReason(std::string_view reason) {
   // Returns a lookup map from strings to PrinterReason::Reason.
   static constexpr auto kLabelToReasonMap =
-      base::MakeFixedFlatMap<base::StringPiece, PReason>({
+      base::MakeFixedFlatMap<std::string_view, PReason>({
           {kNone, PReason::kNone},
           {kMediaNeeded, PReason::kMediaNeeded},
           {kMediaJam, PReason::kMediaJam},
@@ -195,16 +210,17 @@ PrinterStatus::PrinterReason::Reason ToReason(base::StringPiece reason) {
           {kDeveloperEmpty, PReason::kDeveloperEmpty},
           {kInterpreterResourceUnavailable,
            PReason::kInterpreterResourceUnavailable},
+          {kCupsPkiExpired, PReason::kCupsPkiExpired},
       });
 
-  const auto* entry = kLabelToReasonMap.find(reason);
+  const auto entry = kLabelToReasonMap.find(reason);
   return entry != kLabelToReasonMap.end() ? entry->second
                                           : PReason::kUnknownReason;
 }
 
 // Returns the Severity corresponding to `severity`.  Returns UNKNOWN_SEVERITY
 // if the strin gis not recognized.
-PSeverity ToSeverity(base::StringPiece severity) {
+PSeverity ToSeverity(std::string_view severity) {
   if (severity == kSeverityError)
     return PSeverity::kError;
 
@@ -220,7 +236,7 @@ PSeverity ToSeverity(base::StringPiece severity) {
 // Parses the `reason` string into a PrinterReason.  Splits the string based on
 // the last '-' to determine severity.  If a recognized severity is not
 // included, severity is assumed to be ERROR per RFC2911.
-PrinterStatus::PrinterReason ToPrinterReason(base::StringPiece reason) {
+PrinterStatus::PrinterReason ToPrinterReason(std::string_view reason) {
   PrinterStatus::PrinterReason parsed;
 
   if (reason == kNone) {
@@ -231,7 +247,7 @@ PrinterStatus::PrinterReason ToPrinterReason(base::StringPiece reason) {
 
   size_t last_dash = reason.rfind('-');
   auto severity = PSeverity::kUnknownSeverity;
-  if (last_dash != base::StringPiece::npos) {
+  if (last_dash != std::string_view::npos) {
     // try to parse the last part of the string as the severity.
     severity = ToSeverity(reason.substr(last_dash + 1));
   }
@@ -264,7 +280,7 @@ void ParseCollection(ipp_attribute_t* attr,
 
 // Parse a field for the CupsJob `job` from IPP attribute `attr` using the
 // attribute name `name`.
-void ParseField(ipp_attribute_t* attr, base::StringPiece name, CupsJob* job) {
+void ParseField(ipp_attribute_t* attr, std::string_view name, CupsJob* job) {
   DCHECK(!name.empty());
   if (name == kJobId) {
     job->id = ippGetInteger(attr, 0);
@@ -326,7 +342,7 @@ bool ParsePrinterInfo(ipp_t* response, PrinterInfo* printer_info) {
     if (!value) {
       continue;
     }
-    base::StringPiece name(value);
+    std::string_view name(value);
     if (name == kPrinterMakeAndModel) {
       int tag = ippGetValueTag(attr);
       if (tag != IPP_TAG_TEXT && tag != IPP_TAG_TEXTLANG) {
@@ -348,6 +364,7 @@ bool ParsePrinterInfo(ipp_t* response, PrinterInfo* printer_info) {
     } else if (name == kIppFeaturesSupported) {
       std::vector<std::string> features;
       ParseCollection(attr, &features);
+      printer_info->ipp_features = features;
       printer_info->ipp_everywhere = base::Contains(features, kIppEverywhere);
     } else if (name == kDocumentFormatSupported) {
       ParseCollection(attr, &printer_info->document_formats);
@@ -376,6 +393,42 @@ bool ParsePrinterInfo(ipp_t* response, PrinterInfo* printer_info) {
         oauth_error = true;
         LOG(WARNING) << "Cannot parse oauth-authorization-scope.";
       }
+    } else if (name == kDocumentFormatPreferred) {
+      int tag = ippGetValueTag(attr);
+      if (tag != IPP_TAG_TEXT && tag != IPP_TAG_TEXTLANG) {
+        LOG(WARNING) << "document-format-preferred value tag is " << tag << ".";
+      }
+      const char* document_format_preferred_string =
+          ippGetString(attr, 0, nullptr);
+      if (document_format_preferred_string) {
+        printer_info->document_format_preferred =
+            document_format_preferred_string;
+      }
+    } else if (name == kDocumentFormatDefault) {
+      int tag = ippGetValueTag(attr);
+      if (tag != IPP_TAG_TEXT && tag != IPP_TAG_TEXTLANG) {
+        LOG(WARNING) << "document-format-default value tag is " << tag << ".";
+      }
+      const char* document_format_default_string =
+          ippGetString(attr, 0, nullptr);
+      if (document_format_default_string) {
+        printer_info->document_format_default = document_format_default_string;
+      }
+    } else if (name == kUrfSupported) {
+      ParseCollection(attr, &printer_info->urf_supported);
+    } else if (name == kPdfVersions) {
+      ParseCollection(attr, &printer_info->pdf_versions);
+    } else if (name == kMopriaCertified) {
+      int tag = ippGetValueTag(attr);
+      if (tag != IPP_TAG_TEXT && tag != IPP_TAG_TEXTLANG) {
+        LOG(WARNING) << "mopria-certified value tag is " << tag << ".";
+      }
+      const char* mopria_certified_string = ippGetString(attr, 0, nullptr);
+      if (mopria_certified_string) {
+        printer_info->mopria_certified = mopria_certified_string;
+      }
+    } else if (name == kPrinterKind) {
+      ParseCollection(attr, &printer_info->printer_kind);
     }
   }
 
@@ -418,9 +471,11 @@ bool CupsJob::ContainsStateReason(CupsJob::JobStateReason reason) const {
 
 PrinterInfo::PrinterInfo() = default;
 
+PrinterInfo::PrinterInfo(const PrinterInfo& other) = default;
+
 PrinterInfo::~PrinterInfo() = default;
 
-const base::StringPiece ToJobStateReasonString(
+const std::string_view ToJobStateReasonString(
     CupsJob::JobStateReason state_reason) {
   switch (state_reason) {
     case CupsJob::JobStateReason::kJobCompletedWithErrors:
@@ -497,7 +552,7 @@ void ParsePrinterStatus(ipp_t* response, PrinterStatus* printer_status) {
     if (!value) {
       continue;
     }
-    base::StringPiece name(value);
+    std::string_view name(value);
 
     if (name == kPrinterState) {
       DCHECK_EQ(IPP_TAG_ENUM, ippGetValueTag(attr));
@@ -530,20 +585,22 @@ PrinterQueryResult GetPrinterInfo(const std::string& address,
   http_addrlist_t* addr_list = httpAddrGetList(
       address.c_str(), AF_UNSPEC, base::NumberToString(port).c_str());
   if (!addr_list) {
-    LOG(WARNING) << "Unable to resolve IP address from hostname";
+    LOG(WARNING) << "Unable to resolve IP address from hostname " << address
+                 << ": " << cupsLastErrorString();
     return PrinterQueryResult::kHostnameResolution;
   }
 
-  ScopedHttpPtr http = ScopedHttpPtr(httpConnect2(
+  ScopedHttpPtr http = HttpConnect2(
       address.c_str(), port, addr_list, AF_UNSPEC,
       encrypted ? HTTP_ENCRYPTION_ALWAYS : HTTP_ENCRYPTION_IF_REQUESTED, 0,
-      kHttpConnectTimeoutMs, nullptr));
+      kHttpConnectTimeoutMs, nullptr);
   if (!http) {
-    LOG(WARNING) << "Could not connect to host";
+    LOG(WARNING) << "Could not connect to host " << address << ":" << port
+                 << ": " << cupsLastErrorString();
     return PrinterQueryResult::kUnreachable;
   }
 
-  // TODO(crbug.com/821497): Use a library to canonicalize the URL.
+  // TODO(crbug.com/172213155): Use a library to canonicalize the URL.
   size_t first_non_slash = resource.find_first_not_of('/');
   const std::string path = (first_non_slash == std::string::npos)
                                ? ""
@@ -558,7 +615,7 @@ PrinterQueryResult GetPrinterInfo(const std::string& address,
       http.get(), printer_uri, resource, kPrinterInfoAndStatus.size(),
       kPrinterInfoAndStatus.data(), &status);
   if (StatusError(status) || response.get() == nullptr) {
-    LOG(WARNING) << "Get attributes failure: "
+    LOG(WARNING) << "Failed to get attributes from " << printer_uri << ": "
                  << base::StringPrintf("0x%04x", status);
     return PrinterQueryResult::kUnknownFailure;
   }
@@ -581,8 +638,11 @@ bool GetPrinterStatus(http_t* http,
       GetPrinterAttributes(http, printer_uri, "/", kPrinterAttributes.size(),
                            kPrinterAttributes.data(), &status);
 
-  if (status != IPP_STATUS_OK)
+  if (status != IPP_STATUS_OK) {
+    LOG(WARNING) << "Failed to get printer status from " << printer_uri << ": "
+                 << cupsLastErrorString();
     return false;
+  }
 
   ParsePrinterStatus(response.get(), printer_status);
 
@@ -616,7 +676,8 @@ bool GetCupsJobs(http_t* http,
                nullptr, which == COMPLETED ? kCompleted : kNotCompleted);
 
   if (ippValidateAttributes(request.get()) != 1) {
-    LOG(WARNING) << "Could not validate ipp request: " << cupsLastErrorString();
+    LOG(WARNING) << "Could not validate Get-Jobs ipp request: "
+                 << cupsLastErrorString();
     return false;
   }
 

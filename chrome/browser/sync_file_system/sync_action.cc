@@ -21,7 +21,6 @@ const char* SyncActionToString(SyncAction action) {
   }
 
   NOTREACHED();
-  return "Unknown SyncAction";
 }
 
 }  // namespace sync_file_system

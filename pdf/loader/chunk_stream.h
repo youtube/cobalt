@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "pdf/loader/range_set.h"
 
 namespace chrome_pdf {
@@ -54,8 +55,10 @@ class ChunkStream {
       const size_t chunk_start = start % kChunkSize;
       const size_t len =
           std::min(kChunkSize - chunk_start, range.end() - start);
-      memcpy(data_buffer, data_[chunk_index]->data() + chunk_start, len);
-      data_buffer += len;
+      UNSAFE_TODO({
+        memcpy(data_buffer, data_[chunk_index]->data() + chunk_start, len);
+        data_buffer += len;
+      });
       start += len;
     }
     return true;

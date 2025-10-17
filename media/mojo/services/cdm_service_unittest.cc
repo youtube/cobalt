@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "base/unguessable_token.h"
@@ -150,7 +151,7 @@ class CdmServiceTest : public testing::Test {
 
   // MojoCdmService will always create/use `mock_cdm_factory_` and `mock_cdm_`,
   // so it's easier to set expectations on them.
-  scoped_refptr<MockCdm> mock_cdm_{new MockCdm()};
+  scoped_refptr<MockCdm> mock_cdm_ = base::MakeRefCounted<MockCdm>();
   MockCdmFactory mock_cdm_factory_{mock_cdm_};
   NiceMock<MockCdmContext> cdm_context_;
 
@@ -158,21 +159,22 @@ class CdmServiceTest : public testing::Test {
   void OnCdmCreated(bool expected_result,
                     mojo::PendingRemote<mojom::ContentDecryptionModule> remote,
                     mojom::CdmContextPtr cdm_context,
-                    const std::string& error_message) {
+                    CreateCdmStatus status) {
     if (!expected_result) {
       EXPECT_FALSE(remote);
       EXPECT_FALSE(cdm_context);
-      EXPECT_TRUE(!error_message.empty());
+      EXPECT_NE(status, CreateCdmStatus::kSuccess);
       return;
     }
     EXPECT_TRUE(remote);
-    EXPECT_TRUE(error_message.empty());
+    EXPECT_EQ(status, CreateCdmStatus::kSuccess);
     cdm_remote_.Bind(std::move(remote));
     cdm_remote_.set_disconnect_handler(base::BindOnce(
         &CdmServiceTest::CdmConnectionClosed, base::Unretained(this)));
   }
   std::unique_ptr<CdmService> service_;
-  raw_ptr<MockCdmServiceClient> mock_cdm_service_client_ = nullptr;
+  raw_ptr<MockCdmServiceClient, AcrossTasksDanglingUntriaged>
+      mock_cdm_service_client_ = nullptr;
 };
 
 }  // namespace

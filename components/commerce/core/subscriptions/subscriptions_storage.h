@@ -5,7 +5,6 @@
 #ifndef COMPONENTS_COMMERCE_CORE_SUBSCRIPTIONS_SUBSCRIPTIONS_STORAGE_H_
 #define COMPONENTS_COMMERCE_CORE_SUBSCRIPTIONS_SUBSCRIPTIONS_STORAGE_H_
 
-#include <queue>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -105,10 +104,10 @@ class SubscriptionsStorage {
   SubscriptionsStorage();
 
  private:
-  void SaveSubscription(CommerceSubscription subscription,
+  void SaveSubscription(const CommerceSubscription& subscription,
                         base::OnceCallback<void(bool)> callback);
 
-  void DeleteSubscription(CommerceSubscription subscription,
+  void DeleteSubscription(const CommerceSubscription& subscription,
                           base::OnceCallback<void(bool)> callback);
 
   CommerceSubscription GetSubscriptionFromProto(

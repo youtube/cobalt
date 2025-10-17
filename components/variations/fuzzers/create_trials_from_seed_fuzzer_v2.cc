@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 #include <memory>
-#include "components/variations/client_filterable_state.h"
-#include "components/variations/variations_seed_processor.h"
 
 #include "base/at_exit.h"
 #include "base/command_line.h"
@@ -12,9 +10,12 @@
 #include "base/metrics/field_trial.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_command_line.h"
+#include "components/variations/client_filterable_state.h"
 #include "components/variations/entropy_provider.h"
 #include "components/variations/fuzzers/create_trials_from_seed_test_case.pb.h"
 #include "components/variations/proto/study.pb.h"
+#include "components/variations/variations_layers.h"
+#include "components/variations/variations_seed_processor.h"
 #include "components/variations/variations_test_utils.h"
 #include "testing/libfuzzer/proto/lpm_interface.h"
 
@@ -29,8 +30,9 @@ struct Environment {
 
 EntropyProviders CreateEntropyProviders(
     const CreateTrialsFromSeedTestCase::EntropyValues& entropy_values) {
-  return EntropyProviders(entropy_values.client_id(),
-                          {entropy_values.low_entropy(), 8000});
+  return EntropyProviders(
+      entropy_values.client_id(), {entropy_values.low_entropy(), 8000},
+      entropy_values.limited_entropy_randomization_source());
 }
 
 std::unique_ptr<ClientFilterableState> CreateClientFilterableState(
@@ -53,10 +55,18 @@ std::unique_ptr<ClientFilterableState> CreateClientFilterableState(
   if (!spec.version().empty()) {
     client_state->version = base::Version(
         std::vector<uint32_t>(spec.version().begin(), spec.version().end()));
+  } else {
+    // Default constructed version is invalid as per base::Version so we use
+    // placeholder value instead.
+    client_state->version = base::Version({0, 0, 0, 0});
   }
   if (!spec.os_version().empty()) {
     client_state->os_version = base::Version(std::vector<uint32_t>(
         spec.os_version().begin(), spec.os_version().end()));
+  } else {
+    // Default constructed version is invalid as per base::Version so we use
+    // placeholder value instead.
+    client_state->os_version = base::Version(std::vector<uint32_t>{0, 0});
   }
   if (spec.has_channel()) {
     client_state->channel = spec.channel();
@@ -118,10 +128,11 @@ void CreateTrialsFromSeedFuzzer(
     return;
   }
 
+  auto seed = test_case.seed();
+  VariationsLayers layers(seed, entropy_providers);
   VariationsSeedProcessor().CreateTrialsFromSeed(
-      test_case.seed(), *client_state,
-      base::BindRepeating(NoopUIStringOverrideCallback), entropy_providers,
-      &feature_list);
+      seed, *client_state, base::BindRepeating(NoopUIStringOverrideCallback),
+      entropy_providers, layers, &feature_list);
 }
 
 }  // namespace

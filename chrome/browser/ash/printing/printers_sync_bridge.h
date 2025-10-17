@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,9 +15,8 @@
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/sync/model/conflict_resolution.h"
-#include "components/sync/model/model_type_store.h"
-#include "components/sync/model/model_type_sync_bridge.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/sync/model/data_type_store.h"
+#include "components/sync/model/data_type_sync_bridge.h"
 
 namespace sync_pb {
 class PrinterSpecifics;
@@ -26,9 +26,9 @@ namespace ash {
 
 // Moderates interaction with the backing database and integrates with the User
 // Sync Service for printers.
-class PrintersSyncBridge : public syncer::ModelTypeSyncBridge {
+class PrintersSyncBridge : public syncer::DataTypeSyncBridge {
  public:
-  PrintersSyncBridge(syncer::OnceModelTypeStoreFactory callback,
+  PrintersSyncBridge(syncer::OnceDataTypeStoreFactory callback,
                      base::RepeatingClosure error_callback);
 
   PrintersSyncBridge(const PrintersSyncBridge&) = delete;
@@ -36,19 +36,22 @@ class PrintersSyncBridge : public syncer::ModelTypeSyncBridge {
 
   ~PrintersSyncBridge() override;
 
-  // ModelTypeSyncBridge implementation.
+  // DataTypeSyncBridge implementation.
   std::unique_ptr<syncer::MetadataChangeList> CreateMetadataChangeList()
       override;
-  absl::optional<syncer::ModelError> MergeFullSyncData(
+  std::optional<syncer::ModelError> MergeFullSyncData(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_data) override;
-  absl::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
+  std::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_changes) override;
-  void GetData(StorageKeyList storage_keys, DataCallback callback) override;
-  void GetAllDataForDebugging(DataCallback callback) override;
-  std::string GetClientTag(const syncer::EntityData& entity_data) override;
-  std::string GetStorageKey(const syncer::EntityData& entity_data) override;
+  std::unique_ptr<syncer::DataBatch> GetDataForCommit(
+      StorageKeyList storage_keys) override;
+  std::unique_ptr<syncer::DataBatch> GetAllDataForDebugging() override;
+  std::string GetClientTag(
+      const syncer::EntityData& entity_data) const override;
+  std::string GetStorageKey(
+      const syncer::EntityData& entity_data) const override;
   syncer::ConflictResolution ResolveConflict(
       const std::string& storage_key,
       const syncer::EntityData& remote_data) const override;
@@ -63,7 +66,7 @@ class PrintersSyncBridge : public syncer::ModelTypeSyncBridge {
   // Returns all printers stored in the database and synced.
   std::vector<sync_pb::PrinterSpecifics> GetAllPrinters() const;
   // Returns the printer with |id| from storage if it could be found.
-  absl::optional<sync_pb::PrinterSpecifics> GetPrinter(
+  std::optional<sync_pb::PrinterSpecifics> GetPrinter(
       const std::string& id) const;
   // Returns whether or not the printer with |id| is contained in the storage.
   bool HasPrinter(const std::string& id) const;
@@ -86,11 +89,11 @@ class PrintersSyncBridge : public syncer::ModelTypeSyncBridge {
   // Stores |specifics| locally in |all_data_| and record change in |batch|.
   // |data_lock_| must be acquired before calling this funciton.
   void StoreSpecifics(std::unique_ptr<sync_pb::PrinterSpecifics> specifics,
-                      syncer::ModelTypeStore::WriteBatch* batch);
+                      syncer::DataTypeStore::WriteBatch* batch);
   // Removes the specific with |id| from |all_data_| and update |batch| with the
   // change. |data_lock_| must be acquired before calling this function.
   bool DeleteSpecifics(const std::string& id,
-                       syncer::ModelTypeStore::WriteBatch* batch);
+                       syncer::DataTypeStore::WriteBatch* batch);
   // Merges the |printer| with an existing |printer| if their ids match.
   // Otherwise, adds the printer.  Returns true if the printer is new.
   // |data_lock_| must be acquired before calling this funciton.

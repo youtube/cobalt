@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import 'chrome://resources/ash/common/cr_elements/cr_button/cr_button.js';
 
 import {html, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {Authenticator} from '../gaia_auth_host/authenticator.js';
+
+import {getTemplate} from './gaia_action_buttons.html.js';
 
 /**
  * @typedef {{
@@ -36,14 +38,14 @@ export class GaiaActionButtonsElement extends PolymerElement {
   }
 
   static get template() {
-    return html`{__html_template__}`;
+    return getTemplate();
   }
 
   static get properties() {
     return {
       /**
-       * The auth extension host instance.
-       * @type {?Authenticator}
+       * The authenticator instance.
+       * type {?Authenticator} (omitting @ on purpose since it breaks TS)
        */
       authenticator: {
         type: Object,
@@ -86,12 +88,12 @@ export class GaiaActionButtonsElement extends PolymerElement {
   /** @private */
   authenticatorChanged_() {
     if (this.authenticator) {
-      this.addAuthExtHostListeners_();
+      this.addAuthenticatorListeners_();
     }
   }
 
   /** @private */
-  addAuthExtHostListeners_() {
+  addAuthenticatorListeners_() {
     authenticatorEventListeners.forEach(listenParams => {
       this.authenticator.addEventListener(listenParams.event, e => {
         this.set(`data_.${listenParams.field}`, e.detail);
@@ -163,10 +165,10 @@ export class GaiaActionButtonsElement extends PolymerElement {
     return cssClasses.join(' ');
   }
 
-  /** @param {Object} authExtHost */
-  setAuthExtHostForTest(authExtHost) {
-    this.authenticator = /** @type {Authenticator} */ (authExtHost);
-    this.addAuthExtHostListeners_();
+  /** @param {Object} authenticator */
+  setAuthenticatorForTest(authenticator) {
+    this.authenticator = /** @type {Authenticator} */ (authenticator);
+    this.addAuthenticatorListeners_();
   }
 }
 

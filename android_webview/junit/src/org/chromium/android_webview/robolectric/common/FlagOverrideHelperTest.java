@@ -24,24 +24,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Unit tests for FlagOverrideHelper.
- */
+/** Unit tests for FlagOverrideHelper. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class FlagOverrideHelperTest {
     @Before
     public void setUp() {
         // Create a fresh CommandLine instance for each test.
-        CommandLine.init(null);
+        CommandLine.resetForTesting(true);
     }
 
     private static final Flag[] sMockFlagList = {
-            Flag.commandLine("flag-1", "This is flag 1"),
-            Flag.commandLine("flag-2", "This is flag 2"),
-            Flag.commandLine("flag-3", "This is flag 3", "some-value"),
-            Flag.baseFeature("feature-1", "This is feature 1"),
-            Flag.baseFeature("feature-2", "This is feature 2"),
+        Flag.commandLine("flag-1", "This is flag 1"),
+        Flag.commandLine("flag-2", "This is flag 2"),
+        Flag.commandLine("flag-3", "This is flag 3", "some-value"),
+        Flag.baseFeature("feature-1", "This is feature 1"),
+        Flag.baseFeature("feature-2", "This is feature 2"),
     };
 
     private <T> Set<T> arrayToSet(T... array) {
@@ -50,11 +48,13 @@ public class FlagOverrideHelperTest {
 
     private void assertFeaturesHelper(Set<String> expectedFeaturesSet, boolean enabled) {
         Set<String> actualFeaturesSet =
-                new HashSet<>(FlagOverrideHelper.getCommaDelimitedSwitchValue(
-                        enabled ? "enable-features" : "disable-features"));
+                new HashSet<>(
+                        FlagOverrideHelper.getCommaDelimitedSwitchValue(
+                                enabled ? "enable-features" : "disable-features"));
         Assert.assertEquals(
                 String.format("Wrong set of %s features", enabled ? "enabled" : "disabled"),
-                expectedFeaturesSet, actualFeaturesSet);
+                expectedFeaturesSet,
+                actualFeaturesSet);
     }
 
     private void assertEnabledFeatures(Set<String> expectedFeaturesSet) {
@@ -102,7 +102,8 @@ public class FlagOverrideHelperTest {
         map.put("flag-1", true);
         FlagOverrideHelper helper = new FlagOverrideHelper(sMockFlagList);
         helper.applyFlagOverrides(map);
-        Assert.assertTrue("The 'flag-1' commandline flag should be applied",
+        Assert.assertTrue(
+                "The 'flag-1' commandline flag should be applied",
                 CommandLine.getInstance().hasSwitch("flag-1"));
     }
 
@@ -113,9 +114,11 @@ public class FlagOverrideHelperTest {
         map.put("flag-1", true);
         FlagOverrideHelper helper = new FlagOverrideHelper(sMockFlagList);
         helper.applyFlagOverrides(map);
-        Assert.assertTrue("The 'flag-1' commandline flag should be applied",
+        Assert.assertTrue(
+                "The 'flag-1' commandline flag should be applied",
                 CommandLine.getInstance().hasSwitch("flag-1"));
-        Assert.assertNull("The 'flag-1' commandline flag should not have a value",
+        Assert.assertNull(
+                "The 'flag-1' commandline flag should not have a value",
                 CommandLine.getInstance().getSwitchValue("flag-1"));
     }
 
@@ -126,7 +129,9 @@ public class FlagOverrideHelperTest {
         map.put("flag-3", true);
         FlagOverrideHelper helper = new FlagOverrideHelper(sMockFlagList);
         helper.applyFlagOverrides(map);
-        Assert.assertEquals("The 'flag-3' commandline flag should have a value", "some-value",
+        Assert.assertEquals(
+                "The 'flag-3' commandline flag should have a value",
+                "some-value",
                 CommandLine.getInstance().getSwitchValue("flag-3"));
     }
 
@@ -137,7 +142,8 @@ public class FlagOverrideHelperTest {
         map.put("flag-2", false);
         FlagOverrideHelper helper = new FlagOverrideHelper(sMockFlagList);
         helper.applyFlagOverrides(map);
-        Assert.assertFalse("The 'flag-2' commandline flag should not be applied",
+        Assert.assertFalse(
+                "The 'flag-2' commandline flag should not be applied",
                 CommandLine.getInstance().hasSwitch("flag-2"));
     }
 
@@ -149,7 +155,8 @@ public class FlagOverrideHelperTest {
         map.put("flag-2", false);
         FlagOverrideHelper helper = new FlagOverrideHelper(sMockFlagList);
         helper.applyFlagOverrides(map);
-        Assert.assertFalse("The 'flag-2' commandline flag should not be applied",
+        Assert.assertFalse(
+                "The 'flag-2' commandline flag should not be applied",
                 CommandLine.getInstance().hasSwitch("flag-2"));
     }
 
@@ -266,11 +273,59 @@ public class FlagOverrideHelperTest {
         FlagOverrideHelper helper = new FlagOverrideHelper(sMockFlagList);
         helper.applyFlagOverrides(map);
 
-        Assert.assertTrue("The 'flag-1' commandline flag should be applied",
+        Assert.assertTrue(
+                "The 'flag-1' commandline flag should be applied",
                 CommandLine.getInstance().hasSwitch("flag-1"));
-        Assert.assertFalse("The 'flag-2' commandline flag should not be applied",
+        Assert.assertFalse(
+                "The 'flag-2' commandline flag should not be applied",
                 CommandLine.getInstance().hasSwitch("flag-2"));
         assertEnabledFeatures(arrayToSet("feature-1"));
         assertDisabledFeatures(arrayToSet("feature-2"));
+    }
+
+    @Test
+    @SmallTest
+    public void testMultipleOverrides() {
+        Map<String, Boolean> map1 = new HashMap<>();
+        map1.put("flag-1", true);
+        map1.put("flag-2", false);
+        map1.put("feature-1", true);
+        map1.put("feature-2", false);
+        FlagOverrideHelper helper1 = new FlagOverrideHelper(sMockFlagList);
+        helper1.applyFlagOverrides(map1);
+
+        Assert.assertTrue(
+                "The 'flag-1' commandline flag should be applied",
+                CommandLine.getInstance().hasSwitch("flag-1"));
+        Assert.assertFalse(
+                "The 'flag-2' commandline flag should not be applied",
+                CommandLine.getInstance().hasSwitch("flag-2"));
+        Assert.assertFalse(
+                "The 'flag-3' commandline flag should be off by default",
+                CommandLine.getInstance().hasSwitch("flag-3"));
+        assertEnabledFeatures(arrayToSet("feature-1"));
+        assertDisabledFeatures(arrayToSet("feature-2"));
+
+        Map<String, Boolean> map2 = new HashMap<>();
+        // Try a variety of ways to override.
+        map2.put("flag-1", !map1.get("flag-1")); // invert the switch value
+        map2.put("flag-2", map1.get("flag-2")); // keep the same switch value
+        // Don't do anything with feature-1
+        map2.put("feature-2", !map1.get("feature-2")); // invert the feature value
+        map2.put("flag-3", true); // add a new flag
+        FlagOverrideHelper helper2 = new FlagOverrideHelper(sMockFlagList);
+        helper2.applyFlagOverrides(map2);
+
+        Assert.assertFalse(
+                "The 'flag-1' commandline flag should be removed by the second FlagOverrideHelper",
+                CommandLine.getInstance().hasSwitch("flag-1"));
+        Assert.assertFalse(
+                "The 'flag-2' commandline flag should not be applied by the second"
+                        + " FlagOverrideHelper",
+                CommandLine.getInstance().hasSwitch("flag-2"));
+        Assert.assertTrue(
+                "The 'flag-3' commandline flag should be added by the second FlagOverrideHelper",
+                CommandLine.getInstance().hasSwitch("flag-3"));
+        assertEnabledFeatures(arrayToSet("feature-1", "feature-2"));
     }
 }

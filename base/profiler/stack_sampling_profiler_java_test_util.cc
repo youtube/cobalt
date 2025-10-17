@@ -4,8 +4,10 @@
 
 #include "base/profiler/stack_sampling_profiler_java_test_util.h"
 
-#include "base/base_profiler_test_support_jni_headers/TestSupport_jni.h"
 #include "base/location.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/base_profiler_test_support_jni/TestSupport_jni.h"
 
 namespace base {
 
@@ -34,7 +36,7 @@ void JNI_TestSupport_InvokeCallbackFunction(JNIEnv* env, jlong context) {
 }
 
 FunctionAddressRange callWithJavaFunction(OnceClosure closure) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   UnwinderJavaTestSupportParams params{std::move(closure), {}};
   base::Java_TestSupport_callWithJavaFunction(
       env, reinterpret_cast<uintptr_t>(&params));

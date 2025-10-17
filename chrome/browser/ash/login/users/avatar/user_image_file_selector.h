@@ -34,11 +34,8 @@ class UserImageFileSelector : public ui::SelectFileDialog::Listener {
   gfx::NativeWindow GetBrowserWindow();
 
   // ui::SelectFileDialog::Listener implementation.
-  void FileSelected(const base::FilePath& path,
-                    int index,
-                    void* params) override;
-
-  void FileSelectionCanceled(void* params) override;
+  void FileSelected(const ui::SelectedFileInfo& file, int index) override;
+  void FileSelectionCanceled() override;
 
   raw_ptr<content::WebUI> web_ui_;
 

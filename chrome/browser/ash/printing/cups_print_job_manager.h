@@ -51,10 +51,10 @@ class CupsPrintJobManager : public KeyedService {
     virtual void OnPrintJobCancelled(base::WeakPtr<CupsPrintJob> job) {}
 
    protected:
-    ~Observer() override {}
+    ~Observer() override = default;
   };
 
-  static CupsPrintJobManager* CreateInstance(Profile* profile);
+  static std::unique_ptr<CupsPrintJobManager> CreateInstance(Profile* profile);
 
   explicit CupsPrintJobManager(Profile* profile);
   CupsPrintJobManager(const CupsPrintJobManager&) = delete;
@@ -70,7 +70,7 @@ class CupsPrintJobManager : public KeyedService {
   virtual bool CreatePrintJob(
       const std::string& printer_id,
       const std::string& title,
-      int job_id,
+      uint32_t job_id,
       int total_page_number,
       ::printing::PrintJob::Source source,
       const std::string& source_id,
@@ -95,14 +95,14 @@ class CupsPrintJobManager : public KeyedService {
   void NotifyJobFailed(base::WeakPtr<CupsPrintJob> job);
   void NotifyJobDone(base::WeakPtr<CupsPrintJob> job);
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
 
  private:
   friend class crosapi::TestControllerAsh;
   void RecordJobDuration(base::WeakPtr<CupsPrintJob> job);
 
-  std::unique_ptr<CupsPrintJobNotificationManager> notification_manager_;
   base::ObserverList<Observer> observers_;
+  std::unique_ptr<CupsPrintJobNotificationManager> notification_manager_;
 
   // Keyed by CupsPrintJob's unique ID
   std::map<std::string, base::TimeTicks> print_job_start_times_;

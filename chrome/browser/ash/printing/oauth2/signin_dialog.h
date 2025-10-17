@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/chrome_web_modal_dialog_manager_delegate.h"
 #include "components/web_modal/web_contents_modal_dialog_host.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/window/dialog_delegate.h"
 
@@ -31,9 +32,9 @@ class SigninDialog : public views::DialogDelegateView,
                      public ChromeWebModalDialogManagerDelegate,
                      public web_modal::WebContentsModalDialogHost,
                      public content::WebContentsObserver {
- public:
-  METADATA_HEADER(SigninDialog);
+  METADATA_HEADER(SigninDialog, views::DialogDelegateView)
 
+ public:
   explicit SigninDialog(content::BrowserContext* browser_context);
 
   SigninDialog(const SigninDialog&) = delete;
@@ -60,8 +61,9 @@ class SigninDialog : public views::DialogDelegateView,
   void RemoveObserver(web_modal::ModalDialogHostObserver* observer) override;
 
   // views::DialogDelegateView:
-  gfx::Size CalculatePreferredSize() const override;
-  ui::ModalType GetModalType() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
+  ui::mojom::ModalType GetModalType() const override;
   views::View* GetInitiallyFocusedView() override;
 
   // content::WebContentsObserver:

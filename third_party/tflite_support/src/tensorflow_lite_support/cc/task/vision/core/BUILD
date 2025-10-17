@@ -1,7 +1,6 @@
 load("@org_tensorflow//tensorflow/lite/core/shims:cc_library_with_tflite.bzl", "cc_library_with_tflite")
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = [
         "//tensorflow_lite_support:internal",
     ],
@@ -24,7 +23,6 @@ cc_library_with_tflite(
     deps = [
         ":frame_buffer",
         "//tensorflow_lite_support/cc:common",
-        "//tensorflow_lite_support/cc/port:integral_types",
         "//tensorflow_lite_support/cc/port:status_macros",
         "//tensorflow_lite_support/cc/task/core:task_utils",
         "//tensorflow_lite_support/cc/task/vision/proto:bounding_box_proto_inc",
@@ -43,7 +41,6 @@ cc_library(
     hdrs = ["frame_buffer.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//tensorflow_lite_support/cc/port:integral_types",
         "//tensorflow_lite_support/cc/port:statusor",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",

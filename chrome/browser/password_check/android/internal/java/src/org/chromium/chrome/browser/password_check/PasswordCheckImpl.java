@@ -9,29 +9,26 @@ import android.content.Context;
 import android.os.Bundle;
 
 import org.chromium.base.ObserverList;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.password_check.PasswordCheckBridge.PasswordCheckObserver;
-import org.chromium.chrome.browser.password_manager.PasswordChangeSuccessTrackerBridge;
 import org.chromium.chrome.browser.password_manager.PasswordCheckReferrer;
-import org.chromium.components.browser_ui.settings.SettingsLauncher;
+import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 
-/**
- * This class is responsible for managing the saved passwords check for signed-in users.
- */
+/** This class is responsible for managing the saved passwords check for signed-in users. */
+@NullMarked
 class PasswordCheckImpl implements PasswordCheck, PasswordCheckObserver {
     private final PasswordCheckBridge mPasswordCheckBridge;
     private final ObserverList<Observer> mObserverList;
-    private final SettingsLauncher mSettingsLauncher;
 
     private boolean mCompromisedCredentialsFetched;
     private boolean mSavedPasswordsFetched;
     private @PasswordCheckUIStatus int mStatus = PasswordCheckUIStatus.IDLE;
 
-    PasswordCheckImpl(SettingsLauncher settingsLauncher) {
+    PasswordCheckImpl() {
         mCompromisedCredentialsFetched = false;
         mSavedPasswordsFetched = false;
         mPasswordCheckBridge = new PasswordCheckBridge(this);
         mObserverList = new ObserverList<>();
-        mSettingsLauncher = settingsLauncher;
     }
 
     @Override
@@ -39,8 +36,8 @@ class PasswordCheckImpl implements PasswordCheck, PasswordCheckObserver {
         Bundle fragmentArgs = new Bundle();
         fragmentArgs.putInt(
                 PasswordCheckFragmentView.PASSWORD_CHECK_REFERRER, passwordCheckReferrer);
-        mSettingsLauncher.launchSettingsActivity(
-                context, PasswordCheckFragmentView.class, fragmentArgs);
+        SettingsNavigationFactory.createSettingsNavigation()
+                .startSettings(context, PasswordCheckFragmentView.class, fragmentArgs);
     }
 
     @Override
@@ -86,7 +83,7 @@ class PasswordCheckImpl implements PasswordCheck, PasswordCheckObserver {
 
     @Override
     public void onEditCredential(CompromisedCredential credential, Context context) {
-        mPasswordCheckBridge.onEditCredential(credential, context, mSettingsLauncher);
+        mPasswordCheckBridge.onEditCredential(credential, context);
     }
 
     @Override
@@ -154,8 +151,7 @@ class PasswordCheckImpl implements PasswordCheck, PasswordCheckObserver {
     }
 
     @Override
-    public void onManualPasswordChangeStarted(CompromisedCredential credential) {
-        PasswordChangeSuccessTrackerBridge.onManualPasswordChangeStarted(
-                credential.getAssociatedUrl(), credential.getUsername());
+    public boolean hasAccountForRequest() {
+        return mPasswordCheckBridge.hasAccountForRequest();
     }
 }

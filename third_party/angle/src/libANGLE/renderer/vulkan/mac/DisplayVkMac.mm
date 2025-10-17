@@ -11,10 +11,10 @@
 
 #include <vulkan/vulkan.h>
 
-#include "libANGLE/renderer/vulkan/RendererVk.h"
 #include "libANGLE/renderer/vulkan/mac/IOSurfaceSurfaceVkMac.h"
 #include "libANGLE/renderer/vulkan/mac/WindowSurfaceVkMac.h"
 #include "libANGLE/renderer/vulkan/vk_caps_utils.h"
+#include "libANGLE/renderer/vulkan/vk_renderer.h"
 
 #import <Cocoa/Cocoa.h>
 
@@ -55,7 +55,7 @@ egl::ConfigSet DisplayVkMac::generateConfigs()
 void DisplayVkMac::checkConfigSupport(egl::Config *config)
 {
     // TODO(geofflang): Test for native support and modify the config accordingly.
-    // anglebug.com/2692
+    // anglebug.com/42261400
 }
 
 const char *DisplayVkMac::getWSIExtension() const
@@ -89,7 +89,7 @@ egl::Error DisplayVkMac::validateClientBuffer(const egl::Config *configuration,
 
     if (!IOSurfaceSurfaceVkMac::ValidateAttributes(this, clientBuffer, attribs))
     {
-        return egl::EglBadAttribute();
+        return egl::Error(EGL_BAD_ATTRIBUTE);
     }
     return egl::NoError();
 }

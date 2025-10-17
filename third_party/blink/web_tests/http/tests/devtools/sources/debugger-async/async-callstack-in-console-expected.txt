@@ -1,56 +1,66 @@
 Tests asynchronous call stacks printed in console.
 
 Set timer for test function.
-async-callstack-in-console.js:18 Console was cleared
-async-callstack-in-console.js:24 console.trace
+async-callstack-in-console.js:22 Console was cleared
 
-timeout1 @ async-callstack-in-console.js:24
 
-setTimeout (async)
+async-callstack-in-console.js:28 console.trace
 
-testFunction @ async-callstack-in-console.js:19
-async-callstack-in-console.js:31 Uncaught Error: foo
-    at timeout2 (async-callstack-in-console.js:31:17)
+timeout1 @ async-callstack-in-console.js:28
 
-timeout2 @ async-callstack-in-console.js:31
+setTimeout
 
-setTimeout (async)
+testFunction @ async-callstack-in-console.js:23
 
-timeout1 @ async-callstack-in-console.js:25
 
-setTimeout (async)
+async-callstack-in-console.js:35 Uncaught Error: foo
+    at timeout2 (async-callstack-in-console.js:35:17)
 
-testFunction @ async-callstack-in-console.js:19
-async-callstack-in-console.js:36 console.trace
+timeout2 @ async-callstack-in-console.js:35
 
-timeout3 @ async-callstack-in-console.js:36
+setTimeout
 
-setTimeout (async)
+timeout1 @ async-callstack-in-console.js:29
 
-timeout2 @ async-callstack-in-console.js:30
+setTimeout
 
-setTimeout (async)
+testFunction @ async-callstack-in-console.js:23
 
-timeout1 @ async-callstack-in-console.js:25
 
-setTimeout (async)
+async-callstack-in-console.js:40 console.trace
 
-testFunction @ async-callstack-in-console.js:19
-async-callstack-in-console.js:44 Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('http://www.example.com') does not match the recipient window's origin ('http://127.0.0.1:8000').
+timeout3 @ async-callstack-in-console.js:40
 
-tryPostMessage @ async-callstack-in-console.js:44
+setTimeout
 
-timeout3 @ async-callstack-in-console.js:38
+timeout2 @ async-callstack-in-console.js:34
 
-setTimeout (async)
+setTimeout
 
-timeout2 @ async-callstack-in-console.js:30
+timeout1 @ async-callstack-in-console.js:29
 
-setTimeout (async)
+setTimeout
 
-timeout1 @ async-callstack-in-console.js:25
+testFunction @ async-callstack-in-console.js:23
 
-setTimeout (async)
 
-testFunction @ async-callstack-in-console.js:19
+async-callstack-in-console.js:48 Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('http://www.example.com') does not match the recipient window's origin ('http://127.0.0.1:8000').
+
+tryPostMessage @ async-callstack-in-console.js:48
+
+timeout3 @ async-callstack-in-console.js:42
+
+setTimeout
+
+timeout2 @ async-callstack-in-console.js:34
+
+setTimeout
+
+timeout1 @ async-callstack-in-console.js:29
+
+setTimeout
+
+testFunction @ async-callstack-in-console.js:23
+
+
 

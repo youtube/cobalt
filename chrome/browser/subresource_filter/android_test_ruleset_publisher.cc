@@ -15,9 +15,11 @@
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/after_startup_task_utils.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/subresource_filter/jni_headers/TestRulesetPublisher_jni.h"
-#include "components/subresource_filter/content/browser/ruleset_service.h"
+#include "components/subresource_filter/content/shared/browser/ruleset_service.h"
 #include "components/subresource_filter/core/common/test_ruleset_creator.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/browser/subresource_filter/jni_headers/TestRulesetPublisher_jni.h"
 
 namespace {
 
@@ -37,17 +39,16 @@ void OnRulesetPublished(
 void JNI_TestRulesetPublisher_CreateAndPublishRulesetDisallowingSuffixForTesting(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& publisher_param,
-    const base::android::JavaParamRef<jstring>& suffix) {
+    std::string& suffix) {
   subresource_filter::testing::TestRulesetPair test_ruleset_pair;
   auto creator =
       std::make_unique<subresource_filter::testing::TestRulesetCreator>();
-  std::string suffix_str = base::android::ConvertJavaStringToUTF8(env, suffix);
-  creator->CreateRulesetToDisallowURLsWithPathSuffix(suffix_str,
+  creator->CreateRulesetToDisallowURLsWithPathSuffix(suffix,
                                                      &test_ruleset_pair);
 
   subresource_filter::UnindexedRulesetInfo unindexed_ruleset_info;
   unindexed_ruleset_info.content_version =
-      base::NumberToString(base::Hash(suffix_str));
+      base::NumberToString(base::Hash(suffix));
   unindexed_ruleset_info.ruleset_path = test_ruleset_pair.unindexed.path;
 
   base::android::ScopedJavaGlobalRef<jobject> publisher;

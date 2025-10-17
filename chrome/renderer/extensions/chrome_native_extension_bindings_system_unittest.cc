@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_features.h"
 #include "extensions/common/features/feature_developer_mode_only.h"
+#include "extensions/common/mojom/context_type.mojom.h"
 #include "extensions/renderer/bindings/api_binding_test_util.h"
 #include "extensions/renderer/dispatcher.h"
 #include "extensions/renderer/native_extension_bindings_system.h"
@@ -14,10 +16,29 @@
 
 namespace extensions {
 
+namespace {
+
+constexpr char kCallUserScriptsRegister[] =
+    R"((function() {
+         chrome.userScripts.register(
+             [{
+                id: 'script',
+                matches: ['*://*/*'],
+                js: [{file: 'script.js'}],
+             }]);
+       });)";
+
+constexpr char kCallDebuggerGetTargets[] =
+    R"((function() {
+         chrome.debugger.getTargets();
+       });)";
+
+}  // namespace
+
 TEST_F(NativeExtensionBindingsSystemUnittest, InitializeContext) {
   scoped_refptr<const Extension> extension =
       ExtensionBuilder("foo")
-          .AddPermissions({"idle", "power", "webRequest", "tabs"})
+          .AddAPIPermissions({"idle", "power", "webRequest", "tabs"})
           .Build();
   RegisterExtension(extension);
 
@@ -25,7 +46,7 @@ TEST_F(NativeExtensionBindingsSystemUnittest, InitializeContext) {
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
@@ -47,84 +68,134 @@ TEST_F(NativeExtensionBindingsSystemUnittest, InitializeContext) {
   ASSERT_TRUE(query->IsFunction());
 }
 
-TEST_F(NativeExtensionBindingsSystemUnittest,
-       RestrictDeveloperModeAPIsUserIsInDeveloperMode) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      extensions_features::kRestrictDeveloperModeAPIs);
+// Tests that Developer Mode controls API visibility. The API controlled
+// depends on feature state.
+class DeveloperModeBindingsSystemUnittest
+    : public NativeExtensionBindingsSystemUnittest,
+      public testing::WithParamInterface<bool> {
+ public:
+  DeveloperModeBindingsSystemUnittest() {
+    user_scripts_api_controlled_by_dev_mode_ = GetParam();
+    if (user_scripts_api_controlled_by_dev_mode_) {
+      // Ensure chrome.userScripts is controlled by Developer Mode.
+      scoped_feature_list_.InitWithFeatures(
+          /*enabled_features=*/{}, /*disabled_features=*/{
+              extensions_features::kUserScriptUserExtensionToggle,
+              extensions_features::kDebuggerAPIRestrictedToDevMode});
 
+    } else {
+      // Ensure chrome.debugger is controlled by Developer Mode.
+      scoped_feature_list_.InitWithFeatures(
+          /*enabled_features=*/
+          {extensions_features::kUserScriptUserExtensionToggle,
+           extensions_features::kDebuggerAPIRestrictedToDevMode},
+          /*disabled_features=*/{});
+    }
+  }
+
+  DeveloperModeBindingsSystemUnittest(
+      const DeveloperModeBindingsSystemUnittest&) = delete;
+  DeveloperModeBindingsSystemUnittest& operator=(
+      const DeveloperModeBindingsSystemUnittest&) = delete;
+  ~DeveloperModeBindingsSystemUnittest() override = default;
+
+ protected:
+  bool user_scripts_api_controlled_by_dev_mode() {
+    return user_scripts_api_controlled_by_dev_mode_;
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  bool user_scripts_api_controlled_by_dev_mode_;
+};
+
+TEST_P(DeveloperModeBindingsSystemUnittest,
+       RestrictDeveloperModeAPIsUserIsInDeveloperMode) {
   // With kDeveloperModeRestriction enabled, developer mode-only APIs
   // should be available if and only if the user is in dev mode.
   SetCurrentDeveloperMode(kRendererProfileId, true);
 
-  scoped_refptr<const Extension> extension =
-      ExtensionBuilder("foo").AddPermissions({"debugger"}).Build();
+  std::string api_name =
+      user_scripts_api_controlled_by_dev_mode() ? "userScripts" : "debugger";
+
+  scoped_refptr<const Extension> extension = ExtensionBuilder("foo")
+                                                 .AddAPIPermission(api_name)
+                                                 .SetManifestVersion(3)
+                                                 .Build();
   RegisterExtension(extension);
 
   v8::HandleScope handle_scope(isolate());
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
 
-  // chrome.debugger.getTargets should exist.
   v8::Local<v8::Value> chrome =
       GetPropertyFromObject(context->Global(), context, "chrome");
   ASSERT_FALSE(chrome.IsEmpty());
   ASSERT_TRUE(chrome->IsObject());
+  v8::Local<v8::Value> api = GetPropertyFromObject(
+      v8::Local<v8::Object>::Cast(chrome), context, api_name);
+  ASSERT_FALSE(api.IsEmpty());
+  ASSERT_TRUE(api->IsObject());
 
-  v8::Local<v8::Value> debugger = GetPropertyFromObject(
-      v8::Local<v8::Object>::Cast(chrome), context, "debugger");
-  ASSERT_FALSE(debugger.IsEmpty());
-  ASSERT_TRUE(debugger->IsObject());
-
-  v8::Local<v8::Object> debugger_object = v8::Local<v8::Object>::Cast(debugger);
-  v8::Local<v8::Value> debugger_getTargets =
-      GetPropertyFromObject(debugger_object, context, "getTargets");
-  ASSERT_FALSE(debugger_getTargets.IsEmpty());
+  // `api_name`.`api_method` should exist.
+  v8::Local<v8::Object> api_object = v8::Local<v8::Object>::Cast(api);
+  std::string api_method =
+      user_scripts_api_controlled_by_dev_mode() ? "register" : "getTargets";
+  v8::Local<v8::Value> api_method_call =
+      GetPropertyFromObject(api_object, context, api_method);
+  ASSERT_FALSE(api_method_call.IsEmpty());
 
   {
-    // Call the function correctly.
-    const char kCallDebuggerGetTargets[] =
-        R"((function() {
-          chrome.debugger.getTargets(function() {});
-        });)";
-
-    v8::Local<v8::Function> call_debugger_getTargets =
-        FunctionFromString(context, kCallDebuggerGetTargets);
-    RunFunctionOnGlobal(call_debugger_getTargets, context, 0, nullptr);
+    v8::Local<v8::Function> call_api_method =
+        FunctionFromString(context, user_scripts_api_controlled_by_dev_mode()
+                                        ? kCallUserScriptsRegister
+                                        : kCallDebuggerGetTargets);
+    RunFunctionOnGlobal(call_api_method, context, 0, nullptr);
   }
 
   // Validate the params that would be sent to the browser.
-  EXPECT_EQ(extension->id(), last_params().extension_id);
-  EXPECT_EQ("debugger.getTargets", last_params().name);
-  EXPECT_EQ(extension->url(), last_params().source_url);
   EXPECT_TRUE(last_params().has_callback);
-  EXPECT_EQ(last_params().arguments, ListValueFromString("[ ]"));
+  if (user_scripts_api_controlled_by_dev_mode()) {
+    EXPECT_EQ(extension->id(), last_params().extension_id);
+    EXPECT_EQ("userScripts.register", last_params().name);
+    EXPECT_EQ(extension->url(), last_params().source_url);
+    // No need to look at the full arguments, but sanity check their general
+    // shape.
+    EXPECT_EQ(1u, last_params().arguments.size());
+    EXPECT_EQ(base::Value::Type::LIST, last_params().arguments[0].type());
+  } else {
+    EXPECT_EQ("debugger.getTargets", last_params().name);
+    // No need to look at the full arguments, but sanity check their general
+    // shape.
+    EXPECT_EQ(0u, last_params().arguments.size());
+  }
 }
 
-TEST_F(NativeExtensionBindingsSystemUnittest,
+TEST_P(DeveloperModeBindingsSystemUnittest,
        RestrictDeveloperModeAPIsUserIsNotInDeveloperModeAndHasPermission) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      extensions_features::kRestrictDeveloperModeAPIs);
-
   // With kDeveloperModeRestriction enabled, developer mode-only APIs
   // should not be available if the user is not in dev mode.
   SetCurrentDeveloperMode(kRendererProfileId, false);
 
-  scoped_refptr<const Extension> extension =
-      ExtensionBuilder("foo").AddPermissions({"debugger"}).Build();
+  std::string api_name =
+      user_scripts_api_controlled_by_dev_mode() ? "userScripts" : "debugger";
+
+  scoped_refptr<const Extension> extension = ExtensionBuilder("foo")
+                                                 .AddAPIPermission(api_name)
+                                                 .SetManifestVersion(3)
+                                                 .Build();
   RegisterExtension(extension);
 
   v8::HandleScope handle_scope(isolate());
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
@@ -135,26 +206,22 @@ TEST_F(NativeExtensionBindingsSystemUnittest,
   ASSERT_TRUE(chrome->IsObject());
 
   {
-    const char kCallDebuggerGetTargets[] =
-        R"((function() {
-          chrome.debugger(function() {});
-        });)";
-
-    v8::Local<v8::Function> call_debugger_getTargets =
-        FunctionFromString(context, kCallDebuggerGetTargets);
-    RunFunctionAndExpectError(call_debugger_getTargets, context, 0, nullptr,
-                              "Uncaught Error: The 'debugger' API is only "
-                              "available for users in developer mode.");
+    v8::Local<v8::Function> call_api_method =
+        FunctionFromString(context, user_scripts_api_controlled_by_dev_mode()
+                                        ? kCallUserScriptsRegister
+                                        : kCallDebuggerGetTargets);
+    std::string expected_error = base::StringPrintf(
+        "Uncaught Error: The '%s' API is only "
+        "available for users in developer mode.",
+        api_name);
+    RunFunctionAndExpectError(call_api_method, context, 0, nullptr,
+                              expected_error);
   }
 }
 
-TEST_F(
-    NativeExtensionBindingsSystemUnittest,
+TEST_P(
+    DeveloperModeBindingsSystemUnittest,
     RestrictDeveloperModeAPIsUserIsNotInDeveloperModeAndDoesNotHavePermission) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      extensions_features::kRestrictDeveloperModeAPIs);
-
   SetCurrentDeveloperMode(kRendererProfileId, false);
 
   scoped_refptr<const Extension> extension = ExtensionBuilder("foo").Build();
@@ -164,7 +231,7 @@ TEST_F(
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
@@ -174,10 +241,20 @@ TEST_F(
   ASSERT_FALSE(chrome.IsEmpty());
   ASSERT_TRUE(chrome->IsObject());
 
-  v8::Local<v8::Value> debugger = GetPropertyFromObject(
-      v8::Local<v8::Object>::Cast(chrome), context, "debugger");
-  ASSERT_FALSE(debugger.IsEmpty());
-  EXPECT_TRUE(debugger->IsUndefined());
+  std::string api_name =
+      user_scripts_api_controlled_by_dev_mode() ? "userScripts" : "debugger";
+
+  v8::Local<v8::Value> api = GetPropertyFromObject(
+      v8::Local<v8::Object>::Cast(chrome), context, api_name);
+  ASSERT_FALSE(api.IsEmpty());
+  EXPECT_TRUE(api->IsUndefined());
 }
+
+INSTANTIATE_TEST_SUITE_P(UserScriptsAPIControlledByDeveloperMode,
+                         DeveloperModeBindingsSystemUnittest,
+                         testing::ValuesIn({true}));
+INSTANTIATE_TEST_SUITE_P(DebuggerAPIControlledByDeveloperMode,
+                         DeveloperModeBindingsSystemUnittest,
+                         testing::ValuesIn({false}));
 
 }  // namespace extensions

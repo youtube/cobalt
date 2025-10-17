@@ -1,19 +1,20 @@
 #include "quiche/http2/adapter/oghttp2_adapter.h"
 
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/adapter/http2_util.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {
 namespace adapter {
 
 namespace {
 
-using spdy::SpdyGoAwayIR;
 using spdy::SpdyPingIR;
 using spdy::SpdyPriorityIR;
 using spdy::SpdyWindowUpdateIR;
@@ -59,10 +60,9 @@ void OgHttp2Adapter::SubmitShutdownNotice() {
 void OgHttp2Adapter::SubmitGoAway(Http2StreamId last_accepted_stream_id,
                                   Http2ErrorCode error_code,
                                   absl::string_view opaque_data) {
-  session_->EnqueueFrame(std::make_unique<SpdyGoAwayIR>(
-      last_accepted_stream_id, TranslateErrorCode(error_code),
-      std::string(opaque_data)));
+  session_->SubmitGoAway(last_accepted_stream_id, error_code, opaque_data);
 }
+
 void OgHttp2Adapter::SubmitWindowUpdate(Http2StreamId stream_id,
                                         int window_increment) {
   session_->EnqueueFrame(
@@ -75,6 +75,15 @@ void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
   // Not necessary to pass max_frame_size along, since OgHttp2Session tracks the
   // peer's advertised max frame size.
   session_->SubmitMetadata(stream_id, std::move(source));
+}
+
+void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
+                                    size_t /* num_frames */) {
+  // Not necessary to pass max_frame_size along, since OgHttp2Session tracks the
+  // peer's advertised max frame size. Not necessary to pass the number of
+  // frames along, since OgHttp2Session will invoke the visitor method until it
+  // is done packing the payload.
+  session_->SubmitMetadata(stream_id);
 }
 
 int OgHttp2Adapter::Send() { return session_->Send(); }
@@ -130,16 +139,15 @@ void OgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
       stream_id, TranslateErrorCode(error_code)));
 }
 
-int32_t OgHttp2Adapter::SubmitRequest(
-    absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source, void* user_data) {
-  return session_->SubmitRequest(headers, std::move(data_source), user_data);
+int32_t OgHttp2Adapter::SubmitRequest(absl::Span<const Header> headers,
+                                      bool end_stream, void* user_data) {
+  return session_->SubmitRequest(headers, end_stream, user_data);
 }
 
-int OgHttp2Adapter::SubmitResponse(
-    Http2StreamId stream_id, absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source) {
-  return session_->SubmitResponse(stream_id, headers, std::move(data_source));
+int OgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
+                                   absl::Span<const Header> headers,
+                                   bool end_stream) {
+  return session_->SubmitResponse(stream_id, headers, end_stream);
 }
 
 int OgHttp2Adapter::SubmitTrailer(Http2StreamId stream_id,

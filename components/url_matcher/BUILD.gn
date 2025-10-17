@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//testing/libfuzzer/fuzzer_test.gni")
+
 component("url_matcher") {
   sources = [
     "regex_set_matcher.cc",
@@ -21,7 +23,6 @@ component("url_matcher") {
 
   public_deps = [
     "//base",
-    "//base/third_party/dynamic_annotations",
     "//components/google/core/common",
     "//components/url_formatter",
     "//net",
@@ -40,7 +41,18 @@ source_set("unit_tests") {
   ]
   deps = [
     ":url_matcher",
+    "//base/test/:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//url:url",
+  ]
+}
+
+fuzzer_test("url_matcher_fuzzer") {
+  sources = [ "url_matcher_fuzzer.cc" ]
+  deps = [
+    ":url_matcher",
+    "//base",
+    "//base:i18n",
   ]
 }

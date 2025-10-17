@@ -7,14 +7,15 @@
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "openssl/sha.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/aes_128_gcm_12_decrypter.h"
@@ -373,7 +374,7 @@ QuicServerConfigProtobuf QuicCryptoServerConfig::GenerateConfig(
     QUICHE_DCHECK(options.orbit.empty());
     rand->RandBytes(orbit_bytes, sizeof(orbit_bytes));
   }
-  msg.SetStringPiece(kORBT,
+  msg.SetStringPiece(kOBIT,
                      absl::string_view(orbit_bytes, sizeof(orbit_bytes)));
 
   if (options.channel_id_enabled) {
@@ -437,7 +438,7 @@ std::unique_ptr<CryptoHandshakeMessage> QuicCryptoServerConfig::AddConfig(
   }
 
   {
-    QuicWriterMutexLock locked(&configs_lock_);
+    absl::WriterMutexLock locked(&configs_lock_);
     if (configs_.find(config->id) != configs_.end()) {
       QUIC_LOG(WARNING) << "Failed to add config because another with the same "
                            "server config id already exists: "
@@ -500,7 +501,7 @@ bool QuicCryptoServerConfig::SetConfigs(
 
   QUIC_LOG(INFO) << "Updating configs:";
 
-  QuicWriterMutexLock locked(&configs_lock_);
+  absl::WriterMutexLock locked(&configs_lock_);
   ConfigMap new_configs;
 
   for (const quiche::QuicheReferenceCountedPointer<Config>& config :
@@ -551,7 +552,7 @@ void QuicCryptoServerConfig::SetSourceAddressTokenKeys(
 }
 
 std::vector<std::string> QuicCryptoServerConfig::GetConfigIds() const {
-  QuicReaderMutexLock locked(&configs_lock_);
+  absl::ReaderMutexLock locked(&configs_lock_);
   std::vector<std::string> scids;
   for (auto it = configs_.begin(); it != configs_.end(); ++it) {
     scids.push_back(it->first);
@@ -748,7 +749,7 @@ void QuicCryptoServerConfig::ProcessClientHello(
   if (!context->signed_config()->chain) {
     const std::string chlo_hash = CryptoUtils::HashHandshakeMessage(
         context->client_hello(), Perspective::IS_SERVER);
-    const QuicSocketAddress server_address = context->server_address();
+    const QuicSocketAddress context_server_address = context->server_address();
     const std::string sni = std::string(context->info().sni);
     const QuicTransportVersion transport_version = context->transport_version();
 
@@ -756,7 +757,7 @@ void QuicCryptoServerConfig::ProcessClientHello(
         this, std::move(context), configs);
 
     QUICHE_DCHECK(proof_source_.get());
-    proof_source_->GetProof(server_address, client_address, sni,
+    proof_source_->GetProof(context_server_address, client_address, sni,
                             configs.primary->serialized, transport_version,
                             chlo_hash, std::move(cb));
     return;
@@ -915,7 +916,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     context->Fail(QUIC_CRYPTO_INTERNAL_ERROR, "Failed to get certs");
     return;
   }
-  hkdf_suffix.append(context->signed_config()->chain->certs.at(0));
+  hkdf_suffix.append(context->signed_config()->chain->certs[0]);
 
   absl::string_view cetv_ciphertext;
   if (configs.requested->channel_id_enabled &&
@@ -1122,7 +1123,7 @@ bool QuicCryptoServerConfig::GetCurrentConfigs(
     const QuicWallTime& now, absl::string_view requested_scid,
     quiche::QuicheReferenceCountedPointer<Config> old_primary_config,
     Configs* configs) const {
-  QuicReaderMutexLock locked(&configs_lock_);
+  absl::ReaderMutexLock locked(&configs_lock_);
 
   if (!primary_config_) {
     return false;
@@ -1339,6 +1340,7 @@ void QuicCryptoServerConfig::EvaluateClientHello(
   // for DoS reasons then we must reject the CHLO.
   if (GetQuicReloadableFlag(quic_require_handshake_confirmation) &&
       info->server_nonce.empty()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_require_handshake_confirmation);
     info->reject_reasons.push_back(SERVER_NONCE_REQUIRED_FAILURE);
   }
   helper.ValidationComplete(QUIC_NO_ERROR, "",
@@ -1357,7 +1359,7 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
   std::string serialized;
   std::string source_address_token;
   {
-    QuicReaderMutexLock locked(&configs_lock_);
+    absl::ReaderMutexLock locked(&configs_lock_);
     serialized = primary_config_->serialized;
     source_address_token = NewSourceAddressToken(
         *primary_config_->source_address_token_boxer,
@@ -1535,7 +1537,7 @@ void QuicCryptoServerConfig::BuildRejection(
           std::unique_ptr<CertificateView> view =
               CertificateView::ParseSingleCertificate(certs[0]);
           if (view != nullptr) {
-            absl::optional<std::string> maybe_ca_subject =
+            std::optional<std::string> maybe_ca_subject =
                 view->GetHumanReadableSubject();
             if (maybe_ca_subject.has_value()) {
               ca_subject = *maybe_ca_subject;
@@ -1628,8 +1630,8 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
   }
 
   absl::string_view orbit;
-  if (!msg->GetStringPiece(kORBT, &orbit)) {
-    QUIC_LOG(WARNING) << "Server config message is missing ORBT";
+  if (!msg->GetStringPiece(kOBIT, &orbit)) {
+    QUIC_LOG(WARNING) << "Server config message is missing OBIT";
     return nullptr;
   }
 
@@ -1715,7 +1717,7 @@ void QuicCryptoServerConfig::set_enable_serving_sct(bool enable_serving_sct) {
 
 void QuicCryptoServerConfig::AcquirePrimaryConfigChangedCb(
     std::unique_ptr<PrimaryConfigChangedCallback> cb) {
-  QuicWriterMutexLock locked(&configs_lock_);
+  absl::WriterMutexLock locked(&configs_lock_);
   primary_config_changed_cb_ = std::move(cb);
 }
 
@@ -1756,7 +1758,7 @@ std::string QuicCryptoServerConfig::NewSourceAddressToken(
 }
 
 int QuicCryptoServerConfig::NumberOfConfigs() const {
-  QuicReaderMutexLock locked(&configs_lock_);
+  absl::ReaderMutexLock locked(&configs_lock_);
   return configs_.size();
 }
 
@@ -1779,11 +1781,11 @@ HandshakeFailureReason QuicCryptoServerConfig::ParseSourceAddressToken(
     // Some clients might still be using the old source token format so
     // attempt to parse that format.
     // TODO(rch): remove this code once the new format is ubiquitous.
-    SourceAddressToken token;
-    if (!token.ParseFromArray(plaintext.data(), plaintext.size())) {
+    SourceAddressToken old_source_token;
+    if (!old_source_token.ParseFromArray(plaintext.data(), plaintext.size())) {
       return SOURCE_ADDRESS_TOKEN_PARSE_FAILURE;
     }
-    *tokens.add_tokens() = token;
+    *tokens.add_tokens() = old_source_token;
   }
 
   return HANDSHAKE_OK;
@@ -1872,7 +1874,7 @@ bool QuicCryptoServerConfig::ValidateExpectedLeafCertificate(
   if (client_hello.GetUint64(kXLCT, &hash_from_client) != QUIC_NO_ERROR) {
     return false;
   }
-  return CryptoUtils::ComputeLeafCertHash(certs.at(0)) == hash_from_client;
+  return CryptoUtils::ComputeLeafCertHash(certs[0]) == hash_from_client;
 }
 
 bool QuicCryptoServerConfig::IsNextConfigReady(QuicWallTime now) const {

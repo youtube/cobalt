@@ -13,11 +13,9 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 
-/**
- * Unit tests for CloudManagementSharedPreferencesTest.
- */
+/** Unit tests for CloudManagementSharedPreferencesTest. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class CloudManagementSharedPreferencesTest {
@@ -28,59 +26,64 @@ public class CloudManagementSharedPreferencesTest {
     @SmallTest
     public void testSaveDmToken() {
         CloudManagementSharedPreferences.saveDmToken(DM_TOKEN);
-        Assert.assertEquals(SharedPreferencesManager.getInstance().readString(
-                                    ChromePreferenceKeys.CLOUD_MANAGEMENT_DM_TOKEN, ""),
-                DM_TOKEN);
+        Assert.assertEquals(
+                DM_TOKEN,
+                ChromeSharedPreferences.getInstance()
+                        .readString(ChromePreferenceKeys.CLOUD_MANAGEMENT_DM_TOKEN, ""));
     }
 
     @Test
     @SmallTest
     public void testDeleteDmToken() {
         CloudManagementSharedPreferences.saveDmToken(DM_TOKEN);
-        Assert.assertEquals(SharedPreferencesManager.getInstance().readString(
-                                    ChromePreferenceKeys.CLOUD_MANAGEMENT_DM_TOKEN, ""),
-                DM_TOKEN);
+        Assert.assertEquals(
+                DM_TOKEN,
+                ChromeSharedPreferences.getInstance()
+                        .readString(ChromePreferenceKeys.CLOUD_MANAGEMENT_DM_TOKEN, ""));
         CloudManagementSharedPreferences.deleteDmToken();
-        Assert.assertEquals(SharedPreferencesManager.getInstance().readString(
-                                    ChromePreferenceKeys.CLOUD_MANAGEMENT_DM_TOKEN, ""),
-                "");
+        Assert.assertEquals(
+                "",
+                ChromeSharedPreferences.getInstance()
+                        .readString(ChromePreferenceKeys.CLOUD_MANAGEMENT_DM_TOKEN, ""));
     }
 
     @Test
     @SmallTest
     public void testDeleteEmptyDmToken() {
         CloudManagementSharedPreferences.deleteDmToken();
-        Assert.assertEquals(SharedPreferencesManager.getInstance().readString(
-                                    ChromePreferenceKeys.CLOUD_MANAGEMENT_DM_TOKEN, ""),
-                "");
+        Assert.assertEquals(
+                "",
+                ChromeSharedPreferences.getInstance()
+                        .readString(ChromePreferenceKeys.CLOUD_MANAGEMENT_DM_TOKEN, ""));
     }
 
     @Test
     @SmallTest
     public void testReadDmToken() {
-        Assert.assertEquals(CloudManagementSharedPreferences.readDmToken(), "");
+        Assert.assertEquals("", CloudManagementSharedPreferences.readDmToken());
 
-        SharedPreferencesManager.getInstance().writeString(
-                ChromePreferenceKeys.CLOUD_MANAGEMENT_DM_TOKEN, DM_TOKEN);
-        Assert.assertEquals(CloudManagementSharedPreferences.readDmToken(), DM_TOKEN);
+        ChromeSharedPreferences.getInstance()
+                .writeString(ChromePreferenceKeys.CLOUD_MANAGEMENT_DM_TOKEN, DM_TOKEN);
+        Assert.assertEquals(DM_TOKEN, CloudManagementSharedPreferences.readDmToken());
     }
 
     @Test
     @SmallTest
     public void testSaveClientId() {
         CloudManagementSharedPreferences.saveClientId(CLIENT_ID);
-        Assert.assertEquals(SharedPreferencesManager.getInstance().readString(
-                                    ChromePreferenceKeys.CLOUD_MANAGEMENT_CLIENT_ID, ""),
-                CLIENT_ID);
+        Assert.assertEquals(
+                CLIENT_ID,
+                ChromeSharedPreferences.getInstance()
+                        .readString(ChromePreferenceKeys.CLOUD_MANAGEMENT_CLIENT_ID, ""));
     }
 
     @Test
     @SmallTest
     public void testReadClientId() {
-        Assert.assertEquals(CloudManagementSharedPreferences.readClientId(), "");
+        Assert.assertEquals("", CloudManagementSharedPreferences.readClientId());
 
-        SharedPreferencesManager.getInstance().writeString(
-                ChromePreferenceKeys.CLOUD_MANAGEMENT_CLIENT_ID, CLIENT_ID);
-        Assert.assertEquals(CloudManagementSharedPreferences.readClientId(), CLIENT_ID);
+        ChromeSharedPreferences.getInstance()
+                .writeString(ChromePreferenceKeys.CLOUD_MANAGEMENT_CLIENT_ID, CLIENT_ID);
+        Assert.assertEquals(CLIENT_ID, CloudManagementSharedPreferences.readClientId());
     }
 }

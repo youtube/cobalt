@@ -20,7 +20,7 @@
 
 #include "third_party/blink/renderer/core/svg/svg_text_positioning_element.h"
 
-#include "third_party/blink/renderer/core/layout/ng/svg/layout_ng_svg_text.h"
+#include "third_party/blink/renderer/core/layout/svg/layout_svg_text.h"
 #include "third_party/blink/renderer/core/svg/svg_animated_length_list.h"
 #include "third_party/blink/renderer/core/svg/svg_animated_number_list.h"
 #include "third_party/blink/renderer/core/svg/svg_length_list.h"
@@ -50,15 +50,9 @@ SVGTextPositioningElement::SVGTextPositioningElement(
           this,
           svg_names::kDyAttr,
           MakeGarbageCollected<SVGLengthList>(SVGLengthMode::kHeight))),
-      rotate_(
-          MakeGarbageCollected<SVGAnimatedNumberList>(this,
-                                                      svg_names::kRotateAttr)) {
-  AddToPropertyMap(x_);
-  AddToPropertyMap(y_);
-  AddToPropertyMap(dx_);
-  AddToPropertyMap(dy_);
-  AddToPropertyMap(rotate_);
-}
+      rotate_(MakeGarbageCollected<SVGAnimatedNumberList>(
+          this,
+          svg_names::kRotateAttr)) {}
 
 void SVGTextPositioningElement::Trace(Visitor* visitor) const {
   visitor->Trace(x_);
@@ -72,29 +66,46 @@ void SVGTextPositioningElement::Trace(Visitor* visitor) const {
 void SVGTextPositioningElement::SvgAttributeChanged(
     const SvgAttributeChangedParams& params) {
   const QualifiedName& attr_name = params.name;
-  bool update_relative_lengths =
-      attr_name == svg_names::kXAttr || attr_name == svg_names::kYAttr ||
-      attr_name == svg_names::kDxAttr || attr_name == svg_names::kDyAttr;
-
-  if (update_relative_lengths)
-    UpdateRelativeLengthsInformation();
-
-  if (update_relative_lengths || attr_name == svg_names::kRotateAttr) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
-
+  if (attr_name == svg_names::kXAttr || attr_name == svg_names::kYAttr ||
+      attr_name == svg_names::kDxAttr || attr_name == svg_names::kDyAttr ||
+      attr_name == svg_names::kRotateAttr) {
     LayoutObject* layout_object = GetLayoutObject();
     if (!layout_object)
       return;
 
-    if (auto* ng_text =
-            LayoutNGSVGText::LocateLayoutSVGTextAncestor(layout_object)) {
-      ng_text->SetNeedsPositioningValuesUpdate();
+    if (auto* text =
+            LayoutSVGText::LocateLayoutSVGTextAncestor(layout_object)) {
+      text->SetNeedsPositioningValuesUpdate();
     }
     MarkForLayoutAndParentResourceInvalidation(*layout_object);
     return;
   }
 
   SVGTextContentElement::SvgAttributeChanged(params);
+}
+
+SVGAnimatedPropertyBase* SVGTextPositioningElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (attribute_name == svg_names::kXAttr) {
+    return x_.Get();
+  } else if (attribute_name == svg_names::kYAttr) {
+    return y_.Get();
+  } else if (attribute_name == svg_names::kDxAttr) {
+    return dx_.Get();
+  } else if (attribute_name == svg_names::kDyAttr) {
+    return dy_.Get();
+  } else if (attribute_name == svg_names::kRotateAttr) {
+    return rotate_.Get();
+  } else {
+    return SVGTextContentElement::PropertyFromAttribute(attribute_name);
+  }
+}
+
+void SVGTextPositioningElement::SynchronizeAllSVGAttributes() const {
+  SVGAnimatedPropertyBase* attrs[]{x_.Get(), y_.Get(), dx_.Get(), dy_.Get(),
+                                   rotate_.Get()};
+  SynchronizeListOfSVGAttributes(attrs);
+  SVGTextContentElement::SynchronizeAllSVGAttributes();
 }
 
 }  // namespace blink

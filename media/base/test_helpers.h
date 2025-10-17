@@ -22,13 +22,14 @@
 #include "media/base/sample_format.h"
 #include "media/base/status.h"
 #include "media/base/video_decoder_config.h"
+#include "media/base/video_frame.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace base {
 class RunLoop;
 class TimeDelta;
-}
+}  // namespace base
 
 namespace media {
 
@@ -95,32 +96,37 @@ class TestVideoConfig {
   // Returns a configuration that is invalid.
   static VideoDecoderConfig Invalid();
 
-  static VideoDecoderConfig Normal(VideoCodec codec = VideoCodec::kVP8);
+  static VideoDecoderConfig Normal(VideoCodec codec = VideoCodec::kAV1);
   static VideoDecoderConfig NormalWithColorSpace(
       VideoCodec codec,
       const VideoColorSpace& color_space);
   static VideoDecoderConfig NormalH264(VideoCodecProfile = H264PROFILE_MIN);
   static VideoDecoderConfig NormalCodecProfile(
-      VideoCodec codec = VideoCodec::kVP8,
+      VideoCodec codec = VideoCodec::kAV1,
       VideoCodecProfile profile = VP8PROFILE_MIN);
-  static VideoDecoderConfig NormalEncrypted(VideoCodec codec = VideoCodec::kVP8,
-                                            VideoCodecProfile = VP8PROFILE_MIN);
+  static VideoDecoderConfig NormalEncrypted(
+      VideoCodec codec = VideoCodec::kAV1);
+  static VideoDecoderConfig NormalEncrypted(VideoCodec codec,
+                                            VideoCodecProfile);
   static VideoDecoderConfig NormalRotated(VideoRotation rotation);
+  static VideoDecoderConfig NormalHdr(VideoCodec codec = VideoCodec::kAV1);
+  static VideoDecoderConfig NormalHdrEncrypted(
+      VideoCodec codec = VideoCodec::kAV1);
 
   // Returns a configuration that is larger in dimensions than Normal().
-  static VideoDecoderConfig Large(VideoCodec codec = VideoCodec::kVP8);
-  static VideoDecoderConfig LargeEncrypted(VideoCodec codec = VideoCodec::kVP8);
+  static VideoDecoderConfig Large(VideoCodec codec = VideoCodec::kAV1);
+  static VideoDecoderConfig LargeEncrypted(VideoCodec codec = VideoCodec::kAV1);
 
   // Returns a configuration that is larger in dimensions that Large().
-  static VideoDecoderConfig ExtraLarge(VideoCodec codec = VideoCodec::kVP8);
+  static VideoDecoderConfig ExtraLarge(VideoCodec codec = VideoCodec::kAV1);
   static VideoDecoderConfig ExtraLargeEncrypted(
-      VideoCodec codec = VideoCodec::kVP8);
+      VideoCodec codec = VideoCodec::kAV1);
 
   static VideoDecoderConfig Custom(gfx::Size size,
-                                   VideoCodec codec = VideoCodec::kVP8);
+                                   VideoCodec codec = VideoCodec::kAV1);
   static VideoDecoderConfig CustomEncrypted(
       gfx::Size size,
-      VideoCodec codec = VideoCodec::kVP8);
+      VideoCodec codec = VideoCodec::kAV1);
 
   // Returns coded size for Normal and Large config.
   static gfx::Size NormalCodedSize();
@@ -214,10 +220,11 @@ scoped_refptr<AudioBuffer> MakeBitstreamAudioBuffer(
 //   start + frames * increment
 //   start + (frames + 1) * increment
 //   start + (frames + 2) * increment, ...
-void VerifyBitstreamAudioBus(AudioBus* bus,
-                             size_t data_size,
-                             uint8_t start,
-                             uint8_t increment);
+void VerifyBitstreamAudioBus(AudioBus* bus, uint8_t start, uint8_t increment);
+void VerifyBitstreamIECDtsAudioBus(AudioBus* bus,
+                                   size_t data_size,
+                                   uint8_t start,
+                                   uint8_t increment);
 
 // Create a fake video DecoderBuffer for testing purpose. The buffer contains
 // part of video decoder config info embedded so that the testing code can do
@@ -231,6 +238,12 @@ scoped_refptr<DecoderBuffer> CreateFakeVideoBufferForTest(
 // out and do not continue to decode or decrypt if subsamples do not match.
 scoped_refptr<DecoderBuffer> CreateMismatchedBufferForTest();
 
+// Create fake encrypted buffer for testing purposes.
+scoped_refptr<DecoderBuffer> CreateFakeEncryptedBuffer();
+
+// Create fake clear buffer for testing purposes.
+scoped_refptr<DecoderBuffer> CreateClearBuffer();
+
 // Verify if a fake video DecoderBuffer is valid.
 bool VerifyFakeVideoBufferForTest(const DecoderBuffer& buffer,
                                   const VideoDecoderConfig& config);
@@ -238,6 +251,20 @@ bool VerifyFakeVideoBufferForTest(const DecoderBuffer& buffer,
 // Create a MockDemuxerStream for testing purposes.
 std::unique_ptr<::testing::StrictMock<MockDemuxerStream>>
 CreateMockDemuxerStream(DemuxerStream::Type type, bool encrypted);
+
+// Fills `dest_frame` with a four color frame which looks like:
+//
+//   YYYYRRRR
+//   BBBBGGGG
+//
+// Supports 8-bit xRGB, BGRx, NV12x, and I4xxx formats. If `xor_mask` is
+// provided the standard four colors will be XOR'd with the provided 00RRGGBB
+// value (alpha value must be zero).
+void FillFourColors(VideoFrame& dest_frame,
+                    std::optional<uint32_t> xor_mask = std::nullopt);
+
+// Convert RGB color to YUV.
+std::tuple<uint8_t, uint8_t, uint8_t, uint8_t> RGBToYUV(uint32_t argb);
 
 // Compares two media::Status by StatusCode only.  Also allows the ok helper to
 // match kOk.  It's a special case because we don't know the TypedStatus traits

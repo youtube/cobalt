@@ -24,7 +24,7 @@
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/inline.h"
-#include "system_wrappers/include/sleep.h"
+#include "rtc_base/thread.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -105,15 +105,15 @@ struct ThreadParams {
   volatile uint32_t deadlock_region_start_address;
   volatile uint32_t deadlock_region_end_address;
   // Signaled when the deadlock is done.
-  rtc::Event deadlock_done_event;
+  webrtc::Event deadlock_done_event;
 };
 
 class RtcEventDeadlock : public DeadlockInterface {
  private:
-  void Deadlock() override { event.Wait(rtc::Event::kForever); }
+  void Deadlock() override { event.Wait(webrtc::Event::kForever); }
   void Release() override { event.Set(); }
 
-  rtc::Event event;
+  webrtc::Event event;
 };
 
 class RtcCriticalSectionDeadlock : public DeadlockInterface {
@@ -160,7 +160,7 @@ void TestStacktrace(std::unique_ptr<DeadlockInterface> deadlock_impl) {
   params.deadlock_impl = deadlock_impl.get();
 
   // Spawn thread.
-  auto thread = rtc::PlatformThread::SpawnJoinable(
+  auto thread = webrtc::PlatformThread::SpawnJoinable(
       [&params] {
         params.tid = gettid();
         params.deadlock_region_start_address =
@@ -176,7 +176,7 @@ void TestStacktrace(std::unique_ptr<DeadlockInterface> deadlock_impl) {
   // Wait until the thread has entered the deadlock region, and take a very
   // brief nap to give it time to reach the actual deadlock.
   params.deadlock_start_event.Wait();
-  SleepMs(1);
+  Thread::SleepMs(1);
 
   // Acquire the stack trace of the thread which should now be deadlocking.
   std::vector<StackTraceElement> stack_trace = GetStackTrace(params.tid);
@@ -185,19 +185,19 @@ void TestStacktrace(std::unique_ptr<DeadlockInterface> deadlock_impl) {
   deadlock_impl->Release();
 
   // Wait until the thread has left the deadlock.
-  params.deadlock_done_event.Wait(rtc::Event::kForever);
+  params.deadlock_done_event.Wait(webrtc::Event::kForever);
 
   // Assert that the stack trace contains the deadlock region.
   EXPECT_TRUE(StackTraceContainsRange(stack_trace,
                                       params.deadlock_region_start_address,
                                       params.deadlock_region_end_address))
       << "Deadlock region: ["
-      << rtc::ToHex(params.deadlock_region_start_address) << ", "
-      << rtc::ToHex(params.deadlock_region_end_address)
+      << webrtc::ToHex(params.deadlock_region_start_address) << ", "
+      << webrtc::ToHex(params.deadlock_region_end_address)
       << "] not contained in: " << StackTraceToString(stack_trace);
 }
 
-class LookoutLogSink final : public rtc::LogSink {
+class LookoutLogSink final : public webrtc::LogSink {
  public:
   explicit LookoutLogSink(std::string look_for)
       : look_for_(std::move(look_for)) {}
@@ -209,11 +209,11 @@ class LookoutLogSink final : public rtc::LogSink {
       when_found_.Set();
     }
   }
-  rtc::Event& WhenFound() { return when_found_; }
+  webrtc::Event& WhenFound() { return when_found_; }
 
  private:
   const std::string look_for_;
-  rtc::Event when_found_;
+  webrtc::Event when_found_;
 };
 
 }  // namespace
@@ -223,8 +223,8 @@ TEST(Stacktrace, TestCurrentThread) {
   const std::vector<StackTraceElement> stack_trace = GetStackTrace();
   const uint32_t end_addr = GetCurrentRelativeExecutionAddress();
   EXPECT_TRUE(StackTraceContainsRange(stack_trace, start_addr, end_addr))
-      << "Caller region: [" << rtc::ToHex(start_addr) << ", "
-      << rtc::ToHex(end_addr)
+      << "Caller region: [" << webrtc::ToHex(start_addr) << ", "
+      << webrtc::ToHex(end_addr)
       << "] not contained in: " << StackTraceToString(stack_trace);
 }
 
@@ -253,12 +253,12 @@ TEST(Stacktrace, TestRtcCriticalSection) {
 TEST(Stacktrace, TestRtcEventDeadlockDetection) {
   // Start looking for the expected log output.
   LookoutLogSink sink(/*look_for=*/"Probable deadlock");
-  rtc::LogMessage::AddLogToStream(&sink, rtc::LS_WARNING);
+  webrtc::LogMessage::AddLogToStream(&sink, webrtc::LS_WARNING);
 
   // Start a thread that waits for an event.
-  rtc::Event ev;
-  auto thread = rtc::PlatformThread::SpawnJoinable(
-      [&ev] { ev.Wait(rtc::Event::kForever); },
+  webrtc::Event ev;
+  auto thread = webrtc::PlatformThread::SpawnJoinable(
+      [&ev] { ev.Wait(webrtc::Event::kForever); },
       "TestRtcEventDeadlockDetection");
 
   // The message should appear after 3 sec. We'll wait up to 10 sec in an
@@ -268,7 +268,7 @@ TEST(Stacktrace, TestRtcEventDeadlockDetection) {
   // Unblock the thread and shut it down.
   ev.Set();
   thread.Finalize();
-  rtc::LogMessage::RemoveLogToStream(&sink);
+  webrtc::LogMessage::RemoveLogToStream(&sink);
 }
 
 }  // namespace test

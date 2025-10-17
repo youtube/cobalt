@@ -6,7 +6,8 @@
 #define COMPONENTS_EXO_SURFACE_H_
 
 #include <list>
-#include <set>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/functional/callback.h"
@@ -21,12 +22,11 @@
 #include "components/exo/surface_delegate.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
 #include "components/viz/common/resources/transferable_resource.h"
+#include "components/viz/common/surfaces/surface_id.h"
 #include "third_party/skia/include/core/SkBlendMode.h"
 #include "ui/aura/window.h"
 #include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/rrect_f.h"
-#include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/gfx/native_widget_types.h"
@@ -54,6 +54,14 @@ class CompositorFrame;
 }
 
 namespace exo {
+
+// Occluded surfaces can be detected and not emitted as a quad in the
+// corresponding compositor frame.
+BASE_DECLARE_FEATURE(kExoPerSurfaceOcclusion);
+// TODO(crbug.com/369003507): Remove this feature flag once we found the root
+// cause of crash on specific hatch platform.
+BASE_DECLARE_FEATURE(kDisableNonYUVOverlaysFromExo);
+
 class Buffer;
 class SecurityDelegate;
 class FrameSinkResourceManager;
@@ -104,6 +112,9 @@ class Surface final : public ui::PropertyHandler {
 
   aura::Window* window() const { return window_.get(); }
 
+  std::vector<raw_ptr<aura::Window, VectorExperimental>> GetChildWindows()
+      const;
+
   void set_leave_enter_callback(LeaveEnterCallback callback) {
     leave_enter_callback_ = callback;
   }
@@ -111,6 +122,9 @@ class Surface final : public ui::PropertyHandler {
   void set_legacy_buffer_release_skippable(bool skippable) {
     legacy_buffer_release_skippable_ = skippable;
   }
+
+  bool is_augmented() const { return is_augmented_; }
+  void set_is_augmented(bool augmented) { is_augmented_ = augmented; }
 
   // Called when the display the surface is on has changed.
   // Returns true if successful, and false if it fails.
@@ -184,18 +198,31 @@ class Surface final : public ui::PropertyHandler {
   void PlaceSubSurfaceBelow(Surface* sub_surface, Surface* sibling);
   void OnSubSurfaceCommit();
 
-  void SetRoundedCorners(const gfx::RRectF& rounded_corners_bounds);
+  using SubSurfaceEntry = std::pair<Surface*, gfx::PointF>;
+  using SubSurfaceEntryList = std::list<SubSurfaceEntry>;
+  SubSurfaceEntryList& sub_surfaces() { return sub_surfaces_; }
+  SubSurfaceEntryList& render_layers() { return render_layers_; }
+
+  // `rounded_corners_bounds` is on the local surface coordinates.
+  // If `commit` is true, rounded corner bounds are add to committed state,
+  // overriding the previously committed value.
+  void SetRoundedCorners(const gfx::RRectF& rounded_corners_bounds,
+                         bool commit_override);
   void SetOverlayPriorityHint(OverlayPriority hint);
 
   // Sets the surface's clip rectangle.
-  void SetClipRect(const absl::optional<gfx::RectF>& clip_rect);
+  void SetClipRect(const std::optional<gfx::RectF>& clip_rect);
+
+  // Sets the trace ID for tracking frame submission, which is used for the next
+  // surface commit.
+  void SetFrameTraceId(int64_t frame_trace_id);
 
   // Sets the surface's transformation matrix.
   void SetSurfaceTransform(const gfx::Transform& transform);
 
   // Sets the background color that shall be associated with the next buffer
   // commit.
-  void SetBackgroundColor(absl::optional<SkColor4f> background_color);
+  void SetBackgroundColor(std::optional<SkColor4f> background_color);
 
   // This sets the surface viewport for scaling.
   void SetViewport(const gfx::SizeF& viewport);
@@ -265,20 +292,13 @@ class Surface final : public ui::PropertyHandler {
   // Returns whether this surface or any of its subsurfaces contains a video.
   bool ContainsVideo();
 
-  // Enable embedding of an arbitrary viz surface in this exo surface.
-  // If the callback is valid, a SurfaceDrawQuad will be emitted targeting
-  // the returned SurfaceId each frame.
-  void SetEmbeddedSurfaceId(
-      base::RepeatingCallback<viz::SurfaceId()> surface_id_callback);
-
-  // Set the size of the embedded surface, to allow proper scaling.
-  void SetEmbeddedSurfaceSize(const gfx::Size& size);
-
   // Request that the attached surface buffer at the next commit is associated
   // with a gpu fence to be signaled when the buffer is ready for use.
   void SetAcquireFence(std::unique_ptr<gfx::GpuFence> gpu_fence);
   // Returns whether the surface has an uncommitted acquire fence.
   bool HasPendingAcquireFence() const;
+  // Returns whether the surface has a committed acquire fence.
+  bool HasAcquireFence() const;
 
   // Request a callback when the buffer attached at the next commit is
   // no longer used by that commit.
@@ -307,10 +327,11 @@ class Surface final : public ui::PropertyHandler {
 
   // This will append contents for surface and its descendants to frame.
   void AppendSurfaceHierarchyContentsToFrame(
-      const gfx::PointF& origin,
-      float device_scale_factor,
-      bool client_submits_in_pixel_coords,
+      const gfx::PointF& parent_to_root_px,
+      const gfx::PointF& to_parent_dp,
+      bool needs_full_damage,
       FrameSinkResourceManager* resource_manager,
+      std::optional<float> device_scale_factor,
       viz::CompositorFrame* frame);
 
   // Returns true if surface is in synchronized mode.
@@ -382,8 +403,12 @@ class Surface final : public ui::PropertyHandler {
   // Set occlusion tracking region for surface.
   void SetOcclusionTracking(bool tracking);
 
+  void OnScaleFactorChanged(float old_scale_factor, float new_scale_factor);
+
   // Triggers sending an occlusion update to observers.
-  void OnWindowOcclusionChanged();
+  void OnWindowOcclusionChanged(
+      aura::Window::OcclusionState old_occlusion_state,
+      aura::Window::OcclusionState new_occlusion_state);
 
   // Triggers sending a locking status to observers.
   // true : lock a frame to normal or restore state
@@ -439,7 +464,7 @@ class Surface final : public ui::PropertyHandler {
   void ThrottleFrameRate(bool on);
 
   // Informs tooltip is shown.
-  void OnTooltipShown(const std::u16string& text, const gfx::Rect& bounds);
+  void OnTooltipShown(std::u16string_view text, const gfx::Rect& bounds);
 
   // Informs tooltip is hidden.
   void OnTooltipHidden();
@@ -462,6 +487,9 @@ class Surface final : public ui::PropertyHandler {
   // A negative number removes it.
   void SetClientAccessibilityId(int id);
 
+  // Set top inset for surface.
+  void SetTopInset(int height);
+
   // Inform observers and subsurfaces about new fullscreen state
   void OnFullscreenStateChanged(bool fullscreen);
 
@@ -469,16 +497,26 @@ class Surface final : public ui::PropertyHandler {
     return state_.overlay_priority_hint;
   }
 
+  // Returns the buffer scale of the last committed buffer.
+  float GetBufferScale() const { return state_.basic_state.buffer_scale; }
+
+  int64_t GetFrameTraceId() const { return state_.frame_trace_id; }
+
+  // Returns the last committed buffer.
+  Buffer* GetBuffer();
+
+  // Dump Debug Info.
+  std::string DumpDebugInfo() const;
+
  private:
   struct State {
     State();
     ~State();
 
     bool operator==(const State& other) const;
-    bool operator!=(const State& other) const { return !(*this == other); }
 
     cc::Region opaque_region;
-    absl::optional<cc::Region> input_region;
+    std::optional<cc::Region> input_region;
     int input_outset = 0;
     float buffer_scale = 1.0f;
     Transform buffer_transform = Transform::NORMAL;
@@ -492,7 +530,7 @@ class Surface final : public ui::PropertyHandler {
     bool is_tracking_occlusion = false;
     // Represents optional background color that must be associated with the
     // next buffer commit.
-    absl::optional<SkColor4f> background_color;
+    std::optional<SkColor4f> background_color;
     bool contains_video = false;
   };
   class BufferAttachment {
@@ -528,7 +566,7 @@ class Surface final : public ui::PropertyHandler {
   // Some fields are persisted between commits (e.g. which buffer is attached),
   // and some fields are not (e.g. acquire fence). For fields that are
   // persisted, they either need to be copyable, or if they are move only, they
-  // need to be wrapped in absl::optional and only copied on commit if they
+  // need to be wrapped in std::optional and only copied on commit if they
   // have been changed. Not doing this can lead to broken behaviour, such as
   // losing the attached buffer if some unrelated field is updated in a commit.
   // If you add new fields to this struct, please document whether the field
@@ -542,7 +580,7 @@ class Surface final : public ui::PropertyHandler {
 
     // The buffer that will become the content of surface.
     // Persisted between commits.
-    absl::optional<BufferAttachment> buffer;
+    std::optional<BufferAttachment> buffer;
     // The rounded corners bounds for the surface.
     // Persisted between commits.
     gfx::RRectF rounded_corners_bounds;
@@ -569,17 +607,28 @@ class Surface final : public ui::PropertyHandler {
     // The hint for overlay prioritization
     // Persisted between commits.
     OverlayPriority overlay_priority_hint = OverlayPriority::REGULAR;
-    // The clip rect for this surface, in the parent's coordinate space. This
+    // The clip rect for this surface, in the local coordinate space. This
     // should only be set for subsurfaces.
     // Persisted between commits.
-    absl::optional<gfx::RectF> clip_rect;
+    std::optional<gfx::RectF> clip_rect;
     // The transform to apply when drawing this surface. This should only be set
     // for subsurfaces, and doesn't apply to children of this surface.
     // Persisted between commits.
     gfx::Transform surface_transform;
+
+    // Trace ID for tracking frame submission.
+    // Not persisted between commits.
+    int64_t frame_trace_id = -1;
   };
 
   friend class subtle::PropertyHelper;
+
+  // Adjust the stacking order of `list`, returns true if the `list` ordering is
+  // altered.
+  bool DoPlaceAboveOrBelow(Surface* child,
+                           Surface* reference,
+                           SubSurfaceEntryList& list,
+                           bool place_above);
 
   // Updates current_resource_ with a new resource id corresponding to the
   // contents of the attached buffer (or id 0, if no buffer is attached).
@@ -594,10 +643,12 @@ class Surface final : public ui::PropertyHandler {
   void UpdateOverlayPriorityHint(OverlayPriority overlay_priority_hint);
 
   // Puts the current surface into a draw quad, and appends the draw quads into
-  // the |frame|.
-  void AppendContentsToFrame(const gfx::PointF& origin,
-                             float device_scale_factor,
-                             bool client_submits_in_pixel_coords,
+  // the `frame`. `device_scale_factor` is supplied if the client does not
+  // submit surfaces in pixel coordinates.
+  void AppendContentsToFrame(const gfx::PointF& parent_to_root_px,
+                             const gfx::PointF& to_parent_dp,
+                             bool needs_full_damage,
+                             std::optional<float> device_scale_factor,
                              viz::CompositorFrame* frame);
 
   // Update surface content size base on current buffer size.
@@ -611,8 +662,54 @@ class Surface final : public ui::PropertyHandler {
   // This window has the layer which contains the Surface contents.
   std::unique_ptr<aura::Window> window_;
 
-  // This true, if sub_surfaces_ has changes (order, position, etc).
+  // Whether this surface is an object only to composite its parent.
+  bool is_augmented_ = false;
+
+  // This is true, if sub_surfaces_ has changes (order, position, etc).
   bool sub_surfaces_changed_ = false;
+
+  // Because client side damage does not expand past `content_size_`. This
+  // accounts for damage that are outside of this surface. 3 ways extended
+  // damage can be introduced if this surface is a subsurface that fits within
+  // the overall shell_surface's host_window bounds:
+  //
+  // 1) This surface's width/height shrinks without changing stacking/position,
+  // it will not fully damage the parent surface, introduced damage area (dotted
+  // line). s1 (child of s) shrunk:
+  //
+  //  _host_window__________         _host_window__________
+  // |s    ______           |       |s    ____...          |
+  // |    |s1    |          |       |    |s1  | :          |
+  // |    |      |          |  =>   |    |    | :          |
+  // |    |      |          |       |    |____| :          |
+  // |    |______|          |       |    :......:          |
+  // |______________________|       |______________________|
+  //
+  // 2) The toplevel surface shrinks but not in a way that affects host_window
+  // bounds due to a subsurface expanding it, introduced damage area (dotted
+  // line). s (parent of s1) shrunk:
+  //
+  //  _host_window__________         _host_window__________
+  // |s    ______           |       |s    ______           |
+  // |    |s1    |          |       |    |s1    |          |
+  // |    |      |          |  =>   |____|      |__________|
+  // |    |      |          |       :    |      |          :
+  // |____|______|__________|       :....|______|..........:
+  //
+  // 3) This surface has a subsurface that is shown outside, but fits within the
+  // overall shell_surface's host_window, when the subsurface is removed, it
+  // fully damage the parent surface, but not the part outside of the parent
+  // (dotted line). s11 (child of s1) is removed:
+  //
+  //  _host_window__________         _host_window__________
+  // |s0   __________       |       |s0   __________       |
+  // |    |s1        |      |       |    |s1        |      |
+  // |    |  ______  |      |  =>   |    |          |      |
+  // |    |_|s11   |_|      |       |    |__________|      |
+  // |      |______|        |       |      :......:        |
+  // |______________________|       |______________________|
+  //
+  std::optional<gfx::RectF> extended_damage_dp_ = std::nullopt;
 
   // This is the size of the last committed contents.
   gfx::SizeF content_size_;
@@ -640,10 +737,28 @@ class Surface final : public ui::PropertyHandler {
   // The stack of sub-surfaces to take effect when Commit() is called.
   // Bottom-most sub-surface at the front of the list and top-most sub-surface
   // at the back.
-  using SubSurfaceEntry = std::pair<Surface*, gfx::PointF>;
-  using SubSurfaceEntryList = std::list<SubSurfaceEntry>;
   SubSurfaceEntryList pending_sub_surfaces_;
   SubSurfaceEntryList sub_surfaces_;
+
+  // The stack of delegate compositing render_layers for this surface when
+  // Commit() is called.
+  // The tree structure of this with sub_surface is this (Surface2 is stacked
+  // beneath Surface3):
+  //
+  //             Surface1: { layer1, layer2 }
+  //            /         \
+  //           /           \
+  // Surface2: { layer3 }   \
+  //                       Surface3: { layer4, layer5 }
+  //
+  // When compositing, from bottom to top, the content order is visually:
+  // { Surface1, layer1, layer2, Surface2, layer3, Surface3, layer4, layer5 }
+  //
+  // TODO(fangzhoug): Reusing wl_subsurface and SubSurface class is not ideal,
+  // consider introducing a different role object like wl_subsurface, or a base
+  // object like wl_surface, to better prevent the unintended behavior such has
+  // a layer parenting a subsurface.
+  SubSurfaceEntryList render_layers_;
 
   // The last resource that was sent to a surface.
   viz::TransferableResource current_resource_;
@@ -669,25 +784,20 @@ class Surface final : public ui::PropertyHandler {
   // This can be set to have some functions delegated. E.g. ShellSurface class
   // can set this to handle Commit() and apply any double buffered state it
   // maintains.
-  raw_ptr<SurfaceDelegate, ExperimentalAsh> delegate_ = nullptr;
+  raw_ptr<SurfaceDelegate> delegate_ = nullptr;
 
   // Surface observer list. Surface does not own the observers.
   base::ObserverList<SurfaceObserver, true>::Unchecked observers_;
 
   std::unique_ptr<ash::OutputProtectionDelegate> output_protection_;
 
-  viz::SurfaceId first_embedded_surface_id_;
-  viz::SurfaceId latest_embedded_surface_id_;
-  base::RepeatingCallback<viz::SurfaceId()> get_current_surface_id_;
-
-  // The embedded surface is actually |embedded_surface_size_|. This is used
-  // for calculating clipping and scaling.
-  gfx::Size embedded_surface_size_;
-
   LeaveEnterCallback leave_enter_callback_;
 
   bool keyboard_shortcuts_inhibited_ = false;
   bool legacy_buffer_release_skippable_ = false;
+
+  // Display id state for unmapped surfaces.
+  int64_t display_id_ = display::kInvalidDisplayId;
 };
 
 class ScopedSurface {
@@ -701,8 +811,8 @@ class ScopedSurface {
   Surface* get() { return surface_; }
 
  private:
-  const raw_ptr<Surface, ExperimentalAsh> surface_;
-  const raw_ptr<SurfaceObserver, ExperimentalAsh> observer_;
+  const raw_ptr<Surface> surface_;
+  const raw_ptr<SurfaceObserver> observer_;
 };
 
 }  // namespace exo

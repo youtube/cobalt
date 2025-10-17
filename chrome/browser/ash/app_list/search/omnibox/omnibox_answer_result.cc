@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/app_list/search/omnibox/omnibox_answer_result.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -15,13 +16,11 @@
 #include "chrome/browser/ash/app_list/search/common/search_result_util.h"
 #include "chrome/browser/ash/app_list/search/omnibox/omnibox_util.h"
 #include "chrome/browser/bitmap_fetcher/bitmap_fetcher.h"
-#include "chrome/browser/chromeos/launcher_search/search_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/crosapi/mojom/launcher_search.mojom.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "extensions/common/image_util.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/image/image_skia_operations.h"
@@ -43,7 +42,8 @@ ChromeSearchResult::IconInfo CreateAnswerIconInfo(
   const auto icon = gfx::ImageSkiaOperations::CreateImageWithCircleBackground(
       kAnswerCardIconDimension / 2, gfx::kGoogleBlue300,
       gfx::CreateVectorIcon(vector_icon, gfx::kGoogleGrey900));
-  return ChromeSearchResult::IconInfo(icon, kAnswerCardIconDimension);
+  return ChromeSearchResult::IconInfo(ui::ImageModel::FromImageSkia(icon),
+                                      kAnswerCardIconDimension);
 }
 
 // Convert from our Mojo answer type to the corresponding Omnibox icon.
@@ -71,14 +71,14 @@ const gfx::VectorIcon& AnswerTypeToVectorIcon(
 // SuggestionAnswer::TextFields. For example, a text field containing "26°C" is
 // converted into the pair ("26", "°C"), and a text field containing "-5°F" is
 // converted into the pair ("-5", "°F").
-absl::optional<std::pair<std::u16string, std::u16string>> GetTemperature(
-    const absl::optional<std::u16string>& text) {
+std::optional<std::pair<std::u16string, std::u16string>> GetTemperature(
+    const std::optional<std::u16string>& text) {
   if (!text.has_value() || text->empty())
-    return absl::nullopt;
+    return std::nullopt;
 
   size_t digits_end = text->find_last_of(u"0123456789");
   if (digits_end == std::u16string::npos)
-    return absl::nullopt;
+    return std::nullopt;
 
   size_t unit_start = digits_end + 1;
   return std::make_pair(text->substr(0, unit_start), text->substr(unit_start));
@@ -145,9 +145,6 @@ OmniboxAnswerResult::OmniboxAnswerResult(
   // Derive relevance from omnibox relevance and normalize it to [0, 1].
   set_relevance(search_result_->relevance / kMaxOmniboxScore);
 
-  if (crosapi::OptionalBoolIsTrue(search_result_->is_omnibox_search))
-    SetIsOmniboxSearch(true);
-
   UpdateIcon();
   UpdateTitleAndDetails();
 
@@ -164,10 +161,10 @@ OmniboxAnswerResult::~OmniboxAnswerResult() {
 
 void OmniboxAnswerResult::Open(int event_flags) {
   DCHECK(search_result_->destination_url.has_value());
-  list_controller_->OpenURL(profile_, *search_result_->destination_url,
-                            crosapi::PageTransitionToUiPageTransition(
-                                search_result_->page_transition),
-                            ui::DispositionFromEventFlags(event_flags));
+  list_controller_->OpenURL(
+      profile_, *search_result_->destination_url,
+      PageTransitionToUiPageTransition(search_result_->page_transition),
+      ui::DispositionFromEventFlags(event_flags));
 }
 
 void OmniboxAnswerResult::OnColorModeChanged(bool dark_mode_enabled) {
@@ -256,7 +253,8 @@ void OmniboxAnswerResult::OnFetchComplete(const GURL& url,
     return;
 
   DCHECK(IsWeatherResult());
-  IconInfo icon_info(gfx::ImageSkia::CreateFrom1xBitmap(*bitmap),
+  IconInfo icon_info(ui::ImageModel::FromImageSkia(
+                         gfx::ImageSkia::CreateFrom1xBitmap(*bitmap)),
                      kAnswerCardIconDimension);
   SetIcon(icon_info);
 }

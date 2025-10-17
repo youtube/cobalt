@@ -31,18 +31,18 @@ mojom::CaptivePortalProblem GetProblemFromPortalState(
       return mojom::CaptivePortalProblem::kPortalSuspected;
     case network_config::mojom::PortalState::kPortal:
       return mojom::CaptivePortalProblem::kPortal;
-    case network_config::mojom::PortalState::kProxyAuthRequired:
-      return mojom::CaptivePortalProblem::kProxyAuthRequired;
+    case network_config::mojom::PortalState::kDeprecatedProxyAuthRequired:
+      NOTREACHED();
     case network_config::mojom::PortalState::kNoInternet:
       return mojom::CaptivePortalProblem::kNoInternet;
   }
   NOTREACHED();
-  return mojom::CaptivePortalProblem::kUnknownPortalState;
 }
 
 }  // namespace
 
-CaptivePortalRoutine::CaptivePortalRoutine() {
+CaptivePortalRoutine::CaptivePortalRoutine(mojom::RoutineCallSource source)
+    : NetworkDiagnosticsRoutine(source) {
   BindToInProcessInstance(
       remote_cros_network_config_.BindNewPipeAndPassReceiver());
 }

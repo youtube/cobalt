@@ -4,29 +4,36 @@
 
 package org.chromium.chrome.browser.paint_preview.services;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import android.app.Activity;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ApplicationStatus;
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.content_public.browser.LoadUrlParams;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.net.test.EmbeddedTestServer;
 
 import java.util.concurrent.TimeUnit;
@@ -42,8 +49,7 @@ public class PaintPreviewTabServiceTest {
     public final ChromeTabbedActivityTestRule mActivityTestRule =
             new ChromeTabbedActivityTestRule();
 
-    @Rule
-    public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
     private TabModelSelector mTabModelSelector;
     private TabModel mTabModel;
@@ -55,12 +61,10 @@ public class PaintPreviewTabServiceTest {
         mActivityTestRule.startMainActivityOnBlankPage();
         mTab = mActivityTestRule.getActivity().getActivityTab();
         mTabModelSelector = mActivityTestRule.getActivity().getTabModelSelector();
-        mTabModel = mTabModelSelector.getModel(/*incognito*/ false);
+        mTabModel = mTabModelSelector.getModel(/* incognito= */ false);
     }
 
-    /**
-     * Verifies that a Tab's contents are captured when the activity is stopped.
-     */
+    /** Verifies that a Tab's contents are captured when the activity is stopped. */
     @Test
     @MediumTest
     @Feature({"PaintPreview"})
@@ -68,10 +72,11 @@ public class PaintPreviewTabServiceTest {
         EmbeddedTestServer testServer = mActivityTestRule.getTestServer();
         final String url = testServer.getURL("/chrome/test/data/android/about.html");
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mPaintPreviewTabService = PaintPreviewTabServiceFactory.getServiceInstance();
-            mTab.loadUrl(new LoadUrlParams(url));
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPaintPreviewTabService = PaintPreviewTabServiceFactory.getServiceInstance();
+                    mTab.loadUrl(new LoadUrlParams(url));
+                });
         // Give the tab time to complete layout before hiding.
         TimeUnit.SECONDS.sleep(1);
         int tabId = mTab.getId();
@@ -79,43 +84,60 @@ public class PaintPreviewTabServiceTest {
         // Simulate closing the app.
         Activity activity = mActivityTestRule.getActivity();
         activity.getWindow().setLocalFocus(false, false);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            InstrumentationRegistry.getInstrumentation().callActivityOnPause(activity);
-        });
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            InstrumentationRegistry.getInstrumentation().callActivityOnStop(activity);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    InstrumentationRegistry.getInstrumentation().callActivityOnPause(activity);
+                });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    InstrumentationRegistry.getInstrumentation().callActivityOnStop(activity);
+                });
 
         // Allow time to capture.
-        CriteriaHelper.pollUiThread(() -> {
-            mPaintPreviewTabService = PaintPreviewTabServiceFactory.getServiceInstance();
-            return mPaintPreviewTabService.hasCaptureForTab(tabId);
-        }, "Paint Preview didn't get captured.", TIMEOUT_MS, POLLING_INTERVAL_MS);
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    mPaintPreviewTabService = PaintPreviewTabServiceFactory.getServiceInstance();
+                    return mPaintPreviewTabService.hasCaptureForTab(tabId);
+                },
+                "Paint Preview didn't get captured.",
+                TIMEOUT_MS,
+                POLLING_INTERVAL_MS);
 
         // Simulate unpausing the app (for cleanup).
         activity.getWindow().setLocalFocus(true, true);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            InstrumentationRegistry.getInstrumentation().callActivityOnRestart(activity);
-            InstrumentationRegistry.getInstrumentation().callActivityOnStart(activity);
-            InstrumentationRegistry.getInstrumentation().callActivityOnResume(activity);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    InstrumentationRegistry.getInstrumentation().callActivityOnRestart(activity);
+                    InstrumentationRegistry.getInstrumentation().callActivityOnStart(activity);
+                    InstrumentationRegistry.getInstrumentation().callActivityOnResume(activity);
+                });
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mTabModelSelector = mActivityTestRule.getActivity().getTabModelSelector();
-            mTab = mTabModelSelector.getTabById(tabId);
-            mTabModel = mTabModelSelector.getModel(/*incognito*/ false);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mTabModelSelector = mActivityTestRule.getActivity().getTabModelSelector();
+                    mTab = mTabModelSelector.getTabById(tabId);
+                    mTabModel = mTabModelSelector.getModel(/* incognito= */ false);
+                });
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> { mTabModel.closeTab(mTab); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mTabModel
+                            .getTabRemover()
+                            .closeTabs(
+                                    TabClosureParams.closeTab(mTab).allowUndo(false).build(),
+                                    /* allowDialog= */ false);
+                });
 
-        CriteriaHelper.pollUiThread(() -> {
-            return !mPaintPreviewTabService.hasCaptureForTab(tabId);
-        }, "Paint Preview didn't get deleted.", TIMEOUT_MS, POLLING_INTERVAL_MS);
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    return !mPaintPreviewTabService.hasCaptureForTab(tabId);
+                },
+                "Paint Preview didn't get deleted.",
+                TIMEOUT_MS,
+                POLLING_INTERVAL_MS);
     }
 
-    /**
-     * Tests that capturing and deleting via an audit works as expected.
-     */
+    /** Tests that capturing and deleting via an audit works as expected. */
     @Test
     @MediumTest
     @Feature({"PaintPreview"})
@@ -123,10 +145,11 @@ public class PaintPreviewTabServiceTest {
         EmbeddedTestServer testServer = mActivityTestRule.getTestServer();
         final String url = testServer.getURL("/chrome/test/data/android/about.html");
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mPaintPreviewTabService = PaintPreviewTabServiceFactory.getServiceInstance();
-            mTab.loadUrl(new LoadUrlParams(url));
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPaintPreviewTabService = PaintPreviewTabServiceFactory.getServiceInstance();
+                    mTab.loadUrl(new LoadUrlParams(url));
+                });
         // Give the tab time to complete layout before hiding.
         TimeUnit.SECONDS.sleep(1);
         int tabId = mTab.getId();
@@ -134,38 +157,49 @@ public class PaintPreviewTabServiceTest {
         // Simulate closing the app.
         Activity activity = mActivityTestRule.getActivity();
         activity.getWindow().setLocalFocus(false, false);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            InstrumentationRegistry.getInstrumentation().callActivityOnPause(activity);
-        });
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            InstrumentationRegistry.getInstrumentation().callActivityOnStop(activity);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    InstrumentationRegistry.getInstrumentation().callActivityOnPause(activity);
+                });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    InstrumentationRegistry.getInstrumentation().callActivityOnStop(activity);
+                });
 
         // Allow time to capture.
-        CriteriaHelper.pollUiThread(() -> {
-            mPaintPreviewTabService = PaintPreviewTabServiceFactory.getServiceInstance();
-            return mPaintPreviewTabService.hasCaptureForTab(tabId);
-        }, "Paint Preview didn't get captured.", TIMEOUT_MS, POLLING_INTERVAL_MS);
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    mPaintPreviewTabService = PaintPreviewTabServiceFactory.getServiceInstance();
+                    return mPaintPreviewTabService.hasCaptureForTab(tabId);
+                },
+                "Paint Preview didn't get captured.",
+                TIMEOUT_MS,
+                POLLING_INTERVAL_MS);
 
         // Simulate unpausing the app (for cleanup).
         activity.getWindow().setLocalFocus(true, true);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            InstrumentationRegistry.getInstrumentation().callActivityOnRestart(activity);
-            InstrumentationRegistry.getInstrumentation().callActivityOnStart(activity);
-            InstrumentationRegistry.getInstrumentation().callActivityOnResume(activity);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    InstrumentationRegistry.getInstrumentation().callActivityOnRestart(activity);
+                    InstrumentationRegistry.getInstrumentation().callActivityOnStart(activity);
+                    InstrumentationRegistry.getInstrumentation().callActivityOnResume(activity);
+                });
 
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mPaintPreviewTabService.auditArtifacts(new int[0]); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPaintPreviewTabService.auditArtifacts(new int[0]);
+                });
 
-        CriteriaHelper.pollUiThread(() -> {
-            return !mPaintPreviewTabService.hasCaptureForTab(tabId);
-        }, "Paint Preview didn't get deleted.", TIMEOUT_MS, POLLING_INTERVAL_MS);
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    return !mPaintPreviewTabService.hasCaptureForTab(tabId);
+                },
+                "Paint Preview didn't get deleted.",
+                TIMEOUT_MS,
+                POLLING_INTERVAL_MS);
     }
 
-    /**
-     * Verifies the pre-native preview exists check works.
-     */
+    /** Verifies the pre-native preview exists check works. */
     @Test
     @MediumTest
     @Feature({"PaintPreview"})
@@ -175,16 +209,40 @@ public class PaintPreviewTabServiceTest {
         mTemporaryFolder.newFile("6");
         mTemporaryFolder.newFolder("10");
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mPaintPreviewTabService = PaintPreviewTabServiceFactory.getServiceInstance();
-            Assert.assertTrue(mPaintPreviewTabService.previewExistsPreNative(
-                    mTemporaryFolder.getRoot().getPath(), 2));
-            Assert.assertTrue(mPaintPreviewTabService.previewExistsPreNative(
-                    mTemporaryFolder.getRoot().getPath(), 3));
-            Assert.assertFalse(mPaintPreviewTabService.previewExistsPreNative(
-                    mTemporaryFolder.getRoot().getPath(), 6));
-            Assert.assertFalse(mPaintPreviewTabService.previewExistsPreNative(
-                    mTemporaryFolder.getRoot().getPath(), 10));
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPaintPreviewTabService = PaintPreviewTabServiceFactory.getServiceInstance();
+                    assertTrue(
+                            mPaintPreviewTabService.previewExistsPreNative(
+                                    mTemporaryFolder.getRoot().getPath(), 2));
+                    assertTrue(
+                            mPaintPreviewTabService.previewExistsPreNative(
+                                    mTemporaryFolder.getRoot().getPath(), 3));
+                    assertFalse(
+                            mPaintPreviewTabService.previewExistsPreNative(
+                                    mTemporaryFolder.getRoot().getPath(), 6));
+                    assertFalse(
+                            mPaintPreviewTabService.previewExistsPreNative(
+                                    mTemporaryFolder.getRoot().getPath(), 10));
+                });
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"PaintPreview"})
+    public void testOnRestoreCompleted_destroyable() {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPaintPreviewTabService = PaintPreviewTabServiceFactory.getServiceInstance();
+                    Destroyable destroyable =
+                            mPaintPreviewTabService.onRestoreCompleted(
+                                    mTabModelSelector, /* runAudit= */ false);
+                    int count = ApplicationStatus.getApplicationStateListenerCountForTesting();
+
+                    destroyable.destroy();
+                    assertEquals(
+                            count - 1,
+                            ApplicationStatus.getApplicationStateListenerCountForTesting());
+                });
     }
 }

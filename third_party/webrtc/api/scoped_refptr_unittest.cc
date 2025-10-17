@@ -10,12 +10,13 @@
 
 #include "api/scoped_refptr.h"
 
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "test/gtest.h"
 
-namespace rtc {
+namespace webrtc {
 namespace {
 
 struct FunctionsCalled {
@@ -108,4 +109,4 @@ TEST(ScopedRefptrTest, MovableDuringVectorReallocation) {
 }
 
 }  // namespace
-}  // namespace rtc
+}  // namespace webrtc

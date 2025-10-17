@@ -4,14 +4,16 @@
 
 #include "chrome/browser/ui/content_settings/content_setting_image_model.h"
 
+#include <optional>
+
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/content_settings/page_specific_content_settings_delegate.h"
 #include "chrome/browser/permissions/quiet_notification_permission_ui_state.h"
@@ -28,7 +30,10 @@
 #include "chrome/test/base/testing_browser_process_platform_part.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/content_settings/browser/page_specific_content_settings.h"
+#include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/common/content_settings.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_manager.h"
 #include "components/permissions/features.h"
@@ -38,79 +43,65 @@
 #include "components/permissions/request_type.h"
 #include "components/permissions/test/mock_permission_prompt_factory.h"
 #include "components/permissions/test/mock_permission_request.h"
+#include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/cookie_access_details.h"
-#include "content/public/browser/notification_observer.h"
-#include "content/public/browser/notification_registrar.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
 #include "net/cookies/cookie_options.h"
 #include "services/device/public/cpp/device_features.h"
+#include "services/device/public/cpp/geolocation/buildflags.h"
+#include "testing/gmock/include/gmock/gmock-actions.h"
+#include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/color_palette.h"
+#include "ui/gfx/paint_vector_icon.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "services/device/public/cpp/geolocation/geolocation_manager.h"
-#include "services/device/public/cpp/geolocation/location_system_permission_status.h"
-#include "services/device/public/cpp/test/fake_geolocation_manager.h"
-#endif
+#include "chrome/browser/web_applications/os_integration/mac/app_shim_registry.h"
+#include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
+#include "chrome/browser/web_applications/web_app_tab_helper.h"
+#endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
+#include "chrome/browser/permissions/system/mock_platform_handle.h"
+#include "chrome/browser/permissions/system/system_permission_settings.h"
+#endif  // BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
 
 using content_settings::PageSpecificContentSettings;
+using testing::_;
+using testing::Return;
 
 namespace {
 
-class TestQuietNotificationPermissionUiSelector
-    : public permissions::PermissionUiSelector {
- public:
-  explicit TestQuietNotificationPermissionUiSelector(
-      QuietUiReason simulated_reason_for_quiet_ui)
-      : simulated_reason_for_quiet_ui_(simulated_reason_for_quiet_ui) {}
-
-  TestQuietNotificationPermissionUiSelector(
-      const TestQuietNotificationPermissionUiSelector&) = delete;
-  TestQuietNotificationPermissionUiSelector& operator=(
-      const TestQuietNotificationPermissionUiSelector&) = delete;
-
-  ~TestQuietNotificationPermissionUiSelector() override = default;
-
- protected:
-  // permissions::PermissionUiSelector:
-  void SelectUiToUse(permissions::PermissionRequest* request,
-                     DecisionMadeCallback callback) override {
-    std::move(callback).Run(
-        Decision(simulated_reason_for_quiet_ui_, absl::nullopt));
-  }
-
-  bool IsPermissionRequestSupported(
-      permissions::RequestType request_type) override {
-    return request_type == permissions::RequestType::kNotifications;
-  }
-
- private:
-  QuietUiReason simulated_reason_for_quiet_ui_;
-};
-
 class ContentSettingImageModelTest : public BrowserWithTestWindowTest {
  public:
+  // Some dependencies of this test execute code on the UI thread, while other
+  // subsystems that happen to be indirectly triggered expect the IO thread to
+  // exist. Passing REAL_IO_THREAD will make sure both threads are available.
   ContentSettingImageModelTest()
-      : request_(permissions::RequestType::kNotifications,
+      : BrowserWithTestWindowTest(
+            content::BrowserTaskEnvironment::REAL_IO_THREAD,
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME),
+        request_(permissions::RequestType::kNotifications,
                  permissions::PermissionRequestGestureType::GESTURE) {
     scoped_feature_list_.InitWithFeatures(
         {features::kQuietNotificationPrompts,
+#if BUILDFLAG(IS_MAC)
+         features::kAppShimNotificationAttribution,
+#endif
          // Enable all sensors just to avoid hardcoding the expected messages
          // to the motion sensor-specific ones.
          features::kGenericSensorExtraClasses},
-        {permissions::features::kBlockRepeatedNotificationPermissionPrompts,
-         permissions::features::kPermissionQuietChip});
+        {});
   }
 
   ContentSettingImageModelTest(const ContentSettingImageModelTest&) = delete;
   ContentSettingImageModelTest& operator=(const ContentSettingImageModelTest&) =
       delete;
 
-  ~ContentSettingImageModelTest() override {}
+  ~ContentSettingImageModelTest() override = default;
 
   content::WebContents* web_contents() {
     return browser()->tab_strip_model()->GetActiveWebContents();
@@ -153,15 +144,16 @@ class ContentSettingImageModelTest : public BrowserWithTestWindowTest {
  protected:
   base::test::ScopedFeatureList scoped_feature_list_;
   permissions::MockPermissionRequest request_;
-  raw_ptr<permissions::PermissionRequestManager> manager_ = nullptr;
-  raw_ptr<content::NavigationController> controller_ = nullptr;
+  raw_ptr<permissions::PermissionRequestManager, DanglingUntriaged> manager_ =
+      nullptr;
+  raw_ptr<content::NavigationController, DanglingUntriaged> controller_ =
+      nullptr;
 };
 
 TEST_F(ContentSettingImageModelTest, Update) {
   PageSpecificContentSettings::CreateForWebContents(
       web_contents(),
-      std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
-          web_contents()));
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
   PageSpecificContentSettings* content_settings =
       PageSpecificContentSettings::GetForFrame(
           web_contents()->GetPrimaryMainFrame());
@@ -180,15 +172,14 @@ TEST_F(ContentSettingImageModelTest, Update) {
 TEST_F(ContentSettingImageModelTest, RPHUpdate) {
   PageSpecificContentSettings::CreateForWebContents(
       web_contents(),
-      std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
-          web_contents()));
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
   auto content_setting_image_model =
       ContentSettingImageModel::CreateForContentType(
           ContentSettingImageModel::ImageType::PROTOCOL_HANDLERS);
   content_setting_image_model->Update(web_contents());
   EXPECT_FALSE(content_setting_image_model->is_visible());
 
-  chrome::PageSpecificContentSettingsDelegate::FromWebContents(web_contents())
+  PageSpecificContentSettingsDelegate::FromWebContents(web_contents())
       ->set_pending_protocol_handler(
           custom_handlers::ProtocolHandler::CreateProtocolHandler(
               "mailto", GURL("https://www.google.com/")));
@@ -199,11 +190,14 @@ TEST_F(ContentSettingImageModelTest, RPHUpdate) {
 TEST_F(ContentSettingImageModelTest, CookieAccessed) {
   PageSpecificContentSettings::CreateForWebContents(
       web_contents(),
-      std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
-          web_contents()));
-  HostContentSettingsMapFactory::GetForProfile(profile())
-      ->SetDefaultContentSetting(ContentSettingsType::COOKIES,
-                                 CONTENT_SETTING_BLOCK);
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
+  auto* content_settings =
+      HostContentSettingsMapFactory::GetForProfile(profile());
+  content_settings->SetDefaultContentSetting(ContentSettingsType::COOKIES,
+                                             CONTENT_SETTING_BLOCK);
+  content_settings->SetContentSettingDefaultScope(
+      web_contents()->GetLastCommittedURL(), GURL(),
+      ContentSettingsType::COOKIES, CONTENT_SETTING_ALLOW);
   auto content_setting_image_model =
       ContentSettingImageModel::CreateForContentType(
           ContentSettingImageModel::ImageType::COOKIES);
@@ -211,27 +205,82 @@ TEST_F(ContentSettingImageModelTest, CookieAccessed) {
   EXPECT_TRUE(content_setting_image_model->get_tooltip().empty());
 
   GURL origin("http://google.com");
-  std::unique_ptr<net::CanonicalCookie> cookie(net::CanonicalCookie::Create(
-      origin, "A=B", base::Time::Now(), absl::nullopt /* server_time */,
-      absl::nullopt /* cookie_partition_key */));
+  std::unique_ptr<net::CanonicalCookie> cookie(
+      net::CanonicalCookie::CreateForTesting(origin, "A=B", base::Time::Now()));
   ASSERT_TRUE(cookie);
   PageSpecificContentSettings::GetForFrame(
       web_contents()->GetPrimaryMainFrame())
       ->OnCookiesAccessed({content::CookieAccessDetails::Type::kChange,
                            origin,
                            origin,
-                           {*cookie},
-                           false});
+                           {{*cookie}},
+                           /* blocked_by_policy = */ false});
   UpdateModelAndVerifyStates(content_setting_image_model.get(),
                              /* is_visible = */ true,
                              /* tooltip_empty = */ false);
 }
 
+TEST_F(ContentSettingImageModelTest, ThirdPartyCookieAccessed) {
+  PageSpecificContentSettings::CreateForWebContents(
+      web_contents(),
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
+  HostContentSettingsMapFactory::GetForProfile(profile())
+      ->SetDefaultContentSetting(ContentSettingsType::COOKIES,
+                                 CONTENT_SETTING_ALLOW);
+  auto content_setting_image_model =
+      ContentSettingImageModel::CreateForContentType(
+          ContentSettingImageModel::ImageType::COOKIES);
+  EXPECT_FALSE(content_setting_image_model->is_visible());
+  EXPECT_TRUE(content_setting_image_model->get_tooltip().empty());
+
+  GURL top_level_url("https://google.com");
+  GURL third_party_url("https://example.com");
+  std::unique_ptr<net::CanonicalCookie> cookie(
+      net::CanonicalCookie::CreateForTesting(
+          third_party_url, "A=B;SameSite=None;Secure", base::Time::Now()));
+  ASSERT_TRUE(cookie);
+
+  // A blocked third-party cookie access, should not cause the indicator to be
+  // shown regardless of the CookieControlsMode.
+  profile()->GetPrefs()->SetInteger(
+      prefs::kCookieControlsMode,
+      static_cast<int>(content_settings::CookieControlsMode::kOff));
+  PageSpecificContentSettings::GetForFrame(
+      web_contents()->GetPrimaryMainFrame())
+      ->OnCookiesAccessed({content::CookieAccessDetails::Type::kChange,
+                           third_party_url,
+                           top_level_url,
+                           {{*cookie}},
+                           /* blocked_by_policy = */ true,
+                           /* is_ad_tagged = */ false,
+                           net::CookieSettingOverrides(),
+                           net::SiteForCookies::FromUrl(top_level_url)});
+  UpdateModelAndVerifyStates(content_setting_image_model.get(),
+                             /* is_visible = */ false,
+                             /* tooltip_empty = */ true);
+
+  profile()->GetPrefs()->SetInteger(
+      prefs::kCookieControlsMode,
+      static_cast<int>(content_settings::CookieControlsMode::kBlockThirdParty));
+  PageSpecificContentSettings::GetForFrame(
+      web_contents()->GetPrimaryMainFrame())
+      ->OnCookiesAccessed({content::CookieAccessDetails::Type::kChange,
+                           third_party_url,
+                           top_level_url,
+                           {{*cookie}},
+                           /* blocked_by_policy = */ true,
+                           /* is_ad_tagged = */ false,
+                           net::CookieSettingOverrides(),
+                           net::SiteForCookies::FromUrl(top_level_url)});
+  UpdateModelAndVerifyStates(content_setting_image_model.get(),
+                             /* is_visible = */ false,
+                             /* tooltip_empty = */ true);
+}
+
 TEST_F(ContentSettingImageModelTest, SensorAccessed) {
   PageSpecificContentSettings::CreateForWebContents(
       web_contents(),
-      std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
-          web_contents()));
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
   PageSpecificContentSettings* content_settings =
       PageSpecificContentSettings::GetForFrame(
           web_contents()->GetPrimaryMainFrame());
@@ -298,21 +347,24 @@ TEST_F(ContentSettingImageModelTest, SensorAccessed) {
       /* explanatory_string_id = */ 0);
 }
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
 // Test the correct ContentSettingImageModel for various permutations of site
 // and system level Geolocation permissions
 TEST_F(ContentSettingImageModelTest, GeolocationAccessPermissionsChanged) {
-  auto test_geolocation_manager =
-      std::make_unique<device::FakeGeolocationManager>();
-  device::FakeGeolocationManager* geolocation_manager =
-      test_geolocation_manager.get();
-  TestingBrowserProcess::GetGlobal()->SetGeolocationManager(
-      std::move(test_geolocation_manager));
+#if BUILDFLAG(IS_WIN)
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({features::kWinSystemLocationPermission}, {});
+#endif  // BUILDFLAG(IS_WIN)
+  system_permission_settings::MockPlatformHandle mock_platform_handle;
+  system_permission_settings::SetInstanceForTesting(&mock_platform_handle);
+  EXPECT_CALL(mock_platform_handle, IsAllowed(ContentSettingsType::GEOLOCATION))
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(mock_platform_handle, CanPrompt(ContentSettingsType::GEOLOCATION))
+      .WillRepeatedly(Return(false));
 
   PageSpecificContentSettings::CreateForWebContents(
       web_contents(),
-      std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
-          web_contents()));
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
   GURL requesting_origin = GURL("https://www.example.com");
   NavigateAndCommit(web_contents(), requesting_origin);
   PageSpecificContentSettings* content_settings =
@@ -327,8 +379,8 @@ TEST_F(ContentSettingImageModelTest, GeolocationAccessPermissionsChanged) {
   EXPECT_FALSE(content_setting_image_model->is_visible());
   EXPECT_TRUE(content_setting_image_model->get_tooltip().empty());
 
-  geolocation_manager->SetSystemPermission(
-      device::LocationSystemPermissionStatus::kAllowed);
+  EXPECT_CALL(mock_platform_handle, IsAllowed(ContentSettingsType::GEOLOCATION))
+      .WillRepeatedly(Return(true));
 
   settings_map->SetDefaultContentSetting(ContentSettingsType::GEOLOCATION,
                                          CONTENT_SETTING_ALLOW);
@@ -346,8 +398,9 @@ TEST_F(ContentSettingImageModelTest, GeolocationAccessPermissionsChanged) {
       /* tooltip_empty = */ false, IDS_BLOCKED_GEOLOCATION_MESSAGE,
       /* explanatory_string_id = */ 0);
 
-  geolocation_manager->SetSystemPermission(
-      device::LocationSystemPermissionStatus::kDenied);
+  EXPECT_CALL(mock_platform_handle, IsAllowed(ContentSettingsType::GEOLOCATION))
+      .WillRepeatedly(Return(false));
+
   UpdateModelAndVerifyStates(
       content_setting_image_model.get(), /* is_visible = */ true,
       /* tooltip_empty = */ false, IDS_BLOCKED_GEOLOCATION_MESSAGE,
@@ -360,18 +413,27 @@ TEST_F(ContentSettingImageModelTest, GeolocationAccessPermissionsChanged) {
       IDS_GEOLOCATION_TURNED_OFF);
 }
 
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+// This test verifies the UI behavior when OS-level geolocation permission is
+// undetermined. This state is only applicable on macOS and Windows.
 TEST_F(ContentSettingImageModelTest, GeolocationAccessPermissionsUndetermined) {
-  auto test_geolocation_manager =
-      std::make_unique<device::FakeGeolocationManager>();
-  test_geolocation_manager->SetSystemPermission(
-      device::LocationSystemPermissionStatus::kNotDetermined);
-  TestingBrowserProcess::GetGlobal()->SetGeolocationManager(
-      std::move(test_geolocation_manager));
+#if BUILDFLAG(IS_WIN)
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({features::kWinSystemLocationPermission}, {});
+#endif  // BUILDFLAG(IS_WIN)
+  system_permission_settings::MockPlatformHandle mock_platform_handle;
+  system_permission_settings::SetInstanceForTesting(&mock_platform_handle);
+  EXPECT_CALL(mock_platform_handle, IsAllowed(ContentSettingsType::GEOLOCATION))
+      .WillRepeatedly(Return(false));
+  EXPECT_CALL(mock_platform_handle, CanPrompt(ContentSettingsType::GEOLOCATION))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_platform_handle,
+              Request(ContentSettingsType::GEOLOCATION, _))
+      .Times(1);
 
   PageSpecificContentSettings::CreateForWebContents(
       web_contents(),
-      std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
-          web_contents()));
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
   GURL requesting_origin = GURL("https://www.example.com");
   NavigateAndCommit(web_contents(), requesting_origin);
   PageSpecificContentSettings* content_settings =
@@ -405,82 +467,16 @@ TEST_F(ContentSettingImageModelTest, GeolocationAccessPermissionsUndetermined) {
       content_setting_image_model.get(), /* is_visible = */ true,
       /* tooltip_empty = */ false, IDS_BLOCKED_GEOLOCATION_MESSAGE, 0);
 }
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 
-TEST_F(ContentSettingImageModelTest, GeolocationAccessDeniedExperiment) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures({features::kLocationPermissionsExperiment}, {});
-  auto test_geolocation_manager =
-      std::make_unique<device::FakeGeolocationManager>();
-  device::FakeGeolocationManager* geolocation_manager =
-      test_geolocation_manager.get();
-  TestingBrowserProcess::GetGlobal()->SetGeolocationManager(
-      std::move(test_geolocation_manager));
-
-  PageSpecificContentSettings::CreateForWebContents(
-      web_contents(),
-      std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
-          web_contents()));
-  GURL requesting_origin = GURL("https://www.example.com");
-  NavigateAndCommit(web_contents(), requesting_origin);
-  PageSpecificContentSettings* content_settings =
-      PageSpecificContentSettings::GetForFrame(
-          web_contents()->GetPrimaryMainFrame());
-
-  auto content_setting_image_model =
-      ContentSettingImageModel::CreateForContentType(
-          ContentSettingImageModel::ImageType::GEOLOCATION);
-  EXPECT_FALSE(content_setting_image_model->is_visible());
-  EXPECT_TRUE(content_setting_image_model->get_tooltip().empty());
-
-  geolocation_manager->SetSystemPermission(
-      device::LocationSystemPermissionStatus::kDenied);
-  content_settings->OnContentAllowed(ContentSettingsType::GEOLOCATION);
-
-  auto* local_state = g_browser_process->local_state();
-
-  // Verify the button is shown without a label the first three time permission
-  // is denied by system preferences while allowed for chrome preferences/
-  for (int i = 0; i < 3; i++) {
-    EXPECT_EQ(local_state->GetInteger(
-                  prefs::kMacRestoreLocationPermissionsExperimentCount),
-              i);
-    UpdateModelAndVerifyStates(
-        content_setting_image_model.get(), /* is_visible = */ true,
-        /* tooltip_empty = */ false, IDS_BLOCKED_GEOLOCATION_MESSAGE, 0);
-  }
-  // Verify the button is shown with a label the fourth to eighth time
-  // permission is denied by system preferences while allowed for chrome
-  // preferences/
-  for (int i = 3; i < 8; i++) {
-    EXPECT_EQ(local_state->GetInteger(
-                  prefs::kMacRestoreLocationPermissionsExperimentCount),
-              i);
-    UpdateModelAndVerifyStates(
-        content_setting_image_model.get(), /* is_visible = */ true,
-        /* tooltip_empty = */ false, IDS_BLOCKED_GEOLOCATION_MESSAGE,
-        IDS_GEOLOCATION_TURNED_OFF);
-  }
-  // Verify we return to normal behavior after the eighth time permission is
-  // denied by system preferences while allowed for chrome preferences/
-  for (int i = 8; i < 10; i++) {
-    EXPECT_EQ(local_state->GetInteger(
-                  prefs::kMacRestoreLocationPermissionsExperimentCount),
-              8);
-    UpdateModelAndVerifyStates(
-        content_setting_image_model.get(), /* is_visible = */ true,
-        /* tooltip_empty = */ false, IDS_BLOCKED_GEOLOCATION_MESSAGE,
-        IDS_GEOLOCATION_TURNED_OFF);
-  }
-}
-#endif
+#endif  // BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
 
 // Regression test for https://crbug.com/955408
 // See also: ContentSettingBubbleModelTest.SensorAccessPermissionsChanged
 TEST_F(ContentSettingImageModelTest, SensorAccessPermissionsChanged) {
   PageSpecificContentSettings::CreateForWebContents(
       web_contents(),
-      std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
-          web_contents()));
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
   NavigateAndCommit(web_contents(), GURL("https://www.example.com"));
   PageSpecificContentSettings* content_settings =
       PageSpecificContentSettings::GetForFrame(
@@ -604,8 +600,7 @@ TEST_F(ContentSettingImageModelTest, NULLPageSpecificContentSettings) {
 TEST_F(ContentSettingImageModelTest, SubresourceFilter) {
   PageSpecificContentSettings::CreateForWebContents(
       web_contents(),
-      std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
-          web_contents()));
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
   PageSpecificContentSettings* content_settings =
       PageSpecificContentSettings::GetForFrame(
           web_contents()->GetPrimaryMainFrame());
@@ -624,14 +619,13 @@ TEST_F(ContentSettingImageModelTest, SubresourceFilter) {
 TEST_F(ContentSettingImageModelTest, NotificationsIconVisibility) {
   PageSpecificContentSettings::CreateForWebContents(
       web_contents(),
-      std::make_unique<chrome::PageSpecificContentSettingsDelegate>(
-          web_contents()));
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
   PageSpecificContentSettings* content_settings =
       PageSpecificContentSettings::GetForFrame(
           web_contents()->GetPrimaryMainFrame());
   auto content_setting_image_model =
       ContentSettingImageModel::CreateForContentType(
-          ContentSettingImageModel::ImageType::NOTIFICATIONS_QUIET_PROMPT);
+          ContentSettingImageModel::ImageType::NOTIFICATIONS);
 
   HostContentSettingsMapFactory::GetForProfile(profile())
       ->SetDefaultContentSetting(ContentSettingsType::NOTIFICATIONS,
@@ -647,82 +641,175 @@ TEST_F(ContentSettingImageModelTest, NotificationsIconVisibility) {
   EXPECT_FALSE(content_setting_image_model->is_visible());
 }
 
+#if BUILDFLAG(IS_MAC)
+TEST_F(ContentSettingImageModelTest, NotificationsIconSystemPermission) {
+  web_app::test::AwaitStartWebAppProviderAndSubsystems(profile());
+
+  PageSpecificContentSettings::CreateForWebContents(
+      web_contents(),
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
+  PageSpecificContentSettings* content_settings =
+      PageSpecificContentSettings::GetForFrame(
+          web_contents()->GetPrimaryMainFrame());
+  auto content_setting_image_model =
+      ContentSettingImageModel::CreateForContentType(
+          ContentSettingImageModel::ImageType::NOTIFICATIONS);
+
+  const webapps::AppId app_id = web_app::test::InstallDummyWebApp(
+      profile(), "Web App Title", GURL("http://www.google.com"));
+  AppShimRegistry::Get()->OnAppInstalledForProfile(app_id,
+                                                   profile()->GetPath());
+
+  web_app::WebAppTabHelper::FromWebContents(web_contents())->SetAppId(app_id);
+
+  // Installed app, but it hasn't interacted with notifications yet.
+  content_setting_image_model->Update(web_contents());
+  EXPECT_FALSE(content_setting_image_model->is_visible());
+  EXPECT_FALSE(content_setting_image_model->should_auto_open_bubble());
+  EXPECT_FALSE(content_setting_image_model->blocked_on_system_level());
+
+  // Same, but the system level permission has previously been denied.
+  AppShimRegistry::Get()->SaveNotificationPermissionStatusForApp(
+      app_id, mac_notifications::mojom::PermissionStatus::kDenied);
+  content_setting_image_model->Update(web_contents());
+  EXPECT_FALSE(content_setting_image_model->is_visible());
+  EXPECT_FALSE(content_setting_image_model->should_auto_open_bubble());
+  EXPECT_FALSE(content_setting_image_model->blocked_on_system_level());
+
+  // If notification permission is allowed at the chrome level, the indicator
+  // should show.
+  HostContentSettingsMapFactory::GetForProfile(profile())
+      ->SetDefaultContentSetting(ContentSettingsType::NOTIFICATIONS,
+                                 CONTENT_SETTING_ALLOW);
+  content_settings->OnContentAllowed(ContentSettingsType::NOTIFICATIONS);
+  content_setting_image_model->Update(web_contents());
+  EXPECT_TRUE(content_setting_image_model->is_visible());
+  EXPECT_TRUE(content_setting_image_model->is_blocked());
+  EXPECT_FALSE(content_setting_image_model->should_auto_open_bubble());
+  EXPECT_TRUE(content_setting_image_model->blocked_on_system_level());
+
+  // Granting system permission should remove the indicator.
+  AppShimRegistry::Get()->SaveNotificationPermissionStatusForApp(
+      app_id, mac_notifications::mojom::PermissionStatus::kGranted);
+  content_setting_image_model->Update(web_contents());
+  EXPECT_FALSE(content_setting_image_model->is_visible());
+  EXPECT_FALSE(content_setting_image_model->should_auto_open_bubble());
+  EXPECT_FALSE(content_setting_image_model->blocked_on_system_level());
+}
+
+TEST_F(ContentSettingImageModelTest,
+       NotificationsIconSystemPermission_PermissionRequested) {
+  web_app::test::AwaitStartWebAppProviderAndSubsystems(profile());
+
+  PageSpecificContentSettings::CreateForWebContents(
+      web_contents(),
+      std::make_unique<PageSpecificContentSettingsDelegate>(web_contents()));
+  PageSpecificContentSettings* content_settings =
+      PageSpecificContentSettings::GetForFrame(
+          web_contents()->GetPrimaryMainFrame());
+  auto content_setting_image_model =
+      ContentSettingImageModel::CreateForContentType(
+          ContentSettingImageModel::ImageType::NOTIFICATIONS);
+
+  const webapps::AppId app_id = web_app::test::InstallDummyWebApp(
+      browser()->profile(), "Web App Title", GURL("http://www.google.com"));
+  AppShimRegistry::Get()->OnAppInstalledForProfile(
+      app_id, browser()->profile()->GetPath());
+
+  web_app::WebAppTabHelper::FromWebContents(web_contents())->SetAppId(app_id);
+
+  // If the app requests notification permission while the system permission was
+  // denied, the notification should show and the bubble should auto open.
+  AppShimRegistry::Get()->SaveNotificationPermissionStatusForApp(
+      app_id, mac_notifications::mojom::PermissionStatus::kDenied);
+  content_settings->SetNotificationsWasDeniedBecauseOfSystemPermission();
+  content_setting_image_model->Update(web_contents());
+  EXPECT_TRUE(content_setting_image_model->is_visible());
+  EXPECT_TRUE(content_setting_image_model->is_blocked());
+  EXPECT_TRUE(content_setting_image_model->should_auto_open_bubble());
+  EXPECT_TRUE(content_setting_image_model->blocked_on_system_level());
+}
+#endif
+
 #if !BUILDFLAG(IS_ANDROID)
-TEST_F(ContentSettingImageModelTest, NotificationsPrompt) {
-  auto* profile =
-      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-  profile->GetPrefs()->SetBoolean(prefs::kEnableQuietNotificationPermissionUi,
-                                  true);
-
+TEST_F(ContentSettingImageModelTest, StorageAccess) {
   auto content_setting_image_model =
       ContentSettingImageModel::CreateForContentType(
-          ContentSettingImageModel::ImageType::NOTIFICATIONS_QUIET_PROMPT);
+          ContentSettingImageModel::ImageType::STORAGE_ACCESS);
   EXPECT_FALSE(content_setting_image_model->is_visible());
-  manager_->AddRequest(web_contents()->GetPrimaryMainFrame(), &request_);
-  WaitForBubbleToBeShown();
-  EXPECT_TRUE(manager_->ShouldCurrentRequestUseQuietUI());
-  content_setting_image_model->Update(web_contents());
-  EXPECT_TRUE(content_setting_image_model->is_visible());
-  EXPECT_NE(0, content_setting_image_model->explanatory_string_id());
-  manager_->Accept();
-  EXPECT_FALSE(manager_->ShouldCurrentRequestUseQuietUI());
-  content_setting_image_model->Update(web_contents());
-  EXPECT_FALSE(content_setting_image_model->is_visible());
-}
 
-TEST_F(ContentSettingImageModelTest, NotificationsPromptCrowdDeny) {
-  auto content_setting_image_model =
-      ContentSettingImageModel::CreateForContentType(
-          ContentSettingImageModel::ImageType::NOTIFICATIONS_QUIET_PROMPT);
-  EXPECT_FALSE(content_setting_image_model->is_visible());
-  manager_->set_permission_ui_selector_for_testing(
-      std::make_unique<TestQuietNotificationPermissionUiSelector>(
-          permissions::PermissionUiSelector::QuietUiReason::
-              kTriggeredByCrowdDeny));
-  manager_->AddRequest(web_contents()->GetPrimaryMainFrame(), &request_);
-  WaitForBubbleToBeShown();
-  EXPECT_TRUE(manager_->ShouldCurrentRequestUseQuietUI());
-  content_setting_image_model->Update(web_contents());
-  EXPECT_TRUE(content_setting_image_model->is_visible());
-  EXPECT_EQ(0, content_setting_image_model->explanatory_string_id());
-  manager_->Accept();
-}
+  auto* content_settings = PageSpecificContentSettings::GetForFrame(
+      web_contents()->GetPrimaryMainFrame());
 
-TEST_F(ContentSettingImageModelTest, NotificationsPromptAbusive) {
-  auto content_setting_image_model =
-      ContentSettingImageModel::CreateForContentType(
-          ContentSettingImageModel::ImageType::NOTIFICATIONS_QUIET_PROMPT);
-  EXPECT_FALSE(content_setting_image_model->is_visible());
-  manager_->set_permission_ui_selector_for_testing(
-      std::make_unique<TestQuietNotificationPermissionUiSelector>(
-          permissions::PermissionUiSelector::QuietUiReason::
-              kTriggeredDueToAbusiveRequests));
-  manager_->AddRequest(web_contents()->GetPrimaryMainFrame(), &request_);
-  WaitForBubbleToBeShown();
-  EXPECT_TRUE(manager_->ShouldCurrentRequestUseQuietUI());
+  // Add an allowed permission.
+  content_settings->OnTwoSitePermissionChanged(
+      ContentSettingsType::STORAGE_ACCESS,
+      net::SchemefulSite(GURL("https://example.com")), CONTENT_SETTING_ALLOW);
   content_setting_image_model->Update(web_contents());
   EXPECT_TRUE(content_setting_image_model->is_visible());
-  EXPECT_EQ(0, content_setting_image_model->explanatory_string_id());
-  manager_->Accept();
-}
+  EXPECT_EQ(content_setting_image_model->icon(),
+            &vector_icons::kStorageAccessIcon);
 
-TEST_F(ContentSettingImageModelTest, NotificationsContentAbusive) {
-  auto content_setting_image_model =
-      ContentSettingImageModel::CreateForContentType(
-          ContentSettingImageModel::ImageType::NOTIFICATIONS_QUIET_PROMPT);
-  EXPECT_FALSE(content_setting_image_model->is_visible());
-  manager_->set_permission_ui_selector_for_testing(
-      std::make_unique<TestQuietNotificationPermissionUiSelector>(
-          permissions::PermissionUiSelector::QuietUiReason::
-              kTriggeredDueToAbusiveContent));
-  manager_->AddRequest(web_contents()->GetPrimaryMainFrame(), &request_);
-  WaitForBubbleToBeShown();
-  EXPECT_TRUE(manager_->ShouldCurrentRequestUseQuietUI());
+  // Add a blocked permission.
+  content_settings->OnTwoSitePermissionChanged(
+      ContentSettingsType::STORAGE_ACCESS,
+      net::SchemefulSite(GURL("https://foo.com")), CONTENT_SETTING_BLOCK);
   content_setting_image_model->Update(web_contents());
   EXPECT_TRUE(content_setting_image_model->is_visible());
-  EXPECT_EQ(0, content_setting_image_model->explanatory_string_id());
-  manager_->Accept();
+  EXPECT_EQ(content_setting_image_model->icon(),
+            &vector_icons::kStorageAccessOffIcon);
+
+  // Change permission to be allowed. E.g. through PageInfo.
+  auto* map = HostContentSettingsMapFactory::GetForProfile(profile());
+  map->SetContentSettingDefaultScope(
+      GURL("https://foo.com"), web_contents()->GetURL(),
+      ContentSettingsType::STORAGE_ACCESS, CONTENT_SETTING_ALLOW);
+  content_setting_image_model->Update(web_contents());
+  EXPECT_TRUE(content_setting_image_model->is_visible());
+  EXPECT_EQ(content_setting_image_model->icon(),
+            &vector_icons::kStorageAccessIcon);
+
+  // Reset permissions.
+  map->SetContentSettingDefaultScope(
+      GURL("https://foo.com"), web_contents()->GetURL(),
+      ContentSettingsType::STORAGE_ACCESS, CONTENT_SETTING_ASK);
+  map->SetContentSettingDefaultScope(
+      GURL("https://example.com"), web_contents()->GetURL(),
+      ContentSettingsType::STORAGE_ACCESS, CONTENT_SETTING_ASK);
+  content_setting_image_model->Update(web_contents());
+  EXPECT_FALSE(content_setting_image_model->is_visible());
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
+
+TEST_F(ContentSettingImageModelTest, SmartCard) {
+  auto content_setting_image_model =
+      ContentSettingImageModel::CreateForContentType(
+          ContentSettingImageModel::ImageType::SMART_CARD);
+  EXPECT_FALSE(content_setting_image_model->is_visible());
+
+  auto* content_settings = PageSpecificContentSettings::GetForFrame(
+      web_contents()->GetPrimaryMainFrame());
+
+  // Connection starts.
+  content_settings->OnDeviceUsed(ContentSettingsType::SMART_CARD_GUARD);
+  content_setting_image_model->Update(web_contents());
+  EXPECT_TRUE(content_setting_image_model->is_visible());
+  EXPECT_EQ(content_setting_image_model->icon(),
+            &vector_icons::kSmartCardReaderIcon);
+
+  // Last connection ends.
+  content_settings->OnLastDeviceConnectionLost(
+      ContentSettingsType::SMART_CARD_GUARD);
+  content_setting_image_model->Update(web_contents());
+  // Still visible.
+  EXPECT_TRUE(content_setting_image_model->is_visible());
+
+  task_environment()->AdvanceClock(base::Seconds(15));
+  content_setting_image_model->Update(web_contents());
+  EXPECT_FALSE(content_setting_image_model->is_visible());
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace

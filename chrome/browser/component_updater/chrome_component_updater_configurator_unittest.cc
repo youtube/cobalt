@@ -2,20 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/component_updater/chrome_component_updater_configurator.h"
+
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "base/command_line.h"
 #include "base/memory/ref_counted.h"
+#include "base/test/task_environment.h"
 #include "base/time/time.h"
-#include "chrome/browser/component_updater/chrome_component_updater_configurator.h"
 #include "components/component_updater/component_updater_command_line_config_policy.h"
 #include "components/component_updater/component_updater_switches.h"
 #include "components/component_updater/component_updater_url_constants.h"
 #include "components/component_updater/configurator_impl.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/update_client/configurator.h"
+#include "components/update_client/update_client.h"
 #include "components/update_client/update_query_params.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -23,28 +26,20 @@
 namespace component_updater {
 
 class ChromeComponentUpdaterConfiguratorTest : public testing::Test {
- public:
-  ChromeComponentUpdaterConfiguratorTest() = default;
-
-  ChromeComponentUpdaterConfiguratorTest(
-      const ChromeComponentUpdaterConfiguratorTest&) = delete;
-  ChromeComponentUpdaterConfiguratorTest& operator=(
-      const ChromeComponentUpdaterConfiguratorTest&) = delete;
-
-  ~ChromeComponentUpdaterConfiguratorTest() override = default;
-
+ protected:
   // Overrides from testing::Test.
   void SetUp() override;
 
- protected:
   TestingPrefServiceSimple* pref_service() { return pref_service_.get(); }
 
  private:
+  base::test::TaskEnvironment environment_;
   std::unique_ptr<TestingPrefServiceSimple> pref_service_;
 };
 
 void ChromeComponentUpdaterConfiguratorTest::SetUp() {
   pref_service_ = std::make_unique<TestingPrefServiceSimple>();
+  update_client::RegisterPrefs(pref_service_->registry());
 }
 
 TEST_F(ChromeComponentUpdaterConfiguratorTest, TestDisablePings) {

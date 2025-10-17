@@ -13,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/web_applications/os_integration/web_app_shortcut.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/window/dialog_delegate.h"
 
 class CreateAppShortcutDialogTest;
@@ -30,8 +31,10 @@ class Checkbox;
 // A dialog allowing the user to create a desktop shortcut pointing to Chrome
 // app.
 class CreateChromeApplicationShortcutView : public views::DialogDelegateView {
+  METADATA_HEADER(CreateChromeApplicationShortcutView,
+                  views::DialogDelegateView)
+
  public:
-  METADATA_HEADER(CreateChromeApplicationShortcutView);
   CreateChromeApplicationShortcutView(
       Profile* profile,
       const extensions::Extension* app,
@@ -50,14 +53,16 @@ class CreateChromeApplicationShortcutView : public views::DialogDelegateView {
   void InitControls();
 
   // DialogDelegateView:
-  gfx::Size CalculatePreferredSize() const override;
-  bool IsDialogButtonEnabled(ui::DialogButton button) const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
+  bool IsDialogButtonEnabled(ui::mojom::DialogButton button) const override;
   std::u16string GetWindowTitle() const override;
 
  private:
   friend class CreateAppShortcutDialogTest;
 
-  CreateChromeApplicationShortcutView(PrefService* prefs,
+  CreateChromeApplicationShortcutView(Profile* profile,
+                                      bool is_extension,
                                       base::OnceCallback<void(bool)> cb);
 
   // Creates a new check-box with the given text and checked state.
@@ -71,7 +76,9 @@ class CreateChromeApplicationShortcutView : public views::DialogDelegateView {
 
   void OnDialogAccepted();
 
+  raw_ptr<Profile> profile_;
   raw_ptr<PrefService> prefs_;
+  bool is_extension_;
 
   base::OnceCallback<void(bool)> close_callback_;
 

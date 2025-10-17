@@ -113,7 +113,6 @@ void PrintJobDatabaseImpl::DeletePrintJobs(const std::vector<std::string>& ids,
 }
 
 void PrintJobDatabaseImpl::Clear(DeletePrintJobsCallback callback) {
-  // TODO(crbug/1074444): Maybe try to remove duplicate code in this function.
   if (init_status_ == InitStatus::FAILED) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), false));
@@ -189,7 +188,6 @@ void PrintJobDatabaseImpl::OnInitialized(
     case leveldb_proto::Enums::InitStatus::kNotInitialized:
     case leveldb_proto::Enums::InitStatus::kCorrupt:
       NOTREACHED();
-      break;
   }
 }
 

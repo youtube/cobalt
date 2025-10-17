@@ -6,17 +6,18 @@
 #define CHROME_BROWSER_ASH_POLICY_CORE_USER_CLOUD_POLICY_TOKEN_FORWARDER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/policy/core/common/cloud/cloud_policy_service.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "net/base/backoff_entry.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class Clock;
@@ -75,7 +76,7 @@ class UserCloudPolicyTokenForwarder : public KeyedService,
   bool IsTokenRefreshScheduledForTesting() const;
 
   // Returns delay to next token refresh if it is scheduled.
-  absl::optional<base::TimeDelta> GetTokenRefreshDelayForTesting() const;
+  std::optional<base::TimeDelta> GetTokenRefreshDelayForTesting() const;
 
   // Overrides elements responsible for time progression to allow testing.
   // Affects time calculation and timer objects.
@@ -89,13 +90,13 @@ class UserCloudPolicyTokenForwarder : public KeyedService,
   void OnAccessTokenFetchCompleted(GoogleServiceAuthError error,
                                    signin::AccessTokenInfo token_info);
 
-  raw_ptr<UserCloudPolicyManagerAsh, ExperimentalAsh> manager_;
-  raw_ptr<signin::IdentityManager, ExperimentalAsh> identity_manager_;
+  raw_ptr<UserCloudPolicyManagerAsh> manager_;
+  raw_ptr<signin::IdentityManager, DanglingUntriaged> identity_manager_;
   std::unique_ptr<signin::PrimaryAccountAccessTokenFetcher>
       access_token_fetcher_;
 
   // Last fetched OAuth token.
-  absl::optional<signin::AccessTokenInfo> oauth_token_;
+  std::optional<signin::AccessTokenInfo> oauth_token_;
 
   // Timer that measures time to the next OAuth token refresh. Not initialized
   // if token refresh is not scheduled.
@@ -105,7 +106,10 @@ class UserCloudPolicyTokenForwarder : public KeyedService,
   std::unique_ptr<net::BackoffEntry> retry_backoff_;
 
   // Points to the base::DefaultClock by default.
-  raw_ptr<const base::Clock, ExperimentalAsh> clock_;
+  raw_ptr<const base::Clock> clock_;
+
+  base::ScopedObservation<CloudPolicyService, CloudPolicyService::Observer>
+      cloud_policy_service_observation_{this};
 
   base::WeakPtrFactory<UserCloudPolicyTokenForwarder> weak_ptr_factory_{this};
 };

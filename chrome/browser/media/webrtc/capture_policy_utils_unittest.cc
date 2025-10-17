@@ -5,6 +5,7 @@
 #include "chrome/browser/media/webrtc/capture_policy_utils.h"
 
 #include "base/containers/contains.h"
+#include "base/test/test_future.h"
 #include "base/values.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/common/pref_names.h"
@@ -16,6 +17,17 @@
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/crosapi/crosapi_manager.h"
+#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
+#include "chrome/test/base/testing_browser_process.h"
+#include "chrome/test/base/testing_profile_manager.h"
+#include "chromeos/ash/components/login/login_state/login_state.h"
+#include "components/account_id/account_id.h"
+#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/user_type.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace {
 constexpr char kTestSite1[] = "https://foo.test.org";
@@ -260,90 +272,3 @@ TEST_F(CapturePolicyUtilsTest, FilterMediaListRestrictedSameOrigin) {
 
   EXPECT_EQ(expected_media_types, actual_media_types);
 }
-
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
-
-class MultiCaptureTest
-    : public testing::Test,
-      public ::testing::WithParamInterface<
-          std::tuple<bool, std::vector<std::string>, std::string>> {
- public:
-  void SetUp() override {
-    testing::Test::SetUp();
-
-    TestingProfile::Builder builder;
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    builder.SetIsMainProfile(IsMainProfile());
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-    profile_ = builder.Build();
-
-    HostContentSettingsMap* content_settings =
-        HostContentSettingsMapFactory::GetForProfile(profile());
-    for (const std::string& url : AllowedOrigins()) {
-      content_settings->SetContentSettingDefaultScope(
-          GURL(url), GURL(url),
-          ContentSettingsType::GET_DISPLAY_MEDIA_SET_SELECT_ALL_SCREENS,
-          ContentSetting::CONTENT_SETTING_ALLOW);
-    }
-  }
-
-  void TearDown() override { profile_.reset(); }
-
-  Profile* profile() { return profile_.get(); }
-  bool IsMainProfile() const { return std::get<0>(GetParam()); }
-  std::vector<std::string> AllowedOrigins() const {
-    return std::get<1>(GetParam());
-  }
-  std::string CurrentOrigin() const { return std::get<2>(GetParam()); }
-
- protected:
-  bool ExpectedIsMultiCaptureAllowed() {
-    std::vector<std::string> allowed_urls = AllowedOrigins();
-    return
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-        IsMainProfile() &&
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-        base::Contains(allowed_urls, CurrentOrigin());
-  }
-
-  bool ExpectedIsMultiCaptureAllowedForAnyUrl() {
-    return
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-        IsMainProfile() &&
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-        !AllowedOrigins().empty();
-  }
-
- private:
-  std::unique_ptr<TestingProfile> profile_;
-  content::BrowserTaskEnvironment task_environment_;
-};
-
-TEST_P(MultiCaptureTest, IsMultiCaptureAllowedBasedOnPolicy) {
-  EXPECT_EQ(ExpectedIsMultiCaptureAllowed(),
-            capture_policy::IsGetDisplayMediaSetSelectAllScreensAllowed(
-                profile(), GURL(CurrentOrigin())));
-}
-
-TEST_P(MultiCaptureTest, IsMultiCaptureAllowedForAnyUrl) {
-  EXPECT_EQ(
-      ExpectedIsMultiCaptureAllowedForAnyUrl(),
-      capture_policy::IsGetDisplayMediaSetSelectAllScreensAllowedForAnySite(
-          profile()));
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    MultiCaptureTestCases,
-    MultiCaptureTest,
-    ::testing::Combine(
-        // Is main profile?
-        ::testing::Bool(),
-        // Allowed origins
-        ::testing::ValuesIn({std::vector<std::string>{},
-                             std::vector<std::string>{
-                                 "https://www.google.com"}}),
-        // Origin to test
-        ::testing::ValuesIn({std::string("https://www.google.com"),
-                             std::string("https://www.notallowed.com")})));
-
-#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)

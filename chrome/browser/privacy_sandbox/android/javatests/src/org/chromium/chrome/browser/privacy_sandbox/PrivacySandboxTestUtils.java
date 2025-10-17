@@ -22,12 +22,10 @@ import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
+import org.chromium.base.ThreadUtils;
 import org.chromium.ui.test.util.RenderTestRule;
 
-/**
- * Test utilities for various privacy_sandbox tests.
- */
+/** Test utilities for various privacy_sandbox tests. */
 public final class PrivacySandboxTestUtils {
     /**
      * Click an ImageButton located next to a View that contains the given text.
@@ -60,16 +58,15 @@ public final class PrivacySandboxTestUtils {
     }
 
     /**
-     * Get the root View, sanitized for render tests, whose children contain
-     * the given text.
+     * Get the root View, sanitized for render tests, whose children contain the given text.
      *
      * @param text The text contained in a child View of the root View.
      * @return The sanitized root View.
      */
     public static View getRootViewSanitized(@StringRes int text) {
         View[] view = {null};
-        onView(withText(text)).check(((v, e) -> view[0] = v.getRootView()));
-        TestThreadUtils.runOnUiThreadBlocking(() -> RenderTestRule.sanitize(view[0]));
+        onView(withText(text)).check((v, e) -> view[0] = v.getRootView());
+        ThreadUtils.runOnUiThreadBlocking(() -> RenderTestRule.sanitize(view[0]));
         return view[0];
     }
 }

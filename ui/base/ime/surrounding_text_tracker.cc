@@ -4,6 +4,7 @@
 
 #include "ui/base/ime/surrounding_text_tracker.h"
 
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
@@ -77,6 +78,27 @@ void EraseString16WithOffset(std::u16string& str,
 
 }  // namespace
 
+gfx::Range SurroundingTextTracker::State::GetSurroundingTextRange() const {
+  return {utf16_offset, utf16_offset + surrounding_text.length()};
+}
+
+std::optional<std::u16string_view>
+SurroundingTextTracker::State::GetCompositionText() const {
+  if (composition.is_empty()) {
+    // Represents no composition. Return empty composition text as a valid
+    // result.
+    return std::u16string_view();
+  }
+
+  if (!composition.IsBoundedBy(GetSurroundingTextRange())) {
+    // composition range is out of the range. Return error.
+    return std::nullopt;
+  }
+
+  return std::u16string_view(surrounding_text)
+      .substr(composition.GetMin() - utf16_offset, composition.length());
+}
+
 SurroundingTextTracker::Entry::Entry(State state,
                                      base::RepeatingClosure command)
     : state(std::move(state)), command(std::move(command)) {}
@@ -99,8 +121,15 @@ void SurroundingTextTracker::Reset() {
   ResetInternal(u"", 0u, gfx::Range(0));
 }
 
+void SurroundingTextTracker::CancelComposition() {
+  predicted_state_.composition = gfx::Range();
+  // TODO(b/267944900): Determine if the expectations need to be updated as
+  // well.
+  expected_updates_.clear();
+}
+
 SurroundingTextTracker::UpdateResult SurroundingTextTracker::Update(
-    const base::StringPiece16 surrounding_text,
+    const std::u16string_view surrounding_text,
     size_t utf16_offset,
     const gfx::Range& selection) {
   for (auto it = expected_updates_.begin(); it != expected_updates_.end();
@@ -109,14 +138,14 @@ SurroundingTextTracker::UpdateResult SurroundingTextTracker::Update(
       continue;
     }
 
-    // TODO(crbug.com/1402906): Limit the trailing text to support cases
+    // TODO(crbug.com/40251329): Limit the trailing text to support cases
     // where trailing text is truncated.
     size_t compare_begin = std::max(utf16_offset, it->state.utf16_offset);
-    base::StringPiece16 target =
+    std::u16string_view target =
         surrounding_text.substr(compare_begin - utf16_offset);
-    base::StringPiece16 history =
-        base::StringPiece16(it->state.surrounding_text)
-            .substr(compare_begin - utf16_offset);
+    std::u16string_view history =
+        std::u16string_view(it->state.surrounding_text)
+            .substr(compare_begin - it->state.utf16_offset);
 
     if (target != history) {
       continue;
@@ -241,7 +270,7 @@ void SurroundingTextTracker::OnClearCompositionText() {
 }
 
 void SurroundingTextTracker::OnInsertText(
-    const base::StringPiece16 text,
+    const std::u16string_view text,
     TextInputClient::InsertTextCursorBehavior cursor_behavior) {
   gfx::Range rewritten_range = predicted_state_.selection;
   if (!predicted_state_.composition.is_empty()) {
@@ -290,7 +319,10 @@ void SurroundingTextTracker::OnInsertText(
   expected_updates_.emplace_back(
       predicted_state_,
       base::BindRepeating(&SurroundingTextTracker::OnInsertText,
-                          base::Unretained(this), text, cursor_behavior));
+                          // Bind `text` as a `std::u16string` to avoid
+                          // a dangling string_view when callbacks are run.
+                          base::Unretained(this), std::u16string(text),
+                          cursor_behavior));
 }
 
 void SurroundingTextTracker::OnExtendSelectionAndDelete(size_t before,
@@ -339,7 +371,7 @@ void SurroundingTextTracker::OnExtendSelectionAndDelete(size_t before,
                           base::Unretained(this), before, after));
 }
 
-void SurroundingTextTracker::ResetInternal(base::StringPiece16 surrounding_text,
+void SurroundingTextTracker::ResetInternal(std::u16string_view surrounding_text,
                                            size_t utf16_offset,
                                            const gfx::Range& selection) {
   predicted_state_ = State{std::u16string(surrounding_text), utf16_offset,

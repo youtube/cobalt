@@ -26,8 +26,6 @@
 #include "ipc/ipc_sender.h"
 #include "ppapi/proxy/plugin_globals.h"
 #include "services/tracing/public/cpp/trace_startup.h"
-#include "third_party/icu/source/common/unicode/unistr.h"
-#include "third_party/icu/source/i18n/unicode/timezone.h"
 #include "ui/base/ui_base_switches.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -75,9 +73,11 @@ int PpapiPluginMain(MainFunctionParams parameters) {
   const base::CommandLine& command_line = *parameters.command_line;
 
 #if BUILDFLAG(IS_MAC)
-  // Specified when launching the process in
-  // PpapiPluginSandboxedProcessLauncherDelegate::EnableCpuSecurityMitigations.
-  base::SysInfo::SetIsCpuSecurityMitigationsEnabled(true);
+  // Declare that this process has CPU security mitigations enabled (see
+  // PpapiPluginSandboxedProcessLauncherDelegate::EnableCpuSecurityMitigations).
+  // This must be done before the first call to
+  // base::SysInfo::NumberOfProcessors().
+  base::SysInfo::SetCpuSecurityMitigationsEnabled();
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -122,13 +122,6 @@ int PpapiPluginMain(MainFunctionParams parameters) {
 #endif
   }
 
-  if (command_line.HasSwitch(switches::kTimeZoneForTesting)) {
-    std::string time_zone =
-        command_line.GetSwitchValueASCII(switches::kTimeZoneForTesting);
-    icu::TimeZone::adoptDefault(
-        icu::TimeZone::createTimeZone(icu::UnicodeString(time_zone.c_str())));
-  }
-
 #if BUILDFLAG(IS_CHROMEOS)
   // Specifies $HOME explicitly because some plugins rely on $HOME but
   // no other part of Chrome OS uses that.  See crbug.com/335290.
@@ -141,8 +134,6 @@ int PpapiPluginMain(MainFunctionParams parameters) {
   base::PlatformThread::SetName("CrPPAPIMain");
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_PPAPI_PLUGIN);
-  base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
-      kTraceEventPpapiProcessSortIndex);
 
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
   gin::V8Initializer::LoadV8Snapshot();

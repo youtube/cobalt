@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cdm/win/test/media_foundation_clear_key_input_trust_authority.h"
 
 #include <mfapi.h>
@@ -17,7 +22,6 @@
 #include "media/cdm/win/test/media_foundation_clear_key_activate.h"
 #include "media/cdm/win/test/media_foundation_clear_key_decryptor.h"
 #include "media/cdm/win/test/media_foundation_clear_key_guids.h"
-#include "media/cdm/win/test/media_foundation_clear_key_output_policy.h"
 
 namespace media {
 
@@ -93,14 +97,8 @@ STDMETHODIMP MediaFoundationClearKeyInputTrustAuthority::GetPolicy(
   DVLOG_FUNC(1);
   RETURN_IF_FAILED(GetShutdownStatus());
 
+  // For testing purpose, we don't need to set the output policy for now.
   *policy = nullptr;
-
-  ComPtr<IMFOutputPolicy> output_policy;
-  RETURN_IF_FAILED(
-      (MakeAndInitialize<MediaFoundationClearKeyOutputPolicy, IMFOutputPolicy>(
-          &output_policy, action)));
-
-  *policy = output_policy.Detach();
 
   return S_OK;
 }

@@ -11,15 +11,16 @@ import './dialogs/edit_password_disclaimer_dialog.js';
 import './site_favicon.js';
 import './shared_style.css.js';
 
-import {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import type {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './checkup_list_item.html.js';
 import {PasswordManagerImpl} from './password_manager_proxy.js';
-import {ShowPasswordMixin, ShowPasswordMixinInterface} from './show_password_mixin.js';
+import type {ShowPasswordMixinInterface} from './show_password_mixin.js';
+import {ShowPasswordMixin} from './show_password_mixin.js';
 
 export interface CheckupListItemElement extends ShowPasswordMixinInterface {
   $: {
@@ -44,31 +45,24 @@ export class CheckupListItemElement extends CheckupListItemElementBase {
   static get properties() {
     return {
       item: Object,
-
       group: Object,
-
       first: Boolean,
-
       showDetails: Boolean,
-
       showAlreadyChanged: Boolean,
-
       showEditPasswordDialog_: Boolean,
-
       showEditPasswordDisclaimer_: Boolean,
-
       showDeletePasswordDialog_: Boolean,
     };
   }
 
-  item: chrome.passwordsPrivate.PasswordUiEntry;
-  group: chrome.passwordsPrivate.CredentialGroup;
-  first: boolean;
-  showDetails: boolean;
-  showAlreadyChanged: boolean;
-  private showEditPasswordDialog_: boolean;
-  private showEditPasswordDisclaimer_: boolean;
-  private showDeletePasswordDialog_: boolean;
+  declare item: chrome.passwordsPrivate.PasswordUiEntry;
+  declare group: chrome.passwordsPrivate.CredentialGroup;
+  declare first: boolean;
+  declare showDetails: boolean;
+  declare showAlreadyChanged: boolean;
+  declare private showEditPasswordDialog_: boolean;
+  declare private showEditPasswordDisclaimer_: boolean;
+  declare private showDeletePasswordDialog_: boolean;
 
   private getPasswordValue_(): string|undefined {
     return this.isPasswordVisible ? this.item.password : ' '.repeat(10);
@@ -105,7 +99,7 @@ export class CheckupListItemElement extends CheckupListItemElementBase {
     }));
   }
 
-  public showHidePassword() {
+  showHidePassword() {
     if (this.isPasswordVisible === true) {
       this.onShowHidePasswordButtonClick();
       this.item.password = undefined;
@@ -125,7 +119,7 @@ export class CheckupListItemElement extends CheckupListItemElementBase {
         .catch(() => {});
   }
 
-  public showEditDialog() {
+  showEditDialog() {
     PasswordManagerImpl.getInstance()
         .requestCredentialsDetails([this.item.id])
         .then(entries => {
@@ -139,7 +133,7 @@ export class CheckupListItemElement extends CheckupListItemElementBase {
         .catch(() => {});
   }
 
-  public showDeleteDialog() {
+  showDeleteDialog() {
     this.showDeletePasswordDialog_ = true;
   }
 
@@ -175,7 +169,7 @@ export class CheckupListItemElement extends CheckupListItemElementBase {
   }
 
   private onDeletePasswordClick_() {
-    PasswordManagerImpl.getInstance().removeSavedPassword(
+    PasswordManagerImpl.getInstance().removeCredential(
         this.item.id, this.item.storedIn);
     this.dispatchEvent(new CustomEvent('password-removed', {
       bubbles: true,

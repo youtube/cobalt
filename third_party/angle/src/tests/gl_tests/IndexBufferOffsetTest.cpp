@@ -282,10 +282,10 @@ TEST_P(IndexBufferOffsetTest, UInt32IndexSmallUpdates)
 // Test using an offset for an UInt8 index buffer after uploading data to a buffer that is in use
 TEST_P(IndexBufferOffsetTestES3, UseAsUBOThenUpdateThenUInt8Index)
 {
-    // http://anglebug.com/5950
+    // http://anglebug.com/42264483
     ANGLE_SKIP_TEST_IF(IsAMD() && IsVulkan() && IsWindows());
 
-    // http://anglebug.com/5957
+    // http://anglebug.com/42264490
     ANGLE_SKIP_TEST_IF(IsVulkan() && (IsPixel2() || IsPixel2XL()));
 
     GLubyte indexData[] = {0, 1, 2, 1, 2, 3};
@@ -295,7 +295,7 @@ TEST_P(IndexBufferOffsetTestES3, UseAsUBOThenUpdateThenUInt8Index)
 // Test using an offset for an UInt16 index buffer after uploading data to a buffer that is in use
 TEST_P(IndexBufferOffsetTestES3, UseAsUBOThenUpdateThenUInt16Index)
 {
-    // http://anglebug.com/5957
+    // http://anglebug.com/42264490
     ANGLE_SKIP_TEST_IF(IsVulkan() && (IsPixel2() || IsPixel2XL()));
 
     GLushort indexData[] = {0, 1, 2, 1, 2, 3};
@@ -308,7 +308,7 @@ TEST_P(IndexBufferOffsetTestES3, UseAsUBOThenUpdateThenUInt32Index)
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
                        !IsGLExtensionEnabled("GL_OES_element_index_uint"));
 
-    // http://anglebug.com/5957
+    // http://anglebug.com/42264490
     ANGLE_SKIP_TEST_IF(IsVulkan() && (IsPixel2() || IsPixel2XL()));
 
     GLuint indexData[] = {0, 1, 2, 1, 2, 3};
@@ -319,10 +319,10 @@ TEST_P(IndexBufferOffsetTestES3, UseAsUBOThenUpdateThenUInt32Index)
 // with small buffer updates
 TEST_P(IndexBufferOffsetTestES3, UseAsUBOThenUpdateThenUInt8IndexSmallUpdates)
 {
-    // http://anglebug.com/5950
+    // http://anglebug.com/42264483
     ANGLE_SKIP_TEST_IF(IsAMD() && IsVulkan() && IsWindows());
 
-    // http://anglebug.com/5957
+    // http://anglebug.com/42264490
     ANGLE_SKIP_TEST_IF(IsVulkan() && (IsPixel2() || IsPixel2XL()));
 
     GLubyte indexData[] = {0, 1, 2, 1, 2, 3};
@@ -333,7 +333,7 @@ TEST_P(IndexBufferOffsetTestES3, UseAsUBOThenUpdateThenUInt8IndexSmallUpdates)
 // with small buffer updates
 TEST_P(IndexBufferOffsetTestES3, UseAsUBOThenUpdateThenUInt16IndexSmallUpdates)
 {
-    // http://anglebug.com/5957
+    // http://anglebug.com/42264490
     ANGLE_SKIP_TEST_IF(IsVulkan() && (IsPixel2() || IsPixel2XL()));
 
     GLushort indexData[] = {0, 1, 2, 1, 2, 3};
@@ -347,7 +347,7 @@ TEST_P(IndexBufferOffsetTestES3, UseAsUBOThenUpdateThenUInt32IndexSmallUpdates)
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
                        !IsGLExtensionEnabled("GL_OES_element_index_uint"));
 
-    // http://anglebug.com/5957
+    // http://anglebug.com/42264490
     ANGLE_SKIP_TEST_IF(IsVulkan() && (IsPixel2() || IsPixel2XL()));
 
     GLuint indexData[] = {0, 1, 2, 1, 2, 3};
@@ -429,6 +429,43 @@ TEST_P(IndexBufferOffsetTest, DrawAtDifferentOffsetAlignments)
 
     // Check the down right triangle
     EXPECT_PIXEL_COLOR_EQ(getWindowWidth() - 1, getWindowHeight() - 1, GLColor::red);
+
+    EXPECT_GL_NO_ERROR();
+}
+
+// Uses un-aligned index buffer to draw, the draw call should be ignored
+TEST_P(IndexBufferOffsetTest, DrawAtUnAlignedIndexBuffer)
+{
+    constexpr GLushort indices[6] = {0, 1, 2, 2, 3, 0};
+    GLubyte indicesUnaligned[1 + sizeof(indices)];
+
+    /* unalign indices */
+    indicesUnaligned[0] = 0;
+    for (unsigned long i = 0; i < sizeof(indices); ++i)
+    {
+        indicesUnaligned[i + 1] = ((GLubyte *)indices)[i];
+    }
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glUseProgram(mProgram);
+    glUniform4f(mColorUniformLocation, 1.0f, 0.0f, 0.0f, 1.0f);
+
+    glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
+    glVertexAttribPointer(mPositionAttributeLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(mPositionAttributeLocation);
+
+    GLBuffer buffer;
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicesUnaligned), indicesUnaligned,
+                 GL_DYNAMIC_DRAW);
+
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, reinterpret_cast<void *>(1));
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    // The draw should be ignored, nothing should been drawn
+    EXPECT_PIXEL_RECT_EQ(0, 0, getWindowWidth(), getWindowHeight(), GLColor::black);
 
     EXPECT_GL_NO_ERROR();
 }

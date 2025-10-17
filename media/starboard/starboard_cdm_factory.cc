@@ -44,9 +44,9 @@ void StarboardCdmFactory::Create(
       base::BindPostTaskToCurrentDefault(std::move(cdm_created_cb));
 
   if (cdm->HasValidSbDrm()) {
-    std::move(bound_cdm_created_cb).Run(std::move(cdm), "Success");
+    std::move(bound_cdm_created_cb).Run(std::move(cdm), CreateCdmStatus::kSuccess);
   } else {
-    std::move(bound_cdm_created_cb).Run(nullptr, "CdmFactoryCreationFailed");
+    std::move(bound_cdm_created_cb).Run(nullptr, CreateCdmStatus::kCdmFactoryCreationFailed);
   }
 }
 

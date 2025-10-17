@@ -19,9 +19,6 @@ enum class ShortcutOperation;
 
 namespace shell_integration::win {
 
-struct ShortcutProperties;
-enum class ShortcutOperation;
-
 // Initiates the interaction with the system settings for the default browser.
 // The function takes care of making sure |on_finished_callback| will get called
 // exactly once when the interaction is finished.
@@ -73,8 +70,7 @@ std::wstring GetAppUserModelIdForBrowser(const base::FilePath& profile_path);
 // with the connection to the remote process.
 using ConnectionErrorCallback = base::OnceClosure;
 using IsPinnedToTaskbarCallback = base::OnceCallback<void(bool, bool)>;
-void GetIsPinnedToTaskbarState(ConnectionErrorCallback on_error_callback,
-                               IsPinnedToTaskbarCallback result_callback);
+void GetIsPinnedToTaskbarState(IsPinnedToTaskbarCallback result_callback);
 
 // Unpins `shortcuts` from the taskbar, and run `completion_callback` when done.
 void UnpinShortcuts(const std::vector<base::FilePath>& shortcuts,

@@ -9,7 +9,6 @@
 #include <string>
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/apps/app_service/app_icon/icon_key_util.h"
 #include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/apps/app_service/publishers/app_publisher.h"
 #include "chrome/browser/ash/guest_os/guest_os_registry_service.h"
@@ -48,12 +47,6 @@ class PluginVmApps : public AppPublisher,
   void Initialize();
 
   // apps::AppPublisher overrides.
-  void LoadIcon(const std::string& app_id,
-                const IconKey& icon_key,
-                IconType icon_type,
-                int32_t size_hint_in_dip,
-                bool allow_placeholder_icon,
-                apps::LoadIconCallback callback) override;
   void GetCompressedIconData(const std::string& app_id,
                              int32_t size_in_dip,
                              ui::ResourceScaleFactor scale_factor,
@@ -96,11 +89,8 @@ class PluginVmApps : public AppPublisher,
   void OnPluginVmAvailabilityChanged(bool is_allowed, bool is_configured);
   void OnPermissionChanged();
 
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
-  raw_ptr<guest_os::GuestOsRegistryService, ExperimentalAsh> registry_ =
-      nullptr;
-
-  apps_util::IncrementingIconKeyFactory icon_key_factory_;
+  const raw_ptr<Profile> profile_;
+  raw_ptr<guest_os::GuestOsRegistryService> registry_ = nullptr;
 
   // Whether the Plugin VM app is allowed by policy.
   bool is_allowed_ = false;

@@ -10,7 +10,7 @@ set -e # exit if fail
 
 if [ $# -lt 1 ];
 then
-  echo "Usage: "$0" (android|cast|chromeos|common|flutter|flutter_desktop|ios)" >&2
+  echo "Usage: "$0" (android|cast|chromecast_video|chromeos|common|flutter|flutter_desktop|ios)" >&2
   exit 1
 fi
 
@@ -51,40 +51,6 @@ function copy_data {
   echo "Done with copying pre-built ICU data file for $1."
 }
 
-function copy_hash_data {
-  echo "Copying icudtl.dat.hash for $1"
-
-  rm -f "${TOPSRC}/$2/icudtl.dat.hash"
-  cp "data/out/tmp/icudt${VERSION}l.dat.hash" "${TOPSRC}/$2/icudtl.dat.hash"
-
-  echo "Done with copying icudtl.dat.hash for $1."
-}
-
-function align_data {
-  echo "Aligning files in icudtl.dat for $1"
-
-  local ORIGINAL="data/out/tmp/icudt${VERSION}l.dat"
-  local ALIGNED="data/out/tmp/icudt${VERSION}l-aligned.dat"
-
-  rm -f "${ALIGNED}"
-  "${TOPSRC}/scripts/icualign.py" "${ORIGINAL}" "${ALIGNED}"
-  mv "${ALIGNED}" "${ORIGINAL}"
-
-  echo "Done with aligning files in icudtl.dat for $1."
-}
-
-function hash_data {
-  echo "Hashing icudtl.dat for $1"
-
-  local DATA_FILE="data/out/tmp/icudt${VERSION}l.dat"
-  local HASH_FILE="data/out/tmp/icudt${VERSION}l.dat.hash"
-
-  rm -f "${HASH_FILE}"
-  "$TOPSRC/scripts/icuhash.py" "${DATA_FILE}" "${HASH_FILE}"
-
-  echo "Done with hashing icudtl.dat for $1."
-}
-
 
 BACKUP_DIR="dataout/$1"
 function backup_outdir {
@@ -95,10 +61,7 @@ function backup_outdir {
 
 case "$1" in
   "chromeos")
-    align_data ChromeOS
-    hash_data ChromeOS
     copy_data ChromeOS $1
-    copy_hash_data ChromeOS $1
     backup_outdir $1
     ;;
   "common")
@@ -115,6 +78,10 @@ case "$1" in
     ;;
   "cast")
     copy_data Cast $1
+    backup_outdir $1
+    ;;
+  "chromecast_video")
+    copy_data ChromecastVideo $1
     backup_outdir $1
     ;;
   "flutter")

@@ -6,65 +6,33 @@
 
 #include "base/feature_list.h"
 #include "base/notreached.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_attributes_storage.h"
-#include "chrome/browser/signin/signin_features.h"
-#include "chrome/browser/ui/managed_ui.h"
 #include "chrome/browser/ui/webui/intro/intro_handler.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
-#include "chrome/grit/chromium_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/intro_resources.h"
 #include "chrome/grit/intro_resources_map.h"
 #include "chrome/grit/signin_resources.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_switches.h"
-#include "components/strings/grit/components_chromium_strings.h"
-#include "components/strings/grit/components_google_chrome_strings.h"
+#include "components/strings/grit/components_branded_strings.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/ui_base_features.h"
+#include "ui/webui/webui_util.h"
 
 IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
-  DCHECK(base::FeatureList::IsEnabled(kForYouFre));
   auto* profile = Profile::FromWebUI(web_ui);
 
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       profile, chrome::kChromeUIIntroHost);
 
-  webui::SetupWebUIDataSource(
-      source, base::make_span(kIntroResources, kIntroResourcesSize),
-      IDR_INTRO_INTRO_HTML);
+  webui::SetupWebUIDataSource(source, kIntroResources, IDR_INTRO_INTRO_HTML);
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  int title_id = 0;
-  int subtitle_id = 0;
-  switch (kForYouFreSignInPromoVariant.Get()) {
-    case SigninPromoVariant::kSignIn: {
-      title_id = IDS_FRE_SIGN_IN_TITLE_0;
-      subtitle_id = IDS_FRE_SIGN_IN_SUBTITLE_0;
-      break;
-    }
-    case SigninPromoVariant::kMakeYourOwn: {
-      title_id = IDS_FRE_SIGN_IN_TITLE_1;
-      subtitle_id = IDS_FRE_SIGN_IN_SUBTITLE_1;
-      break;
-    }
-    case SigninPromoVariant::kDoMore: {
-      title_id = IDS_FRE_SIGN_IN_TITLE_2;
-      subtitle_id = IDS_FRE_SIGN_IN_SUBTITLE_1;
-      break;
-    }
-    default:
-      NOTREACHED();
-  }
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  int title_id = IDS_PRIMARY_PROFILE_FIRST_RUN_NO_NAME_TITLE;
-#endif
+  int title_id = IDS_FRE_SIGN_IN_TITLE_0;
+  int backupCardDescription = IDS_UNO_FRE_BACKUP_CARD_DESCRIPTION;
 
   // Setting the title here instead of relying on the one provided from the
   // page itself makes it available much earlier, and avoids having to fallback
@@ -73,22 +41,24 @@ IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
   web_ui->OverrideTitle(l10n_util::GetStringUTF16(title_id));
 
   webui::LocalizedString localized_strings[] = {
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-    {"pageTitle", title_id},
-    {"pageSubtitle", subtitle_id},
-    {"devicesCardTitle", IDS_FRE_DEVICES_CARD_TITLE},
-    {"devicesCardDescription", IDS_FRE_DEVICES_CARD_DESCRIPTION},
-    {"securityCardTitle", IDS_FRE_SECURITY_CARD_TITLE},
-    {"securityCardDescription", IDS_FRE_SECURITY_CARD_DESCRIPTION},
-    {"backupCardTitle", IDS_FRE_BACKUP_CARD_TITLE},
-    {"backupCardDescription", IDS_FRE_BACKUP_CARD_DESCRIPTION},
-    {"declineSignInButtonTitle", IDS_FRE_DECLINE_SIGN_IN_BUTTON_TITLE},
-    {"acceptSignInButtonTitle", IDS_FRE_ACCEPT_SIGN_IN_BUTTON_TITLE},
-    {"productLogoAltText", IDS_SHORT_PRODUCT_LOGO_ALT_TEXT},
-#endif
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    {"proceedLabel", IDS_PRIMARY_PROFILE_FIRST_RUN_NEXT_BUTTON_LABEL},
-#endif
+      {"pageTitle", title_id},
+      {"pageSubtitle", IDS_FRE_SIGN_IN_SUBTITLE_0},
+      {"devicesCardTitle", IDS_FRE_DEVICES_CARD_TITLE},
+      {"devicesCardDescription", IDS_FRE_DEVICES_CARD_DESCRIPTION},
+      {"securityCardTitle", IDS_FRE_SECURITY_CARD_TITLE},
+      {"securityCardDescription", IDS_FRE_SECURITY_CARD_DESCRIPTION},
+      {"backupCardTitle", IDS_FRE_BACKUP_CARD_TITLE},
+      {"backupCardDescription", backupCardDescription},
+      {"declineSignInButtonTitle", IDS_FRE_DECLINE_SIGN_IN_BUTTON_TITLE},
+      {"acceptSignInButtonTitle", IDS_FRE_ACCEPT_SIGN_IN_BUTTON_TITLE},
+      {"productLogoAltText", IDS_SHORT_PRODUCT_LOGO_ALT_TEXT},
+      // Strings for default browser promo subpage.
+      {"defaultBrowserTitle", IDS_FRE_DEFAULT_BROWSER_TITLE_NEW},
+      {"defaultBrowserSubtitle", IDS_FRE_DEFAULT_BROWSER_SUBTITLE_NEW},
+      {"defaultBrowserIllustrationAltText",
+       IDS_FRE_DEFAULT_BROWSER_ILLUSTRATION_ALT_TEXT},
+      {"defaultBrowserSetAsDefault", IDS_FRE_DEFAULT_BROWSER_SET_AS_DEFAULT},
+      {"defaultBrowserSkip", IDS_FRE_DEFAULT_BROWSER_SKIP},
   };
   source->AddLocalizedStrings(localized_strings);
 
@@ -107,8 +77,11 @@ IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
                           IDR_SIGNIN_TANGIBLE_SYNC_STYLE_SHARED_CSS_JS);
   source->AddResourcePath("signin_vars.css.js", IDR_SIGNIN_SIGNIN_VARS_CSS_JS);
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   source->AddBoolean("isDeviceManaged", is_device_managed);
+
+  // Setup chrome://intro/default-browser UI.
+  source->AddResourcePath(chrome::kChromeUIIntroDefaultBrowserSubPage,
+                          IDR_INTRO_DEFAULT_BROWSER_DEFAULT_BROWSER_HTML);
 
   source->AddResourcePath("images/product-logo.svg", IDR_PRODUCT_LOGO_SVG);
   source->AddResourcePath("images/product-logo-animation.svg",
@@ -116,19 +89,13 @@ IntroUI::IntroUI(content::WebUI* web_ui) : content::WebUIController(web_ui) {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   source->AddResourcePath("images/gshield.svg", IDR_GSHIELD_ICON_SVG);
 #endif
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  source->AddBoolean("isTangibleSyncEnabled",
-                     base::FeatureList::IsEnabled(switches::kTangibleSync));
-#endif
-
-  webui::SetupChromeRefresh2023(source);
 
   // Unretained ok: `this` owns the handler.
   auto intro_handler = std::make_unique<IntroHandler>(
       base::BindRepeating(&IntroUI::HandleSigninChoice, base::Unretained(this)),
-      is_device_managed);
+      base::BindOnce(&IntroUI::HandleDefaultBrowserChoice,
+                     base::Unretained(this)),
+      is_device_managed, chrome::kChromeUIIntroHost);
   intro_handler_ = intro_handler.get();
   web_ui->AddMessageHandler(std::move(intro_handler));
 }
@@ -143,9 +110,13 @@ void IntroUI::SetSigninChoiceCallback(IntroSigninChoiceCallback callback) {
   DCHECK(!callback->is_null());
   signin_choice_callback_ = std::move(callback);
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   intro_handler_->ResetIntroButtons();
-#endif
+}
+
+void IntroUI::SetDefaultBrowserCallback(DefaultBrowserCallback callback) {
+  DCHECK(!callback->is_null());
+  default_browser_callback_ = std::move(callback);
+  intro_handler_->ResetDefaultBrowserButtons();
 }
 
 void IntroUI::HandleSigninChoice(IntroChoice choice) {
@@ -154,6 +125,22 @@ void IntroUI::HandleSigninChoice(IntroChoice choice) {
   } else {
     std::move(signin_choice_callback_.value()).Run(choice);
   }
+}
+
+// For a given `IntroUI` instance, this will be called only once, even if
+// `SetDefaultBrowserCallback()` is called again. This is because after the
+// first call, the handler will drop the link, since it took a OnceCallback.
+// This is fine because the step should not be shown more than once.
+void IntroUI::HandleDefaultBrowserChoice(DefaultBrowserChoice choice) {
+  if (default_browser_callback_->is_null()) {
+    LOG(WARNING) << "Unexpected default browser choice event";
+  } else {
+    std::move(default_browser_callback_.value()).Run(choice);
+  }
+}
+
+void IntroUI::SetCanPinToTaskbar(bool can_pin) {
+  intro_handler_->SetCanPinToTaskbar(can_pin);
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(IntroUI)

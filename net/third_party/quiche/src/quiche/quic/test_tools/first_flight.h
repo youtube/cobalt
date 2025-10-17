@@ -31,7 +31,8 @@ class QUIC_NO_EXPORT DelegatedPacketWriter : public QuicPacketWriter {
     virtual void OnDelegatedPacket(const char* buffer, size_t buf_len,
                                    const QuicIpAddress& self_client_address,
                                    const QuicSocketAddress& peer_client_address,
-                                   PerPacketOptions* options) = 0;
+                                   PerPacketOptions* options,
+                                   const QuicPacketWriterParams& params) = 0;
   };
 
   // |delegate| MUST be valid for the duration of the DelegatedPacketWriter's
@@ -43,8 +44,8 @@ class QUIC_NO_EXPORT DelegatedPacketWriter : public QuicPacketWriter {
   // Overrides for QuicPacketWriter.
   bool IsWriteBlocked() const override { return false; }
   void SetWritable() override {}
-  absl::optional<int> MessageTooBigErrorCode() const override {
-    return absl::nullopt;
+  std::optional<int> MessageTooBigErrorCode() const override {
+    return std::nullopt;
   }
   QuicByteCount GetMaxPacketSize(
       const QuicSocketAddress& /*peer_address*/) const override {
@@ -52,6 +53,7 @@ class QUIC_NO_EXPORT DelegatedPacketWriter : public QuicPacketWriter {
   }
   bool SupportsReleaseTime() const override { return false; }
   bool IsBatchMode() const override { return false; }
+  bool SupportsEcn() const override { return true; }
   QuicPacketBuffer GetNextWriteLocation(
       const QuicIpAddress& /*self_address*/,
       const QuicSocketAddress& /*peer_address*/) override {
@@ -62,9 +64,10 @@ class QUIC_NO_EXPORT DelegatedPacketWriter : public QuicPacketWriter {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_client_address,
                           const QuicSocketAddress& peer_client_address,
-                          PerPacketOptions* options) override {
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override {
     delegate_->OnDelegatedPacket(buffer, buf_len, self_client_address,
-                                 peer_client_address, options);
+                                 peer_client_address, options, params);
     return WriteResult(WRITE_STATUS_OK, buf_len);
   }
 
@@ -79,7 +82,8 @@ std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
     const ParsedQuicVersion& version, const QuicConfig& config,
     const QuicConnectionId& server_connection_id,
     const QuicConnectionId& client_connection_id,
-    std::unique_ptr<QuicCryptoClientConfig> crypto_config);
+    std::unique_ptr<QuicCryptoClientConfig> crypto_config,
+    QuicEcnCodepoint ecn);
 
 // Below are various convenience overloads that use default values for the
 // omitted parameters:
@@ -88,6 +92,12 @@ std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
 // |client_connection_id| = EmptyQuicConnectionId().
 // |crypto_config| =
 //     QuicCryptoClientConfig(crypto_test_utils::ProofVerifierForTesting())
+// |ecn| = ECN_NOT_ECT
+std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
+    const ParsedQuicVersion& version, const QuicConfig& config,
+    const QuicConnectionId& server_connection_id,
+    const QuicConnectionId& client_connection_id,
+    std::unique_ptr<QuicCryptoClientConfig> crypto_config);
 std::vector<std::unique_ptr<QuicReceivedPacket>> GetFirstFlightOfPackets(
     const ParsedQuicVersion& version, const QuicConfig& config,
     const QuicConnectionId& server_connection_id,

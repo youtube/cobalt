@@ -14,6 +14,7 @@
 #include "ash/app_list/model/app_list_item_list.h"
 #include "ash/app_list/model/app_list_item_list_observer.h"
 #include "ash/app_list/model/app_list_model_export.h"
+#include "ash/public/cpp/app_list/app_list_model_delegate.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
@@ -114,6 +115,9 @@ class APP_LIST_MODEL_EXPORT AppListModel : public AppListItemListObserver {
   // Sets the name of |item| and notifies observers.
   void SetItemName(AppListItem* item, const std::string& name);
 
+  // Sets the accessible name of |item| and notifies observers.
+  void SetItemAccessibleName(AppListItem* item, const std::string& name);
+
   // Deletes the item matching |id| from |top_level_item_list_| or from the
   // appropriate folder.
   void DeleteItem(const std::string& id);
@@ -164,7 +168,7 @@ class APP_LIST_MODEL_EXPORT AppListModel : public AppListItemListObserver {
   // after moving or deleting `item`.
   void ReparentOrDeleteItemInFolder(
       AppListItem* item,
-      absl::optional<std::string> destination_folder_id);
+      std::optional<std::string> destination_folder_id);
 
   // Removes `item` from `folder` then returns a unique pointer to the removed
   // item.
@@ -179,7 +183,7 @@ class APP_LIST_MODEL_EXPORT AppListModel : public AppListItemListObserver {
                            const syncer::StringOrdinal& new_position);
 
   // Used to initiate updates on app list items from the ash side.
-  const raw_ptr<AppListModelDelegate, ExperimentalAsh> delegate_;
+  const raw_ptr<AppListModelDelegate> delegate_;
 
   std::unique_ptr<AppListItemList> top_level_item_list_;
 

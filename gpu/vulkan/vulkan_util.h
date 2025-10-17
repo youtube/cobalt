@@ -13,17 +13,34 @@
 #include <vector>
 
 #include "base/component_export.h"
+#include "base/containers/flat_map.h"
 #include "base/containers/span.h"
 #include "gpu/vulkan/semaphore_handle.h"
+#include "gpu/vulkan/vulkan_device_queue.h"
 
 namespace gpu {
 
-constexpr uint32_t kVendorARM = 0x13b5;
-constexpr uint32_t kVendorQualcomm = 0x5143;
-constexpr uint32_t kVendorImagination = 0x1010;
+inline constexpr uint32_t kVendorARM = 0x13b5;
+inline constexpr uint32_t kVendorQualcomm = 0x5143;
+inline constexpr uint32_t kVendorImagination = 0x1010;
+inline constexpr uint32_t kVendorIntel = 0x8086;
+inline constexpr uint32_t kVendorGoogle = 0x1AE0;
+inline constexpr uint32_t kDeviceSwiftShader = 0xC0DE;
 
 struct GPUInfo;
-class VulkanInfo;
+
+// Mirrors a subset of information from VkPhysicalDeviceProperties.
+struct COMPONENT_EXPORT(VULKAN) VulkanPhysicalDeviceProperties {
+  VulkanPhysicalDeviceProperties();
+  explicit VulkanPhysicalDeviceProperties(
+      const VkPhysicalDeviceProperties& properties);
+  ~VulkanPhysicalDeviceProperties();
+
+  uint32_t driver_version = 0;
+  uint32_t vendor_id = 0;
+  uint32_t device_id = 0;
+  std::string device_name;
+};
 
 // Submits semaphores to be signaled to the vulkan queue. Semaphores are
 // signaled once this submission is executed. vk_fence is an optional handle
@@ -105,15 +122,51 @@ VKAPI_ATTR VkResult VKAPI_CALL
 VulkanQueuePresentKHRHook(VkQueue queue, const VkPresentInfoKHR* pPresentInfo);
 
 COMPONENT_EXPORT(VULKAN)
-bool CheckVulkanCompabilities(const VulkanInfo& vulkan_info,
-                              const GPUInfo& gpu_info,
-                              std::string enable_by_device_name);
+bool CheckVulkanCompatibilities(
+    const VulkanPhysicalDeviceProperties& device_properties,
+    const GPUInfo& gpu_info);
 
 COMPONENT_EXPORT(VULKAN)
 VkImageLayout GLImageLayoutToVkImageLayout(uint32_t layout);
 
 COMPONENT_EXPORT(VULKAN)
 uint32_t VkImageLayoutToGLImageLayout(VkImageLayout layout);
+
+COMPONENT_EXPORT(VULKAN)
+bool IsVkExternalSemaphoreHandleTypeSupported(
+    VulkanDeviceQueue* device_queue,
+    VkExternalSemaphoreHandleTypeFlagBits handle_type);
+
+COMPONENT_EXPORT(VULKAN)
+VkResult QueryVkExternalMemoryProperties(
+    VkPhysicalDevice physical_device,
+    VkFormat format,
+    VkImageType type,
+    VkImageTiling tiling,
+    VkImageUsageFlags usage,
+    VkImageCreateFlags flags,
+    VkExternalMemoryHandleTypeFlagBits handle_type,
+    VkExternalMemoryProperties* external_memory_properties);
+
+COMPONENT_EXPORT(VULKAN)
+bool IsVkOpaqueExternalSemaphoreSupported(VulkanDeviceQueue* device_queue);
+
+COMPONENT_EXPORT(VULKAN)
+VkSemaphore CreateVkOpaqueExternalSemaphore(VkDevice vk_device);
+
+COMPONENT_EXPORT(VULKAN)
+SemaphoreHandle ExportVkOpaqueExternalSemaphore(VkDevice vk_device,
+                                                VkSemaphore vk_semaphore);
+
+COMPONENT_EXPORT(VULKAN)
+std::vector<VkDrmFormatModifierPropertiesEXT>
+QueryVkDrmFormatModifierPropertiesEXT(VkPhysicalDevice physical_device,
+                                      VkFormat format);
+
+COMPONENT_EXPORT(VULKAN)
+void PopulateVkDrmFormatsAndModifiers(
+    VulkanDeviceQueue* device_queue,
+    base::flat_map<uint32_t, std::vector<uint64_t>>& drm_formats_and_modifiers);
 
 }  // namespace gpu
 

@@ -38,7 +38,8 @@
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
-#include "third_party/blink/renderer/core/layout/ng/layout_ng_block_flow.h"
+#include "third_party/blink/renderer/core/keywords.h"
+#include "third_party/blink/renderer/core/layout/layout_block_flow.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/drag_data.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
@@ -48,6 +49,7 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -97,14 +99,24 @@ VectorType CreateFilesFrom(const FormControlState& state,
   return files;
 }
 
+template <typename ItemType, typename VectorType>
+VectorType CreateFilesFrom(const FormControlState& state,
+                           ExecutionContext* execution_context,
+                           ItemType (*factory)(ExecutionContext*,
+                                               const FormControlState&,
+                                               wtf_size_t&)) {
+  VectorType files;
+  files.ReserveInitialCapacity(state.ValueSize() / 3);
+  for (wtf_size_t i = 0; i < state.ValueSize();) {
+    files.push_back(factory(execution_context, state, i));
+  }
+  return files;
+}
+
 Vector<String> FileInputType::FilesFromFormControlState(
     const FormControlState& state) {
   return CreateFilesFrom<String, Vector<String>>(state,
                                                  &File::PathFromControlState);
-}
-
-const AtomicString& FileInputType::FormControlType() const {
-  return input_type_names::kFile;
 }
 
 FormControlState FileInputType::SaveFormControlState() const {
@@ -121,9 +133,10 @@ FormControlState FileInputType::SaveFormControlState() const {
 void FileInputType::RestoreFormControlState(const FormControlState& state) {
   if (state.ValueSize() % 3)
     return;
+  ExecutionContext* execution_context = GetElement().GetExecutionContext();
   HeapVector<Member<File>> file_vector =
       CreateFilesFrom<File*, HeapVector<Member<File>>>(
-          state, &File::CreateFromControlState);
+          state, execution_context, &File::CreateFromControlState);
   auto* file_list = MakeGarbageCollected<FileList>();
   for (const auto& file : file_vector)
     file_list->Append(file);
@@ -133,9 +146,10 @@ void FileInputType::RestoreFormControlState(const FormControlState& state) {
 void FileInputType::AppendToFormData(FormData& form_data) const {
   FileList* file_list = GetElement().files();
   unsigned num_files = file_list->length();
+  ExecutionContext* context = GetElement().GetExecutionContext();
   if (num_files == 0) {
     form_data.AppendFromElement(GetElement().GetName(),
-                                MakeGarbageCollected<File>(""));
+                                MakeGarbageCollected<File>(context, ""));
     return;
   }
 
@@ -170,14 +184,6 @@ void FileInputType::HandleDOMActivateEvent(Event& event) {
     return;
   }
 
-  bool intercepted = false;
-  probe::FileChooserOpened(document.GetFrame(), &input, input.Multiple(),
-                           &intercepted);
-  if (intercepted) {
-    event.SetDefaultHandled();
-    return;
-  }
-
   OpenPopupView();
   event.SetDefaultHandled();
 }
@@ -185,6 +191,17 @@ void FileInputType::HandleDOMActivateEvent(Event& event) {
 void FileInputType::OpenPopupView() {
   HTMLInputElement& input = GetElement();
   Document& document = input.GetDocument();
+
+  bool suppressed = false;
+  bool canceled = false;
+  probe::FileChooserOpened(document.GetFrame(), &input, input.Multiple(),
+                           &suppressed, &canceled);
+  if (suppressed) {
+    if (canceled) {
+      SetFilesAndDispatchEvents(nullptr);
+    }
+    return;
+  }
 
   if (ChromeClient* chrome_client = GetChromeClient()) {
     FileChooserParams params;
@@ -209,7 +226,16 @@ void FileInputType::OpenPopupView() {
                       ? WebFeature::kInputTypeFileSecureOriginOpenChooser
                       : WebFeature::kInputTypeFileInsecureOriginOpenChooser);
     chrome_client->OpenFileChooser(document.GetFrame(), NewFileChooser(params));
+
+    input.PseudoStateChanged(CSSSelector::kPseudoOpen);
   }
+}
+
+bool FileInputType::IsPickerVisible() const {
+  if (FileChooser* chooser = FileChooserOrNull()) {
+    return chooser->FrameOrNull();
+  }
+  return false;
 }
 
 void FileInputType::AdjustStyle(ComputedStyleBuilder& builder) {
@@ -217,7 +243,7 @@ void FileInputType::AdjustStyle(ComputedStyleBuilder& builder) {
 }
 
 LayoutObject* FileInputType::CreateLayoutObject(const ComputedStyle&) const {
-  return MakeGarbageCollected<LayoutNGBlockFlow>(&GetElement());
+  return MakeGarbageCollected<LayoutBlockFlow>(&GetElement());
 }
 
 InputType::ValueMode FileInputType::GetValueMode() const {
@@ -251,7 +277,7 @@ String FileInputType::ValueInFilenameValueMode() const {
   // decided to try to parse the value by looking for backslashes
   // (because that's what Windows file paths use). To be compatible
   // with that code, we make up a fake path for the file.
-  return "C:\\fakepath\\" + file_list_->item(0)->name();
+  return WTF::StrCat({"C:\\fakepath\\", file_list_->item(0)->name()});
 }
 
 void FileInputType::SetValue(const String&,
@@ -288,14 +314,34 @@ FileList* FileInputType::CreateFileList(ExecutionContext& context,
       // Normalize backslashes to slashes before exposing the relative path to
       // script.
       String string_path = FilePathToString(file->get_native_file()->file_path);
-      DCHECK(
-          string_path.StartsWithIgnoringASCIICase(FilePathToString(base_dir)))
-          << "A path in a FileChooserFileInfo " << string_path
-          << " should start with " << FilePathToString(base_dir);
-      String relative_path =
-          string_path.Substring(root_length).Replace('\\', '/');
-      file_list->Append(
-          File::CreateWithRelativePath(string_path, relative_path));
+      String display_name = file->get_native_file()->display_name;
+      if (display_name.empty()) {
+        display_name =
+            FilePathToString(file->get_native_file()->file_path.BaseName());
+      }
+      String relative_path;
+#if BUILDFLAG(IS_ANDROID)
+      // Android content-URIs do not use tree paths with separators like posix
+      // so we build relative path using base_subdirs.
+      if (base_dir.IsContentUri()) {
+        StringBuilder builder;
+        for (const auto& subdir : file->get_native_file()->base_subdirs) {
+          builder.Append(subdir);
+          builder.Append("/");
+        }
+        builder.Append(display_name);
+        relative_path = builder.ToString();
+      }
+#endif
+      if (relative_path.empty()) {
+        DCHECK(
+            string_path.StartsWithIgnoringASCIICase(FilePathToString(base_dir)))
+            << "A path in a FileChooserFileInfo " << string_path
+            << " should start with " << FilePathToString(base_dir);
+        relative_path = string_path.Substring(root_length).Replace('\\', '/');
+      }
+      file_list->Append(File::CreateWithRelativePath(
+          &context, string_path, display_name, relative_path));
     }
     return file_list;
   }
@@ -303,7 +349,7 @@ FileList* FileInputType::CreateFileList(ExecutionContext& context,
   for (const auto& file : files) {
     if (file->is_native_file()) {
       file_list->Append(File::CreateForUserProvidedFile(
-          FilePathToString(file->get_native_file()->file_path),
+          &context, FilePathToString(file->get_native_file()->file_path),
           file->get_native_file()->display_name));
     } else {
       const auto& fs_info = file->get_file_system();
@@ -331,8 +377,7 @@ void FileInputType::CreateShadowSubtree() {
   DCHECK(IsShadowHost(GetElement()));
   Document& document = GetElement().GetDocument();
 
-  auto* button =
-      MakeGarbageCollected<HTMLInputElement>(document, CreateElementFlags());
+  auto* button = MakeGarbageCollected<HTMLInputElement>(document);
   button->setType(input_type_names::kButton);
   button->setAttribute(
       html_names::kValueAttr,
@@ -351,8 +396,8 @@ void FileInputType::CreateShadowSubtree() {
   // The file input element is presented to AX as one node with the role button,
   // instead of the individual button and text nodes. That's the reason we hide
   // the shadow root elements of the file input in the AX tree.
-  button->setAttribute(html_names::kAriaHiddenAttr, "true");
-  span->setAttribute(html_names::kAriaHiddenAttr, "true");
+  button->setAttribute(html_names::kAriaHiddenAttr, keywords::kTrue);
+  span->setAttribute(html_names::kAriaHiddenAttr, keywords::kTrue);
 
   UpdateView();
 }
@@ -369,7 +414,6 @@ Node* FileInputType::FileStatusElement() const {
 }
 
 void FileInputType::DisabledAttributeChanged() {
-  DCHECK(IsShadowHost(GetElement()));
   if (Element* button = UploadButton()) {
     button->SetBooleanAttribute(html_names::kDisabledAttr,
                                 GetElement().IsDisabledFormControl());
@@ -377,7 +421,6 @@ void FileInputType::DisabledAttributeChanged() {
 }
 
 void FileInputType::MultipleAttributeChanged() {
-  DCHECK(IsShadowHost(GetElement()));
   if (Element* button = UploadButton()) {
     button->setAttribute(
         html_names::kValueAttr,
@@ -445,6 +488,8 @@ void FileInputType::FilesChosen(FileChooserFileInfoList files,
   }
   if (HasConnectedFileChooser())
     DisconnectFileChooser();
+
+  GetElement().PseudoStateChanged(CSSSelector::kPseudoOpen);
 }
 
 LocalFrame* FileInputType::FrameOrNull() const {
@@ -528,7 +573,7 @@ void FileInputType::HandleKeypressEvent(KeyboardEvent& event) {
   if (GetElement().FastHasAttribute(html_names::kWebkitdirectoryAttr)) {
     // Override to invoke the action on Enter key up (not press) to avoid
     // repeats committing the file chooser.
-    if (event.key() == "Enter") {
+    if (event.key() == keywords::kCapitalEnter) {
       event.SetDefaultHandled();
       return;
     }
@@ -540,7 +585,7 @@ void FileInputType::HandleKeyupEvent(KeyboardEvent& event) {
   if (GetElement().FastHasAttribute(html_names::kWebkitdirectoryAttr)) {
     // Override to invoke the action on Enter key up (not press) to avoid
     // repeats committing the file chooser.
-    if (event.key() == "Enter") {
+    if (event.key() == keywords::kCapitalEnter) {
       GetElement().DispatchSimulatedClick(&event);
       event.SetDefaultHandled();
       return;

@@ -18,18 +18,16 @@ import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowPackageManager;
 
-import org.chromium.base.FeatureList;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 
-import java.util.Map;
-
-/**
- * Tests of {@link LensUtils}.
- */
+/** Tests of {@link LensUtils}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
+@Batch(Batch.UNIT_TESTS)
 public class LensUtilsTest {
     @Before
     public void setUp() {
@@ -40,91 +38,37 @@ public class LensUtilsTest {
         pm.installPackage(packageInfo);
     }
 
-    private static void configureFeature(String featureName, String... params) {
-        FeatureList.TestValues testValues = new FeatureList.TestValues();
-        testValues.setFeatureFlagsOverride(Map.of(featureName, true));
-        for (String param : params) {
-            String[] keyValue = param.split("=");
-            testValues.addFieldTrialParamOverride(featureName, keyValue[0], keyValue[1]);
-        }
-        FeatureList.setTestValues(testValues);
-    }
-
     @Test
-    public void isGoogleLensFeatureEnabled_incognitoParamUnsetIncognitoUser() {
-        configureFeature(ChromeFeatureList.CONTEXT_MENU_SEARCH_WITH_GOOGLE_LENS);
-        Assert.assertFalse("Feature incorrectly enabled when incognito param is not set",
+    public void isGoogleLensFeatureEnabled_incognito() {
+        Assert.assertFalse(
+                "Feature incorrectly enabled when incognito",
                 LensUtils.isGoogleLensFeatureEnabled(true));
     }
 
     @Test
-    public void isGoogleLensFeatureEnabled_incognitoEnabledIncognitoUser() {
-        configureFeature(
-                ChromeFeatureList.CONTEXT_MENU_SEARCH_WITH_GOOGLE_LENS, "disableOnIncognito=false");
-        Assert.assertTrue("Feature incorrectly disabled when incognito param is not set",
-                LensUtils.isGoogleLensFeatureEnabled(true));
-    }
-
-    @Test
-    public void isGoogleLensFeatureEnabled_incognitoDisabledIncognitoUser() {
-        configureFeature(
-                ChromeFeatureList.CONTEXT_MENU_SEARCH_WITH_GOOGLE_LENS, "disableOnIncognito=true");
-        Assert.assertFalse("Feature incorrectly not disabled when incognito param was set",
-                LensUtils.isGoogleLensFeatureEnabled(true));
-    }
-
-    @Test
-    public void isGoogleLensFeatureEnabled_incognitoDisabledStandardUser() {
-        configureFeature(
-                ChromeFeatureList.CONTEXT_MENU_SEARCH_WITH_GOOGLE_LENS, "disableOnIncognito=true");
-        Assert.assertTrue("Feature incorrectly disabled when user was not incognito",
+    public void isGoogleLensFeatureEnabled_standard() {
+        Assert.assertTrue(
+                "Feature incorrectly enabled when non-incognito",
                 LensUtils.isGoogleLensFeatureEnabled(false));
     }
 
     @Test
+    @EnableFeatures(
+            ChromeFeatureList.CONTEXT_MENU_TRANSLATE_WITH_GOOGLE_LENS
+                    + ":disableOnIncognito/true/logUkm/true")
     public void shouldLogUkm_translateChipUkmLoggingEnabled() {
-        configureFeature(ChromeFeatureList.CONTEXT_MENU_TRANSLATE_WITH_GOOGLE_LENS,
-                "disableOnIncognito=true", "logUkm=true");
-        assertTrue(LensUtils.shouldLogUkmByFeature(
-                ChromeFeatureList.CONTEXT_MENU_TRANSLATE_WITH_GOOGLE_LENS));
-    }
-
-    @Test
-    public void shouldLogUkm_translateChipUkmLoggingDisabled() {
-        configureFeature(ChromeFeatureList.CONTEXT_MENU_TRANSLATE_WITH_GOOGLE_LENS,
-                "disableOnIncognito=true", "logUkm=false");
-        assertFalse(LensUtils.shouldLogUkmByFeature(
-                ChromeFeatureList.CONTEXT_MENU_TRANSLATE_WITH_GOOGLE_LENS));
-    }
-
-    @Test
-    public void shouldLogUkm_shoppingChipUkmLoggingEnabled() {
-        configureFeature(ChromeFeatureList.CONTEXT_MENU_GOOGLE_LENS_CHIP, "disableOnIncognito=true",
-                "logUkm=true");
         assertTrue(
-                LensUtils.shouldLogUkmByFeature(ChromeFeatureList.CONTEXT_MENU_GOOGLE_LENS_CHIP));
+                LensUtils.shouldLogUkmByFeature(
+                        ChromeFeatureList.CONTEXT_MENU_TRANSLATE_WITH_GOOGLE_LENS));
     }
 
     @Test
-    public void shouldLogUkm_shoppingChipUkmLoggingDisabled() {
-        configureFeature(ChromeFeatureList.CONTEXT_MENU_GOOGLE_LENS_CHIP, "disableOnIncognito=true",
-                "logUkm=false");
+    @EnableFeatures(
+            ChromeFeatureList.CONTEXT_MENU_TRANSLATE_WITH_GOOGLE_LENS
+                    + ":disableOnIncognito/true/logUkm/false")
+    public void shouldLogUkm_translateChipUkmLoggingDisabled() {
         assertFalse(
-                LensUtils.shouldLogUkmByFeature(ChromeFeatureList.CONTEXT_MENU_GOOGLE_LENS_CHIP));
-    }
-
-    @Test
-    public void isGoogleLensFeatureEnabled_tabletEnabledByDefault() {
-        configureFeature(ChromeFeatureList.CONTEXT_MENU_SEARCH_WITH_GOOGLE_LENS);
-        Assert.assertTrue("Feature incorrectly disabled when Lens on tablet was enabled",
-                LensUtils.isGoogleLensFeatureEnabledOnTablet());
-    }
-
-    @Test
-    public void isGoogleLensFeatureEnabled_tabletEnabled() {
-        configureFeature(ChromeFeatureList.CONTEXT_MENU_SEARCH_WITH_GOOGLE_LENS,
-                "enableContextMenuSearchOnTablet=true");
-        Assert.assertTrue("Feature incorrectly disabled when Lens on tablet was enabled",
-                LensUtils.isGoogleLensFeatureEnabledOnTablet());
+                LensUtils.shouldLogUkmByFeature(
+                        ChromeFeatureList.CONTEXT_MENU_TRANSLATE_WITH_GOOGLE_LENS));
     }
 }

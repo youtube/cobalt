@@ -5,11 +5,11 @@
 #include "chrome/browser/ash/sharesheet/copy_to_clipboard_share_action.h"
 
 #include "ash/public/cpp/system/toast_data.h"
-#include "ash/public/cpp/tablet_mode.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/sharesheet/share_action/share_action_cache.h"
 #include "chrome/browser/sharesheet/sharesheet_metrics.h"
 #include "chrome/browser/sharesheet/sharesheet_test_util.h"
+#include "chrome/browser/sharesheet/sharesheet_types.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/chrome_ash_test_base.h"
 #include "chrome/test/base/testing_profile.h"
@@ -19,12 +19,9 @@
 #include "ui/base/clipboard/file_info.h"
 #include "ui/base/clipboard/test/clipboard_test_util.h"
 #include "ui/base/clipboard/test/test_clipboard.h"
-#include "ui/base/l10n/l10n_util.h"
-#include "ui/chromeos/strings/grit/ui_chromeos_strings.h"
 #include "url/gurl.h"
 
-namespace ash {
-namespace sharesheet {
+namespace ash::sharesheet {
 
 namespace {
 
@@ -63,9 +60,8 @@ class CopyToClipboardShareActionTest : public ChromeAshTestBase {
 
 TEST_F(CopyToClipboardShareActionTest, CopyToClipboardText) {
   base::HistogramTester histograms;
-  auto* copy_action =
-      share_action_cache()->GetActionFromName(l10n_util::GetStringUTF16(
-          IDS_SHARESHEET_COPY_TO_CLIPBOARD_SHARE_ACTION_LABEL));
+  auto* copy_action = share_action_cache()->GetActionFromType(
+      ::sharesheet::ShareActionType::kCopyToClipboardShare);
   copy_action->LaunchAction(/*controller=*/nullptr, /*root_view=*/nullptr,
                             ::sharesheet::CreateValidTextIntent());
   // Check text copied correctly.
@@ -81,9 +77,8 @@ TEST_F(CopyToClipboardShareActionTest, CopyToClipboardText) {
 
 TEST_F(CopyToClipboardShareActionTest, CopyToClipboardUrl) {
   base::HistogramTester histograms;
-  auto* copy_action =
-      share_action_cache()->GetActionFromName(l10n_util::GetStringUTF16(
-          IDS_SHARESHEET_COPY_TO_CLIPBOARD_SHARE_ACTION_LABEL));
+  auto* copy_action = share_action_cache()->GetActionFromType(
+      ::sharesheet::ShareActionType::kCopyToClipboardShare);
   copy_action->LaunchAction(/*controller=*/nullptr, /*root_view=*/nullptr,
                             ::sharesheet::CreateValidUrlIntent());
   // Check url copied correctly.
@@ -99,9 +94,8 @@ TEST_F(CopyToClipboardShareActionTest, CopyToClipboardUrl) {
 
 TEST_F(CopyToClipboardShareActionTest, CopyToClipboardOneFile) {
   base::HistogramTester histograms;
-  auto* copy_action =
-      share_action_cache()->GetActionFromName(l10n_util::GetStringUTF16(
-          IDS_SHARESHEET_COPY_TO_CLIPBOARD_SHARE_ACTION_LABEL));
+  auto* copy_action = share_action_cache()->GetActionFromType(
+      ::sharesheet::ShareActionType::kCopyToClipboardShare);
   storage::FileSystemURL url = ::sharesheet::FileInDownloads(
       profile(), base::FilePath(::sharesheet::kTestTextFile));
   copy_action->LaunchAction(
@@ -122,9 +116,8 @@ TEST_F(CopyToClipboardShareActionTest, CopyToClipboardOneFile) {
 
 TEST_F(CopyToClipboardShareActionTest, CopyToClipboardMultipleFiles) {
   base::HistogramTester histograms;
-  auto* copy_action =
-      share_action_cache()->GetActionFromName(l10n_util::GetStringUTF16(
-          IDS_SHARESHEET_COPY_TO_CLIPBOARD_SHARE_ACTION_LABEL));
+  auto* copy_action = share_action_cache()->GetActionFromType(
+      ::sharesheet::ShareActionType::kCopyToClipboardShare);
   storage::FileSystemURL url1 = ::sharesheet::FileInDownloads(
       profile(), base::FilePath(::sharesheet::kTestPdfFile));
   storage::FileSystemURL url2 = ::sharesheet::FileInDownloads(
@@ -152,21 +145,19 @@ TEST_F(CopyToClipboardShareActionTest, CopyToClipboardMultipleFiles) {
 
 TEST_F(CopyToClipboardShareActionTest,
        CopyToClipboardShouldShowActionNonNativeFile) {
-  auto* copy_action =
-      share_action_cache()->GetActionFromName(l10n_util::GetStringUTF16(
-          IDS_SHARESHEET_COPY_TO_CLIPBOARD_SHARE_ACTION_LABEL));
+  auto* copy_action = share_action_cache()->GetActionFromType(
+      ::sharesheet::ShareActionType::kCopyToClipboardShare);
   storage::FileSystemURL url1 = ::sharesheet::FileInNonNativeFileSystemType(
       profile(), base::FilePath(::sharesheet::kTestPdfFile));
-  EXPECT_FALSE(copy_action->ShouldShowAction(
+  EXPECT_TRUE(copy_action->ShouldShowAction(
       apps_util::MakeShareIntent({url1.ToGURL()}, {::sharesheet::kMimeTypePdf}),
       /* contains_hosted_document= */ false));
 }
 
 TEST_F(CopyToClipboardShareActionTest,
        CopyToClipboardShouldShowActionNativeFile) {
-  auto* copy_action =
-      share_action_cache()->GetActionFromName(l10n_util::GetStringUTF16(
-          IDS_SHARESHEET_COPY_TO_CLIPBOARD_SHARE_ACTION_LABEL));
+  auto* copy_action = share_action_cache()->GetActionFromType(
+      ::sharesheet::ShareActionType::kCopyToClipboardShare);
   storage::FileSystemURL url1 = ::sharesheet::FileInDownloads(
       profile(), base::FilePath(::sharesheet::kTestPdfFile));
   EXPECT_TRUE(copy_action->ShouldShowAction(
@@ -176,9 +167,8 @@ TEST_F(CopyToClipboardShareActionTest,
 
 TEST_F(CopyToClipboardShareActionTest,
        CopyToClipboardShouldShowActionHostedDocument) {
-  auto* copy_action =
-      share_action_cache()->GetActionFromName(l10n_util::GetStringUTF16(
-          IDS_SHARESHEET_COPY_TO_CLIPBOARD_SHARE_ACTION_LABEL));
+  auto* copy_action = share_action_cache()->GetActionFromType(
+      ::sharesheet::ShareActionType::kCopyToClipboardShare);
   EXPECT_FALSE(
       copy_action->ShouldShowAction(::sharesheet::CreateDriveIntent(),
                                     /* contains_hosted_document= */ true));
@@ -213,9 +203,8 @@ TEST_F(CopyToClipboardShareActionTest, CopyFilesShowsToast) {
 
 TEST_F(CopyToClipboardShareActionTest, CopyToClipboardMultipleImageFiles) {
   base::HistogramTester histograms;
-  auto* copy_action =
-      share_action_cache()->GetActionFromName(l10n_util::GetStringUTF16(
-          IDS_SHARESHEET_COPY_TO_CLIPBOARD_SHARE_ACTION_LABEL));
+  auto* copy_action = share_action_cache()->GetActionFromType(
+      ::sharesheet::ShareActionType::kCopyToClipboardShare);
   storage::FileSystemURL url1 = ::sharesheet::FileInDownloads(
       profile(), base::FilePath("path/to/image1.png"));
   storage::FileSystemURL url2 = ::sharesheet::FileInDownloads(
@@ -237,40 +226,4 @@ TEST_F(CopyToClipboardShareActionTest, CopyToClipboardMultipleImageFiles) {
       ::sharesheet::SharesheetMetrics::MimeType::kImageFile, 1);
 }
 
-TEST_F(CopyToClipboardShareActionTest, CopyToClipboardRecordFormFactorTablet) {
-  base::HistogramTester histograms;
-
-  // Set Tablet mode
-  ash::TabletMode::Get()->SetEnabledForTest(true);
-
-  // Invoke copy to clipboard action then check metrics update
-  auto* copy_action =
-      share_action_cache()->GetActionFromName(l10n_util::GetStringUTF16(
-          IDS_SHARESHEET_COPY_TO_CLIPBOARD_SHARE_ACTION_LABEL));
-  copy_action->LaunchAction(/*controller=*/nullptr, /*root_view=*/nullptr,
-                            ::sharesheet::CreateValidTextIntent());
-  histograms.ExpectBucketCount(
-      ::sharesheet::kSharesheetCopyToClipboardFormFactorResultHistogram,
-      ::sharesheet::SharesheetMetrics::FormFactor::kTablet, 1);
-}
-
-TEST_F(CopyToClipboardShareActionTest,
-       CopyToClipboardRecordFormFactorClamshell) {
-  base::HistogramTester histograms;
-
-  // Set Clamshell mode
-  ash::TabletMode::Get()->SetEnabledForTest(false);
-
-  // Invoke copy to clipboard action then check metrics update
-  auto* copy_action =
-      share_action_cache()->GetActionFromName(l10n_util::GetStringUTF16(
-          IDS_SHARESHEET_COPY_TO_CLIPBOARD_SHARE_ACTION_LABEL));
-  copy_action->LaunchAction(/*controller=*/nullptr, /*root_view=*/nullptr,
-                            ::sharesheet::CreateValidTextIntent());
-  histograms.ExpectBucketCount(
-      ::sharesheet::kSharesheetCopyToClipboardFormFactorResultHistogram,
-      ::sharesheet::SharesheetMetrics::FormFactor::kClamshell, 1);
-}
-
-}  // namespace sharesheet
-}  // namespace ash
+}  // namespace ash::sharesheet

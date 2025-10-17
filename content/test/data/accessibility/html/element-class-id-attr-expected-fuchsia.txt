@@ -1,0 +1,15 @@
+UNKNOWN focusable has_input_focus
+++UNKNOWN hidden
+++++UNKNOWN hidden
+++++++UNKNOWN label='Image'
+++++++++STATIC_TEXT label='Image'
+++++++++++UNKNOWN label='Image'
+++++++IMAGE label='ImageAlt'
+=== Start Continuation ===
+UNKNOWN focusable has_input_focus label='changed-class'
+++UNKNOWN hidden
+++++UNKNOWN hidden
+++++++UNKNOWN label='Image'
+++++++++STATIC_TEXT label='Image'
+++++++++++UNKNOWN label='Image'
+++++++IMAGE label='ImageAlt'

@@ -55,7 +55,7 @@ void WorkerTaskProvider::OnProfileWillBeDestroyed(Profile* profile) {
   observed_profiles_.RemoveObservation(profile);
 
   auto it = per_profile_worker_task_trackers_.find(profile);
-  DCHECK(it != per_profile_worker_task_trackers_.end());
+  CHECK(it != per_profile_worker_task_trackers_.end());
   per_profile_worker_task_trackers_.erase(it);
 }
 

@@ -4,35 +4,11 @@
 
 #import "ios/chrome/common/ui/util/ui_util.h"
 
-#import <UIKit/UIKit.h>
 #import <cmath>
 #import <limits>
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "ui/gfx/ios/uikit_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
-CGFloat DeviceCornerRadius() {
-  UIUserInterfaceIdiom idiom = [[UIDevice currentDevice] userInterfaceIdiom];
-
-  UIWindow* window = nil;
-  for (UIScene* scene in UIApplication.sharedApplication.connectedScenes) {
-    UIWindowScene* windowScene =
-        base::mac::ObjCCastStrict<UIWindowScene>(scene);
-    UIWindow* firstWindow = [windowScene.windows firstObject];
-    if (firstWindow) {
-      window = firstWindow;
-      break;
-    }
-  }
-
-  const BOOL isRoundedDevice =
-      (idiom == UIUserInterfaceIdiomPhone && window.safeAreaInsets.bottom);
-  return isRoundedDevice ? 40.0 : 0.0;
-}
 
 CGFloat AlignValueToPixel(CGFloat value) {
   static CGFloat scale = [[UIScreen mainScreen] scale];
@@ -67,4 +43,13 @@ CGRect CGRectMakeCenteredRectInFrame(CGSize frameSize, CGSize rectSize) {
 
 bool AreCGFloatsEqual(CGFloat a, CGFloat b) {
   return std::fabs(a - b) <= std::numeric_limits<CGFloat>::epsilon();
+}
+
+bool IsRegularXRegularSizeClass(id<UITraitEnvironment> environment) {
+  return IsRegularXRegularSizeClass(environment.traitCollection);
+}
+
+bool IsRegularXRegularSizeClass(UITraitCollection* traitCollection) {
+  return traitCollection.verticalSizeClass == UIUserInterfaceSizeClassRegular &&
+         traitCollection.horizontalSizeClass == UIUserInterfaceSizeClassRegular;
 }

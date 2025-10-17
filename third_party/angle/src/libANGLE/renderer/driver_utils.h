@@ -10,7 +10,13 @@
 #define LIBANGLE_RENDERER_DRIVER_UTILS_H_
 
 #include "common/platform.h"
+#include "common/platform_helpers.h"
 #include "libANGLE/angletypes.h"
+
+namespace angle
+{
+struct VersionInfo;
+}
 
 namespace rx
 {
@@ -22,20 +28,19 @@ enum VendorID : uint32_t
     VENDOR_ID_APPLE   = 0x106B,
     VENDOR_ID_ARM     = 0x13B5,
     // Broadcom devices won't use PCI, but this is their Vulkan vendor id.
-    VENDOR_ID_BROADCOM  = 0x14E4,
-    VENDOR_ID_GOOGLE    = 0x1AE0,
-    VENDOR_ID_INTEL     = 0x8086,
-    VENDOR_ID_MESA      = 0x10005,
-    VENDOR_ID_MICROSOFT = 0x1414,
-    VENDOR_ID_NVIDIA    = 0x10DE,
-    VENDOR_ID_POWERVR   = 0x1010,
-    // This is Qualcomm PCI Vendor ID.
-    // Android doesn't have a PCI bus, but all we need is a unique id.
-    VENDOR_ID_QUALCOMM = 0x5143,
-    VENDOR_ID_SAMSUNG  = 0x144D,
-    VENDOR_ID_VIVANTE  = 0x9999,
-    VENDOR_ID_VMWARE   = 0x15AD,
-    VENDOR_ID_VIRTIO   = 0x1AF4,
+    VENDOR_ID_BROADCOM      = 0x14E4,
+    VENDOR_ID_GOOGLE        = 0x1AE0,
+    VENDOR_ID_INTEL         = 0x8086,
+    VENDOR_ID_MESA          = 0x10005,
+    VENDOR_ID_MICROSOFT     = 0x1414,
+    VENDOR_ID_NVIDIA        = 0x10DE,
+    VENDOR_ID_POWERVR       = 0x1010,
+    VENDOR_ID_QUALCOMM_DXGI = 0x4D4F4351,
+    VENDOR_ID_QUALCOMM      = 0x5143,
+    VENDOR_ID_SAMSUNG       = 0x144D,
+    VENDOR_ID_VIVANTE       = 0x9999,
+    VENDOR_ID_VMWARE        = 0x15AD,
+    VENDOR_ID_VIRTIO        = 0x1AF4,
 };
 
 enum AndroidDeviceID : uint32_t
@@ -45,6 +50,8 @@ enum AndroidDeviceID : uint32_t
     ANDROID_DEVICE_ID_PIXEL2      = 0x5040001,
     ANDROID_DEVICE_ID_PIXEL1XL    = 0x5030004,
     ANDROID_DEVICE_ID_PIXEL4      = 0x6040001,
+    ANDROID_DEVICE_ID_GALAXYA23   = 0x6010901,
+    ANDROID_DEVICE_ID_GALAXYS23   = 0x43050A01,
     ANDROID_DEVICE_ID_SWIFTSHADER = 0xC0DE,
 };
 
@@ -53,7 +60,7 @@ inline bool IsAMD(uint32_t vendorId)
     return vendorId == VENDOR_ID_AMD;
 }
 
-inline bool IsApple(uint32_t vendorId)
+inline bool IsAppleGPU(uint32_t vendorId)
 {
     return vendorId == VENDOR_ID_APPLE;
 }
@@ -95,7 +102,14 @@ inline bool IsPowerVR(uint32_t vendorId)
 
 inline bool IsQualcomm(uint32_t vendorId)
 {
-    return vendorId == VENDOR_ID_QUALCOMM;
+    // Qualcomm is an unusual one. It has two different vendor IDs depending on
+    // where you look. On Windows, DXGI will report the VENDOR_ID_QUALCOMM_DXGI
+    // value (due to it being an ACPI device rather than PCI device), but their
+    // native Vulkan driver will actually report their PCI vendor ID (the
+    // VENDOR_ID_QUALCOMM value). So we have to check both, to ensure we arrive
+    // at the right conclusion regardless of what source we are querying for
+    // vendor information.
+    return vendorId == VENDOR_ID_QUALCOMM || vendorId == VENDOR_ID_QUALCOMM_DXGI;
 }
 
 inline bool IsSamsung(uint32_t vendorId)
@@ -138,30 +152,22 @@ inline bool IsPixel4(uint32_t vendorId, uint32_t deviceId)
     return IsQualcomm(vendorId) && deviceId == ANDROID_DEVICE_ID_PIXEL4;
 }
 
+inline bool IsGalaxyA23(uint32_t vendorId, uint32_t deviceId)
+{
+    return IsQualcomm(vendorId) && deviceId == ANDROID_DEVICE_ID_GALAXYA23;
+}
+
+inline bool IsGalaxyS23(uint32_t vendorId, uint32_t deviceId)
+{
+    return IsQualcomm(vendorId) && deviceId == ANDROID_DEVICE_ID_GALAXYS23;
+}
+
 inline bool IsSwiftshader(uint32_t vendorId, uint32_t deviceId)
 {
     return IsGoogle(vendorId) && deviceId == ANDROID_DEVICE_ID_SWIFTSHADER;
 }
 
-const char *GetVendorString(uint32_t vendorId);
-
-// For Linux, Intel graphics driver version is the Mesa version. The version number has three
-// fields: major revision, minor revision and release number.
-// For Windows, The version number includes 3rd and 4th fields. Please refer the details at
-// http://www.intel.com/content/www/us/en/support/graphics-drivers/000005654.html.
-// Current implementation only supports Windows.
-class IntelDriverVersion
-{
-  public:
-    IntelDriverVersion(uint32_t buildNumber);
-    bool operator==(const IntelDriverVersion &);
-    bool operator!=(const IntelDriverVersion &);
-    bool operator<(const IntelDriverVersion &);
-    bool operator>=(const IntelDriverVersion &);
-
-  private:
-    uint32_t mBuildNumber;
-};
+std::string GetVendorString(uint32_t vendorId);
 
 bool IsSandyBridge(uint32_t DeviceId);
 bool IsIvyBridge(uint32_t DeviceId);
@@ -173,110 +179,40 @@ bool IsBroxton(uint32_t DeviceId);
 bool IsKabyLake(uint32_t DeviceId);
 bool IsGeminiLake(uint32_t DeviceId);
 bool IsCoffeeLake(uint32_t DeviceId);
+bool IsMeteorLake(uint32_t DeviceId);
 bool Is9thGenIntel(uint32_t DeviceId);
 bool Is11thGenIntel(uint32_t DeviceId);
 bool Is12thGenIntel(uint32_t DeviceId);
 
-struct MajorMinorPatchVersion
-{
-    MajorMinorPatchVersion();
-    MajorMinorPatchVersion(int major, int minor, int patch);
-
-    int majorVersion = 0;
-    int minorVersion = 0;
-    int patchVersion = 0;
-};
-bool operator==(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b);
-bool operator!=(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b);
-bool operator<(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b);
-bool operator>=(const MajorMinorPatchVersion &a, const MajorMinorPatchVersion &b);
-
-using ARMDriverVersion = MajorMinorPatchVersion;
-ARMDriverVersion ParseARMDriverVersion(uint32_t driverVersion);
+// For ease of comparison of SystemInfo's external-facing VersionInfo with ANGLE's more commonly
+// used VersionTriple.
+bool operator==(const angle::VersionInfo &a, const angle::VersionTriple &b);
+bool operator!=(const angle::VersionInfo &a, const angle::VersionTriple &b);
+bool operator<(const angle::VersionInfo &a, const angle::VersionTriple &b);
+bool operator>=(const angle::VersionInfo &a, const angle::VersionTriple &b);
 
 // Platform helpers
-inline bool IsWindows()
-{
-#if defined(ANGLE_PLATFORM_WINDOWS)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsLinux()
-{
-#if defined(ANGLE_PLATFORM_LINUX)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsChromeOS()
-{
-#if defined(ANGLE_PLATFORM_CHROMEOS)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsApple()
-{
-#if defined(ANGLE_PLATFORM_APPLE)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsMac()
-{
-#if defined(ANGLE_PLATFORM_APPLE) && defined(ANGLE_PLATFORM_MACOS)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsFuchsia()
-{
-#if defined(ANGLE_PLATFORM_FUCHSIA)
-    return true;
-#else
-    return false;
-#endif
-}
-
-inline bool IsIOS()
-{
-#if ANGLE_PLATFORM_IOS_FAMILY
-    return true;
-#else
-    return false;
-#endif
-}
+using angle::IsAndroid;
+using angle::IsApple;
+using angle::IsChromeOS;
+using angle::IsFuchsia;
+using angle::IsIOS;
+using angle::IsLinux;
+using angle::IsMac;
+using angle::IsWindows;
+using angle::IsWindows10OrLater;
+using angle::IsWindows8OrLater;
+using angle::IsWindowsVistaOrLater;
 
 bool IsWayland();
-bool IsWin10OrGreater();
 
-using OSVersion = MajorMinorPatchVersion;
+using OSVersion = angle::VersionTriple;
 
 OSVersion GetMacOSVersion();
 
 OSVersion GetiOSVersion();
 
 OSVersion GetLinuxOSVersion();
-
-inline bool IsAndroid()
-{
-#if defined(ANGLE_PLATFORM_ANDROID)
-    return true;
-#else
-    return false;
-#endif
-}
 
 int GetAndroidSDKVersion();
 

@@ -8,23 +8,19 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 using MemoryCredentialStoreTest = PlatformTest;
 
 ArchivableCredential* TestCredential() {
   return [[ArchivableCredential alloc] initWithFavicon:@"favicon"
-                                    keychainIdentifier:@"keychainIdentifier"
+                                                  gaia:nil
+                                              password:@"qwerty!"
                                                   rank:5
                                       recordIdentifier:@"recordIdentifier"
                                      serviceIdentifier:@"serviceIdentifier"
                                            serviceName:@"serviceName"
-                                                  user:@"user"
-                                  validationIdentifier:@"validationIdentifier"
+                                              username:@"user"
                                                   note:@"note"];
 }
 
@@ -51,16 +47,16 @@ TEST_F(MemoryCredentialStoreTest, update) {
   [credentialStore addCredential:credential];
   EXPECT_EQ(1u, credentialStore.credentials.count);
 
-  ArchivableCredential* updatedCredential = [[ArchivableCredential alloc]
-           initWithFavicon:@"other_favicon"
-        keychainIdentifier:@"other_keychainIdentifier"
-                      rank:credential.rank + 10
-          recordIdentifier:@"recordIdentifier"
-         serviceIdentifier:@"other_serviceIdentifier"
-               serviceName:@"other_serviceName"
-                      user:@"other_user"
-      validationIdentifier:@"other_validationIdentifier"
-                      note:@"other_note"];
+  ArchivableCredential* updatedCredential =
+      [[ArchivableCredential alloc] initWithFavicon:@"other_favicon"
+                                               gaia:nil
+                                           password:@"Qwerty123!"
+                                               rank:credential.rank + 10
+                                   recordIdentifier:@"recordIdentifier"
+                                  serviceIdentifier:@"other_serviceIdentifier"
+                                        serviceName:@"other_serviceName"
+                                           username:@"other_user"
+                                               note:@"other_note"];
 
   [credentialStore updateCredential:updatedCredential];
   EXPECT_EQ(1u, credentialStore.credentials.count);
@@ -81,4 +77,4 @@ TEST_F(MemoryCredentialStoreTest, remove) {
   EXPECT_EQ(0u, credentialStore.credentials.count);
 }
 
-}
+}  // namespace

@@ -6,8 +6,10 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <string>
 
+#include "base/containers/contains.h"
 #include "storage/browser/file_system/file_system_url.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -26,7 +28,7 @@ using FileInfo = IsolatedContext::MountPointInfo;
 
 namespace {
 
-const base::FilePath kTestPaths[] = {
+const auto kTestPaths = std::to_array<base::FilePath>({
     base::FilePath(DRIVE FPL("/a/b.txt")),
     base::FilePath(DRIVE FPL("/c/d/e")),
     base::FilePath(DRIVE FPL("/h/")),
@@ -39,7 +41,7 @@ const base::FilePath kTestPaths[] = {
     base::FilePath(DRIVE FPL("/")),
     base::FilePath(DRIVE FPL("/f/e")),
     base::FilePath(DRIVE FPL("/f/b.txt")),
-};
+});
 
 }  // namespace
 
@@ -84,8 +86,8 @@ TEST_F(IsolatedContextTest, RegisterAndRevokeTest) {
   std::vector<FileInfo> toplevels;
   ASSERT_TRUE(isolated_context()->GetDraggedFileInfo(id_, &toplevels));
   ASSERT_EQ(fileset_.size(), toplevels.size());
-  for (size_t i = 0; i < toplevels.size(); ++i) {
-    ASSERT_TRUE(fileset_.find(toplevels[i].path) != fileset_.end());
+  for (const auto& toplevel : toplevels) {
+    ASSERT_TRUE(base::Contains(fileset_, toplevel.path));
   }
 
   // See if the name of each registered kTestPaths (that is what we
@@ -172,24 +174,54 @@ TEST_F(IsolatedContextTest, RegisterAndRevokeTest) {
   ASSERT_FALSE(isolated_context()->GetRegisteredPath(fs5.id(), &path));
 }
 
+TEST_F(IsolatedContextTest, IsPathValid) {
+  struct {
+    base::FilePath::StringViewType path;
+    bool expected;
+  } cases[]{
+      {DRIVE FPL("/foo"), true},
+      {DRIVE FPL("foo"), false},
+      {DRIVE FPL("/foo/../bar"), false},
+#if BUILDFLAG(IS_ANDROID)
+      {FPL("content://authority/path"), true},
+#else
+      {FPL("content://authority/path"), false},
+#endif
+  };
+
+  for (const auto& tc : cases) {
+    base::FilePath path(tc.path);
+    IsolatedContext::FileInfoSet files;
+    std::string name;
+    EXPECT_EQ(tc.expected, files.AddPath(path, &name));
+    EXPECT_EQ(tc.expected, files.AddPathWithName(path, "name"));
+
+    IsolatedContext::ScopedFSHandle fs =
+        isolated_context()->RegisterFileSystemForPath(
+            kFileSystemTypeLocal, std::string(), path, nullptr);
+    EXPECT_EQ(tc.expected, fs.is_valid());
+  }
+}
+
 TEST_F(IsolatedContextTest, CrackWithRelativePaths) {
-  const struct {
+  struct Relatives {
     base::FilePath::StringType path;
     bool valid;
-  } relatives[] = {
-    {FPL("foo"), true},
-    {FPL("foo/bar"), true},
-    {FPL(".."), false},
-    {FPL("foo/.."), false},
-    {FPL("foo/../bar"), false},
+  };
+  const auto relatives = std::to_array<Relatives>({
+      {FPL("foo"), true},
+      {FPL("foo/bar"), true},
+      {FPL(".."), false},
+      {FPL("foo/.."), false},
+      {FPL("foo/../bar"), false},
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
 #define SHOULD_FAIL_WITH_WIN_SEPARATORS false
 #else
 #define SHOULD_FAIL_WITH_WIN_SEPARATORS true
 #endif
-    {FPL("foo\\..\\baz"), SHOULD_FAIL_WITH_WIN_SEPARATORS},
-    {FPL("foo/..\\baz"), SHOULD_FAIL_WITH_WIN_SEPARATORS},
-  };
+      {FPL("foo\\..\\baz"), SHOULD_FAIL_WITH_WIN_SEPARATORS},
+      {FPL("foo/..\\baz"), SHOULD_FAIL_WITH_WIN_SEPARATORS},
+  });
 
   for (size_t i = 0; i < std::size(kTestPaths); ++i) {
     for (size_t j = 0; j < std::size(relatives); ++j) {
@@ -226,23 +258,24 @@ TEST_F(IsolatedContextTest, CrackWithRelativePaths) {
 }
 
 TEST_F(IsolatedContextTest, CrackURLWithRelativePaths) {
-  const struct {
+  struct Relatives {
     base::FilePath::StringType path;
     bool valid;
-  } relatives[] = {
-    {FPL("foo"), true},
-    {FPL("foo/bar"), true},
-    {FPL(".."), false},
-    {FPL("foo/.."), false},
-    {FPL("foo/../bar"), false},
+  };
+  const auto relatives = std::to_array<Relatives>({
+      {FPL("foo"), true},
+      {FPL("foo/bar"), true},
+      {FPL(".."), false},
+      {FPL("foo/.."), false},
+      {FPL("foo/../bar"), false},
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
 #define SHOULD_FAIL_WITH_WIN_SEPARATORS false
 #else
 #define SHOULD_FAIL_WITH_WIN_SEPARATORS true
 #endif
-    {FPL("foo\\..\\baz"), SHOULD_FAIL_WITH_WIN_SEPARATORS},
-    {FPL("foo/..\\baz"), SHOULD_FAIL_WITH_WIN_SEPARATORS},
-  };
+      {FPL("foo\\..\\baz"), SHOULD_FAIL_WITH_WIN_SEPARATORS},
+      {FPL("foo/..\\baz"), SHOULD_FAIL_WITH_WIN_SEPARATORS},
+  });
 
   for (size_t i = 0; i < std::size(kTestPaths); ++i) {
     for (size_t j = 0; j < std::size(relatives); ++j) {

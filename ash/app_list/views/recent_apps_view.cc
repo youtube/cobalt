@@ -16,6 +16,7 @@
 #include "ash/app_list/model/search/search_model.h"
 #include "ash/app_list/model/search/search_result.h"
 #include "ash/app_list/views/app_list_item_view.h"
+#include "ash/app_list/views/app_list_item_view_grid_delegate.h"
 #include "ash/app_list/views/app_list_keyboard_controller.h"
 #include "ash/public/cpp/app_list/app_list_config.h"
 #include "ash/public/cpp/app_list/app_list_config_provider.h"
@@ -58,8 +59,8 @@ struct RecentAppInfo {
   RecentAppInfo& operator=(RecentAppInfo&) = default;
   ~RecentAppInfo() = default;
 
-  AppListItem* item;
-  SearchResult* result;
+  raw_ptr<AppListItem> item;
+  raw_ptr<SearchResult> result;
 };
 
 // Returns a list of recent apps by filtering zero-state suggestion data.
@@ -96,7 +97,7 @@ std::vector<RecentAppInfo> GetRecentApps(
 
 // The grid delegate for each AppListItemView. Recent app icons cannot be
 // dragged, so this implementation is mostly a stub.
-class RecentAppsView::GridDelegateImpl : public AppListItemView::GridDelegate {
+class RecentAppsView::GridDelegateImpl : public AppListItemViewGridDelegate {
  public:
   explicit GridDelegateImpl(AppListViewDelegate* view_delegate)
       : view_delegate_(view_delegate) {}
@@ -116,22 +117,12 @@ class RecentAppsView::GridDelegateImpl : public AppListItemView::GridDelegate {
     selected_view_ = view;
     // Ensure the translucent background of this selection is painted.
     selected_view_->SchedulePaint();
+    selected_view_->NotifyAccessibilityEventDeprecated(ax::mojom::Event::kFocus,
+                                                       true);
   }
   void ClearSelectedView() override { selected_view_ = nullptr; }
   bool IsSelectedView(const AppListItemView* view) const override {
     return view == selected_view_;
-  }
-  bool InitiateDrag(AppListItemView* view,
-                    const gfx::Point& location,
-                    const gfx::Point& root_location,
-                    base::OnceClosure drag_start_callback,
-                    base::OnceClosure drag_end_callback) override {
-    return false;
-  }
-  void StartDragAndDropHostDragAfterLongPress() override {}
-  bool UpdateDragFromItem(bool is_touch,
-                          const ui::LocatedEvent& event) override {
-    return false;
   }
   void EndDrag(bool cancel) override {}
   void OnAppListItemViewActivated(AppListItemView* pressed_item_view,
@@ -141,14 +132,24 @@ class RecentAppsView::GridDelegateImpl : public AppListItemView::GridDelegate {
     // which may be destroyed during the procedure as the function parameter
     // may bring the crash like https://crbug.com/990282.
     const std::string id = pressed_item_view->item()->id();
+    RecordAppListByCollectionLaunched(
+        pressed_item_view->item()->collection_id(),
+        /*is_apps_collections_page=*/false);
+
+    // `this` may be deleted after activation.
     view_delegate_->ActivateItem(id, event.flags(),
-                                 AppListLaunchedFrom::kLaunchedFromRecentApps);
-    // `this` may be deleted.
+                                 AppListLaunchedFrom::kLaunchedFromRecentApps,
+                                 IsAboveTheFold(pressed_item_view));
+  }
+
+  bool IsAboveTheFold(AppListItemView* item_view) override {
+    // Recent apps are always above the fold.
+    return true;
   }
 
  private:
-  const raw_ptr<AppListViewDelegate, ExperimentalAsh> view_delegate_;
-  raw_ptr<AppListItemView, ExperimentalAsh> selected_view_ = nullptr;
+  const raw_ptr<AppListViewDelegate> view_delegate_;
+  raw_ptr<AppListItemView, DanglingUntriaged> selected_view_ = nullptr;
 };
 
 RecentAppsView::RecentAppsView(AppListKeyboardController* keyboard_controller,
@@ -163,10 +164,11 @@ RecentAppsView::RecentAppsView(AppListKeyboardController* keyboard_controller,
   layout_->set_main_axis_alignment(views::BoxLayout::MainAxisAlignment::kStart);
   layout_->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kStart);
-  GetViewAccessibility().OverrideRole(ax::mojom::Role::kGroup);
+  GetViewAccessibility().SetRole(ax::mojom::Role::kGroup);
   // TODO(https://crbug.com/1298211): This needs a designated string resource.
-  GetViewAccessibility().OverrideName(
-      l10n_util::GetStringUTF16(IDS_ASH_LAUNCHER_RECENT_APPS_A11Y_NAME));
+  GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(IDS_ASH_LAUNCHER_RECENT_APPS_A11Y_NAME),
+      ax::mojom::NameFrom::kAttribute);
   SetVisible(false);
 }
 
@@ -191,8 +193,9 @@ void RecentAppsView::OnAppListItemWillBeDeleted(AppListItem* item) {
 void RecentAppsView::UpdateAppListConfig(const AppListConfig* app_list_config) {
   app_list_config_ = app_list_config;
 
-  for (auto* item_view : item_views_)
+  for (ash::AppListItemView* item_view : item_views_) {
     item_view->UpdateAppListConfig(app_list_config);
+  }
 }
 
 void RecentAppsView::UpdateResults(
@@ -216,8 +219,9 @@ void RecentAppsView::UpdateResults(
   if (auto* notifier = view_delegate_->GetNotifier()) {
     std::vector<AppListNotifier::Result> notifier_results;
     for (const RecentAppInfo& app : apps)
-      notifier_results.emplace_back(app.result->id(),
-                                    app.result->metrics_type());
+      notifier_results.emplace_back(
+          app.result->id(), app.result->metrics_type(),
+          app.result->continue_file_suggestion_type());
     notifier->NotifyResultsUpdated(SearchResultDisplayType::kRecentApps,
                                    notifier_results);
   }
@@ -231,8 +235,8 @@ void RecentAppsView::UpdateResults(
     item_view->InitializeIconLoader();
   }
 
-  NotifyAccessibilityEvent(ax::mojom::Event::kChildrenChanged,
-                           /*send_native_event=*/true);
+  NotifyAccessibilityEventDeprecated(ax::mojom::Event::kChildrenChanged,
+                                     /*send_native_event=*/true);
 }
 
 void RecentAppsView::SetModels(SearchModel* search_model, AppListModel* model) {
@@ -339,7 +343,7 @@ int RecentAppsView::CalculateTilePadding() const {
   return width_to_distribute / ((kMaxRecommendedApps - 1) * 2);
 }
 
-BEGIN_METADATA(RecentAppsView, views::View)
+BEGIN_METADATA(RecentAppsView)
 END_METADATA
 
 }  // namespace ash

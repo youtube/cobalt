@@ -6,6 +6,7 @@
 #define COMPONENTS_SITE_ENGAGEMENT_CONTENT_SITE_ENGAGEMENT_SCORE_H_
 
 #include <array>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -14,7 +15,6 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "components/site_engagement/core/mojom/site_engagement_details.mojom-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/site_engagement/site_engagement.mojom-forward.h"
 #include "url/gurl.h"
 
@@ -175,9 +175,7 @@ class SiteEngagementScore {
 
   // Get/set the last time this origin recorded an engagement change.
   base::Time last_engagement_time() const { return last_engagement_time_; }
-  void set_last_engagement_time(const base::Time& time) {
-    last_engagement_time_ = time;
-  }
+  void SetLastEngagementTime(const base::Time& time);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SiteEngagementScoreTest, FirstDailyEngagementBonus);
@@ -201,7 +199,7 @@ class SiteEngagementScore {
   // This version of the constructor is used in unit tests.
   SiteEngagementScore(base::Clock* clock,
                       const GURL& origin,
-                      absl::optional<base::Value::Dict> score_dict);
+                      std::optional<base::Value::Dict> score_dict);
 
   // Determine the score, accounting for any decay.
   double DecayedScore() const;
@@ -236,7 +234,7 @@ class SiteEngagementScore {
   base::Time last_shortcut_launch_time_;
 
   // The dictionary that represents this engagement score.
-  absl::optional<base::Value::Dict> score_dict_;
+  std::optional<base::Value::Dict> score_dict_;
 
   // The origin this score represents.
   GURL origin_;

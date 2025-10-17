@@ -23,17 +23,19 @@
 #include "ash/style/style_util.h"
 #include "ash/style/typography.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "extensions/common/constants.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/menu_separator_types.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/image/image_skia_operations.h"
+#include "ui/menus/simple_menu_model.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/background.h"
@@ -92,11 +94,8 @@ ContinueTaskView::ContinueTaskView(AppListViewDelegate* view_delegate,
                                          std::move(ink_drop_highlight_path));
   SetInstallFocusRingOnFocus(true);
 
-  const bool is_jelly_enabled = chromeos::features::IsJellyEnabled();
-  const ui::ColorId focus_ring_color =
-      is_jelly_enabled
-          ? static_cast<ui::ColorId>(cros_tokens::kCrosSysFocusRing)
-          : ui::kColorAshFocusRing;
+  const ui::ColorId focus_ring_color = cros_tokens::kCrosSysFocusRing;
+  views::FocusRing::Get(this)->SetOutsetFocusRingDisabled(true);
   views::FocusRing::Get(this)->SetColorId(focus_ring_color);
   SetFocusPainter(nullptr);
 
@@ -105,32 +104,28 @@ ContinueTaskView::ContinueTaskView(AppListViewDelegate* view_delegate,
   SetHasInkDropActionOnClick(true);
   SetShowInkDropWhenHotTracked(false);
 
-  if (is_jelly_enabled) {
-    StyleUtil::ConfigureInkDropAttributes(
-        this, StyleUtil::kBaseColor | StyleUtil::kInkDropOpacity,
-        tablet_mode ? cros_tokens::kCrosSysRippleNeutralOnSubtle
-                    : cros_tokens::kCrosSysHoverOnSubtle);
-  } else {
-    StyleUtil::ConfigureInkDropAttributes(
-        this, StyleUtil::kBaseColor | StyleUtil::kInkDropOpacity);
-  }
+  StyleUtil::ConfigureInkDropAttributes(
+      this, StyleUtil::kBaseColor | StyleUtil::kInkDropOpacity,
+      tablet_mode ? cros_tokens::kCrosSysRippleNeutralOnSubtle
+                  : cros_tokens::kCrosSysHoverOnSubtle);
 
   if (tablet_mode) {
-    layer()->SetBackgroundBlur(ColorProvider::kBackgroundBlurSigma);
-    layer()->SetBackdropFilterQuality(ColorProvider::kBackgroundBlurQuality);
+    if (chromeos::features::IsSystemBlurEnabled()) {
+      layer()->SetBackgroundBlur(ColorProvider::kBackgroundBlurSigma);
+      layer()->SetBackdropFilterQuality(ColorProvider::kBackgroundBlurQuality);
+    }
+
     layer()->SetRoundedCornerRadius(
         gfx::RoundedCornersF(GetCornerRadius(/*tablet_mode=*/true)));
 
-    const ui::ColorId background_color =
-        is_jelly_enabled
-            ? static_cast<ui::ColorId>(cros_tokens::kCrosSysSystemBaseElevated)
-            : kColorAshShieldAndBase60;
-    SetBackground(views::CreateThemedSolidBackground(background_color));
+    const ui::ColorId background_color_id =
+        chromeos::features::IsSystemBlurEnabled()
+            ? cros_tokens::kCrosSysSystemBaseElevated
+            : cros_tokens::kCrosSysSystemBaseElevatedOpaque;
+    SetBackground(views::CreateSolidBackground(background_color_id));
     SetBorder(std::make_unique<views::HighlightBorder>(
         GetCornerRadius(/*tablet_mode=*/true),
-        is_jelly_enabled
-            ? views::HighlightBorder::Type::kHighlightBorderNoShadow
-            : views::HighlightBorder::Type::kHighlightBorder2));
+        views::HighlightBorder::Type::kHighlightBorderNoShadow));
   }
 
   auto* layout_manager = SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -140,7 +135,7 @@ ContinueTaskView::ContinueTaskView(AppListViewDelegate* view_delegate,
   layout_manager->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kCenter);
 
-  GetViewAccessibility().OverrideRole(ax::mojom::Role::kListItem);
+  GetViewAccessibility().SetRole(ax::mojom::Role::kListItem);
 
   icon_ = AddChildView(std::make_unique<views::ImageView>());
   icon_->SetVerticalAlignment(views::ImageView::Alignment::kCenter);
@@ -152,25 +147,16 @@ ContinueTaskView::ContinueTaskView(AppListViewDelegate* view_delegate,
 
   title_ = label_container->AddChildView(
       std::make_unique<views::Label>(std::u16string()));
-  if (is_jelly_enabled) {
-    bubble_utils::ApplyStyle(title_, TypographyToken::kCrosButton1,
-                             cros_tokens::kCrosSysOnSurface);
-  } else {
-    bubble_utils::ApplyStyle(title_, TypographyToken::kCrosBody1);
-  }
-  title_->SetAccessibleName(std::u16string());
+  bubble_utils::ApplyStyle(title_, TypographyToken::kCrosButton1,
+                           cros_tokens::kCrosSysOnSurface);
+  title_->GetViewAccessibility().SetName(std::u16string());
   title_->SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
   title_->SetElideBehavior(gfx::ElideBehavior::ELIDE_TAIL);
 
   subtitle_ = label_container->AddChildView(
       std::make_unique<views::Label>(std::u16string()));
-  if (is_jelly_enabled) {
-    bubble_utils::ApplyStyle(subtitle_, TypographyToken::kCrosAnnotation1,
-                             kColorAshTextColorSecondary);
-  } else {
-    bubble_utils::ApplyStyle(subtitle_, TypographyToken::kCrosAnnotation1,
-                             cros_tokens::kCrosSysSecondary);
-  }
+  bubble_utils::ApplyStyle(subtitle_, TypographyToken::kCrosAnnotation1,
+                           cros_tokens::kCrosSysOnSurfaceVariant);
   subtitle_->SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT);
   subtitle_->SetElideBehavior(gfx::ElideBehavior::ELIDE_MIDDLE);
 
@@ -196,7 +182,8 @@ gfx::Size ContinueTaskView::GetMinimumSize() const {
                    GetLayoutManager()->GetPreferredSize(this).height());
 }
 
-gfx::Size ContinueTaskView::CalculatePreferredSize() const {
+gfx::Size ContinueTaskView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   return GetMinimumSize();
 }
 
@@ -208,7 +195,7 @@ void ContinueTaskView::OnButtonPressed(const ui::Event& event) {
 
 void ContinueTaskView::UpdateIcon() {
   if (!result()) {
-    icon_->SetImage(gfx::ImageSkia());
+    icon_->SetImage(ui::ImageModel());
     return;
   }
 
@@ -218,36 +205,26 @@ void ContinueTaskView::UpdateIcon() {
 
   gfx::ImageSkia icon;
 
-  // TODO(b/278271038): After changing the type of icon in
-  // `SearchResultIconInfo` from `ImageSkia` to `ImageModel`, please make sure
-  // get rid of `badge_icon` here; and use the `icon` instead. Also, you need to
-  // replace `SetBadgeIcon` in `DesksAdminTemplateResult` to `SetIcon`.
-  if (!result()->badge_icon().IsEmpty()) {
-    icon = result()->badge_icon().Rasterize(GetColorProvider());
+  if (!result()->icon().icon.IsEmpty()) {
+    icon = result()->icon().icon.Rasterize(GetColorProvider());
   } else {
     icon = result()->chip_icon();
   }
 
-  icon_->SetImage(CreateIconWithCircleBackground(
+  icon_->SetImage(ui::ImageModel::FromImageSkia(CreateIconWithCircleBackground(
       icon.size() == GetIconSize()
           ? icon
           : gfx::ImageSkiaOperations::CreateResizedImage(
                 icon, skia::ImageOperations::RESIZE_BEST, GetIconSize()),
-      GetColorProvider()->GetColor(GetIconBackgroundColorId())));
+      GetColorProvider()->GetColor(GetIconBackgroundColorId()))));
 }
 
 ui::ColorId ContinueTaskView::GetIconBackgroundColorId() const {
   if (result()->result_type() == AppListSearchResultType::kZeroStateHelpApp) {
-    if (chromeos::features::IsJellyEnabled()) {
-      return cros_tokens::kCrosSysPrimary;
-    }
-    return kColorAshControlBackgroundColorActive;
+    return cros_tokens::kCrosSysPrimary;
   }
 
-  if (chromeos::features::IsJellyEnabled()) {
-    return cros_tokens::kCrosSysSystemOnBase;
-  }
-  return kColorAshControlBackgroundColorInactive;
+  return cros_tokens::kCrosSysSystemOnBase;
 }
 
 gfx::Size ContinueTaskView::GetIconSize() const {
@@ -268,16 +245,17 @@ void ContinueTaskView::UpdateResult() {
   if (!result()) {
     title_->SetText(std::u16string());
     subtitle_->SetText(std::u16string());
-    GetViewAccessibility().OverrideName(
+    GetViewAccessibility().SetName(
         std::u16string(), ax::mojom::NameFrom::kAttributeExplicitlyEmpty);
     return;
   }
 
   title_->SetText(result()->title());
   subtitle_->SetText(result()->details());
+  subtitle_->SetVisible(!result()->details().empty());
 
-  GetViewAccessibility().OverrideName(result()->title() + u" " +
-                                      result()->details());
+  GetViewAccessibility().SetName(result()->title() + u" " + result()->details(),
+                                 ax::mojom::NameFrom::kAttribute);
 }
 
 void ContinueTaskView::OnResultDestroying() {
@@ -300,7 +278,7 @@ void ContinueTaskView::SetResult(SearchResult* result) {
 void ContinueTaskView::ShowContextMenuForViewImpl(
     views::View* source,
     const gfx::Point& point,
-    ui::MenuSourceType source_type) {
+    ui::mojom::MenuSourceType source_type) {
   // May be null if the result got reset, and the task view is animating out.
   if (!result())
     return;
@@ -391,10 +369,13 @@ ContinueTaskView::TaskResultType ContinueTaskView::GetTaskResultType() {
       return TaskResultType::kLocalFile;
     case AppListSearchResultType::kZeroStateDrive:
       return TaskResultType::kDriveFile;
+    case AppListSearchResultType::kZeroStateHelpApp:
+      return TaskResultType::kHelpApp;
+    case AppListSearchResultType::kDesksAdminTemplate:
+      return TaskResultType::kDesksAdminTemplate;
     default:
-      NOTREACHED();
+      return TaskResultType::kUnknown;
   }
-  return TaskResultType::kUnknown;
 }
 
 void ContinueTaskView::RemoveResult() {
@@ -424,7 +405,7 @@ void ContinueTaskView::LogMetricsOnResultRemoved() {
                                 GetTaskResultType(), TaskResultType::kMaxValue);
 }
 
-BEGIN_METADATA(ContinueTaskView, views::View)
+BEGIN_METADATA(ContinueTaskView)
 END_METADATA
 
 }  // namespace ash

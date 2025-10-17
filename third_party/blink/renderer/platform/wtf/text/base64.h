@@ -50,16 +50,16 @@ enum class Base64DecodePolicy {
 };
 WTF_EXPORT bool Base64Decode(
     const StringView&,
-    Vector<char>&,
+    Vector<uint8_t>&,
     Base64DecodePolicy policy = Base64DecodePolicy::kNoPaddingValidation);
 
-WTF_EXPORT bool Base64UnpaddedURLDecode(const String& in, Vector<char>&);
+WTF_EXPORT bool Base64UnpaddedURLDecode(const String& in, Vector<uint8_t>&);
 
 // Given an encoding in either base64 or base64url, returns a normalized
 // encoding in plain base64.
 WTF_EXPORT String NormalizeToBase64(const String&);
 
-WTF_EXPORT String Base64URLEncode(const char*, unsigned);
+WTF_EXPORT String Base64URLEncode(base::span<const uint8_t>);
 
 }  // namespace WTF
 

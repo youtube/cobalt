@@ -9,14 +9,18 @@
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/containers/fixed_flat_map.h"
+#include "base/containers/fixed_flat_set.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_util.h"
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/external_protocol/auto_launch_protocols_policy_handler.h"
 #include "chrome/browser/external_protocol/constants.h"
 #include "chrome/browser/platform_util.h"
@@ -34,8 +38,7 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_FUCHSIA) && \
-    !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/sharing/click_to_call/click_to_call_ui_controller.h"
 #include "chrome/browser/sharing/click_to_call/click_to_call_utils.h"
 #endif
@@ -46,6 +49,12 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/url_formatter/elide_url.h"
+#include "components/web_modal/web_contents_modal_dialog_manager.h"
+#endif
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+#include "chrome/browser/safe_browsing/safe_browsing_service.h"
 #endif
 
 namespace {
@@ -60,7 +69,7 @@ bool g_accept_requests = true;
 ExternalProtocolHandler::Delegate* g_external_protocol_handler_delegate =
     nullptr;
 
-constexpr const char* kDeniedSchemes[] = {
+constexpr auto kDeniedSchemes = base::MakeFixedFlatSet<std::string_view>({
     "afp",
     "data",
     "disk",
@@ -84,11 +93,7 @@ constexpr const char* kDeniedSchemes[] = {
     // want to shellexecute it.
     "view-source",
     "vnd.ms.radio",
-};
-
-constexpr const char* kAllowedSchemes[] = {
-    "mailto", "news", "snews",
-};
+});
 
 void AddMessageToConsole(const content::WeakDocumentPtr& document,
                          blink::mojom::ConsoleMessageLevel level,
@@ -128,7 +133,7 @@ void RunExternalProtocolDialogWithDelegate(
     ui::PageTransition page_transition,
     bool has_user_gesture,
     bool is_in_fenced_frame_tree,
-    const absl::optional<url::Origin>& initiating_origin,
+    const std::optional<url::Origin>& initiating_origin,
     content::WeakDocumentPtr initiator_document,
     const std::u16string& program_name,
     ExternalProtocolHandler::Delegate* delegate) {
@@ -165,9 +170,15 @@ void LaunchUrlWithoutSecurityCheckWithDelegate(
     content::WeakDocumentPtr initiator_document,
     ExternalProtocolHandler::Delegate* delegate) {
   if (delegate) {
+    delegate->ReportExternalAppRedirectToSafeBrowsing(url, web_contents);
     delegate->LaunchUrlWithoutSecurityCheck(url, web_contents);
     return;
   }
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+  g_browser_process->safe_browsing_service()->ReportExternalAppRedirect(
+      web_contents, url.scheme(), url.possibly_invalid_spec());
+#endif
 
   // |web_contents| is only passed in to find browser context. Do not assume
   // that the external protocol request came from the main frame.
@@ -179,22 +190,26 @@ void LaunchUrlWithoutSecurityCheckWithDelegate(
       "Launched external handler for '" + url.possibly_invalid_spec() + "'.");
 
   platform_util::OpenExternal(
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
       Profile::FromBrowserContext(web_contents->GetBrowserContext()),
 #endif
       url);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
   // If the protocol navigation occurs in a new tab, close it.
   // Avoid calling CloseContents if the tab is not in this browser's tab strip
   // model; this can happen if the protocol was initiated by something
   // internal to Chrome.
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (browser && web_contents->GetController().IsInitialNavigation() &&
       browser->tab_strip_model()->count() > 1 &&
       browser->tab_strip_model()->GetIndexOfWebContents(web_contents) !=
           TabStripModel::kNoTab) {
-    web_contents->Close();
+    // Defer destruction of `WebContents` to avoid synchronously destroying
+    // NavigationURLLoader(Impl) here. See https://issues.chromium.org/361600654
+    content::GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(&content::WebContents::Close,
+                                  web_contents->GetWeakPtr()));
   }
 #endif
 }
@@ -210,7 +225,7 @@ void OnDefaultSchemeClientWorkerFinished(
     ui::PageTransition page_transition,
     bool has_user_gesture,
     bool is_in_fenced_frame_tree,
-    const absl::optional<url::Origin>& initiating_origin,
+    const std::optional<url::Origin>& initiating_origin,
     content::WeakDocumentPtr initiator_document,
     ExternalProtocolHandler::Delegate* delegate,
     shell_integration::DefaultWebClientState state,
@@ -228,8 +243,7 @@ void OnDefaultSchemeClientWorkerFinished(
   bool chrome_is_default_handler = state == shell_integration::IS_DEFAULT;
 
   // On ChromeOS, Click to Call is integrated into the external protocol dialog.
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_FUCHSIA) && \
-    !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
   if (web_contents && ShouldOfferClickToCallForURL(
                           web_contents->GetBrowserContext(), escaped_url)) {
     // Handle tel links by opening the Click to Call dialog. This will call back
@@ -251,8 +265,26 @@ void OnDefaultSchemeClientWorkerFinished(
   // what the default is, so we proceed.
   if (prompt_user) {
     // Never prompt the user without a web_contents.
-    if (!web_contents)
+    if (!web_contents) {
       return;
+    }
+
+    // Anchor to the outermost WebContents, for e.g. embedded <webview>s.
+    web_contents = web_contents->GetOutermostWebContents();
+
+    // Skip if the WebContents instance is not prepared to show a dialog.
+    if (!web_modal::WebContentsModalDialogManager::FromWebContents(
+            web_contents)) {
+      LOG(ERROR) << "Skipping ExternalProtocolDialog"
+                 << ", escaped_url=" << escaped_url.possibly_invalid_spec()
+                 << ", initiating_origin="
+                 << url_formatter::FormatOriginForSecurityDisplay(
+                        initiating_origin.value_or(url::Origin()))
+                 << ", web_contents?" << !!web_contents << ", browser?"
+                 << (web_contents && chrome::FindBrowserWithTab(web_contents));
+      base::debug::DumpWithoutCrashing();
+      return;
+    }
 
     // Ask the user if they want to allow the protocol. This will call
     // LaunchUrlWithoutSecurityCheck if the user decides to accept the
@@ -295,15 +327,47 @@ bool IsSchemeOriginPairAllowedByPolicy(const std::string& scheme,
 
   url_matcher::URLMatcher matcher;
   base::MatcherStringPattern::ID id(0);
-  url_matcher::util::AddFilters(&matcher, true /* allowed */, &id,
-                                *origin_patterns);
+  url_matcher::util::AddFiltersWithLimit(&matcher, true /* allowed */, &id,
+                                         *origin_patterns);
 
   auto matching_set = matcher.MatchURL(initiating_origin->GetURL());
   return !matching_set.empty();
 }
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(LoggedScheme)
+enum class LoggedScheme {
+  OTHER = 0,
+  SEARCH_MS = 1,
+  SEARCH = 2,
+  MAILTO = 3,
+  MICROSOFT_EDGE = 4,
+  kMaxValue = MICROSOFT_EDGE,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/permissions/enums.xml:ExternalProtocolScheme)
+
+void LogRequestForScheme(const std::string& scheme) {
+  constexpr auto kSchemeToBucket =
+      base::MakeFixedFlatMap<std::string_view, LoggedScheme>(
+          {{"search-ms", LoggedScheme::SEARCH_MS},
+           {"search", LoggedScheme::SEARCH},
+           {"mailto", LoggedScheme::MAILTO},
+           {"microsoft-edge", LoggedScheme::MICROSOFT_EDGE}});
+  static_assert(kSchemeToBucket.size() ==
+                static_cast<size_t>(LoggedScheme::kMaxValue));
+  auto iterator = kSchemeToBucket.find(scheme);
+  LoggedScheme scheme_bucket = iterator != kSchemeToBucket.end()
+                                   ? iterator->second
+                                   : LoggedScheme::OTHER;
+  base::UmaHistogramEnumeration("BrowserDialogs.ExternalProtocol.Scheme",
+                                scheme_bucket);
+}
+
 }  // namespace
 
+const char ExternalProtocolHandler::kBlockStateMetric[] =
+    "BrowserDialogs.ExternalProtocol.BlockState";
 const char ExternalProtocolHandler::kHandleStateMetric[] =
     "BrowserDialogs.ExternalProtocol.HandleState";
 
@@ -325,6 +389,8 @@ ExternalProtocolHandler::BlockState ExternalProtocolHandler::GetBlockState(
     Profile* profile) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
+  LogRequestForScheme(scheme);
+
   // If we are being flooded with requests, block the request.
   if (!g_accept_requests)
     return BLOCK;
@@ -337,21 +403,26 @@ ExternalProtocolHandler::BlockState ExternalProtocolHandler::GetBlockState(
   }
 
   // Always block the hard-coded denied schemes.
-  for (size_t i = 0; i < std::size(kDeniedSchemes); ++i) {
-    if (kDeniedSchemes[i] == scheme)
-      return BLOCK;
+  if (kDeniedSchemes.contains(scheme)) {
+    base::UmaHistogramEnumeration(kBlockStateMetric,
+                                  BlockStateMetric::kDeniedDefault);
+    return BLOCK;
   }
 
-  // Always allow the hard-coded allowed schemes.
-  for (size_t i = 0; i < std::size(kAllowedSchemes); ++i) {
-    if (kAllowedSchemes[i] == scheme)
-      return DONT_BLOCK;
+  // The mailto scheme is allowed explicitly because of its ubiquity on the web
+  // and because every platform provides a default handler for it.
+  if (scheme == "mailto") {
+    base::UmaHistogramEnumeration(kBlockStateMetric,
+                                  BlockStateMetric::kAllowedDefaultMail);
+    return DONT_BLOCK;
   }
 
   PrefService* profile_prefs = profile->GetPrefs();
   if (profile_prefs) {  // May be NULL during testing.
     if (IsSchemeOriginPairAllowedByPolicy(scheme, initiating_origin,
                                           profile_prefs)) {
+      base::UmaHistogramEnumeration(
+          kBlockStateMetric, BlockStateMetric::kAllowedByEnterprisePolicy);
       return DONT_BLOCK;
     }
 
@@ -364,14 +435,18 @@ ExternalProtocolHandler::BlockState ExternalProtocolHandler::GetBlockState(
           allowed_origin_protocol_pairs.FindDict(
               initiating_origin->Serialize());
       if (allowed_protocols_for_origin) {
-        absl::optional<bool> allow =
+        std::optional<bool> allow =
             allowed_protocols_for_origin->FindBool(scheme);
-        if (allow.has_value() && allow.value())
+        if (allow.has_value() && allow.value()) {
+          base::UmaHistogramEnumeration(kBlockStateMetric,
+                                        BlockStateMetric::kAllowedByPreference);
           return DONT_BLOCK;
+        }
       }
     }
   }
 
+  base::UmaHistogramEnumeration(kBlockStateMetric, BlockStateMetric::kPrompt);
   return UNKNOWN;
 }
 
@@ -427,7 +502,7 @@ void ExternalProtocolHandler::LaunchUrl(
     ui::PageTransition page_transition,
     bool has_user_gesture,
     bool is_in_fenced_frame_tree,
-    const absl::optional<url::Origin>& initiating_origin,
+    const std::optional<url::Origin>& initiating_origin,
     content::WeakDocumentPtr initiator_document
 #if BUILDFLAG(IS_ANDROID)
     ,
@@ -490,7 +565,7 @@ void ExternalProtocolHandler::LaunchUrl(
   }
   return;
 #else
-  absl::optional<url::Origin> initiating_origin_or_precursor;
+  std::optional<url::Origin> initiating_origin_or_precursor;
   if (initiating_origin) {
     // Transform the initiating origin to its precursor origin if it is
     // opaque. |initiating_origin| is shown in the UI to attribute the external
@@ -531,9 +606,9 @@ void ExternalProtocolHandler::LaunchUrlWithoutSecurityCheck(
   // have parameters unexpected by the external program. The url passed in the
   // |url| parameter might already be escaped but the EscapeExternalHandlerValue
   // is idempotent so it is safe to apply it again.
-  // TODO(788244): This essentially amounts to "remove illegal characters from
-  // the URL", something that probably should be done by the GURL constructor
-  // itself.
+  // TODO(crbug.com/40551459): This essentially amounts to "remove illegal
+  // characters from the URL", something that probably should be done by the
+  // GURL constructor itself.
   std::string escaped_url_string = base::EscapeExternalHandlerValue(url.spec());
   GURL escaped_url(escaped_url_string);
 
@@ -563,7 +638,6 @@ void ExternalProtocolHandler::RecordHandleStateMetrics(bool checkbox_selected,
       break;
     case UNKNOWN:
       NOTREACHED();
-      return;
   }
   DCHECK_NE(CHECKED_DONT_LAUNCH_DEPRECATED, handle_state);
   UMA_HISTOGRAM_ENUMERATION(kHandleStateMetric, handle_state,

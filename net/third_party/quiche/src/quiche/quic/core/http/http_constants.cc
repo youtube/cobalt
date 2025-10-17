@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/http/http_constants.h"
 
+#include <string>
+
 #include "absl/strings/str_cat.h"
 
 namespace quic {
@@ -20,6 +22,7 @@ std::string H3SettingsToString(Http3AndQpackSettingsIdentifiers identifier) {
     RETURN_STRING_LITERAL(SETTINGS_H3_DATAGRAM_DRAFT04);
     RETURN_STRING_LITERAL(SETTINGS_H3_DATAGRAM);
     RETURN_STRING_LITERAL(SETTINGS_WEBTRANS_DRAFT00);
+    RETURN_STRING_LITERAL(SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07);
     RETURN_STRING_LITERAL(SETTINGS_ENABLE_CONNECT_PROTOCOL);
     RETURN_STRING_LITERAL(SETTINGS_ENABLE_METADATA);
   }

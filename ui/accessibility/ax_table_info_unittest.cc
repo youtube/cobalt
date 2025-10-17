@@ -72,7 +72,7 @@ void MakeRowHeader(AXNodeData* cell,
 
 }  // namespace
 
-// A macro for testing that a absl::optional has both a value and that its value
+// A macro for testing that a std::optional has both a value and that its value
 // is set to a particular expectation.
 #define EXPECT_OPTIONAL_EQ(expected, actual) \
   EXPECT_TRUE(actual.has_value());           \
@@ -82,12 +82,12 @@ void MakeRowHeader(AXNodeData* cell,
 
 class AXTableInfoTest : public testing::Test {
  public:
-  AXTableInfoTest() {}
+  AXTableInfoTest() = default;
 
   AXTableInfoTest(const AXTableInfoTest&) = delete;
   AXTableInfoTest& operator=(const AXTableInfoTest&) = delete;
 
-  ~AXTableInfoTest() override {}
+  ~AXTableInfoTest() override = default;
 
  protected:
   AXTableInfo* GetTableInfo(AXTree* tree, AXNode* node) {
@@ -687,9 +687,10 @@ TEST_F(AXTableInfoTest, ExtraMacNodes) {
   EXPECT_EQ(0, extra_node_0->GetIntAttribute(
                    ax::mojom::IntAttribute::kTableColumnIndex));
   std::vector<AXNodeID> indirect_child_ids;
-  EXPECT_EQ(true, extra_node_0->GetIntListAttribute(
-                      ax::mojom::IntListAttribute::kIndirectChildIds,
-                      &indirect_child_ids));
+  EXPECT_EQ(true, extra_node_0->HasIntListAttribute(
+                      ax::mojom::IntListAttribute::kIndirectChildIds));
+  indirect_child_ids = extra_node_0->GetIntListAttribute(
+      ax::mojom::IntListAttribute::kIndirectChildIds);
   EXPECT_EQ(2U, indirect_child_ids.size());
   EXPECT_EQ(4, indirect_child_ids[0]);
   EXPECT_EQ(6, indirect_child_ids[1]);
@@ -704,9 +705,10 @@ TEST_F(AXTableInfoTest, ExtraMacNodes) {
   EXPECT_EQ(1, extra_node_1->GetIntAttribute(
                    ax::mojom::IntAttribute::kTableColumnIndex));
   indirect_child_ids.clear();
-  EXPECT_EQ(true, extra_node_1->GetIntListAttribute(
-                      ax::mojom::IntListAttribute::kIndirectChildIds,
-                      &indirect_child_ids));
+  EXPECT_EQ(true, extra_node_1->HasIntListAttribute(
+                      ax::mojom::IntListAttribute::kIndirectChildIds));
+  indirect_child_ids = extra_node_1->GetIntListAttribute(
+      ax::mojom::IntListAttribute::kIndirectChildIds);
   EXPECT_EQ(2U, indirect_child_ids.size());
   EXPECT_EQ(5, indirect_child_ids[0]);
   EXPECT_EQ(7, indirect_child_ids[1]);
@@ -719,15 +721,84 @@ TEST_F(AXTableInfoTest, ExtraMacNodes) {
   EXPECT_EQ(4U, extra_node_2->GetIndexInParent());
   EXPECT_EQ(4U, extra_node_2->GetUnignoredIndexInParent());
   indirect_child_ids.clear();
-  EXPECT_EQ(true, extra_node_2->GetIntListAttribute(
-                      ax::mojom::IntListAttribute::kIndirectChildIds,
-                      &indirect_child_ids));
+  EXPECT_EQ(true, extra_node_2->HasIntListAttribute(
+                      ax::mojom::IntListAttribute::kIndirectChildIds));
+  indirect_child_ids = extra_node_2->GetIntListAttribute(
+      ax::mojom::IntListAttribute::kIndirectChildIds);
   EXPECT_EQ(2U, indirect_child_ids.size());
   EXPECT_EQ(4, indirect_child_ids[0]);
   EXPECT_EQ(5, indirect_child_ids[1]);
 }
 
 #endif
+
+TEST_F(AXTableInfoTest, TableWithNoRows) {
+  AXTreeUpdate initial_state;
+  initial_state.root_id = 1;
+  initial_state.nodes.resize(5);
+  initial_state.nodes[0].id = 1;
+  initial_state.nodes[0].role = ax::mojom::Role::kGrid;
+  initial_state.nodes[0].child_ids = {11, 12, 13, 14};
+  initial_state.nodes[1].id = 11;
+  initial_state.nodes[1].role = ax::mojom::Role::kCell;
+  initial_state.nodes[1].int_attributes.emplace_back(
+      ax::mojom::IntAttribute::kTableCellRowIndex, 0);
+  initial_state.nodes[1].int_attributes.emplace_back(
+      ax::mojom::IntAttribute::kTableCellColumnIndex, 0);
+  initial_state.nodes[2].id = 12;
+  initial_state.nodes[2].role = ax::mojom::Role::kCell;
+  initial_state.nodes[2].int_attributes.emplace_back(
+      ax::mojom::IntAttribute::kTableCellRowIndex, 0);
+  initial_state.nodes[2].int_attributes.emplace_back(
+      ax::mojom::IntAttribute::kTableCellColumnIndex, 1);
+  initial_state.nodes[3].id = 13;
+  initial_state.nodes[3].role = ax::mojom::Role::kCell;
+  initial_state.nodes[3].int_attributes.emplace_back(
+      ax::mojom::IntAttribute::kTableCellRowIndex, 1);
+  initial_state.nodes[3].int_attributes.emplace_back(
+      ax::mojom::IntAttribute::kTableCellColumnIndex, 0);
+  initial_state.nodes[4].id = 14;
+  initial_state.nodes[4].role = ax::mojom::Role::kCell;
+  initial_state.nodes[4].int_attributes.emplace_back(
+      ax::mojom::IntAttribute::kTableCellRowIndex, 1);
+  initial_state.nodes[4].int_attributes.emplace_back(
+      ax::mojom::IntAttribute::kTableCellColumnIndex, 1);
+  AXTree tree(initial_state);
+  AXNode* table = tree.root();
+
+  EXPECT_TRUE(table->IsTable());
+  EXPECT_FALSE(table->IsTableRow());
+  EXPECT_FALSE(table->IsTableCellOrHeader());
+  EXPECT_EQ(2, table->GetTableColCount());
+  EXPECT_EQ(2, table->GetTableRowCount());
+
+  EXPECT_EQ(11, table->GetTableCellFromCoords(0, 0)->id());
+  EXPECT_EQ(12, table->GetTableCellFromCoords(0, 1)->id());
+  EXPECT_EQ(13, table->GetTableCellFromCoords(1, 0)->id());
+  EXPECT_EQ(14, table->GetTableCellFromCoords(1, 1)->id());
+  EXPECT_EQ(nullptr, table->GetTableCellFromCoords(2, 1));
+  EXPECT_EQ(nullptr, table->GetTableCellFromCoords(1, -1));
+
+  EXPECT_EQ(11, table->GetTableCellFromIndex(0)->id());
+  EXPECT_EQ(12, table->GetTableCellFromIndex(1)->id());
+  EXPECT_EQ(13, table->GetTableCellFromIndex(2)->id());
+  EXPECT_EQ(14, table->GetTableCellFromIndex(3)->id());
+  EXPECT_EQ(nullptr, table->GetTableCellFromIndex(-1));
+  EXPECT_EQ(nullptr, table->GetTableCellFromIndex(4));
+
+  AXNode* cell_0_0 = tree.GetFromId(11);
+  EXPECT_EQ(0, cell_0_0->GetTableCellRowIndex());
+  EXPECT_EQ(0, cell_0_0->GetTableCellColIndex());
+  AXNode* cell_0_1 = tree.GetFromId(12);
+  EXPECT_EQ(0, cell_0_1->GetTableCellRowIndex());
+  EXPECT_EQ(1, cell_0_1->GetTableCellColIndex());
+  AXNode* cell_1_0 = tree.GetFromId(13);
+  EXPECT_EQ(1, cell_1_0->GetTableCellRowIndex());
+  EXPECT_EQ(0, cell_1_0->GetTableCellColIndex());
+  AXNode* cell_1_1 = tree.GetFromId(14);
+  EXPECT_EQ(1, cell_1_1->GetTableCellRowIndex());
+  EXPECT_EQ(1, cell_1_1->GetTableCellColIndex());
+}
 
 TEST_F(AXTableInfoTest, TableWithNoIndices) {
   AXTreeUpdate initial_state;
@@ -1143,9 +1214,10 @@ TEST_F(AXTableInfoTest, ExtraMacNodesChanges) {
     EXPECT_EQ(0, extra_node_0->GetIntAttribute(
                      ax::mojom::IntAttribute::kTableColumnIndex));
     std::vector<AXNodeID> indirect_child_ids;
-    EXPECT_EQ(true, extra_node_0->GetIntListAttribute(
-                        ax::mojom::IntListAttribute::kIndirectChildIds,
-                        &indirect_child_ids));
+    EXPECT_EQ(true, extra_node_0->HasIntListAttribute(
+                        ax::mojom::IntListAttribute::kIndirectChildIds));
+    indirect_child_ids = extra_node_0->GetIntListAttribute(
+        ax::mojom::IntListAttribute::kIndirectChildIds);
     EXPECT_EQ(1U, indirect_child_ids.size());
     EXPECT_EQ(6, indirect_child_ids[0]);
 
@@ -1159,9 +1231,10 @@ TEST_F(AXTableInfoTest, ExtraMacNodesChanges) {
     EXPECT_EQ(1, extra_node_1->GetIntAttribute(
                      ax::mojom::IntAttribute::kTableColumnIndex));
     indirect_child_ids.clear();
-    EXPECT_EQ(true, extra_node_1->GetIntListAttribute(
-                        ax::mojom::IntListAttribute::kIndirectChildIds,
-                        &indirect_child_ids));
+    EXPECT_EQ(true, extra_node_1->HasIntListAttribute(
+                        ax::mojom::IntListAttribute::kIndirectChildIds));
+    indirect_child_ids = extra_node_1->GetIntListAttribute(
+        ax::mojom::IntListAttribute::kIndirectChildIds);
     EXPECT_EQ(1U, indirect_child_ids.size());
     EXPECT_EQ(7, indirect_child_ids[0]);
 
@@ -1173,9 +1246,10 @@ TEST_F(AXTableInfoTest, ExtraMacNodesChanges) {
     EXPECT_EQ(4U, extra_node_2->GetIndexInParent());
     EXPECT_EQ(5U, extra_node_2->GetUnignoredIndexInParent());
     indirect_child_ids.clear();
-    EXPECT_EQ(true, extra_node_2->GetIntListAttribute(
-                        ax::mojom::IntListAttribute::kIndirectChildIds,
-                        &indirect_child_ids));
+    EXPECT_EQ(true, extra_node_2->HasIntListAttribute(
+                        ax::mojom::IntListAttribute::kIndirectChildIds));
+    indirect_child_ids = extra_node_2->GetIntListAttribute(
+        ax::mojom::IntListAttribute::kIndirectChildIds);
     EXPECT_EQ(0U, indirect_child_ids.size());
   }
 
@@ -1201,9 +1275,10 @@ TEST_F(AXTableInfoTest, ExtraMacNodesChanges) {
     EXPECT_EQ(0, extra_node_0->GetIntAttribute(
                      ax::mojom::IntAttribute::kTableColumnIndex));
     std::vector<AXNodeID> indirect_child_ids;
-    EXPECT_EQ(true, extra_node_0->GetIntListAttribute(
-                        ax::mojom::IntListAttribute::kIndirectChildIds,
-                        &indirect_child_ids));
+    EXPECT_EQ(true, extra_node_0->HasIntListAttribute(
+                        ax::mojom::IntListAttribute::kIndirectChildIds));
+    indirect_child_ids = extra_node_0->GetIntListAttribute(
+        ax::mojom::IntListAttribute::kIndirectChildIds);
     EXPECT_EQ(1U, indirect_child_ids.size());
     EXPECT_EQ(6, indirect_child_ids[0]);
 
@@ -1217,9 +1292,10 @@ TEST_F(AXTableInfoTest, ExtraMacNodesChanges) {
     EXPECT_EQ(1, extra_node_1->GetIntAttribute(
                      ax::mojom::IntAttribute::kTableColumnIndex));
     indirect_child_ids.clear();
-    EXPECT_EQ(true, extra_node_1->GetIntListAttribute(
-                        ax::mojom::IntListAttribute::kIndirectChildIds,
-                        &indirect_child_ids));
+    EXPECT_EQ(true, extra_node_1->HasIntListAttribute(
+                        ax::mojom::IntListAttribute::kIndirectChildIds));
+    indirect_child_ids = extra_node_1->GetIntListAttribute(
+        ax::mojom::IntListAttribute::kIndirectChildIds);
     EXPECT_EQ(1U, indirect_child_ids.size());
     EXPECT_EQ(7, indirect_child_ids[0]);
 
@@ -1231,9 +1307,10 @@ TEST_F(AXTableInfoTest, ExtraMacNodesChanges) {
     EXPECT_EQ(3U, extra_node_2->GetIndexInParent());
     EXPECT_EQ(3U, extra_node_2->GetUnignoredIndexInParent());
     indirect_child_ids.clear();
-    EXPECT_EQ(true, extra_node_2->GetIntListAttribute(
-                        ax::mojom::IntListAttribute::kIndirectChildIds,
-                        &indirect_child_ids));
+    EXPECT_EQ(true, extra_node_2->HasIntListAttribute(
+                        ax::mojom::IntListAttribute::kIndirectChildIds));
+    indirect_child_ids = extra_node_2->GetIntListAttribute(
+        ax::mojom::IntListAttribute::kIndirectChildIds);
     EXPECT_EQ(0U, indirect_child_ids.size());
   }
 }

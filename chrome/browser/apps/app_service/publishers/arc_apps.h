@@ -7,13 +7,11 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
-#include "ash/components/arc/mojom/app_permissions.mojom.h"
-#include "ash/components/arc/mojom/intent_helper.mojom-forward.h"
-#include "ash/components/arc/mojom/privacy_items.mojom.h"
 #include "ash/public/cpp/message_center/arc_notification_manager_base.h"
 #include "ash/public/cpp/message_center/arc_notifications_host_initializer.h"
 #include "base/containers/flat_set.h"
@@ -24,8 +22,6 @@
 #include "base/scoped_observation.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
 #include "chrome/browser/apps/app_service/app_icon/arc_activity_adaptive_icon_impl.h"
-#include "chrome/browser/apps/app_service/app_icon/arc_icon_once_loader.h"
-#include "chrome/browser/apps/app_service/app_icon/icon_key_util.h"
 #include "chrome/browser/apps/app_service/app_notifications.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_forward.h"
 #include "chrome/browser/apps/app_service/app_shortcut_item.h"
@@ -35,16 +31,19 @@
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/arc/app_shortcuts/arc_app_shortcuts_request.h"
 #include "chrome/browser/ash/arc/privacy_items/arc_privacy_items_bridge.h"
-#include "components/arc/intent_helper/arc_intent_helper_bridge.h"
-#include "components/arc/intent_helper/arc_intent_helper_observer.h"
+#include "chromeos/ash/experiences/arc/intent_helper/arc_intent_helper_bridge.h"
+#include "chromeos/ash/experiences/arc/intent_helper/arc_intent_helper_observer.h"
+#include "chromeos/ash/experiences/arc/mojom/app_permissions.mojom.h"
+#include "chromeos/ash/experiences/arc/mojom/intent_helper.mojom-forward.h"
+#include "chromeos/ash/experiences/arc/mojom/privacy_items.mojom.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/instance_registry.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/menu.h"
 #include "components/services/app_service/public/cpp/permission.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class Profile;
 
@@ -74,11 +73,9 @@ class ArcApps : public KeyedService,
 
   ~ArcApps() override;
 
-  ArcIconOnceLoader& GetArcIconOnceLoaderForTesting() {
-    return arc_icon_once_loader_;
-  }
-
   WebApkManager* GetWebApkManagerForTesting() { return web_apk_manager_.get(); }
+
+  static void SetArcVersionForTesting(int version);
 
  private:
   friend class ArcAppsFactory;
@@ -95,12 +92,6 @@ class ArcApps : public KeyedService,
   void Shutdown() override;
 
   // apps::AppPublisher overrides.
-  void LoadIcon(const std::string& app_id,
-                const IconKey& icon_key,
-                IconType icon_type,
-                int32_t size_hint_in_dip,
-                bool allow_placeholder_icon,
-                apps::LoadIconCallback callback) override;
   void GetCompressedIconData(const std::string& app_id,
                              int32_t size_in_dip,
                              ui::ResourceScaleFactor scale_factor,
@@ -117,9 +108,6 @@ class ArcApps : public KeyedService,
                            LaunchCallback callback) override;
   void LaunchAppWithParams(AppLaunchParams&& params,
                            LaunchCallback callback) override;
-  void LaunchShortcut(const std::string& app_id,
-                      const std::string& shortcut_id,
-                      int64_t display_id) override;
   void SetPermission(const std::string& app_id,
                      PermissionPtr permission) override;
   void Uninstall(const std::string& app_id,
@@ -131,10 +119,15 @@ class ArcApps : public KeyedService,
                     int64_t display_id,
                     base::OnceCallback<void(MenuItems)> callback) override;
   void SetResizeLocked(const std::string& app_id, bool locked) override;
+  void SetAppLocale(const std::string& app_id,
+                    const std::string& locale_tag) override;
 
   void PauseApp(const std::string& app_id) override;
   void UnpauseApp(const std::string& app_id) override;
+  void BlockApp(const std::string& app_id) override;
+  void UnblockApp(const std::string& app_id) override;
   void StopApp(const std::string& app_id) override;
+  void UpdateAppSize(const std::string& app_id) override;
   void ExecuteContextMenuCommand(const std::string& app_id,
                                  int command_id,
                                  const std::string& shortcut_id,
@@ -149,8 +142,6 @@ class ArcApps : public KeyedService,
   void OnAppStatesChanged(const std::string& app_id,
                           const ArcAppListPrefs::AppInfo& app_info) override;
   void OnAppRemoved(const std::string& app_id) override;
-  void OnAppIconUpdated(const std::string& app_id,
-                        const ArcAppIconDescriptor& descriptor) override;
   void OnAppNameUpdated(const std::string& app_id,
                         const std::string& name) override;
   void OnAppLastLaunchTimeUpdated(const std::string& app_id) override;
@@ -166,10 +157,18 @@ class ArcApps : public KeyedService,
                      int32_t session_id) override;
   void OnTaskDestroyed(int32_t task_id) override;
   void OnInstallationStarted(const std::string& package_name) override;
+  void OnInstallationProgressChanged(const std::string& package_name,
+                                     float progress) override;
+  void OnInstallationActiveChanged(const std::string& package_name,
+                                   bool active) override;
+  void OnInstallationFinished(const std::string& package_name,
+                              bool success,
+                              bool is_launchable_app) override;
+  void OnAppConnectionClosed() override;
 
   // arc::ArcIntentHelperObserver overrides.
   void OnIntentFiltersUpdated(
-      const absl::optional<std::string>& package_name) override;
+      const std::optional<std::string>& package_name) override;
   void OnArcSupportedLinksChanged(
       const std::vector<arc::mojom::SupportedLinksPackagePtr>& added,
       const std::vector<arc::mojom::SupportedLinksPackagePtr>& removed,
@@ -197,11 +196,6 @@ class ArcApps : public KeyedService,
   void OnInstanceRegistryWillBeDestroyed(
       apps::InstanceRegistry* instance_registry) override;
 
-  void LoadPlayStoreIcon(apps::IconType icon_type,
-                         int32_t size_hint_in_dip,
-                         IconEffects icon_effects,
-                         apps::LoadIconCallback callback);
-
   // Creates the App struct for `app_id` based on `app_info`. If `update_icon`
   // is true, creates a new icon key. If `raw_icon_updated` is true, sets
   // `raw_icon_updated` in the icon key as true, to remove the icon files in the
@@ -225,16 +219,27 @@ class ArcApps : public KeyedService,
 
   // Bound by |arc_app_shortcuts_request_|'s OnGetAppShortcutItems method.
   void OnGetAppShortcutItems(
-      const base::TimeTicks start_time,
       MenuItems menu_items,
       base::OnceCallback<void(MenuItems)> callback,
       std::unique_ptr<apps::AppShortcutItems> app_shortcut_items);
 
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
-  ArcIconOnceLoader arc_icon_once_loader_;
-  ArcActivityAdaptiveIconImpl arc_activity_adaptive_icon_impl_;
+  // Observes DisabledSystemFeaturesList policy.
+  void ObserveDisabledSystemFeaturesPolicy();
 
-  apps_util::IncrementingIconKeyFactory icon_key_factory_;
+  // Triggered when DisabledSystemFeaturesList policy changes.
+  void OnDisableListPolicyChanged();
+
+  // Returns true if the app is suspended.
+  bool IsAppSuspended(const std::string& app_id,
+                      const ArcAppListPrefs::AppInfo& app_info);
+
+  // Calculates the readiness state. Use this function for installed apps to be
+  // consistent.
+  Readiness GetReadiness(const std::string& app_id,
+                         const ArcAppListPrefs::AppInfo& app_info);
+
+  const raw_ptr<Profile> profile_;
+  ArcActivityAdaptiveIconImpl arc_activity_adaptive_icon_impl_;
 
   PausedApps paused_apps_;
 
@@ -272,6 +277,12 @@ class ArcApps : public KeyedService,
       instance_registry_observation_{this};
 
   bool settings_app_is_active_ = false;
+
+  bool settings_app_is_disabled_ = false;
+
+  PrefChangeRegistrar local_state_pref_change_registrar_;
+
+  std::set<std::string> blocked_app_ids_;
 
   base::WeakPtrFactory<ArcApps> weak_ptr_factory_{this};
 };

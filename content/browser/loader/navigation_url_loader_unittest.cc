@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/browser/loader/navigation_url_loader.h"
+
 #include <memory>
 #include <utility>
 
@@ -10,7 +12,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/unguessable_token.h"
-#include "content/browser/loader/navigation_url_loader.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request_info.h"
 #include "content/browser/web_package/prefetched_signed_exchange_cache.h"
@@ -28,6 +29,7 @@
 #include "net/base/net_errors.h"
 #include "net/cert/cert_status_flags.h"
 #include "net/http/http_response_headers.h"
+#include "net/storage_access_api/status.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/redirect_info.h"
@@ -81,7 +83,7 @@ class NavigationURLLoaderTest : public testing::Test {
       NavigationURLLoaderDelegate* delegate) {
     blink::mojom::BeginNavigationParamsPtr begin_params =
         blink::mojom::BeginNavigationParams::New(
-            absl::nullopt /* initiator_frame_token */,
+            std::nullopt /* initiator_frame_token */,
             std::string() /* headers */, net::LOAD_NORMAL,
             false /* skip_service_worker */,
             blink::mojom::RequestContextType::LOCATION,
@@ -92,16 +94,14 @@ class NavigationURLLoaderTest : public testing::Test {
             GURL() /* searchable_form_url */,
             std::string() /* searchable_form_encoding */,
             GURL() /* client_side_redirect_url */,
-            absl::nullopt /* devtools_initiator_info */,
-            nullptr /* trust_token_params */, absl::nullopt /* impression */,
+            std::nullopt /* devtools_initiator_info */,
+            nullptr /* trust_token_params */, std::nullopt /* impression */,
             base::TimeTicks() /* renderer_before_unload_start */,
             base::TimeTicks() /* renderer_before_unload_end */,
-            absl::nullopt /* web_bundle_token */,
             blink::mojom::NavigationInitiatorActivationAndAdStatus::
                 kDidNotStartWithTransientActivation,
             false /* is_container_initiated */,
-            false /* is_fullscreen_requested */,
-            false /* has_storage_access */);
+            net::StorageAccessApiStatus::kNone, false /* has_rel_opener */);
     auto common_params = blink::CreateCommonNavigationParams();
     common_params->url = url;
     common_params->initiator_origin = url::Origin::Create(url);
@@ -111,7 +111,7 @@ class NavigationURLLoaderTest : public testing::Test {
     StoragePartition* storage_partition =
         browser_context_->GetDefaultStoragePartition();
 
-    uint32_t frame_tree_node_id =
+    FrameTreeNodeId frame_tree_node_id =
         web_contents_->GetPrimaryMainFrame()->GetFrameTreeNodeId();
 
     url::Origin origin = url::Origin::Create(url);
@@ -131,18 +131,24 @@ class NavigationURLLoaderTest : public testing::Test {
             base::UnguessableToken::Create() /* devtools_frame_token */,
             net::HttpRequestHeaders() /* cors_exempt_headers */,
             nullptr /* client_security_state */,
-            absl::nullopt /* devtools_accepted_stream_types */,
+            std::nullopt /* devtools_accepted_stream_types */,
             false /* is_pdf */,
-            content::WeakDocumentPtr() /* initiator_document */,
+            ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
+            std::nullopt /* initiator_document_token */,
             GlobalRenderFrameHostId() /* previous_render_frame_host_id */,
-            false /* allow_cookies_from_browser */));
+            nullptr /* serving_page_metrics_container */,
+            false /* allow_cookies_from_browser */, 0 /* navigation_id */,
+            false /* shared_storage_writable */, false /* is_ad_tagged */,
+            false /* force_no_https_upgrade */));
     return NavigationURLLoader::Create(
         browser_context_.get(), storage_partition, std::move(request_info),
         nullptr, nullptr, nullptr, delegate,
         NavigationURLLoader::LoaderType::kRegular, mojo::NullRemote(),
         /* trust_token_observer=*/mojo::NullRemote(),
+        /* shared_dictionary_observer=*/mojo::NullRemote(),
         /* url_loader_network_observer */ mojo::NullRemote(),
-        /*devtools_observer=*/mojo::NullRemote());
+        /*devtools_observer=*/mojo::NullRemote(),
+        /*device_bound_session_observer=*/mojo::NullRemote());
   }
 
  protected:

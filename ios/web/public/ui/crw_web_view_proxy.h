@@ -7,12 +7,11 @@
 
 #import <UIKit/UIKit.h>
 
-@class CRWContextMenuItem;
 @class CRWWebViewScrollViewProxy;
 
 // Provides an interface for embedders to access the WebState's web view in a
 // limited and controlled manner.
-// TODO(crbug.com/546152): rename protocol to CRWContentViewProxy.
+// TODO(crbug.com/41211285): rename protocol to CRWContentViewProxy.
 @protocol CRWWebViewProxy <NSObject>
 
 // The web view's bounding rectangle (relative to its parent).
@@ -29,8 +28,8 @@
 // via resizing a subview's frame. Changing this property may impact performance
 // if implementation resizes its subview. Can be used as a workaround for
 // WKWebView bug, where UIScrollView.content inset does not work
-// (rdar://23584409). TODO(crbug.com/569349) remove this property once radar is
-// fixed.
+// (rdar://23584409). TODO(crbug.com/41228596) remove this property once radar
+// is fixed.
 @property(nonatomic, assign) UIEdgeInsets contentInset;
 
 // Gives the embedder access to the web view's UIScrollView in a limited and
@@ -66,15 +65,6 @@
 
 // Wrapper around the becomeFirstResponder method of the webview.
 - (BOOL)becomeFirstResponder;
-
-// Notifies the web view controller that the surface size has changed due to
-// multiwindow action or orientation change.
-- (void)surfaceSizeChanged;
-
-// Shows a custom iOS context menu with the given `items` for options targeted
-// to the data visible in given window `rect`.
-- (void)showMenuWithItems:(NSArray<CRWContextMenuItem*>*)items
-                     rect:(CGRect)rect;
 
 @end
 

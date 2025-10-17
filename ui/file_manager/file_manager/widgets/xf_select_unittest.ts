@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
+import {getTrustedHTML} from 'chrome://resources/js/static_types.js';
 import {assertDeepEquals, assertEquals} from 'chrome://webui-test/chromeos/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 
@@ -14,7 +14,9 @@ import {XfSelect} from './xf_select.js';
  * Creates new <xf-search-options> element for each test.
  */
 export function setUp(): void {
-  document.body.innerHTML = '<xf-select></xf-select>';
+  document.body.innerHTML = getTrustedHTML`
+  <xf-select></xf-select>
+`;
 }
 
 /**
@@ -43,7 +45,7 @@ export async function testSetOptions(): Promise<void> {
   const got1 = element.getSelectedOption();
 
   assertDeepEquals(
-      want1, got1, `${JSON.stringify(want1)} != ${JSON.stringify(got1)}`);
+      want1, got1, `${JSON.stringify(want1)} !== ${JSON.stringify(got1)}`);
 
   // Test 2: No option has default: true; expect the first one to be selected.
   element.options = [
@@ -56,7 +58,7 @@ export async function testSetOptions(): Promise<void> {
   const got2 = element.getSelectedOption();
 
   assertDeepEquals(
-      want2, got2, `${JSON.stringify(want2)} != ${JSON.stringify(got2)}`);
+      want2, got2, `${JSON.stringify(want2)} !== ${JSON.stringify(got2)}`);
 }
 
 export async function testEvents(): Promise<void> {
@@ -74,7 +76,7 @@ export async function testEvents(): Promise<void> {
   const want = {index: 0, value: 'value-a', text: 'Text A'};
   const got = event.detail;
   assertDeepEquals(
-      want, got, `${JSON.stringify(want)} != ${JSON.stringify(got)}`);
+      want, got, `${JSON.stringify(want)} !== ${JSON.stringify(got)}`);
 }
 
 export async function testInteractionViaUI(): Promise<void> {
@@ -103,5 +105,5 @@ export async function testInteractionViaUI(): Promise<void> {
   const want = {index: 0, value: 'value-a', text: 'Text A'};
   const got = event.detail;
   assertDeepEquals(
-      want, got, `${JSON.stringify(want)} != ${JSON.stringify(got)}`);
+      want, got, `${JSON.stringify(want)} !== ${JSON.stringify(got)}`);
 }

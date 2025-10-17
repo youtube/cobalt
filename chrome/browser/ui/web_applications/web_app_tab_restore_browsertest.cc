@@ -23,7 +23,7 @@ namespace web_app {
 using WebAppTabRestoreBrowserTest = WebAppNavigationBrowserTest;
 
 // Tests that desktop PWAs are reopened at the correct size.
-// TODO(crbug.com/1065748): Flaky on Linux.
+// TODO(crbug.com/40852083): Flaky on Linux.
 #if BUILDFLAG(IS_LINUX)
 #define MAYBE_ReopenedPWASizeIsCorrectlyRestored \
   DISABLED_ReopenedPWASizeIsCorrectlyRestored
@@ -37,7 +37,7 @@ IN_PROC_BROWSER_TEST_F(WebAppTabRestoreBrowserTest,
   Browser* const app_browser = LaunchWebAppBrowserAndWait(test_web_app_id());
 
   EXPECT_TRUE(AppBrowserController::IsWebApp(app_browser));
-  NavigateToURLAndWait(app_browser, test_web_app_start_url());
+  NavigateViaLinkClickToURLAndWait(app_browser, test_web_app_start_url());
 
   const gfx::Rect bounds = gfx::Rect(50, 50, 550, 500);
   app_browser->window()->SetBounds(bounds);
@@ -48,10 +48,9 @@ IN_PROC_BROWSER_TEST_F(WebAppTabRestoreBrowserTest,
   sessions::TabRestoreService* const service =
       TabRestoreServiceFactory::GetForProfile(profile());
   ASSERT_GT(service->entries().size(), 0U);
-  sessions::TabRestoreService::Entry* entry = service->entries().front().get();
-  ASSERT_EQ(sessions::TabRestoreService::WINDOW, entry->type);
-  const auto* entry_win =
-      static_cast<sessions::TabRestoreService::Window*>(entry);
+  sessions::tab_restore::Entry* entry = service->entries().front().get();
+  ASSERT_EQ(sessions::tab_restore::Type::WINDOW, entry->type);
+  const auto* entry_win = static_cast<sessions::tab_restore::Window*>(entry);
   EXPECT_EQ(bounds, entry_win->bounds);
 
   service->RestoreMostRecentEntry(nullptr);
@@ -59,7 +58,7 @@ IN_PROC_BROWSER_TEST_F(WebAppTabRestoreBrowserTest,
   content::WebContents* const restored_web_contents =
       new_contents_observer.GetWebContents();
   Browser* const restored_browser =
-      chrome::FindBrowserWithWebContents(restored_web_contents);
+      chrome::FindBrowserWithTab(restored_web_contents);
   EXPECT_EQ(restored_browser->override_bounds(), bounds);
 }
 
@@ -80,7 +79,7 @@ IN_PROC_BROWSER_TEST_F(WebAppTabRestoreBrowserTest, RestoreAppWindow) {
   content::WebContents* const restored_web_contents =
       new_contents_observer.GetWebContents();
   Browser* const restored_browser =
-      chrome::FindBrowserWithWebContents(restored_web_contents);
+      chrome::FindBrowserWithTab(restored_web_contents);
 
   EXPECT_TRUE(restored_browser->is_type_app());
 }
@@ -103,7 +102,7 @@ IN_PROC_BROWSER_TEST_F(WebAppTabRestoreBrowserTest, RestoreAppPopupWindow) {
   content::WebContents* const restored_web_contents =
       new_contents_observer.GetWebContents();
   Browser* const restored_browser =
-      chrome::FindBrowserWithWebContents(restored_web_contents);
+      chrome::FindBrowserWithTab(restored_web_contents);
 
   EXPECT_TRUE(restored_browser->is_type_app_popup());
 }

@@ -51,57 +51,89 @@ class CORE_EXPORT PseudoElement : public Element {
                 PseudoId,
                 const AtomicString& view_transition_name = g_null_atom);
 
+  bool IsPseudoElement() const final { return true; }
+
   const AtomicString& view_transition_name() const {
     return view_transition_name_;
   }
-  scoped_refptr<const ComputedStyle> CustomStyleForLayoutObject(
+  const ComputedStyle* CustomStyleForLayoutObject(
       const StyleRecalcContext&) override;
   void AttachLayoutTree(AttachContext&) override;
   bool LayoutObjectIsNeeded(const DisplayStyle&) const override;
   bool CanGeneratePseudoElement(PseudoId) const override;
 
+  bool CanGenerateContent() const;
+  bool CanHaveNestedPseudoElement() const;
   bool CanStartSelection() const override { return false; }
   bool CanContainRangeEndPoint() const override { return false; }
   PseudoId GetPseudoId() const override { return pseudo_id_; }
-  scoped_refptr<const ComputedStyle> LayoutStyleForDisplayContents(
-      const ComputedStyle&);
+  // PseudoId that can be alias, e.g. kPseudoScrollMarkerGroupAfter is
+  // unresolved = alias, kPseudoScrollMarkerGroup is resolved.
+  // For styling and selector matching, return resolved version.
+  PseudoId GetPseudoIdForStyling() const override;
+  const AtomicString& GetPseudoArgument() const override {
+    return view_transition_name_;
+  }
+
+  // Return the adjusted style needed by layout. In some cases computed style
+  // cannot be used as-is by layout. display:contents needs to be adjusted to
+  // display:inline. Scroll marker pseudo elements may need to blockify the
+  // display type (depending on the parent). Returns nullptr if no adjustment is
+  // necessary.
+  const ComputedStyle* AdjustedLayoutStyle(
+      const ComputedStyle& style,
+      const ComputedStyle& layout_parent_style);
 
   static AtomicString PseudoElementNameForEvents(Element*);
   static bool IsWebExposed(PseudoId, const Node*);
 
-  // Pseudo element are not allowed to be the inner node for hit testing. Find
-  // the closest ancestor which is a real dom node.
-  virtual Node* InnerNodeForHitTesting() const;
+  // Pseudo elements are not allowed to be the inner node for hit testing.
+  // Find the closest ancestor which is a real dom node.
+  virtual Node* InnerNodeForHitTesting();
+
+  void AccessKeyAction(SimulatedClickCreationScope creation_scope) override;
 
   // Returns the DOM element that this pseudo element originates from. If the
   // pseudo element is nested inside another pseudo element, this returns the
   // DOM element which the pseudo element tree originates from.
   // This is different from |parentElement()| which returns the element's direct
   // ancestor.
-  Element* OriginatingElement() const;
+  Element& UltimateOriginatingElement() const;
 
   virtual void Dispose();
+
+  static bool IsLayoutSiblingOfOriginatingElement(PseudoId pseudo_id);
+
+  bool IsInertRoot() const override;
+
+ protected:
+  void SetIsGeneratedName(bool generated) { is_generated_name_ = generated; }
 
  private:
   class AttachLayoutTreeScope {
     STACK_ALLOCATED();
 
    public:
-    AttachLayoutTreeScope(PseudoElement*);
+    AttachLayoutTreeScope(PseudoElement*, const AttachContext&);
     ~AttachLayoutTreeScope();
 
    private:
     PseudoElement* element_;
-    scoped_refptr<const ComputedStyle> original_style_;
+    const ComputedStyle* original_style_{nullptr};
   };
 
   PseudoId pseudo_id_;
   const AtomicString view_transition_name_;
+  bool is_generated_name_ = false;
 };
 
 CORE_EXPORT const QualifiedName& PseudoElementTagName(PseudoId);
 
-bool PseudoElementLayoutObjectIsNeeded(const ComputedStyle* pseudo_style,
+bool PseudoElementLayoutObjectIsNeeded(PseudoId pseudo_id,
+                                       const ComputedStyle* pseudo_style,
+                                       const Element* originating_element);
+bool PseudoElementLayoutObjectIsNeeded(PseudoId pseudo_id,
+                                       const DisplayStyle& pseudo_style,
                                        const Element* originating_element);
 
 template <>

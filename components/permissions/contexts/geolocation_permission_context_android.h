@@ -27,7 +27,9 @@
 #include "components/location/android/location_settings_dialog_context.h"
 #include "components/location/android/location_settings_dialog_outcome.h"
 #include "components/permissions/contexts/geolocation_permission_context.h"
+#include "components/permissions/permission_request_data.h"
 #include "components/permissions/permission_request_id.h"
+#include "components/permissions/permission_request_manager.h"
 
 namespace content {
 class WebContents;
@@ -39,7 +41,8 @@ class PrefRegistrySimple;
 namespace permissions {
 
 class GeolocationPermissionContextAndroid
-    : public GeolocationPermissionContext {
+    : public GeolocationPermissionContext,
+      public PermissionRequestManager::Observer {
  public:
   // This enum is used in histograms, thus is append only. Do not re-order or
   // remove any entries, or add any except at the end.
@@ -53,8 +56,11 @@ class GeolocationPermissionContextAndroid
 
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
 
-  GeolocationPermissionContextAndroid(content::BrowserContext* browser_context,
-                                      std::unique_ptr<Delegate> delegate);
+  GeolocationPermissionContextAndroid(
+      content::BrowserContext* browser_context,
+      std::unique_ptr<Delegate> delegate,
+      bool is_regular_profile,
+      std::unique_ptr<LocationSettings> settings_override_for_test = nullptr);
 
   GeolocationPermissionContextAndroid(
       const GeolocationPermissionContextAndroid&) = delete;
@@ -62,6 +68,9 @@ class GeolocationPermissionContextAndroid
       const GeolocationPermissionContextAndroid&) = delete;
 
   ~GeolocationPermissionContextAndroid() override;
+
+  // PermissionRequestManager::Observer
+  void OnRequestsFinalized() override;
 
   static void AddDayOffsetForTesting(int days);
 
@@ -72,26 +81,24 @@ class GeolocationPermissionContextAndroid
 
  private:
   // GeolocationPermissionContext:
-  void RequestPermission(const PermissionRequestID& id,
-                         const GURL& requesting_frame_origin,
-                         bool user_gesture,
+  void RequestPermission(std::unique_ptr<PermissionRequestData> request_data,
                          BrowserPermissionCallback callback) override;
   void UserMadePermissionDecision(const PermissionRequestID& id,
                                   const GURL& requesting_origin,
                                   const GURL& embedding_origin,
                                   ContentSetting content_setting) override;
-  void NotifyPermissionSet(const PermissionRequestID& id,
-                           const GURL& requesting_origin,
-                           const GURL& embedding_origin,
+  void NotifyPermissionSet(const PermissionRequestData& request_data,
                            BrowserPermissionCallback callback,
                            bool persist,
                            ContentSetting content_setting,
                            bool is_one_time,
                            bool is_final_decision) override;
-  PermissionResult UpdatePermissionStatusWithDeviceStatus(
-      PermissionResult result,
+  content::PermissionResult UpdatePermissionStatusWithDeviceStatus(
+      content::WebContents* web_contents,
+      content::PermissionResult result,
       const GURL& requesting_origin,
-      const GURL& embedding_origin) const override;
+      const GURL& embedding_origin) override;
+  bool AlwaysIncludeDeviceStatus() const override;
 
   // Functions to handle back off for showing the Location Settings Dialog.
   std::string GetLocationSettingsBackOffLevelPref(bool is_default_search) const;
@@ -130,6 +137,7 @@ class GeolocationPermissionContextAndroid
       const GURL& embedding_origin,
       bool persist,
       ContentSetting content_setting,
+      bool is_one_time,
       LocationSettingsDialogOutcome prompt_outcome);
 
   void FinishNotifyPermissionSet(const PermissionRequestID& id,
@@ -137,12 +145,17 @@ class GeolocationPermissionContextAndroid
                                  const GURL& embedding_origin,
                                  BrowserPermissionCallback callback,
                                  bool persist,
-                                 ContentSetting content_setting);
+                                 ContentSetting content_setting,
+                                 bool is_one_time);
 
   std::unique_ptr<LocationSettings> location_settings_;
 
   PermissionRequestID location_settings_dialog_request_id_;
   BrowserPermissionCallback location_settings_dialog_callback_;
+
+  std::vector<std::pair<std::unique_ptr<PermissionRequestData>,
+                        BrowserPermissionCallback>>
+      pending_reprompt_requests_;
 
   // Must be the last member, to ensure that it will be destroyed first, which
   // will invalidate weak pointers.

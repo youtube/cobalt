@@ -6,17 +6,30 @@
 #define COMPONENTS_SEARCH_ENGINES_TEMPLATE_URL_DATA_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "base/containers/span.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "components/search_engines/template_url_id.h"
+#include "third_party/search_engines_data/resources/definitions/prepopulated_engines.h"
 #include "url/gurl.h"
 
 // The data for the TemplateURL.  Separating this into its own class allows most
 // users to do SSA-style usage of TemplateURL: construct a TemplateURLData with
 // whatever fields are desired, then create an immutable TemplateURL from it.
 struct TemplateURLData {
+  enum class PolicyOrigin {
+    kNoPolicy = 0,
+    kDefaultSearchProvider = 1,
+    kSiteSearch = 2,
+    kSearchAggregator = 3,
+  };
+
+  using RegulatoryExtension = TemplateURLPrepopulateData::RegulatoryExtension;
+
   TemplateURLData();
   TemplateURLData(const TemplateURLData& other);
   TemplateURLData& operator=(const TemplateURLData& other);
@@ -25,50 +38,56 @@ struct TemplateURLData {
   // Note that unlike in the default constructor, |safe_for_autoreplace| will
   // be set to true. date_created and last_modified will be set to null time
   // value, instead of current time.
-  // StringPiece in arguments is used to pass const char* pointer members
+  // std::string_view in arguments is used to pass const char* pointer members
   // of PrepopulatedEngine structure which can be nullptr.
-  TemplateURLData(const std::u16string& name,
-                  const std::u16string& keyword,
-                  base::StringPiece search_url,
-                  base::StringPiece suggest_url,
-                  base::StringPiece image_url,
-                  base::StringPiece image_translate_url,
-                  base::StringPiece new_tab_url,
-                  base::StringPiece contextual_search_url,
-                  base::StringPiece logo_url,
-                  base::StringPiece doodle_url,
-                  base::StringPiece search_url_post_params,
-                  base::StringPiece suggest_url_post_params,
-                  base::StringPiece image_url_post_params,
-                  base::StringPiece side_search_param,
-                  base::StringPiece side_image_search_param,
-                  base::StringPiece image_translate_source_language_param_key,
-                  base::StringPiece image_translate_target_language_param_key,
+  TemplateURLData(std::u16string_view name,
+                  std::u16string_view keyword,
+                  std::string_view search_url,
+                  std::string_view suggest_url,
+                  std::string_view image_url,
+                  std::string_view image_translate_url,
+                  std::string_view new_tab_url,
+                  std::string_view contextual_search_url,
+                  std::string_view logo_url,
+                  std::string_view doodle_url,
+                  std::string_view base_builtin_resource_id,
+                  std::string_view search_url_post_params,
+                  std::string_view suggest_url_post_params,
+                  std::string_view image_url_post_params,
+                  std::string_view image_translate_source_language_param_key,
+                  std::string_view image_translate_target_language_param_key,
                   std::vector<std::string> search_intent_params,
-                  base::StringPiece favicon_url,
-                  base::StringPiece encoding,
-                  base::StringPiece16 image_search_branding_label,
+                  std::string_view favicon_url,
+                  std::string_view encoding,
+                  std::u16string_view image_search_branding_label,
                   const base::Value::List& alternate_urls_list,
                   bool preconnect_to_search_url,
                   bool prefetch_likely_navigations,
-                  int prepopulate_id);
+                  int prepopulate_id,
+                  const base::span<const RegulatoryExtension>& extensions);
 
   ~TemplateURLData();
 
   // A short description of the template. This is the name we show to the user
   // in various places that use TemplateURLs. For example, the location bar
   // shows this when the user selects a substituting match.
-  void SetShortName(const std::u16string& short_name);
+  void SetShortName(std::u16string_view short_name);
   const std::u16string& short_name() const { return short_name_; }
 
   // The shortcut for this TemplateURL.  |keyword| must be non-empty.
-  void SetKeyword(const std::u16string& keyword);
+  void SetKeyword(std::u16string_view keyword);
   const std::u16string& keyword() const { return keyword_; }
 
   // The raw URL for the TemplateURL, which may not be valid as-is (e.g. because
   // it requires substitutions first).  This must be non-empty.
   void SetURL(const std::string& url);
   const std::string& url() const { return url_; }
+
+  // Generate the deterministic hash of data within this TemplateURL.
+  std::vector<uint8_t> GenerateHash() const;
+
+  // Retrieve builtin image resource ID for this engine.
+  std::string GetBuiltinImageResourceId() const;
 
   // Recomputes |sync_guid| using the same logic as in the constructor. This
   // means a random GUID is generated, except for built-in search engines,
@@ -79,6 +98,21 @@ struct TemplateURLData {
   // Estimates dynamic memory usage.
   // See base/trace_event/memory_usage_estimator.h for more info.
   size_t EstimateMemoryUsage() const;
+
+  // Returns whether this search engine was created by an Enterprise policy.
+  bool CreatedByPolicy() const;
+  // Returns whether this search engine was created by the Default Search
+  // Provider Enterprise policy.
+  bool CreatedByDefaultSearchProviderPolicy() const;
+  // Returns whether this search engine was created by an Enterprise policy that
+  // doesn't define the Default Search Provider.
+  bool CreatedByNonDefaultSearchProviderPolicy() const;
+  // Returns whether this search engine was created by the
+  // EnterpriseSearchAggregatorSettings policy.
+  bool CreatedByEnterpriseSearchAggregatorPolicy() const;
+  // Returns whether this search engine was created by the SiteSearchSettings
+  // policy.
+  bool CreatedBySiteSearchPolicy() const;
 
   // Optional additional raw URLs.
   std::string suggestions_url;
@@ -93,19 +127,16 @@ struct TemplateURLData {
   // Optional URL for the Doodle.
   GURL doodle_url;
 
+  // Builtin base resource ID used to construct derived resource IDs.
+  // TODO(crbug.com/421837121): Deprecated, use
+  // `TemplateURL::GetBaseBuiltinResourceId()` and derived getters instead.
+  std::string_view base_builtin_resource_id;
+
   // The following post_params are comma-separated lists used to specify the
   // post parameters for the corresponding URL.
   std::string search_url_post_params;
   std::string suggestions_url_post_params;
   std::string image_url_post_params;
-
-  // The parameter appended to the engine's search URL when constructing the URL
-  // for the side search side panel.
-  std::string side_search_param;
-
-  // The parameter appended to the engine's image URL when constructing the
-  // URL for the image search entry in the side panel.
-  std::string side_image_search_param;
 
   // The key of the parameter identifying the source language for an image
   // translation.
@@ -163,17 +194,32 @@ struct TemplateURLData {
 
   // True if this TemplateURL was automatically created by the administrator via
   // group policy.
-  bool created_by_policy;
+  PolicyOrigin policy_origin;
 
-  // True if this TemplateURL is forced to be the default search engine via
-  // policy. This prevents the user from setting another search engine as
-  // default.
-  // False if this TemplateURL is recommended or not set via policy. This allows
-  // the user to set another search engine as default.
+  // True if this TemplateURL is forced to be the default search engine or a
+  // site search engine via policy. This prevents the user from setting another
+  // search engine as default (for default search engines) or modifying/deleting
+  // this engine (for site search engines).
+  // False if this TemplateURL is recommended (allowing user override) or not
+  // set via policy. This allows the user to set another search engine as
+  // default (for default search engines) or to modify/delete the this engine
+  // (for site search engines).
   bool enforced_by_policy;
 
-  // True if this TemplateURL was created from metadata received from Play API.
-  bool created_from_play_api;
+  // The Regulatory program supplying this definition.
+  // This permits deduplication and election of the best supported TemplateURL
+  // definition from all known sources (see ReconcilingTemplateURLDataHolder).
+  //
+  // TODO(b:322513019): All definition origins could possibly be aggregated
+  // under a single enum for clarity and simplicity. This would allow for more
+  // consistent handling and detection (what should be processed, and how).
+  // The amount of work needed to do this seems very significant. Investigate
+  // whether this makes sense and is feasible.
+  RegulatoryExtensionType regulatory_origin;
+
+  // True if this TemplateURL should be promoted in the Omnibox along with the
+  // starter pack.
+  bool featured_by_policy = false;
 
   // Number of times this TemplateURL has been explicitly used to load a URL.
   // We don't increment this for uses as the "default search engine" since
@@ -192,6 +238,11 @@ struct TemplateURLData {
   // A list of URL patterns that can be used, in addition to |url_|, to extract
   // search terms from a URL.
   std::vector<std::string> alternate_urls;
+
+  // A list of regulatory extensions, keyed by extension variant.
+  base::flat_map<RegulatoryExtensionType,
+                 raw_ptr<const RegulatoryExtension, CtnExperimental>>
+      regulatory_extensions;
 
   // Whether a connection to |url_| should regularly be established when this is
   // set as the "default search engine".
@@ -216,6 +267,9 @@ struct TemplateURLData {
   // This TemplateURL is part of the built-in "starter pack" if
   // starter_pack_id > 0.
   int starter_pack_id{0};
+
+  friend bool operator==(const TemplateURLData&,
+                         const TemplateURLData&) = default;
 
  private:
   // Private so we can enforce using the setters and thus enforce that these

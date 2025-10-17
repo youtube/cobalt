@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/modules/media_controls/media_controls_impl.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/strings/grit/ax_strings.h"
 
 namespace {
 
@@ -42,7 +43,8 @@ MediaControlOverlayPlayButtonElement::MediaControlOverlayPlayButtonElement(
   SetShadowPseudoId(AtomicString("-webkit-media-controls-overlay-play-button"));
 
   internal_button_ = MediaControlElementsHelper::CreateDiv(
-      "-internal-media-controls-overlay-play-button-internal", GetShadowRoot());
+      AtomicString("-internal-media-controls-overlay-play-button-internal"),
+      GetShadowRoot());
 }
 
 void MediaControlOverlayPlayButtonElement::UpdateDisplayType() {

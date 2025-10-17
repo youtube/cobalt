@@ -6,7 +6,7 @@
 import 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 
 import {getTrustedHTML} from 'chrome://resources/js/static_types.js';
-import {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
+import type {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertEquals, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 // clang-format on
@@ -28,14 +28,14 @@ class TestElement extends HTMLElement {
   get text() {
     const button = this.shadowRoot!.querySelector('button');
     assertTrue(!!button);
-    return button!.textContent;
+    return button.textContent;
   }
 
   // Pass focus to child in shadowRoot b/c iron-list expects that.
   override focus() {
     const button = this.shadowRoot!.querySelector('button');
     assertTrue(!!button);
-    button!.focus();
+    button.focus();
   }
 
   connectedCallback() {

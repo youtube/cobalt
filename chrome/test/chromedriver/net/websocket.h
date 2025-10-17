@@ -60,8 +60,8 @@ class WebSocket {
 
   void Read();
   void OnRead(bool read_again, int code);
-  void OnReadDuringHandshake(const char* data, int len);
-  void OnReadDuringOpen(const char* data, int len);
+  void OnReadDuringHandshake(base::span<const uint8_t> data_span);
+  void OnReadDuringOpen(base::span<uint8_t> data_span);
 
   void InvokeConnectCallback(int code);
   void Close(int code);
@@ -93,7 +93,7 @@ class WebSocket {
 // WebSocket.
 class WebSocketListener {
  public:
-  virtual ~WebSocketListener() {}
+  virtual ~WebSocketListener() = default;
 
   // Called when a WebSocket message is received.
   virtual void OnMessageReceived(const std::string& message) = 0;

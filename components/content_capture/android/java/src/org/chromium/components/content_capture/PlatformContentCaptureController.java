@@ -4,6 +4,8 @@
 
 package org.chromium.components.content_capture;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.LocusId;
@@ -16,7 +18,10 @@ import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.BuildInfo;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -24,26 +29,31 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * The class talks to the COntentCaptureManager to verify ContentCaptureService is Aiai and provide
+ * The class talks to the ContentCaptureManager to verify ContentCaptureService is Aiai and provide
  * the methods to check if the given urls shall be captured and delete the ContentCapture history.
  */
 @RequiresApi(Build.VERSION_CODES.Q)
+@NullMarked
 public class PlatformContentCaptureController {
     private static final String TAG = "ContentCapture";
     private static final String AIAI_PACKAGE_NAME = "com.google.android.as";
 
-    private static PlatformContentCaptureController sContentCaptureController;
+    private static @Nullable PlatformContentCaptureController sContentCaptureController;
 
     private boolean mShouldStartCapture;
     private boolean mIsAiai;
-    private UrlAllowlist mAllowlist;
-    private ContentCaptureManager mContentCaptureManager;
+    private @Nullable UrlAllowlist mAllowlist;
+    private final ContentCaptureManager mContentCaptureManager;
 
-    public static void init(Context context) {
-        sContentCaptureController = new PlatformContentCaptureController(context);
+    public static PlatformContentCaptureController lazyInit() {
+        if (sContentCaptureController == null) {
+            sContentCaptureController =
+                new PlatformContentCaptureController(ContextUtils.getApplicationContext());
+        }
+        return sContentCaptureController;
     }
 
-    public static PlatformContentCaptureController getInstance() {
+    public static @Nullable PlatformContentCaptureController getInstance() {
         return sContentCaptureController;
     }
 
@@ -76,8 +86,10 @@ public class PlatformContentCaptureController {
 
         mIsAiai = AIAI_PACKAGE_NAME.equals(componentName.getPackageName());
         if (!mIsAiai) {
-            log("Package doesn't match, current one is "
-                    + mContentCaptureManager.getServiceComponentName().getPackageName());
+            log(
+                    "Package doesn't match, current one is "
+                            + assumeNonNull(mContentCaptureManager.getServiceComponentName())
+                                    .getPackageName());
             // Disable the ContentCapture if there is no testing flag.
             if (!BuildInfo.isDebugAndroid() && !ContentCaptureFeatures.isDumpForTestingEnabled()) {
                 return;
@@ -130,14 +142,15 @@ public class PlatformContentCaptureController {
 
         DataRemovalRequest.Builder builder = new DataRemovalRequest.Builder();
         for (String url : urlsToDelete) {
-            builder = builder.addLocusId(
-                    new LocusId(url), /* Signals that we aren't using extra flags */ 0);
+            builder =
+                    builder.addLocusId(
+                            new LocusId(url), /* Signals that we aren't using extra flags */ 0);
         }
         mContentCaptureManager.removeData(builder.build());
     }
 
     /**
-     * @return  @return if any of the given allows to be captured.
+     * @return if any of the given allows to be captured.
      */
     public boolean shouldCapture(String[] urls) {
         if (mAllowlist == null) return true;

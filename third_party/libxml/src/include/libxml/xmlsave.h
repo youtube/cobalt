@@ -34,7 +34,11 @@ typedef enum {
     XML_SAVE_XHTML	= 1<<4, /* force XHTML1 specific rules */
     XML_SAVE_AS_XML     = 1<<5, /* force XML serialization on HTML doc */
     XML_SAVE_AS_HTML    = 1<<6, /* force HTML serialization on XML doc */
-    XML_SAVE_WSNONSIG   = 1<<7  /* format with non-significant whitespace */
+    XML_SAVE_WSNONSIG   = 1<<7, /* format with non-significant whitespace */
+    /* Available since 2.14.0 */
+    XML_SAVE_EMPTY      = 1<<8, /* force empty tags, overriding global */
+    XML_SAVE_NO_INDENT  = 1<<9, /* disable indenting */
+    XML_SAVE_INDENT     = 1<<10 /* force indenting, overriding global */
 } xmlSaveOption;
 
 
@@ -73,15 +77,34 @@ XMLPUBFUN int
 		xmlSaveFlush		(xmlSaveCtxtPtr ctxt);
 XMLPUBFUN int
 		xmlSaveClose		(xmlSaveCtxtPtr ctxt);
+XMLPUBFUN xmlParserErrors
+		xmlSaveFinish		(xmlSaveCtxtPtr ctxt);
+XMLPUBFUN int
+		xmlSaveSetIndentString	(xmlSaveCtxtPtr ctxt,
+					 const char *indent);
+XML_DEPRECATED
 XMLPUBFUN int
 		xmlSaveSetEscape	(xmlSaveCtxtPtr ctxt,
 					 xmlCharEncodingOutputFunc escape);
+XML_DEPRECATED
 XMLPUBFUN int
 		xmlSaveSetAttrEscape	(xmlSaveCtxtPtr ctxt,
 					 xmlCharEncodingOutputFunc escape);
+
+XML_DEPRECATED
+XMLPUBFUN int
+                xmlThrDefIndentTreeOutput(int v);
+XML_DEPRECATED
+XMLPUBFUN const char *
+                xmlThrDefTreeIndentString(const char * v);
+XML_DEPRECATED
+XMLPUBFUN int
+                xmlThrDefSaveNoEmptyTags(int v);
+
 #ifdef __cplusplus
 }
 #endif
+
 #endif /* LIBXML_OUTPUT_ENABLED */
 #endif /* __XML_XMLSAVE_H__ */
 

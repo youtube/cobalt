@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
@@ -50,10 +51,10 @@ class WEB_ENGINE_EXPORT WebEngineAudioRenderer final
   void Flush(base::OnceClosure callback) override;
   void StartPlaying() override;
   void SetVolume(float volume) override;
-  void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) override;
+  void SetLatencyHint(std::optional<base::TimeDelta> latency_hint) override;
   void SetPreservesPitch(bool preserves_pitch) override;
-  void SetWasPlayedWithUserActivation(
-      bool was_played_with_user_activation) override;
+  void SetWasPlayedWithUserActivationAndHighMediaEngagement(
+      bool was_played_with_user_activation_and_high_media_engagement) override;
 
   // TimeSource implementation.
   void StartTicking() override;
@@ -111,7 +112,7 @@ class WEB_ENGINE_EXPORT WebEngineAudioRenderer final
   // Callback for input_buffer_collection_.AcquireBuffers().
   void OnBuffersAcquired(
       std::vector<media::VmoBuffer> buffers,
-      const fuchsia::sysmem::SingleBufferSettings& buffer_settings);
+      const fuchsia::sysmem2::SingleBufferSettings& buffer_settings);
 
   // Initializes |stream_sink_|. Called during initialization and every time
   // configuration changes.
@@ -168,7 +169,7 @@ class WEB_ENGINE_EXPORT WebEngineAudioRenderer final
 
   // SysmemBufferStream::Sink implementation.
   void OnSysmemBufferStreamBufferCollectionToken(
-      fuchsia::sysmem::BufferCollectionTokenPtr token) override;
+      fuchsia::sysmem2::BufferCollectionTokenPtr token) override;
   void OnSysmemBufferStreamOutputPacket(
       media::StreamProcessorHelper::IoPacket packet) override;
   void OnSysmemBufferStreamEndOfStream() override;
@@ -187,12 +188,12 @@ class WEB_ENGINE_EXPORT WebEngineAudioRenderer final
 
   double playback_rate_ = 1.0;
 
-  media::CdmContext* cdm_context_ = nullptr;
-  media::DemuxerStream* demuxer_stream_ = nullptr;
+  raw_ptr<media::CdmContext> cdm_context_ = nullptr;
+  raw_ptr<media::DemuxerStream> demuxer_stream_ = nullptr;
   bool is_demuxer_read_pending_ = false;
   bool drop_next_demuxer_read_result_ = false;
 
-  media::RendererClient* client_ = nullptr;
+  raw_ptr<media::RendererClient> client_ = nullptr;
 
   // Initialize() completion callback.
   media::PipelineStatusCallback init_cb_;

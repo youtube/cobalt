@@ -44,7 +44,7 @@ const int kOverMaxCacheSize = 65 * 1024 * 1024;
 
 class CachedImageFetcherImageCacheTest : public testing::Test {
  public:
-  CachedImageFetcherImageCacheTest() {}
+  CachedImageFetcherImageCacheTest() = default;
 
   CachedImageFetcherImageCacheTest(const CachedImageFetcherImageCacheTest&) =
       delete;
@@ -84,7 +84,7 @@ class CachedImageFetcherImageCacheTest : public testing::Test {
     InitializeImageCache();
 
     image_cache()->SaveImage(kImageUrl, kImageData, needs_transcoding,
-                             absl::nullopt /* expiration_interval */);
+                             std::nullopt /* expiration_interval */);
     RunUntilIdle();
 
     ASSERT_TRUE(IsMetadataPresent(kImageUrlHashed));
@@ -160,7 +160,7 @@ class CachedImageFetcherImageCacheTest : public testing::Test {
 
   void InjectMetadata(std::string key, int data_size, bool needs_transcoding) {
     metadata_store_->SaveImageMetadata(key, data_size, needs_transcoding,
-                                       absl::nullopt /* expiration_interval */);
+                                       std::nullopt /* expiration_interval */);
   }
 
   void InjectData(std::string key, std::string data, bool needs_transcoding) {
@@ -178,7 +178,7 @@ class CachedImageFetcherImageCacheTest : public testing::Test {
   FakeDB<CachedImageMetadataProto>* db() { return db_; }
   base::HistogramTester& histogram_tester() { return histogram_tester_; }
 
-  MOCK_METHOD2(DataCallback, void(bool, std::string));
+  MOCK_METHOD(void, DataCallback, (bool, std::string), ());
 
  private:
   scoped_refptr<ImageCache> image_cache_;
@@ -206,7 +206,7 @@ TEST_F(CachedImageFetcherImageCacheTest, SanityTest) {
 
   image_cache()->SaveImage(kImageUrl, kImageData,
                            /* needs_transcoding */ false,
-                           /* expiration_interval */ absl::nullopt);
+                           /* expiration_interval */ std::nullopt);
   RunUntilIdle();
 
   LoadImage(kImageUrl, kImageData);
@@ -228,7 +228,7 @@ TEST_F(CachedImageFetcherImageCacheTest, SaveCallsInitialization) {
   ASSERT_FALSE(IsCacheInitialized());
   image_cache()->SaveImage(kImageUrl, kImageData,
                            /* needs_transcoding */ false,
-                           /* expiration_interval */ absl::nullopt);
+                           /* expiration_interval */ std::nullopt);
   db()->InitStatusCallback(leveldb_proto::Enums::InitStatus::kOK);
   RunUntilIdle();
 
@@ -241,7 +241,7 @@ TEST_F(CachedImageFetcherImageCacheTest, Save) {
 
   image_cache()->SaveImage(kImageUrl, kImageData,
                            /* needs_transcoding */ false,
-                           /* expiration_interval */ absl::nullopt);
+                           /* expiration_interval */ std::nullopt);
   LoadImage(kImageUrl, kImageData);
 }
 
@@ -307,7 +307,7 @@ TEST_F(CachedImageFetcherImageCacheTest, EvictionHoldUtilExpires) {
                            base::Hours(1));
   RunUntilIdle();
 
-  // Forward the clock to make image with |kOtherImageUrl| expired.
+  // Forward the clock to make image with `kOtherImageUrl` expired.
   clock()->SetNow(clock()->Now() + base::Hours(3));
   RunEvictionOnStartup(/* success */ true);
   LoadImage(kImageUrl, "image_data");

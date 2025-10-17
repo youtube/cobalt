@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "ash/components/arc/mojom/file_system.mojom.h"
+#include "base/files/file_path.h"
 #include "base/json/json_reader.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
@@ -16,10 +16,12 @@
 #include "chrome/browser/ui/chrome_select_file_policy.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "chromeos/ash/experiences/arc/mojom/file_system.mojom.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 using JavaScriptResultCallback =
     content::RenderFrameHost::JavaScriptResultCallback;
@@ -169,7 +171,7 @@ class ArcSelectFilesHandlerTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<TestingProfileManager> profile_manager_;
   std::unique_ptr<ArcSelectFilesHandler> arc_select_files_handler_;
-  raw_ptr<MockSelectFileDialogHolder, ExperimentalAsh> mock_dialog_holder_;
+  raw_ptr<MockSelectFileDialogHolder, DanglingUntriaged> mock_dialog_holder_;
 };
 
 TEST_F(ArcSelectFilesHandlerTest, SelectFiles_DialogType) {
@@ -285,10 +287,11 @@ TEST_F(ArcSelectFilesHandlerTest, SelectFiles_InitialDocumentPath) {
   request->initial_document_path = arc::mojom::DocumentPath::New();
   request->initial_document_path->authority = "testing.provider";
   request->initial_document_path->path = {"doc:root", "doc:file1"};
+  request->initial_document_path->root_id = "root";
 
-  // "doc:file1" is expected to be ignored.
-  base::FilePath expected_file_path = base::FilePath(
-      "/special/arc-documents-provider/testing.provider/doc:root");
+  // |initial_document_path->path| is expected to be ignored.
+  base::FilePath expected_file_path =
+      base::FilePath("/special/arc-documents-provider/testing.provider/root");
 
   EXPECT_CALL(*mock_dialog_holder_,
               SelectFile(_, FilePathMatcher(expected_file_path), _, _, _, _, _))
@@ -306,7 +309,7 @@ TEST_F(ArcSelectFilesHandlerTest, FileSelected_CallbackCalled) {
   arc_select_files_handler_->SelectFiles(request, callback.Get());
 
   EXPECT_CALL(std::move(callback), Run(_)).Times(1);
-  arc_select_files_handler_->FileSelected(base::FilePath(), 0, nullptr);
+  arc_select_files_handler_->FileSelected(ui::SelectedFileInfo(), 0);
 }
 
 TEST_F(ArcSelectFilesHandlerTest, FileSelected_PickerActivitySelected) {
@@ -327,9 +330,9 @@ TEST_F(ArcSelectFilesHandlerTest, FileSelected_PickerActivitySelected) {
               Run(SelectFilesResultMatcher(expected_result.get())))
       .Times(1);
 
-  arc_select_files_handler_->FileSelected(
-      ConvertAndroidActivityToFilePath(package_name, activity_name), 0,
-      nullptr);
+  base::FilePath path =
+      ConvertAndroidActivityToFilePath(package_name, activity_name);
+  arc_select_files_handler_->FileSelected(ui::SelectedFileInfo(path), 0);
 }
 
 TEST_F(ArcSelectFilesHandlerTest, FileSelectionCanceled_CallbackCalled) {
@@ -344,7 +347,7 @@ TEST_F(ArcSelectFilesHandlerTest, FileSelectionCanceled_CallbackCalled) {
   EXPECT_CALL(std::move(callback),
               Run(SelectFilesResultMatcher(expected_result.get())))
       .Times(1);
-  arc_select_files_handler_->FileSelectionCanceled(nullptr);
+  arc_select_files_handler_->FileSelectionCanceled();
 }
 
 TEST_F(ArcSelectFilesHandlerTest, OnFileSelectorEvent) {

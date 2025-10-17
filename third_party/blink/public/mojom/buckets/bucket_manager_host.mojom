@@ -87,6 +87,16 @@ interface BucketHost {
       (FileSystemAccessError result,
        pending_remote<FileSystemAccessDirectoryHandle>? directory);
 
+  // Opens the sandboxed filesystem for this bucket. An empty
+  // `directory_path_components` array will retrieve the root.
+  // Note: This method is equivalent to the `GetDirectory` method but allows
+  // DevTools to pass a path (avoiding multiple roundtrips).
+  // The `GetDirectory` method requires starting at the root and iterating
+  // through directories using additional calls.
+  GetDirectoryForDevtools(array<string> directory_path_components) =>
+      (FileSystemAccessError result,
+       pending_remote<FileSystemAccessDirectoryHandle>? directory);
+
 };
 
 // Origin-scoped entry point to the Storage Buckets API.
@@ -104,8 +114,7 @@ interface BucketManagerHost {
       => (pending_remote<BucketHost>? remote, BucketError error);
 
   // Gets bucket without creating or updating it.
-  GetBucketForDevtools(string name)
-      => (pending_remote<BucketHost>? remote, BucketError error);
+  GetBucketForDevtools(string name, pending_receiver<BucketHost> receiver);
 
   // Returns a list of stored bucket names in alphabetical order.
   Keys() => (array<string> buckets, bool success);

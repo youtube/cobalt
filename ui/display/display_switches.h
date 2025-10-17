@@ -7,7 +7,6 @@
 
 #include "base/feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/display/display_export.h"
 
 namespace switches {
@@ -24,12 +23,9 @@ DISPLAY_EXPORT extern const char kScreenConfig[];
 DISPLAY_EXPORT extern const char kSecondaryDisplayLayout[];
 DISPLAY_EXPORT extern const char kUseFirstDisplayAsInternal[];
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 DISPLAY_EXPORT extern const char kDisplayProperties[];
 DISPLAY_EXPORT extern const char kEnableUnifiedDesktop[];
-
-// TODO(oshima): Remove once all tests are fixed. crbug.com/1225308.
-DISPLAY_EXPORT extern const char kRejectSquareDisplay[];
 #endif
 
 }  // namespace switches

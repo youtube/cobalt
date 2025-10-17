@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/qpack/qpack_receive_stream.h"
 
+#include <vector>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -56,6 +58,10 @@ class QpackReceiveStreamTest : public QuicTestWithParam<TestParams> {
         session_(connection_) {
     EXPECT_CALL(session_, OnCongestionWindowChange(_)).Times(AnyNumber());
     session_.Initialize();
+    EXPECT_CALL(
+        static_cast<const MockQuicCryptoStream&>(*session_.GetCryptoStream()),
+        encryption_established())
+        .WillRepeatedly(testing::Return(true));
     QuicStreamId id = perspective() == Perspective::IS_SERVER
                           ? GetNthClientInitiatedUnidirectionalStreamId(
                                 session_.transport_version(), 3)

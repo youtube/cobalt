@@ -1,7 +1,7 @@
 // Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // This file provides utility functions for "file tasks".
 //
 // WHAT ARE FILE TASKS?
@@ -78,14 +78,16 @@
 // (Chrome Extension/App), and to open files directly in the browser without any
 // handler, e.g. PDF.
 //
-// Files app also has "internal tasks" which we can split into three categories:
+// Files app also has "internal tasks" which we can split into two categories:
 //  1. Tasks that open in the browser. The JS-side calls executeTask(), and we
 //     spawn a new browser tab here on the C++ side. e.g. "view-in-browser",
 //     "view-pdf" and "open-hosted-*".
 //  2. Tasks that are handled internally by Files app JS. e.g. "mount-archive",
 //     "install-linux-package" and "import-crostini-image".
-//  3. Tasks where the browser process opens Files app to a folder or file, e.g.
-//     "open" and "select", through file_manager::util::OpenItem().
+//
+//  "Virtual Tasks" don't belong to any one app, and don't have a JS
+//  implementation. Executing a virtual task simply means running their C++
+//  |Execute()| method. See VirtualTask for more.
 //
 // See also: ui/file_manager/file_manager/foreground/js/file_tasks.js
 //
@@ -96,14 +98,13 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
-#include "chrome/browser/ui/webui/ash/office_fallback/office_fallback_dialog.h"
 #include "chrome/common/extensions/api/file_manager_private.h"
 #include "url/gurl.h"
-
-using storage::FileSystemURL;
 
 class PrefService;
 class Profile;
@@ -116,24 +117,17 @@ namespace storage {
 class FileSystemURL;
 }
 
+using storage::FileSystemURL;
+
 namespace user_prefs {
 class PrefRegistrySyncable;
 }
 
 namespace file_manager::file_tasks {
 
-extern const char kActionIdView[];
-extern const char kActionIdSend[];
-extern const char kActionIdSendMultiple[];
-extern const char kActionIdWebDriveOfficeWord[];
-extern const char kActionIdWebDriveOfficeExcel[];
-extern const char kActionIdWebDriveOfficePowerPoint[];
-extern const char kActionIdOpenInOffice[];
-extern const char kActionIdOpenWeb[];
-
-// Checks which extension is installed and return the latest one installed or ""
-// if none is installed
-std::string GetODFSExtensionId(Profile* profile);
+inline constexpr char kActionIdView[] = "view";
+inline constexpr char kActionIdSend[] = "send";
+inline constexpr char kActionIdSendMultiple[] = "send_multiple";
 
 // Task types as explained in the comment above. Search for <task-type>.
 enum TaskType {
@@ -156,53 +150,12 @@ enum TaskType {
 TaskType StringToTaskType(const std::string& str);
 std::string TaskTypeToString(TaskType task_type);
 
-constexpr char kDriveErrorMetricName[] = "FileBrowser.OfficeFiles.Errors.Drive";
-constexpr char kDriveTaskResultMetricName[] =
-    "FileBrowser.OfficeFiles.TaskResult.Drive";
+// The SWA actionId is prefixed with chrome://file-manager/?ACTION_ID, just the
+// sub-string compatible with the extension/legacy e.g.: "view-pdf".
+std::string ParseFilesAppActionId(const std::string& action_id);
 
-// List of UMA enum value for Web Drive Office task results. The enum values
-// must be kept in sync with OfficeTaskResult in
-// tools/metrics/histograms/enums.xml.
-enum class OfficeTaskResult {
-  FALLBACK_QUICKOFFICE = 0,
-  FALLBACK_OTHER = 1,
-  OPENED = 2,
-  MOVED = 3,
-  CANCELLED = 4,
-  FAILED = 5,
-  kMaxValue = FAILED,
-};
-
-// List of UMA enum values for Office File Handler task results for Drive. The
-// enum values must be kept in sync with OfficeDriveErrors in
-// tools/metrics/histograms/enums.xml.
-enum class OfficeDriveErrors {
-  OFFLINE = 0,
-  DRIVEFS_INTERFACE = 1,
-  TIMEOUT = 2,
-  NO_METADATA = 3,
-  INVALID_ALTERNATE_URL = 4,
-  DRIVE_ALTERNATE_URL = 5,
-  UNEXPECTED_ALTERNATE_URL = 6,
-  kMaxValue = UNEXPECTED_ALTERNATE_URL,
-};
-
-// UMA metric name that tracks the result of using a MS Office file outside
-// of Drive.
-constexpr char kUseOutsideDriveMetricName[] =
-    "FileBrowser.OfficeFiles.UseOutsideDrive";
-
-// List of UMA enum values for file system operations that let a user use a
-// MS Office file outside of Drive. The enum values must be kept in sync with
-// OfficeFilesUseOutsideDriveHook in tools/metrics/histograms/enums.xml.
-enum class OfficeFilesUseOutsideDriveHook {
-  FILE_PICKER_SELECTION = 0,
-  COPY = 1,
-  MOVE = 2,
-  ZIP = 3,
-  OPEN_FROM_FILES_APP = 4,
-  kMaxValue = OPEN_FROM_FILES_APP,
-};
+// Turns the provided |action_id| into chrome://file-manager/?ACTION_ID.
+std::string ToSwaActionId(std::string_view action_id);
 
 // Describes a task.
 // See the comment above for <app-id>, <task-type>, and <action-id>.
@@ -280,26 +233,34 @@ struct ResultingTasks {
   ~ResultingTasks();
 
   std::vector<FullTaskDescriptor> tasks;
-  absl::optional<PolicyDefaultHandlerStatus> policy_default_handler_status;
+  std::optional<PolicyDefaultHandlerStatus> policy_default_handler_status;
 };
 
 // Registers profile prefs related to file_manager.
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable*);
 
 // Update the default file handler for the given sets of suffixes and MIME
-// types.
+// types. If |replace_existing| is false, does not rewrite existing prefs.
 void UpdateDefaultTask(Profile* profile,
+                       const TaskDescriptor& task_descriptor,
+                       const std::set<std::string>& suffixes,
+                       const std::set<std::string>& mime_types,
+                       bool replace_existing = true);
+
+// Remove the specified file handler for the given sets of suffixes and MIME
+// types.
+void RemoveDefaultTask(Profile* profile,
                        const TaskDescriptor& task_descriptor,
                        const std::set<std::string>& suffixes,
                        const std::set<std::string>& mime_types);
 
 // Returns the default task for the given |mime_type|/|suffix| combination in
 // |task_out|. If it finds a MIME type match, then it prefers that over a suffix
-// match. If a default can't be found, then it returns false.
-bool GetDefaultTaskFromPrefs(const PrefService& pref_service,
-                             const std::string& mime_type,
-                             const std::string& suffix,
-                             TaskDescriptor* task_out);
+// match. If a default can't be found, then it returns std::nullopt.
+std::optional<TaskDescriptor> GetDefaultTaskFromPrefs(
+    const PrefService& pref_service,
+    const std::string& mime_type,
+    const std::string& suffix);
 
 // Generates task id for the task specified by |app_id|, |task_type| and
 // |action_id|.
@@ -313,13 +274,12 @@ std::string MakeTaskID(const std::string& app_id,
 // Converts |task_descriptor| to a task ID.
 std::string TaskDescriptorToId(const TaskDescriptor& task_descriptor);
 
-// Parses the task ID and extracts app ID, task type, and action ID into
-// |task|. On failure, returns false, and the contents of |task| are
-// undefined.
+// Parses the task ID, extracts app ID, task type, action ID and returns the
+// created TaskDescriptor. On failure, returns std::nullopt.
 //
 // See also the comment at the beginning of the file for details for how
 // "task_id" looks like.
-bool ParseTaskID(const std::string& task_id, TaskDescriptor* task);
+std::optional<TaskDescriptor> ParseTaskID(const std::string& task_id);
 
 // The callback is used for ExecuteFileTask().
 typedef base::OnceCallback<void(
@@ -336,38 +296,20 @@ typedef base::OnceCallback<void(
 // profile      - The profile used for making this function call.
 // task         - See the comment at TaskDescriptor struct.
 // file_urls    - URLs of the target files.
-// modal_parent - Certain tasks like the Office setup flow can create WebUIs,
-//                which will be made modal to this parent, if not null.
 // done         - The callback which will be called on completion.
 //                The callback won't be called if the function returns
 //                false.
 bool ExecuteFileTask(Profile* profile,
                      const TaskDescriptor& task,
                      const std::vector<storage::FileSystemURL>& file_urls,
-                     gfx::NativeWindow modal_parent,
                      FileTaskFinishedCallback done);
 
-// Executes QuickOffice file handler for each element of |file_urls|.
-void LaunchQuickOffice(Profile* profile,
-                       const std::vector<storage::FileSystemURL>& file_urls);
-
-// Executes appropriate task to open the selected `file_urls`.
-// If user's `choice` is `kDialogChoiceQuickOffice`, launch QuickOffice.
-// If user's `choice` is `kDialogChoiceTryAgain`, execute the `task`.
-// If user's `choice` is `kDialogChoiceCancel`, do nothing.
-void OnDialogChoiceReceived(Profile* profile,
-                            const TaskDescriptor& task,
-                            const std::vector<FileSystemURL>& file_urls,
-                            gfx::NativeWindow modal_parent,
-                            const std::string& choice);
-
-// Shows a new dialog for users to choose what to do next. Returns True
-// if a new dialog has been effectively created.
-bool GetUserFallbackChoice(Profile* profile,
-                           const TaskDescriptor& task,
-                           const std::vector<FileSystemURL>& file_urls,
-                           gfx::NativeWindow modal_parent,
-                           ash::office_fallback::FallbackReason failure_reason);
+// See ash::FilesInternalsDebugJSONProvider::FunctionPointerType in
+// chrome/browser/ash/system_web_apps/apps/files_internals_debug_json_provider.h
+void GetDebugJSONForKeyForExecuteFileTask(
+    std::string_view key,
+    base::OnceCallback<void(std::pair<std::string_view, base::Value>)>
+        callback);
 
 // Callback function type for FindAllTypesOfTasks.
 typedef base::OnceCallback<void(
@@ -398,73 +340,13 @@ void ChooseAndSetDefaultTask(Profile* profile,
                              const std::vector<extensions::EntryInfo>& entries,
                              ResultingTasks* resulting_tasks);
 
-bool IsWebDriveOfficeTask(const TaskDescriptor& task);
-
-bool IsOpenInOfficeTask(const TaskDescriptor& task);
-
-bool IsExtensionInstalled(Profile* profile, const std::string& extension_id);
-
 // Returns whether |path| is an HTML file according to its extension.
 bool IsHtmlFile(const base::FilePath& path);
 
-// Returns whether |path| is a MS Office file according to its extension.
-bool IsOfficeFile(const base::FilePath& path);
-
-// Updates the default task for each of the office file types.
-void SetWordFileHandler(Profile* profile, const TaskDescriptor& task);
-void SetExcelFileHandler(Profile* profile, const TaskDescriptor& task);
-void SetPowerPointFileHandler(Profile* profile, const TaskDescriptor& task);
-
-// TODO(petermarshall): Move these to a new file office_file_tasks.cc/h
-// Updates the default task for each of the office file types to a Files
-// SWA with |action_id|. |action_id| must be a valid action registered with the
-// Files app SWA.
-void SetWordFileHandlerToFilesSWA(Profile* profile,
-                                  const std::string& action_id);
-void SetExcelFileHandlerToFilesSWA(Profile* profile,
-                                   const std::string& action_id);
-void SetPowerPointFileHandlerToFilesSWA(Profile* profile,
-                                        const std::string& action_id);
-
-// TODO(petermarshall): Move these to a new file office_file_tasks.cc/h
-// Sets the user preference storing whether the setup flow for office files has
-// ever been completed.
-void SetOfficeSetupComplete(Profile* profile, bool complete = true);
-// Whether or not the setup flow for office files has ever been completed.
-bool OfficeSetupComplete(Profile* profile);
-
-// Sets the user preference storing whether we should always move office files
-// to Google Drive without first asking the user.
-void SetAlwaysMoveOfficeFilesToDrive(Profile* profile, bool complete = true);
-// Whether we should always move office files to Google Drive without first
-// asking the user.
-bool AlwaysMoveOfficeFilesToDrive(Profile* profile);
-
-// Sets the user preference storing whether we should always move office files
-// to OneDrive without first asking the user.
-void SetAlwaysMoveOfficeFilesToOneDrive(Profile* profile, bool complete = true);
-// Whether we should always move office files to OneDrive without first asking
-// the user.
-bool AlwaysMoveOfficeFilesToOneDrive(Profile* profile);
-
-// Sets the user preference storing whether the move confirmation dialog has
-// been shown before for moving files to Drive.
-void SetOfficeMoveConfirmationShownForDrive(Profile* profile, bool complete);
-// Whether the move confirmation dialog has been shown before for moving files
-// to Drive.
-bool GetOfficeMoveConfirmationShownForDrive(Profile* profile);
-
-// Sets the user preference storing whether the move confirmation dialog has
-// been shown before for moving files to OneDrive.
-void SetOfficeMoveConfirmationShownForOneDrive(Profile* profile, bool complete);
-// Whether the move confirmation dialog has been shown before for moving files
-// to OneDrive.
-bool GetOfficeMoveConfirmationShownForOneDrive(Profile* profile);
-
-// Sets the preference `office.file_moved_one_drive`.
-void SetOfficeFileMovedToOneDrive(Profile* profile, base::Time moved);
-// Sets the preference `office.file_moved_google_drive`.
-void SetOfficeFileMovedToGoogleDrive(Profile* profile, base::Time moved);
+// Whether we have an explicit user preference stored for the file handler for
+// this extension. |extension| should contain the leading '.'.
+bool HasExplicitDefaultFileHandler(Profile* profile,
+                                   const std::string& extension);
 
 }  // namespace file_manager::file_tasks
 

@@ -19,8 +19,9 @@ C99OPTS = [
 # Source code common to all platforms.
 COMMON_SRCS = [
     "src/api.c",
-    "src/init.c",
     "src/cache.c",
+    "src/init.c",
+    "src/log.c",
 ]
 
 # Architecture-specific sources and headers.
@@ -42,6 +43,10 @@ ARM_SRCS = [
     "src/arm/uarch.c",
 ]
 
+RISCV_SRCS = [
+    "src/riscv/uarch.c",
+]
+
 # Platform-specific sources and headers
 LINUX_SRCS = [
     "src/linux/cpulist.c",
@@ -56,6 +61,10 @@ MOCK_LINUX_SRCS = [
 
 MACH_SRCS = [
     "src/mach/topology.c",
+]
+
+FREEBSD_SRCS = [
+    "src/freebsd/topology.c",
 ]
 
 EMSCRIPTEN_SRCS = [
@@ -80,6 +89,12 @@ LINUX_ARM32_SRCS = LINUX_ARM_SRCS + ["src/arm/linux/aarch32-isa.c"]
 
 LINUX_ARM64_SRCS = LINUX_ARM_SRCS + ["src/arm/linux/aarch64-isa.c"]
 
+LINUX_RISCV_SRCS = [
+    "src/riscv/linux/init.c",
+    "src/riscv/linux/riscv-isa.c",
+    "src/riscv/linux/riscv-hw.c",
+]
+
 ANDROID_ARM_SRCS = [
     "src/arm/android/properties.c",
 ]
@@ -88,12 +103,21 @@ WINDOWS_X86_SRCS = [
     "src/x86/windows/init.c",
 ]
 
+WINDOWS_ARM_SRCS = [
+    "src/arm/windows/init-by-logical-sys-info.c",
+    "src/arm/windows/init.c",
+]
+
 MACH_X86_SRCS = [
     "src/x86/mach/init.c",
 ]
 
 MACH_ARM_SRCS = [
     "src/arm/mach/init.c",
+]
+
+FREEBSD_X86_SRCS = [
+    "src/x86/freebsd/init.c",
 ]
 
 EMSCRIPTEN_SRCS = [
@@ -110,15 +134,20 @@ cc_library(
         ":linux_armeabi": COMMON_SRCS + ARM_SRCS + LINUX_SRCS + LINUX_ARM32_SRCS,
         ":linux_aarch64": COMMON_SRCS + ARM_SRCS + LINUX_SRCS + LINUX_ARM64_SRCS,
         ":linux_mips64": COMMON_SRCS + LINUX_SRCS,
-        ":linux_riscv64": COMMON_SRCS + LINUX_SRCS,
+        ":linux_riscv32": COMMON_SRCS + RISCV_SRCS + LINUX_SRCS + LINUX_RISCV_SRCS,
+        ":linux_riscv64": COMMON_SRCS + RISCV_SRCS + LINUX_SRCS + LINUX_RISCV_SRCS,
         ":linux_s390x": COMMON_SRCS + LINUX_SRCS,
         ":macos_x86_64": COMMON_SRCS + X86_SRCS + MACH_SRCS + MACH_X86_SRCS,
+        ":macos_x86_64_legacy": COMMON_SRCS + X86_SRCS + MACH_SRCS + MACH_X86_SRCS,
         ":macos_arm64": COMMON_SRCS + MACH_SRCS + MACH_ARM_SRCS,
+        ":freebsd_x86_64": COMMON_SRCS + X86_SRCS + FREEBSD_SRCS + FREEBSD_X86_SRCS,
         ":windows_x86_64": COMMON_SRCS + X86_SRCS + WINDOWS_X86_SRCS,
+        ":windows_arm64": COMMON_SRCS + ARM_SRCS + WINDOWS_ARM_SRCS,
         ":android_armv7": COMMON_SRCS + ARM_SRCS + LINUX_SRCS + LINUX_ARM32_SRCS + ANDROID_ARM_SRCS,
         ":android_arm64": COMMON_SRCS + ARM_SRCS + LINUX_SRCS + LINUX_ARM64_SRCS + ANDROID_ARM_SRCS,
         ":android_x86": COMMON_SRCS + X86_SRCS + LINUX_SRCS + LINUX_X86_SRCS,
         ":android_x86_64": COMMON_SRCS + X86_SRCS + LINUX_SRCS + LINUX_X86_SRCS,
+        ":android_riscv64": COMMON_SRCS + RISCV_SRCS + LINUX_SRCS + LINUX_RISCV_SRCS,
         ":ios_x86_64": COMMON_SRCS + X86_SRCS + MACH_SRCS + MACH_X86_SRCS,
         ":ios_x86": COMMON_SRCS + X86_SRCS + MACH_SRCS + MACH_X86_SRCS,
         ":ios_armv7": COMMON_SRCS + MACH_SRCS + MACH_ARM_SRCS,
@@ -135,10 +164,12 @@ cc_library(
     }),
     copts = select({
         ":windows_x86_64": [],
+        ":windows_arm64": [],
         "//conditions:default": C99OPTS,
     }) + [
         "-Iexternal/cpuinfo/include",
         "-Iexternal/cpuinfo/src",
+        "-DCPUINFO_LOG_LEVEL=2",
     ],
     includes = [
         "include",
@@ -147,11 +178,13 @@ cc_library(
     linkstatic = select({
         # https://github.com/bazelbuild/bazel/issues/11552
         ":macos_x86_64": False,
+        ":macos_x86_64_legacy": False,
         "//conditions:default": True,
     }),
     # Headers must be in textual_hdrs to allow us to set the standard to C99
     textual_hdrs = [
         "include/cpuinfo.h",
+        "src/freebsd/api.h",
         "src/linux/api.h",
         "src/mach/api.h",
         "src/cpuinfo/common.h",
@@ -166,10 +199,8 @@ cc_library(
         "src/arm/linux/cp.h",
         "src/arm/api.h",
         "src/arm/midr.h",
-    ],
-    deps = [
-        #"@clog",
-        "//deps/clog",
+        "src/riscv/api.h",
+        "src/riscv/linux/api.h",
     ],
 )
 
@@ -232,6 +263,11 @@ config_setting(
 )
 
 config_setting(
+    name = "linux_riscv32",
+    values = {"cpu": "riscv32"},
+)
+
+config_setting(
     name = "linux_riscv64",
     values = {"cpu": "riscv64"},
 )
@@ -242,7 +278,7 @@ config_setting(
 )
 
 config_setting(
-    name = "macos_x86_64",
+    name = "macos_x86_64_legacy",
     values = {
         "apple_platform_type": "macos",
         "cpu": "darwin",
@@ -250,8 +286,21 @@ config_setting(
 )
 
 config_setting(
+    name = "macos_x86_64",
+    values = {
+        "apple_platform_type": "macos",
+        "cpu": "darwin_x86_64",
+    },
+)
+
+config_setting(
     name = "windows_x86_64",
     values = {"cpu": "x64_windows"},
+)
+
+config_setting(
+    name = "windows_arm64",
+    values = {"cpu": "arm64_windows"},
 )
 
 config_setting(
@@ -268,6 +317,15 @@ config_setting(
     values = {
         "crosstool_top": "//external:android/crosstool",
         "cpu": "arm64-v8a",
+    },
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "android_riscv64",
+    values = {
+        "crosstool_top": "//external:android/crosstool",
+        "cpu": "riscv64",
     },
     visibility = ["//visibility:public"],
 )
@@ -413,5 +471,12 @@ config_setting(
     name = "emscripten_asmjs",
     values = {
         "cpu": "asmjs",
+    },
+)
+
+config_setting(
+    name = "freebsd_x86_64",
+    values = {
+        "cpu": "freebsd",
     },
 )

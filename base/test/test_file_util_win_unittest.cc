@@ -5,6 +5,7 @@
 #include "base/test/test_file_util.h"
 
 #include <windows.h>
+
 #include <string>
 
 #include "base/files/file_path.h"
@@ -35,8 +36,9 @@ class ScopedFileForTest {
   bool IsValid() const { return valid_; }
 
   ~ScopedFileForTest() {
-    if (valid_)
+    if (valid_) {
       ::DeleteFile(long_path_.c_str());
+    }
   }
 
  private:

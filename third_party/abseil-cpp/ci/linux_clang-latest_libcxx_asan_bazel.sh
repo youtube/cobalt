@@ -25,7 +25,7 @@ if [[ -z ${ABSEIL_ROOT:-} ]]; then
 fi
 
 if [[ -z ${STD:-} ]]; then
-  STD="c++14 c++17 c++20"
+  STD="c++17 c++20 c++23"
 fi
 
 if [[ -z ${COMPILATION_MODE:-} ]]; then
@@ -48,7 +48,7 @@ if [[ ${USE_BAZEL_CACHE:-0} -ne 0 ]]; then
   # remote_http_cache url, we make changes to the container part of
   # the cache key. Hashing the key is to make it shorter and url-safe.
   container_key=$(echo ${DOCKER_CONTAINER} | sha256sum | head -c 16)
-  BAZEL_EXTRA_ARGS="--remote_http_cache=https://storage.googleapis.com/absl-bazel-remote-cache/${container_key} --google_credentials=/keystore/73103_absl-bazel-remote-cache ${BAZEL_EXTRA_ARGS:-}"
+  BAZEL_EXTRA_ARGS="--remote_cache=https://storage.googleapis.com/absl-bazel-remote-cache/${container_key} --google_credentials=/keystore/73103_absl-bazel-remote-cache ${BAZEL_EXTRA_ARGS:-}"
 fi
 
 # Avoid depending on external sites like GitHub by checking --distdir for
@@ -59,6 +59,9 @@ if [[ ${KOKORO_GFILE_DIR:-} ]] && [[ -d "${KOKORO_GFILE_DIR}/distdir" ]]; then
   BAZEL_EXTRA_ARGS="--distdir=/distdir ${BAZEL_EXTRA_ARGS:-}"
 fi
 
+# https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html#available-checks
+readonly UBSAN_CHECKS="float-divide-by-zero,nullability,undefined"
+
 for std in ${STD}; do
   for compilation_mode in ${COMPILATION_MODE}; do
     for exceptions_mode in ${EXCEPTIONS_MODE}; do
@@ -68,35 +71,35 @@ for std in ${STD}; do
         --workdir=/abseil-cpp \
         --cap-add=SYS_PTRACE \
         --rm \
-        -e CC="/opt/llvm/clang/bin/clang" \
-        -e BAZEL_CXXOPTS="-std=${std}:-nostdinc++" \
-        -e BAZEL_LINKOPTS="-L/opt/llvm/libcxx/lib/x86_64-unknown-linux-gnu:-lc++:-lc++abi:-lm:-Wl,-rpath=/opt/llvm/libcxx/lib/x86_64-unknown-linux-gnu" \
-        -e CPLUS_INCLUDE_PATH="/opt/llvm/libcxx/include/x86_64-unknown-linux-gnu/c++/v1:/opt/llvm/libcxx/include/c++/v1" \
         ${DOCKER_EXTRA_ARGS:-} \
         ${DOCKER_CONTAINER} \
+        /bin/bash --login -c "
         /usr/local/bin/bazel test ... \
-          --compilation_mode="${compilation_mode}" \
-          --copt="${exceptions_mode}" \
-          --copt="-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1" \
-          --copt="-fsanitize=address" \
-          --copt="-fsanitize=float-divide-by-zero" \
-          --copt="-fsanitize=nullability" \
-          --copt="-fsanitize=undefined" \
-          --copt="-fno-sanitize-blacklist" \
+          --action_env=\"CC=/opt/llvm/clang/bin/clang\" \
+          --action_env=\"BAZEL_CXXOPTS=-std=${std}:-nostdinc++\" \
+          --action_env=\"BAZEL_LINKOPTS=-L/opt/llvm/libcxx/lib:-lc++:-lc++abi:-lm:-Wl,-rpath=/opt/llvm/libcxx/lib\" \
+          --action_env=\"CPLUS_INCLUDE_PATH=/opt/llvm/libcxx/include/c++/v1\" \
+          --compilation_mode=\"${compilation_mode}\" \
+          --copt=\"${exceptions_mode}\" \
+          --copt=\"-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1\" \
+          --copt=\"-fsanitize=address\" \
+          --copt=\"-fsanitize=${UBSAN_CHECKS}\" \
+          --copt=\"-fno-sanitize-recover=${UBSAN_CHECKS}\" \
+          --copt=\"-fno-sanitize-blacklist\" \
           --copt=-Werror \
-          --distdir="/bazel-distdir" \
+          --enable_bzlmod=true \
           --features=external_include_paths \
           --keep_going \
-          --linkopt="-fsanitize=address" \
-          --linkopt="-fsanitize-link-c++-runtime" \
+          --linkopt=\"-fsanitize=address\" \
+          --linkopt=\"-fsanitize-link-c++-runtime\" \
           --show_timestamps \
-          --test_env="ASAN_SYMBOLIZER_PATH=/opt/llvm/clang/bin/llvm-symbolizer" \
-          --test_env="TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo" \
-          --test_env="UBSAN_OPTIONS=print_stacktrace=1" \
-          --test_env="UBSAN_SYMBOLIZER_PATH=/opt/llvm/clang/bin/llvm-symbolizer" \
+          --test_env=\"ASAN_SYMBOLIZER_PATH=/opt/llvm/clang/bin/llvm-symbolizer\" \
+          --test_env=\"TZDIR=/abseil-cpp/absl/time/internal/cctz/testdata/zoneinfo\" \
+          --test_env=\"UBSAN_OPTIONS=print_stacktrace=1\" \
+          --test_env=\"UBSAN_SYMBOLIZER_PATH=/opt/llvm/clang/bin/llvm-symbolizer\" \
           --test_output=errors \
-          --test_tag_filters="-benchmark,-noasan" \
-          ${BAZEL_EXTRA_ARGS:-}
+          --test_tag_filters=\"-benchmark,-noasan\" \
+          ${BAZEL_EXTRA_ARGS:-}"
     done
   done
 done

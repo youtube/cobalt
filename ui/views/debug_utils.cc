@@ -7,36 +7,19 @@
 #include <ostream>
 
 #include "base/logging.h"
+#include "base/strings/stringprintf.h"
 #include "ui/compositor/layer.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
 
 #if !defined(NDEBUG)
-#include "ui/gfx/geometry/angle_conversions.h"
+#include "base/numerics/angle_conversions.h"
 #include "ui/gfx/geometry/decomposed_transform.h"
 #include "ui/gfx/geometry/transform.h"
 #endif
 
 namespace views {
 namespace {
-void PrintViewHierarchyImp(const View* view,
-                           size_t indent,
-                           std::ostringstream* out) {
-  *out << std::string(indent, ' ');
-  *out << view->GetClassName();
-  *out << ' ';
-  *out << view->GetID();
-  *out << ' ';
-  *out << view->x() << "," << view->y() << ",";
-  *out << view->bounds().right() << "," << view->bounds().bottom();
-  *out << ' ';
-  *out << view;
-  *out << '\n';
-
-  for (const View* child : view->children())
-    PrintViewHierarchyImp(child, indent + 2, out);
-}
-
 void PrintFocusHierarchyImp(const View* view,
                             size_t indent,
                             std::ostringstream* out) {
@@ -50,95 +33,73 @@ void PrintFocusHierarchyImp(const View* view,
   *out << view;
   *out << '\n';
 
-  if (!view->children().empty())
+  if (!view->children().empty()) {
     PrintFocusHierarchyImp(view->children().front(), indent + 2, out);
+  }
 
   const View* next_focusable = view->GetNextFocusableView();
-  if (next_focusable)
+  if (next_focusable) {
     PrintFocusHierarchyImp(next_focusable, indent, out);
+  }
 }
 
 #if !defined(NDEBUG)
 std::string PrintViewGraphImpl(const View* view) {
-  // 64-bit pointer = 16 bytes of hex + "0x" + '\0' = 19.
-  const size_t kMaxPointerStringLength = 19;
-
   std::string result;
 
-  // Node characteristics.
-  char p[kMaxPointerStringLength];
-
-  const std::string class_name(view->GetClassName());
+  const std::string_view class_name = view->GetClassName();
   size_t base_name_index = class_name.find_last_of('/');
-  if (base_name_index == std::string::npos)
+  if (base_name_index == std::string::npos) {
     base_name_index = 0;
-  else
+  } else {
     base_name_index++;
-
-  constexpr size_t kBoundsBufferSize = 512;
-  char bounds_buffer[kBoundsBufferSize];
+  }
 
   // Information about current node.
-  base::snprintf(p, kBoundsBufferSize, "%p", view);
   result.append("  N");
-  result.append(p + 2);
+  result.append(base::StringPrintf("%p", view));
   result.append(" [label=\"");
 
-  result.append(class_name.substr(base_name_index).c_str());
+  result.append(class_name.substr(base_name_index));
 
-  base::snprintf(bounds_buffer, kBoundsBufferSize,
-                 "\\n bounds: (%d, %d), (%dx%d)", view->bounds().x(),
-                 view->bounds().y(), view->bounds().width(),
-                 view->bounds().height());
-  result.append(bounds_buffer);
+  result.append(base::StringPrintf(
+      "\\n bounds: (%d, %d), (%dx%d)", view->bounds().x(), view->bounds().y(),
+      view->bounds().width(), view->bounds().height()));
 
   if (!view->GetTransform().IsIdentity()) {
-    if (absl::optional<gfx::DecomposedTransform> decomp =
-            view->GetTransform().Decompose()) {
-      base::snprintf(bounds_buffer, kBoundsBufferSize,
-                     "\\n translation: (%f, %f)", decomp->translate[0],
-                     decomp->translate[1]);
-      result.append(bounds_buffer);
-
-      base::snprintf(bounds_buffer, kBoundsBufferSize, "\\n rotation: %3.2f",
-                     gfx::RadToDeg(std::acos(decomp->quaternion.w()) * 2));
-      result.append(bounds_buffer);
-
-      base::snprintf(bounds_buffer, kBoundsBufferSize,
-                     "\\n scale: (%2.4f, %2.4f)", decomp->scale[0],
-                     decomp->scale[1]);
-      result.append(bounds_buffer);
-    }
+    gfx::Vector2dF translation = view->GetTransform().To2dTranslation();
+    gfx::Vector2dF scale = view->GetTransform().To2dScale();
+    result.append(base::StringPrintf("\\n translation: (%f, %f)",
+                                     translation.x(), translation.y()));
+    result.append(
+        base::StringPrintf("\\n scale: (%2.4f, %2.4f)", scale.x(), scale.y()));
   }
 
   result.append("\"");
-  if (!view->parent())
+  if (!view->parent()) {
     result.append(", shape=box");
+  }
   if (view->layer()) {
-    if (view->layer()->has_external_content())
+    if (view->layer()->has_external_content()) {
       result.append(", color=green");
-    else
+    } else {
       result.append(", color=red");
+    }
 
-    if (view->layer()->fills_bounds_opaquely())
+    if (view->layer()->fills_bounds_opaquely()) {
       result.append(", style=filled");
+    }
   }
   result.append("]\n");
 
   // Link to parent.
   if (view->parent()) {
-    char pp[kMaxPointerStringLength];
-
-    base::snprintf(pp, kMaxPointerStringLength, "%p", view->parent());
-    result.append("  N");
-    result.append(pp + 2);
-    result.append(" -> N");
-    result.append(p + 2);
-    result.append("\n");
+    result.append(base::StringPrintf(" N%p -> N%p\n", view->parent(), view));
   }
 
-  for (const View* child : view->children())
+  for (const View* child : view->children()) {
     result.append(PrintViewGraphImpl(child));
+  }
 
   return result;
 }
@@ -152,16 +113,18 @@ void PrintWidgetInformation(const Widget& widget,
   *out << " name=" << widget.GetName();
   *out << " (" << &widget << ")";
 
-  if (widget.parent())
+  if (widget.parent()) {
     *out << " parent=" << widget.parent();
-  else
+  } else {
     *out << " parent=none";
+  }
 
   const ui::Layer* layer = widget.GetLayer();
-  if (layer)
+  if (layer) {
     *out << " layer=" << layer;
-  else
+  } else {
     *out << " layer=none";
+  }
 
   *out << (widget.is_top_level() ? " [top_level]" : " [!top_level]");
 
@@ -175,22 +138,11 @@ void PrintWidgetInformation(const Widget& widget,
   *out << (widget.IsMinimized() ? " [minimized]" : "");
   *out << (widget.IsFullscreen() ? " [fullscreen]" : "");
 
-  if (detailed)
+  if (detailed) {
     *out << " " << widget.GetWindowBoundsInScreen().ToString();
+  }
 
   *out << '\n';
-}
-
-void PrintViewHierarchy(const View* view) {
-  std::ostringstream out;
-  PrintViewHierarchy(view, &out);
-  // Error so users in the field can generate and upload logs.
-  LOG(ERROR) << out.str();
-}
-
-void PrintViewHierarchy(const View* view, std::ostringstream* out) {
-  *out << "View hierarchy:\n";
-  PrintViewHierarchyImp(view, 0, out);
 }
 
 void PrintFocusHierarchy(const View* view) {

@@ -5,22 +5,21 @@
 #ifndef COMPONENTS_AGGREGATION_SERVICE_PARSING_UTILS_H_
 #define COMPONENTS_AGGREGATION_SERVICE_PARSING_UTILS_H_
 
-#include <string>
+#include <optional>
+#include <string_view>
 
 #include "base/component_export.h"
-#include "components/aggregation_service/aggregation_service.mojom-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+namespace url {
+class Origin;
+}  // namespace url
 
 namespace aggregation_service {
 
 // Parses aggregation coordinator identifier. Returns `kDefault` if `str` is
 // nullptr or is not a pre-defined value.
 COMPONENT_EXPORT(AGGREGATION_SERVICE)
-absl::optional<mojom::AggregationCoordinator> ParseAggregationCoordinator(
-    const std::string& str);
-
-COMPONENT_EXPORT(AGGREGATION_SERVICE)
-std::string SerializeAggregationCoordinator(mojom::AggregationCoordinator);
+std::optional<url::Origin> ParseAggregationCoordinator(std::string_view str);
 
 }  // namespace aggregation_service
 

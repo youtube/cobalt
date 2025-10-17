@@ -2,11 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ppapi/shared_impl/private/ppb_x509_certificate_private_shared.h"
 
 #include <utility>
 
-#include "base/check.h"
+#include "base/notreached.h"
 #include "ppapi/shared_impl/ppapi_globals.h"
 #include "ppapi/shared_impl/var.h"
 #include "ppapi/shared_impl/var_tracker.h"
@@ -69,8 +74,7 @@ PP_Var PPB_X509Certificate_Fields::GetFieldAsPPVar(
   }
 
   // Should not reach here.
-  CHECK(false);
-  return PP_MakeUndefined();
+  NOTREACHED();
 }
 
 //------------------------------------------------------------------------------
@@ -130,8 +134,7 @@ bool PPB_X509Certificate_Private_Shared::ParseDER(
   // A concrete PPB_X509Certificate_Private_Shared should only ever be
   // constructed by passing in PPB_X509Certificate_Fields, in which case it is
   // already initialized.
-  CHECK(false);
-  return false;
+  NOTREACHED();
 }
 
 }  // namespace ppapi

@@ -11,7 +11,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
-#include "services/network/public/cpp/features.h"
+#include "services/network/public/cpp/loading_params.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/navigation/renderer_eviction_reason.mojom-blink.h"
 #include "third_party/blink/renderer/platform/back_forward_cache_buffer_limit_tracker.h"
@@ -23,6 +23,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/navigation_body_loader.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
 
@@ -38,24 +39,25 @@ class ResponseBodyLoader::DelegatingBytesConsumer final
         loader_(loader),
         task_runner_(std::move(task_runner)) {}
 
-  Result BeginRead(const char** buffer, size_t* available) override {
-    *buffer = nullptr;
-    *available = 0;
+  Result BeginRead(base::span<const char>& buffer) override {
+    buffer = {};
     if (loader_->IsAborted()) {
       return Result::kError;
     }
-    if (loader_->IsSuspended()) {
+    // When the loader is suspended for non back/forward cache reason, return
+    // with kShouldWait.
+    if (IsSuspendedButNotForBackForwardCache()) {
       return Result::kShouldWait;
     }
     if (state_ == State::kCancelled) {
       return Result::kDone;
     }
-    auto result = bytes_consumer_->BeginRead(buffer, available);
+    auto result = bytes_consumer_->BeginRead(buffer);
     if (result == Result::kOk) {
-      *available = std::min(*available, lookahead_bytes_);
-      if (*available == 0) {
+      buffer = buffer.first(std::min(buffer.size(), lookahead_bytes_));
+      if (buffer.empty()) {
         result = bytes_consumer_->EndRead(0);
-        *buffer = nullptr;
+        buffer = {};
         if (result == Result::kOk) {
           result = Result::kShouldWait;
           if (in_on_state_change_) {
@@ -142,8 +144,20 @@ class ResponseBodyLoader::DelegatingBytesConsumer final
       return PublicState::kErrored;
     return bytes_consumer_->GetPublicState();
   }
-  Error GetError() const override { return bytes_consumer_->GetError(); }
-  String DebugName() const override { return "DelegatingBytesConsumer"; }
+  Error GetError() const override {
+    if (bytes_consumer_->GetPublicState() == PublicState::kErrored) {
+      return bytes_consumer_->GetError();
+    }
+    DCHECK(loader_->IsAborted());
+    return Error{"Response body loading was aborted"};
+  }
+  String DebugName() const override {
+    StringBuilder builder;
+    builder.Append("DelegatingBytesConsumer(");
+    builder.Append(bytes_consumer_->DebugName());
+    builder.Append(")");
+    return builder.ToString();
+  }
 
   void Abort() {
     if (state_ != State::kLoading) {
@@ -165,23 +179,25 @@ class ResponseBodyLoader::DelegatingBytesConsumer final
     base::AutoReset<bool> auto_reset_for_waiting_for_lookahead_bytes(
         &waiting_for_lookahead_bytes_, false);
 
-    if (loader_->IsAborted() || loader_->IsSuspended() ||
+    // Do not proceed to read the data if loader is aborted, suspended for non
+    // back/forward cache reason, or the state is cancelled.
+    if (loader_->IsAborted() || IsSuspendedButNotForBackForwardCache() ||
         state_ == State::kCancelled) {
       return;
     }
+
+    // Proceed to read the data, even if in back/forward cache.
     while (state_ == State::kLoading) {
       // Peek available bytes from |bytes_consumer_| and report them to
       // |loader_|.
-      const char* buffer = nullptr;
-      size_t available = 0;
+      base::span<const char> buffer;
       // Possible state change caused by BeginRead will be realized by the
       // following logic, so we don't need to worry about it here.
-      auto result = bytes_consumer_->BeginRead(&buffer, &available);
+      auto result = bytes_consumer_->BeginRead(buffer);
       if (result == Result::kOk) {
-        if (lookahead_bytes_ < available) {
-          loader_->DidReceiveData(base::make_span(
-              buffer + lookahead_bytes_, available - lookahead_bytes_));
-          lookahead_bytes_ = available;
+        if (lookahead_bytes_ < buffer.size()) {
+          loader_->DidReceiveData(buffer.subspan(lookahead_bytes_));
+          lookahead_bytes_ = buffer.size();
         }
         // Possible state change caused by EndRead will be realized by the
         // following logic, so we don't need to worry about it here.
@@ -216,7 +232,6 @@ class ResponseBodyLoader::DelegatingBytesConsumer final
       switch (state_) {
         case State::kLoading:
           NOTREACHED();
-          break;
         case State::kDone:
           loader_->DidFinishLoadingBody();
           break;
@@ -278,6 +293,10 @@ class ResponseBodyLoader::DelegatingBytesConsumer final
     }
   }
 
+  bool IsSuspendedButNotForBackForwardCache() {
+    return loader_->IsSuspended() && !loader_->IsSuspendedForBackForwardCache();
+  }
+
   const Member<BytesConsumer> bytes_consumer_;
   const Member<ResponseBodyLoader> loader_;
   Member<BytesConsumer::Client> bytes_consumer_client_;
@@ -302,12 +321,12 @@ class ResponseBodyLoader::Buffer final
   bool IsEmpty() const { return buffered_data_.empty(); }
 
   // Add |buffer| to |buffered_data_|.
-  void AddChunk(const char* buffer, size_t available) {
+  void AddChunk(base::span<const char> buffer) {
     TRACE_EVENT2("loading", "ResponseBodyLoader::Buffer::AddChunk",
                  "total_bytes_read", static_cast<int>(total_bytes_read_),
-                 "added_bytes", static_cast<int>(available));
+                 "added_bytes", static_cast<int>(buffer.size()));
     Vector<char> new_chunk;
-    new_chunk.Append(buffer, base::checked_cast<wtf_size_t>(available));
+    new_chunk.AppendSpan(buffer);
     buffered_data_.emplace_back(std::move(new_chunk));
   }
 
@@ -320,7 +339,7 @@ class ResponseBodyLoader::Buffer final
     // Send as much of the chunk as possible without exceeding |max_chunk_size|.
     base::span<const char> span(current_chunk);
     span = span.subspan(offset_in_current_chunk_);
-    span = span.subspan(0, std::min(span.size(), max_chunk_size));
+    span = span.first(std::min(span.size(), max_chunk_size));
     owner_->DidReceiveData(span);
 
     size_t sent_size = span.size();
@@ -424,8 +443,11 @@ void ResponseBodyLoader::DidReceiveDecodedData(
 }
 
 void ResponseBodyLoader::DidFinishLoadingBody() {
-  if (aborted_)
+  if (aborted_) {
     return;
+  }
+
+  TRACE_EVENT0("blink", "ResponseBodyLoader::DidFinishLoadingBody");
 
   if (IsSuspended()) {
     finish_signal_is_pending_ = true;
@@ -437,8 +459,11 @@ void ResponseBodyLoader::DidFinishLoadingBody() {
 }
 
 void ResponseBodyLoader::DidFailLoadingBody() {
-  if (aborted_)
+  if (aborted_) {
     return;
+  }
+
+  TRACE_EVENT0("blink", "ResponseBodyLoader::DidFailLoadingBody");
 
   if (IsSuspended()) {
     fail_signal_is_pending_ = true;
@@ -450,8 +475,11 @@ void ResponseBodyLoader::DidFailLoadingBody() {
 }
 
 void ResponseBodyLoader::DidCancelLoadingBody() {
-  if (aborted_)
+  if (aborted_) {
     return;
+  }
+
+  TRACE_EVENT0("blink", "ResponseBodyLoader::DidCancelLoadingBody");
 
   if (IsSuspended()) {
     cancel_signal_is_pending_ = true;
@@ -475,7 +503,7 @@ void ResponseBodyLoader::DidBufferLoadWhileInBackForwardCache(
   if (!back_forward_cache_loader_helper_)
     return;
   back_forward_cache_loader_helper_->DidBufferLoadWhileInBackForwardCache(
-      num_bytes);
+      /*update_process_wide_count=*/true, num_bytes);
 }
 
 void ResponseBodyLoader::Start() {
@@ -523,9 +551,12 @@ void ResponseBodyLoader::Suspend(LoaderFreezeMode mode) {
 
 void ResponseBodyLoader::EvictFromBackForwardCacheIfDrainedAsBytesConsumer() {
   if (drained_as_bytes_consumer_) {
-    EvictFromBackForwardCache(
-        mojom::blink::RendererEvictionReason::
-            kNetworkRequestDatapipeDrainedAsBytesConsumer);
+    if (!base::FeatureList::IsEnabled(
+            features::kAllowDatapipeDrainedAsBytesConsumerInBFCache)) {
+      EvictFromBackForwardCache(
+          mojom::blink::RendererEvictionReason::
+              kNetworkRequestDatapipeDrainedAsBytesConsumer);
+    }
   }
 }
 
@@ -563,7 +594,7 @@ void ResponseBodyLoader::OnStateChange() {
 
   size_t num_bytes_consumed = 0;
   while (!aborted_ && (!IsSuspended() || IsSuspendedForBackForwardCache())) {
-    const uint32_t chunk_size = network::features::GetLoaderChunkSize();
+    const size_t chunk_size = network::kMaxNumConsumedBytesInTask;
     if (chunk_size == num_bytes_consumed) {
       // We've already consumed many bytes in this task. Defer the remaining
       // to the next task.
@@ -581,37 +612,37 @@ void ResponseBodyLoader::OnStateChange() {
       continue;
     }
 
-    const char* buffer = nullptr;
-    size_t available = 0;
-    auto result = bytes_consumer_->BeginRead(&buffer, &available);
+    base::span<const char> buffer;
+    auto result = bytes_consumer_->BeginRead(buffer);
     if (result == BytesConsumer::Result::kShouldWait)
       return;
     if (result == BytesConsumer::Result::kOk) {
       TRACE_EVENT1("blink", "ResponseBodyLoader::OnStateChange", "available",
-                   available);
+                   buffer.size());
 
       base::AutoReset<bool> auto_reset_for_in_two_phase_read(
           &in_two_phase_read_, true);
-      available = std::min(available, chunk_size - num_bytes_consumed);
+      buffer = buffer.first(
+          std::min(buffer.size(), chunk_size - num_bytes_consumed));
       if (IsSuspendedForBackForwardCache()) {
         // Save the read data into |body_buffer_| instead.
-        DidBufferLoadWhileInBackForwardCache(available);
-        body_buffer_->AddChunk(buffer, available);
+        DidBufferLoadWhileInBackForwardCache(buffer.size());
+        body_buffer_->AddChunk(buffer);
         if (!BackForwardCacheBufferLimitTracker::Get()
                  .IsUnderPerProcessBufferLimit()) {
           // We've read too much data while suspended for back-forward cache.
           // Evict the page from the back-forward cache.
-          result = bytes_consumer_->EndRead(available);
+          result = bytes_consumer_->EndRead(buffer.size());
           EvictFromBackForwardCache(
               mojom::blink::RendererEvictionReason::kNetworkExceedsBufferLimit);
           return;
         }
       } else {
         DCHECK(!IsSuspended());
-        DidReceiveData(base::make_span(buffer, available));
+        DidReceiveData(buffer);
       }
-      result = bytes_consumer_->EndRead(available);
-      num_bytes_consumed += available;
+      result = bytes_consumer_->EndRead(buffer.size());
+      num_bytes_consumed += buffer.size();
 
       if (aborted_) {
         // As we cannot call Cancel in two-phase read, we need to call it here.

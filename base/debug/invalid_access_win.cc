@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/debug/invalid_access_win.h"
+
+#include <windows.h>
 
 #include <intrin.h>
 #include <stdlib.h>
-#include <windows.h>
 
 #include "base/check.h"
+#include "base/notreached.h"
 #include "build/build_config.h"
 
 namespace base {
@@ -59,7 +66,7 @@ void TerminateWithHeapCorruption() {
     HeapDestroy(heap);
   } __except (EXCEPTION_EXECUTE_HANDLER) {
     // Heap corruption exception should never be caught.
-    CHECK(false);
+    NOTREACHED();
   }
   // Should never reach here.
   abort();
@@ -74,7 +81,7 @@ void TerminateWithControlFlowViolation() {
     IndirectCall(&func);
   } __except (EXCEPTION_EXECUTE_HANDLER) {
     // CFG fast fail should never be caught.
-    CHECK(false);
+    NOTREACHED();
   }
   // Should only reach here if CFG is disabled.
   abort();

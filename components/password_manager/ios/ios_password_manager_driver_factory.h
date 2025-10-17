@@ -5,10 +5,11 @@
 #ifndef COMPONENTS_PASSWORD_MANAGER_IOS_IOS_PASSWORD_MANAGER_DRIVER_FACTORY_H_
 #define COMPONENTS_PASSWORD_MANAGER_IOS_IOS_PASSWORD_MANAGER_DRIVER_FACTORY_H_
 
-#include "components/password_manager/core/browser/password_manager_interface.h"
+#import "base/memory/raw_ptr.h"
+#import "components/password_manager/core/browser/password_manager_interface.h"
 #import "components/password_manager/ios/ios_password_manager_driver.h"
-#include "components/password_manager/ios/password_manager_driver_bridge.h"
-#include "ios/web/public/js_messaging/web_frame_user_data.h"
+#import "components/password_manager/ios/password_manager_driver_bridge.h"
+#import "ios/web/public/js_messaging/web_frame_user_data.h"
 #import "ios/web/public/web_state_user_data.h"
 
 namespace web {
@@ -44,7 +45,8 @@ class IOSPasswordManagerDriverFactory
   // IOSPasswordManagerDriverFactory::FromWebStateAndWebFrame.
   // This method creates/gets a new IOSPasswordManagerWebFrameDriverHelper
   // and returns the IOSPasswordManagerDriver associated to it.
-  IOSPasswordManagerDriver* IOSPasswordManagerDriver(web::WebFrame* web_frame);
+  IOSPasswordManagerDriver* IOSPasswordManagerDriver(web::WebFrame* web_frame,
+                                                     web::WebState* web_state);
 
   // To create a factory, use the
   // IOSPasswordManagerDriverFactory::CreateForWebState method.
@@ -54,10 +56,8 @@ class IOSPasswordManagerDriverFactory
       password_manager::PasswordManagerInterface* password_manager);
 
   id<PasswordManagerDriverBridge> bridge_;
-  password_manager::PasswordManagerInterface* password_manager_;
+  raw_ptr<password_manager::PasswordManagerInterface> password_manager_;
   int next_free_id = 0;
-
-  WEB_STATE_USER_DATA_KEY_DECL();
 };
 
 // This class is tied to the web frame and owns a reference to
@@ -83,6 +83,7 @@ class IOSPasswordManagerWebFrameDriverHelper
   // Creates a IOSPasswordManagerWebFrameDriverHelper object which is tied to
   // the WebFrame using WebFrameUserData::SetUserData.
   static void CreateForWebFrame(
+      web::WebState* web_state,
       id<PasswordManagerDriverBridge> bridge,
       password_manager::PasswordManagerInterface* password_manager,
       web::WebFrame* web_frame,
@@ -91,6 +92,7 @@ class IOSPasswordManagerWebFrameDriverHelper
   // The constructor creates a ref countable IOSPasswordManagerDriver and saves
   // it in the driver_ field.
   IOSPasswordManagerWebFrameDriverHelper(
+      web::WebState* web_state,
       id<PasswordManagerDriverBridge> bridge,
       password_manager::PasswordManagerInterface* password_manager,
       web::WebFrame* web_frame,

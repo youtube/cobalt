@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_MESSAGING_BLINK_TRANSFERABLE_MESSAGE_MOJOM_TRAITS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_MESSAGING_BLINK_TRANSFERABLE_MESSAGE_MOJOM_TRAITS_H_
 
-#include "mojo/public/cpp/bindings/array_traits_wtf_vector.h"
 #include "skia/public/mojom/bitmap_skbitmap_mojom_traits.h"
 #include "third_party/blink/public/common/messaging/accelerated_static_bitmap_image_mojom_traits.h"
 #include "third_party/blink/public/common/messaging/message_port_channel.h"
@@ -67,12 +66,12 @@ struct CORE_EXPORT StructTraits<blink::mojom::TransferableMessageDataView,
     return input.delegated_capability;
   }
 
-  static absl::optional<blink::scheduler::TaskAttributionId> parent_task_id(
+  static std::optional<blink::scheduler::TaskAttributionId> parent_task_id(
       blink::BlinkTransferableMessage& input) {
     return input.parent_task_id
-               ? absl::make_optional(blink::scheduler::TaskAttributionId(
+               ? std::make_optional(blink::scheduler::TaskAttributionId(
                      input.parent_task_id.value()))
-               : absl::nullopt;
+               : std::nullopt;
   }
 
   static bool Read(blink::mojom::TransferableMessageDataView,
@@ -86,10 +85,7 @@ class CORE_EXPORT
  public:
   static mojo_base::BigBuffer contents(
       const blink::ArrayBufferContents& array_buffer_contents) {
-    uint8_t* allocation_start =
-        static_cast<uint8_t*>(array_buffer_contents.Data());
-    return mojo_base::BigBuffer(
-        base::make_span(allocation_start, array_buffer_contents.DataLength()));
+    return mojo_base::BigBuffer(array_buffer_contents.ByteSpan());
   }
   static bool is_resizable_by_user_javascript(
       const blink::ArrayBufferContents& array_buffer_contents) {

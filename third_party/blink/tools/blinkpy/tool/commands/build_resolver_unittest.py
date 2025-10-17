@@ -7,7 +7,7 @@ from unittest.mock import Mock, call
 
 from blinkpy.common import exit_codes
 from blinkpy.common.host_mock import MockHost
-from blinkpy.common.net.git_cl import TryJobStatus
+from blinkpy.common.net.git_cl import BuildStatus
 from blinkpy.common.net.git_cl_mock import MockGitCL
 from blinkpy.common.system.log_testing import LoggingTestCase
 from blinkpy.tool.commands.build_resolver import Build, BuildResolver
@@ -41,17 +41,21 @@ class BuildResolverTest(LoggingTestCase):
                         },
                         'number': 123,
                         'status': 'FAILURE',
+                        'output': {
+                            'properties': {
+                                'failure_type': 'TEST_FAILURE',
+                            },
+                        },
                     }],
                 },
             }],
         })
         build_statuses = self.resolver.resolve_builds(
             [Build('Fake Test Linux', bucket='ci')])
-        self.assertEqual(
-            build_statuses, {
-                Build('Fake Test Linux', 123, '123', 'ci'):
-                TryJobStatus('COMPLETED', 'FAILURE'),
-            })
+        self.assertEqual(build_statuses, {
+            Build('Fake Test Linux', 123, '123', 'ci'):
+            BuildStatus.TEST_FAILURE,
+        })
         (_, body), = self.host.web.requests
         self.assertEqual(
             json.loads(body), {
@@ -70,6 +74,7 @@ class BuildResolverTest(LoggingTestCase):
                                    'builds.*.builder.builder,'
                                    'builds.*.builder.bucket,'
                                    'builds.*.status,'
+                                   'builds.*.output.properties,'
                                    'builds.*.steps.*.name,'
                                    'builds.*.steps.*.logs.*.name,'
                                    'builds.*.steps.*.logs.*.view_url'),
@@ -88,6 +93,11 @@ class BuildResolverTest(LoggingTestCase):
                     },
                     'number': 123,
                     'status': 'FAILURE',
+                    'output': {
+                        'properties': {
+                            'failure_type': 'TEST_FAILURE',
+                        },
+                    },
                 },
             }, {
                 'getBuild': {
@@ -108,9 +118,8 @@ class BuildResolverTest(LoggingTestCase):
         self.assertEqual(
             build_statuses, {
                 Build('Fake Test Linux', 123, '123', 'ci'):
-                TryJobStatus('COMPLETED', 'FAILURE'),
-                Build('linux-rel', 456, '456'):
-                TryJobStatus('SCHEDULED', None),
+                BuildStatus.TEST_FAILURE,
+                Build('linux-rel', 456, '456'): BuildStatus.SCHEDULED,
             })
         (_, body), = self.host.web.requests
         self.assertEqual(
@@ -129,6 +138,7 @@ class BuildResolverTest(LoggingTestCase):
                                    'builder.builder,'
                                    'builder.bucket,'
                                    'status,'
+                                   'output.properties,'
                                    'steps.*.name,'
                                    'steps.*.logs.*.name,'
                                    'steps.*.logs.*.view_url'),
@@ -147,6 +157,7 @@ class BuildResolverTest(LoggingTestCase):
                                    'builder.builder,'
                                    'builder.bucket,'
                                    'status,'
+                                   'output.properties,'
                                    'steps.*.name,'
                                    'steps.*.logs.*.name,'
                                    'steps.*.logs.*.view_url'),
@@ -154,7 +165,7 @@ class BuildResolverTest(LoggingTestCase):
                 }],
             })
 
-    def test_detect_interruption_from_shard_exit_codes(self):
+    def test_detect_interruption_from_shard_status(self):
         self.host.web.append_prpc_response({
             'responses': [{
                 'getBuild': {
@@ -179,26 +190,39 @@ class BuildResolverTest(LoggingTestCase):
                         }],
                     }],
                 },
-            } for build_num in [1, 2, 3]],
+            } for build_num in [1, 2, 3, 4]],
         })
 
         self.host.web.session.get.return_value.json.side_effect = [{
             'shards': [{
+                'state': 'COMPLETED',
                 'exit_code': '0',
             }, {
+                'state': 'TIMED_OUT',
                 'exit_code': str(exit_codes.INTERRUPTED_EXIT_STATUS),
             }],
         }, {
             'shards': [{
+                'state': 'COMPLETED',
                 'exit_code': '0',
             }, {
+                'state': 'COMPLETED',
                 'exit_code': str(exit_codes.EARLY_EXIT_STATUS),
             }],
         }, {
             'shards': [{
+                'state': 'DEDUPED',
                 'exit_code': '0',
             }, {
+                'state': 'COMPLETED',
                 'exit_code': '5',
+            }],
+        }, {
+            'shards': [{
+                'state': 'COMPLETED',
+                'exit_code': '0',
+            }, {
+                'state': 'EXPIRED',
             }],
         }]
 
@@ -206,17 +230,41 @@ class BuildResolverTest(LoggingTestCase):
             Build('linux-rel', 1),
             Build('linux-rel', 2),
             Build('linux-rel', 3),
+            Build('linux-rel', 4),
         ])
         self.assertEqual([
             call('https://logs.chromium.org/swarming',
                  params={'format': 'raw'}),
-        ] * 3, self.host.web.session.get.call_args_list)
+        ] * 4, self.host.web.session.get.call_args_list)
         self.assertEqual(
             build_statuses, {
-                Build('linux-rel', 1, '1'):
-                TryJobStatus('COMPLETED', 'INFRA_FAILURE'),
-                Build('linux-rel', 2, '2'):
-                TryJobStatus('COMPLETED', 'INFRA_FAILURE'),
-                Build('linux-rel', 3, '3'):
-                TryJobStatus('COMPLETED', 'FAILURE'),
+                Build('linux-rel', 1, '1'): BuildStatus.INFRA_FAILURE,
+                Build('linux-rel', 2, '2'): BuildStatus.INFRA_FAILURE,
+                Build('linux-rel', 3, '3'): BuildStatus.OTHER_FAILURE,
+                Build('linux-rel', 4, '4'): BuildStatus.INFRA_FAILURE,
+            })
+
+    def test_detect_unrelated_failure(self):
+        self.host.web.append_prpc_response({
+            'responses': [{
+                'getBuild': {
+                    'id': '1',
+                    'builder': {
+                        'builder': 'linux-rel',
+                        'bucket': 'try',
+                    },
+                    'number': 1,
+                    'status': 'FAILURE',
+                    'output': {
+                        'properties': {
+                            'failure_type': 'COMPILE_FAILURE',
+                        },
+                    },
+                },
+            }],
+        })
+        build_statuses = self.resolver.resolve_builds([Build('linux-rel', 1)])
+        self.assertEqual(
+            build_statuses, {
+                Build('linux-rel', 1, '1'): BuildStatus.COMPILE_FAILURE,
             })

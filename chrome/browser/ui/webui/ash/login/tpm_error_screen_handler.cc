@@ -5,7 +5,7 @@
 #include "chrome/browser/ui/webui/ash/login/tpm_error_screen_handler.h"
 
 #include "base/values.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 
@@ -47,6 +47,10 @@ void TpmErrorScreenHandler::SetTPMOwnedErrorStep() {
 
 void TpmErrorScreenHandler::SetTPMDbusErrorStep() {
   CallExternalAPI("setStep", std::string(kTPMErrorDbusStep));
+}
+
+base::WeakPtr<TpmErrorView> TpmErrorScreenHandler::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace ash

@@ -18,16 +18,13 @@ import android.view.autofill.AutofillValue;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * This class only implements the necessary methods of ViewStructure for testing.
- */
+/** This class only implements the necessary methods of ViewStructure for testing. */
 public class TestViewStructure extends ViewStructure {
-    /**
-     * Test implementation of {@link HtmlInfo}.
-     */
+    /** Test implementation of {@link HtmlInfo}. */
     public static class TestHtmlInfo extends HtmlInfo {
-        private String mTag;
-        private List<Pair<String, String>> mAttributes;
+        private final String mTag;
+        private final List<Pair<String, String>> mAttributes;
+
         public TestHtmlInfo(String tag, List<Pair<String, String>> attributes) {
             mTag = tag;
             mAttributes = attributes;
@@ -53,12 +50,11 @@ public class TestViewStructure extends ViewStructure {
         }
     }
 
-    /**
-     * Test implementation of {@link HtmlInfo.Builder}.
-     */
+    /** Test implementation of {@link HtmlInfo.Builder}. */
     public static class TestBuilder extends HtmlInfo.Builder {
-        private String mTag;
-        private ArrayList<Pair<String, String>> mAttributes;
+        private final String mTag;
+        private final ArrayList<Pair<String, String>> mAttributes;
+
         public TestBuilder(String tag) {
             mTag = tag;
             mAttributes = new ArrayList<Pair<String, String>>();
@@ -287,7 +283,13 @@ public class TestViewStructure extends ViewStructure {
     public void setFocusable(boolean state) {}
 
     @Override
-    public void setFocused(boolean state) {}
+    public void setFocused(boolean state) {
+        mFocused = state;
+    }
+
+    public boolean getFocused() {
+        return mFocused;
+    }
 
     @Override
     public void setClassName(String className) {
@@ -373,10 +375,11 @@ public class TestViewStructure extends ViewStructure {
     private CharSequence mHint;
     private String[] mAutofillHints;
     private int mId;
+    private boolean mFocused;
     private String mClassName;
     private String mWebDomain;
     private int mChildCount;
-    private ArrayList<TestViewStructure> mChildren;
+    private final ArrayList<TestViewStructure> mChildren;
     private CharSequence[] mAutofillOptions;
     private AutofillValue mAutofillValue;
     private boolean mDataIsSensitive;

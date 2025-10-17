@@ -9,8 +9,9 @@
 #include <string>
 #include <vector>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/singleton.h"
+#include "extensions/browser/disable_reason.h"
 #include "extensions/common/manifest.h"
 
 class Profile;
@@ -86,13 +87,19 @@ class SyncExtensionHelper {
   struct ExtensionState {
     enum EnabledState { DISABLED, PENDING, ENABLED };
 
-    ExtensionState();
+    ExtensionState(EnabledState state,
+                   const extensions::DisableReasonSet& reasons,
+                   bool incognito_enabled);
+    ExtensionState(ExtensionState&& other);
+    ExtensionState(const ExtensionState& other) = delete;
+    ExtensionState& operator=(const ExtensionState& other) = delete;
     ~ExtensionState();
-    bool Equals(const ExtensionState& other) const;
 
-    EnabledState enabled_state;
-    int disable_reasons;
-    bool incognito_enabled;
+    bool operator==(const ExtensionState& other) const = default;
+
+    EnabledState enabled_state = ENABLED;
+    extensions::DisableReasonSet disable_reasons;
+    bool incognito_enabled = false;
   };
 
   using ExtensionStateMap = std::map<std::string, ExtensionState>;
@@ -126,7 +133,7 @@ class SyncExtensionHelper {
   ProfileExtensionNameMap profile_extensions_;
   StringMap id_to_name_;
   TypeMap id_to_type_;
-  bool setup_completed_;
+  bool setup_completed_ = false;
 };
 
 #endif  // CHROME_BROWSER_SYNC_TEST_INTEGRATION_SYNC_EXTENSION_HELPER_H_

@@ -9,9 +9,7 @@
 #include "chrome/common/extensions/api/file_system_provider.h"
 #include "chrome/common/extensions/api/file_system_provider_internal.h"
 
-namespace ash {
-namespace file_system_provider {
-namespace operations {
+namespace ash::file_system_provider::operations {
 
 Abort::Abort(RequestDispatcher* dispatcher,
              const ProvidedFileSystemInfo& file_system_info,
@@ -21,8 +19,7 @@ Abort::Abort(RequestDispatcher* dispatcher,
       operation_request_id_(operation_request_id),
       callback_(std::move(callback)) {}
 
-Abort::~Abort() {
-}
+Abort::~Abort() = default;
 
 bool Abort::Execute(int request_id) {
   using extensions::api::file_system_provider::AbortRequestedOptions;
@@ -38,20 +35,18 @@ bool Abort::Execute(int request_id) {
       extensions::api::file_system_provider::OnAbortRequested::Create(options));
 }
 
-void Abort::OnSuccess(int /* request_id */,
-                      const RequestValue& /* result */,
+void Abort::OnSuccess(/*request_id=*/int,
+                      /*result=*/const RequestValue&,
                       bool has_more) {
   DCHECK(callback_);
   std::move(callback_).Run(base::File::FILE_OK);
 }
 
-void Abort::OnError(int /* request_id */,
-                    const RequestValue& /* result */,
+void Abort::OnError(/*request_id=*/int,
+                    /*result=*/const RequestValue&,
                     base::File::Error error) {
   DCHECK(callback_);
   std::move(callback_).Run(error);
 }
 
-}  // namespace operations
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider::operations

@@ -15,7 +15,6 @@
 #include "gpu/config/gpu_preferences.h"
 
 namespace gpu {
-class MailboxManager;
 class Scheduler;
 class SharedImageManager;
 class SyncPointManager;
@@ -26,6 +25,8 @@ namespace android_webview {
 // This class acts like GpuServiceImpl for WebView. It owns gpu service objects
 // and provides handle to these gpu objects for WebView. There is only one copy
 // of this class in WebView.
+//
+// Lifetime: Singleton
 class GpuServiceWebView {
  public:
   // This static function makes sure there is a single copy of this class.
@@ -38,10 +39,6 @@ class GpuServiceWebView {
 
   gpu::SyncPointManager* sync_point_manager() const {
     return sync_point_manager_.get();
-  }
-
-  gpu::MailboxManager* mailbox_manager() const {
-    return mailbox_manager_.get();
   }
 
   gpu::SharedImageManager* shared_image_manager() const {
@@ -66,7 +63,6 @@ class GpuServiceWebView {
   static GpuServiceWebView* CreateGpuServiceWebView();
   GpuServiceWebView(
       std::unique_ptr<gpu::SyncPointManager> sync_pointer_manager,
-      std::unique_ptr<gpu::MailboxManager> mailbox_manager,
       std::unique_ptr<gpu::SharedImageManager> shared_image_manager,
       std::unique_ptr<gpu::Scheduler> scheduler,
       const gpu::GPUInfo& gpu_info,
@@ -74,7 +70,6 @@ class GpuServiceWebView {
       const gpu::GpuFeatureInfo& gpu_feature_info);
 
   std::unique_ptr<gpu::SyncPointManager> sync_point_manager_;
-  std::unique_ptr<gpu::MailboxManager> mailbox_manager_;
   std::unique_ptr<gpu::SharedImageManager> shared_image_manager_;
   std::unique_ptr<gpu::Scheduler> scheduler_;
 

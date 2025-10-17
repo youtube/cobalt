@@ -6,6 +6,7 @@
 #define SERVICES_NETWORK_TEST_TEST_URL_LOADER_CLIENT_H_
 
 #include <stdint.h>
+
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -41,7 +42,7 @@ class TestURLLoaderClient final : public mojom::URLLoaderClient {
   void OnReceiveResponse(
       mojom::URLResponseHeadPtr response_head,
       mojo::ScopedDataPipeConsumerHandle body,
-      absl::optional<mojo_base::BigBuffer> cached_metadata) override;
+      std::optional<mojo_base::BigBuffer> cached_metadata) override;
   void OnReceiveRedirect(const net::RedirectInfo& redirect_info,
                          mojom::URLResponseHeadPtr response_head) override;
   void OnTransferSizeUpdated(int32_t transfer_size_diff) override;
@@ -61,12 +62,12 @@ class TestURLLoaderClient final : public mojom::URLLoaderClient {
   const mojom::URLResponseHeadPtr& response_head() const {
     return response_head_;
   }
-  const absl::optional<net::SSLInfo>& ssl_info() const {
+  const std::optional<net::SSLInfo>& ssl_info() const {
     DCHECK(response_head_);
     return response_head_->ssl_info;
   }
   const net::RedirectInfo& redirect_info() const { return redirect_info_; }
-  const absl::optional<std::string>& cached_metadata() const {
+  const std::optional<std::string>& cached_metadata() const {
     return cached_metadata_;
   }
   mojo::DataPipeConsumerHandle response_body() { return response_body_.get(); }
@@ -100,13 +101,24 @@ class TestURLLoaderClient final : public mojom::URLLoaderClient {
   void RunUntilDisconnect();
   void RunUntilTransferSizeUpdated();
 
+  // Sets a callback to be invoked when OnReceiveResponse is called.
+  // If the URLLoader has been provided with a WeakPtr<mojom::URLLoaderClient>
+  // obtained via GetSyncClientWeakPtr(), this callback will be invoked
+  // synchronously by the URLLoader.
+  void SetResponseReceivedCallback(
+      base::OnceClosure response_received_callback);
+
+  // Returns a WeakPtr to this TestURLLoaderClient, allowing synchronous
+  // invocation of callbacks by the URLLoader.
+  base::WeakPtr<mojom::URLLoaderClient> GetSyncClientWeakPtr();
+
  private:
   void OnMojoDisconnect();
 
   mojo::Receiver<mojom::URLLoaderClient> receiver_{this};
   mojom::URLResponseHeadPtr response_head_;
   net::RedirectInfo redirect_info_;
-  absl::optional<std::string> cached_metadata_;
+  std::optional<std::string> cached_metadata_;
   mojo::ScopedDataPipeConsumerHandle response_body_;
   URLLoaderCompletionStatus completion_status_;
   bool has_received_early_hints_ = false;
@@ -123,11 +135,15 @@ class TestURLLoaderClient final : public mojom::URLLoaderClient {
   base::OnceClosure quit_closure_for_disconnect_;
   base::OnceClosure quit_closure_for_on_transfer_size_updated_;
 
+  base::OnceClosure response_received_callback_;
+
   int64_t body_transfer_size_ = 0;
   int64_t current_upload_position_ = 0;
   int64_t total_upload_size_ = 0;
 
   std::vector<network::mojom::EarlyHintsPtr> early_hints_;
+
+  base::WeakPtrFactory<TestURLLoaderClient> weak_ptr_factory_{this};
 };
 
 }  // namespace network

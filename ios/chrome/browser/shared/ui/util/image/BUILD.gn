@@ -8,7 +8,6 @@ source_set("image") {
     "image_util.mm",
   ]
   deps = [ "//ui/base" ]
-  configs += [ "//build/config/compiler:enable_arc" ]
   frameworks = [ "UniformTypeIdentifiers.framework" ]
 }
 
@@ -26,10 +25,10 @@ source_set("web") {
     "//components/image_fetcher/ios",
     "//components/strings",
     "//ios/chrome/app/strings",
-    "//ios/chrome/browser/main:public",
     "//ios/chrome/browser/shared/coordinator/alert",
+    "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/ui/util",
-    "//ios/chrome/browser/web/image_fetch",
+    "//ios/chrome/browser/web/model/image_fetch",
     "//ios/web",
     "//ui/base",
   ]
@@ -37,5 +36,4 @@ source_set("web") {
     "Photos.framework",
     "UniformTypeIdentifiers.framework",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }

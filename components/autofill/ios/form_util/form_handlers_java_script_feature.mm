@@ -4,20 +4,62 @@
 
 #import "components/autofill/ios/form_util/form_handlers_java_script_feature.h"
 
-#include "base/no_destructor.h"
-#include "base/values.h"
-#include "components/autofill/ios/form_util/form_activity_tab_helper.h"
+#import "base/feature_list.h"
+#import "base/no_destructor.h"
+#import "base/values.h"
+#import "components/autofill/core/common/autofill_features.h"
+#import "components/autofill/ios/common/features.h"
+#import "components/autofill/ios/common/javascript_feature_util.h"
+#import "components/autofill/ios/form_util/autofill_form_features_java_script_feature.h"
+#import "components/autofill/ios/form_util/autofill_renderer_id_java_script_feature.h"
+#import "components/autofill/ios/form_util/form_activity_tab_helper.h"
 #import "components/autofill/ios/form_util/form_util_java_script_feature.h"
-#import "components/password_manager/ios/password_manager_java_script_feature.h"
-#include "ios/web/public/js_messaging/java_script_feature_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "components/autofill/ios/form_util/remote_frame_registration_java_script_feature.h"
+#import "ios/web/public/js_messaging/java_script_feature.h"
+#import "ios/web/public/js_messaging/java_script_feature_util.h"
+#import "ios/web/public/js_messaging/script_message.h"
 
 namespace {
-constexpr char kScriptName[] = "form_handlers";
+
+using FeatureScript = web::JavaScriptFeature::FeatureScript;
+
+constexpr char kFormHandlerScriptName[] = "form_handlers";
+constexpr char kRemoteTokenRegistrationScriptName[] =
+    "register_remote_frame_token";
 constexpr char kScriptMessageName[] = "FormHandlersMessage";
+
+std::vector<web::JavaScriptFeature::FeatureScript> GetFeatureScripts() {
+  std::vector<FeatureScript> feature_scripts;
+
+  auto placeholder_replacements_callback = base::BindRepeating(
+      []() -> web::JavaScriptFeature::FeatureScript::PlaceholderReplacements {
+        // Override the placeholder for setting the capture mode of the form
+        // submission listener.
+        bool use_capture = base::FeatureList::IsEnabled(
+            kAutofillFormSubmissionEventsInCaptureMode);
+        return @{
+          @"{{PlaceholderFormSubmissionListenerCapture}}" :
+                  use_capture ? @"true" : @"false"
+        };
+      });
+
+  feature_scripts.push_back(FeatureScript::CreateWithFilename(
+      kFormHandlerScriptName, FeatureScript::InjectionTime::kDocumentStart,
+      FeatureScript::TargetFrames::kAllFrames,
+      FeatureScript::ReinjectionBehavior::kReinjectOnDocumentRecreation,
+      placeholder_replacements_callback));
+
+  if (base::FeatureList::IsEnabled(kAutofillIsolatedWorldForJavascriptIos)) {
+    feature_scripts.push_back(FeatureScript::CreateWithFilename(
+        kRemoteTokenRegistrationScriptName,
+        FeatureScript::InjectionTime::kDocumentStart,
+        FeatureScript::TargetFrames::kAllFrames,
+        FeatureScript::ReinjectionBehavior::kReinjectOnDocumentRecreation));
+  }
+
+  return feature_scripts;
+}
+
 }  // namespace
 
 namespace autofill {
@@ -30,40 +72,26 @@ FormHandlersJavaScriptFeature* FormHandlersJavaScriptFeature::GetInstance() {
 
 FormHandlersJavaScriptFeature::FormHandlersJavaScriptFeature()
     : web::JavaScriptFeature(
-          // TODO(crbug.com/1175793): Move autofill code to kIsolatedWorld
-          // once all scripts are converted to JavaScriptFeatures.
-          web::ContentWorld::kPageContentWorld,
-          {FeatureScript::CreateWithFilename(
-              kScriptName,
-              FeatureScript::InjectionTime::kDocumentStart,
-              FeatureScript::TargetFrames::kAllFrames,
-              FeatureScript::ReinjectionBehavior::
-                  kReinjectOnDocumentRecreation)},
-          {web::java_script_features::GetCommonJavaScriptFeature(),
-           autofill::FormUtilJavaScriptFeature::GetInstance(),
-           password_manager::PasswordManagerJavaScriptFeature::GetInstance()}) {
-}
+          ContentWorldForAutofillJavascriptFeatures(),
+          GetFeatureScripts(),
+          {
+              web::java_script_features::GetCommonJavaScriptFeature(),
+              autofill::AutofillFormFeaturesJavaScriptFeature::GetInstance(),
+              autofill::FormUtilJavaScriptFeature::GetInstance(),
+              AutofillRendererIDJavaScriptFeature::GetInstance(),
+              RemoteFrameRegistrationJavaScriptFeature::GetInstance(),
+          }) {}
 
 FormHandlersJavaScriptFeature::~FormHandlersJavaScriptFeature() = default;
 
 void FormHandlersJavaScriptFeature::TrackFormMutations(
     web::WebFrame* frame,
     int mutation_tracking_delay) {
-  std::vector<base::Value> parameters;
-  parameters.push_back(base::Value(mutation_tracking_delay));
-  CallJavaScriptFunction(frame, "formHandlers.trackFormMutations", parameters);
+  CallJavaScriptFunction(frame, "formHandlers.trackFormMutations",
+                         base::Value::List().Append(mutation_tracking_delay));
 }
 
-void FormHandlersJavaScriptFeature::ToggleTrackingUserEditedFields(
-    web::WebFrame* frame,
-    bool track_user_edited_fields) {
-  std::vector<base::Value> parameters;
-  parameters.push_back(base::Value(track_user_edited_fields));
-  CallJavaScriptFunction(frame, "formHandlers.toggleTrackingUserEditedFields",
-                         parameters);
-}
-
-absl::optional<std::string>
+std::optional<std::string>
 FormHandlersJavaScriptFeature::GetScriptMessageHandlerName() const {
   return kScriptMessageName;
 }
@@ -71,9 +99,24 @@ FormHandlersJavaScriptFeature::GetScriptMessageHandlerName() const {
 void FormHandlersJavaScriptFeature::ScriptMessageReceived(
     web::WebState* web_state,
     const web::ScriptMessage& message) {
+  // Delegate to FormActivityTabHelper for all other messages.
   FormActivityTabHelper* helper =
       FormActivityTabHelper::GetOrCreateForWebState(web_state);
   helper->OnFormMessageReceived(web_state, message);
 }
+
+FormHandlersJavaScriptFeature::FormHandlersJavaScriptFeature(
+    AutofillRendererIDJavaScriptFeature* renderer_id_feature,
+    RemoteFrameRegistrationJavaScriptFeature*
+        remote_frame_registration_java_script_feature)
+    : web::JavaScriptFeature(
+          ContentWorldForAutofillJavascriptFeatures(),
+          GetFeatureScripts(),
+          {
+              web::java_script_features::GetCommonJavaScriptFeature(),
+              FormUtilJavaScriptFeature::GetInstance(),
+              renderer_id_feature,
+              remote_frame_registration_java_script_feature,
+          }) {}
 
 }  // namespace autofill

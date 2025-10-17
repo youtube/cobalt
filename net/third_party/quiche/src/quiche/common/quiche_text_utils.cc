@@ -4,6 +4,10 @@
 
 #include "quiche/common/quiche_text_utils.h"
 
+#include <algorithm>
+#include <optional>
+#include <string>
+
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -29,11 +33,11 @@ void QuicheTextUtils::Base64Encode(const uint8_t* data, size_t data_len,
 }
 
 // static
-absl::optional<std::string> QuicheTextUtils::Base64Decode(
+std::optional<std::string> QuicheTextUtils::Base64Decode(
     absl::string_view input) {
   std::string output;
   if (!absl::Base64Unescape(input, &output)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return output;
 }

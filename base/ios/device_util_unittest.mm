@@ -2,15 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/ios/device_util.h"
+
 #import <UIKit/UIKit.h>
 
-#include "base/ios/device_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/gtest_mac.h"
 #include "testing/platform_test.h"
 
 namespace {
+
 // The behavior of most of these utility functions depends on what they are run
 // on, so there is not much to unittest them. The APIs are run to make sure they
 // don't choke. Additional checks are added for particular APIs when needed.
@@ -23,10 +25,6 @@ void CleanNSUserDefaultsForDeviceId() {
   [defaults removeObjectForKey:@"ChromiumClientID"];
   [defaults removeObjectForKey:@"ClientIDGenerationHardwareType"];
   [defaults synchronize];
-}
-
-TEST_F(DeviceUtilTest, GetPlatform) {
-  GTEST_ASSERT_GT(ios::device_util::GetPlatform().length(), 0U);
 }
 
 TEST_F(DeviceUtilTest, IsSingleCoreDevice) {

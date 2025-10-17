@@ -17,7 +17,7 @@
 namespace policy {
 
 SafeSearchPolicyTest::SafeSearchPolicyTest() {
-  // TODO(crbug.com/1394910): Use HTTPS URLs in tests to avoid having to
+  // TODO(crbug.com/40248833): Use HTTPS URLs in tests to avoid having to
   // disable this feature.
   feature_list_.InitAndDisableFeature(features::kHttpsUpgrades);
 }
@@ -25,10 +25,10 @@ SafeSearchPolicyTest::SafeSearchPolicyTest() {
 SafeSearchPolicyTest::~SafeSearchPolicyTest() = default;
 
 void SafeSearchPolicyTest::ApplySafeSearchPolicy(
-    absl::optional<base::Value> legacy_safe_search,
-    absl::optional<base::Value> google_safe_search,
-    absl::optional<base::Value> legacy_youtube,
-    absl::optional<base::Value> youtube_restrict) {
+    std::optional<base::Value> legacy_safe_search,
+    std::optional<base::Value> google_safe_search,
+    std::optional<base::Value> legacy_youtube,
+    std::optional<base::Value> youtube_restrict) {
   PolicyMap policies;
   SetPolicy(&policies, key::kForceSafeSearch, std::move(legacy_safe_search));
   SetPolicy(&policies, key::kForceGoogleSafeSearch,

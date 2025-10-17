@@ -20,7 +20,10 @@
 #include "chrome/browser/extensions/api/declarative_content/content_condition.h"
 #include "chrome/browser/extensions/api/declarative_content/content_predicate_evaluator.h"
 #include "extensions/browser/api/declarative_content/content_rules_registry.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_id.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace content {
 class BrowserContext;
@@ -53,7 +56,7 @@ class ChromeContentRulesRegistry
       std::vector<std::unique_ptr<ContentPredicateEvaluator>>(
           ContentPredicateEvaluator::Delegate*)>;
 
-  // For testing, |cache_delegate| can be NULL. In that case it constructs the
+  // For testing, `cache_delegate` can be NULL. In that case it constructs the
   // registry with storage functionality suspended.
   ChromeContentRulesRegistry(content::BrowserContext* browser_context,
                              RulesCacheDelegate* cache_delegate,
@@ -75,16 +78,16 @@ class ChromeContentRulesRegistry
       const std::vector<std::string>& css_selectors) override;
   // RulesRegistry:
   std::string AddRulesImpl(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       const std::vector<const api::events::Rule*>& rules) override;
   std::string RemoveRulesImpl(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       const std::vector<std::string>& rule_identifiers) override;
-  std::string RemoveAllRulesImpl(const std::string& extension_id) override;
+  std::string RemoveAllRulesImpl(const ExtensionId& extension_id) override;
 
   // DeclarativeContentConditionTrackerDelegate:
-  void RequestEvaluation(content::WebContents* contents) override;
-  bool ShouldManageConditionsForBrowserContext(
+  void NotifyPredicateStateUpdated(content::WebContents* contents) override;
+  bool ShouldManagePredicatesForBrowserContext(
       content::BrowserContext* context) override;
 
   // Returns the number of active rules.
@@ -125,9 +128,9 @@ class ChromeContentRulesRegistry
 
   class EvaluationScope;
 
-  // Creates a ContentRule for |extension| given a json definition.  The format
+  // Creates a ContentRule for `extension` given a json definition.  The format
   // of each condition and action's json is up to the specific ContentCondition
-  // and ContentAction.  |extension| may be NULL in tests.  If |error| is empty,
+  // and ContentAction.  `extension` may be NULL in tests.  If `error` is empty,
   // the translation was successful and the returned rule is internally
   // consistent.
   std::unique_ptr<const ContentRule> CreateRule(
@@ -137,21 +140,21 @@ class ChromeContentRulesRegistry
       const api::events::Rule& api_rule,
       std::string* error);
 
-  // True if this object is managing the rules for |context|.
+  // True if this object is managing the rules for `context`.
   bool ManagingRulesForBrowserContext(content::BrowserContext* context);
 
-  // True if |condition| matches on |tab|.
+  // True if `condition` matches on `tab`.
   static bool EvaluateConditionForTab(const ContentCondition* condition,
                                       content::WebContents* tab);
 
-  std::set<const ContentRule*> GetMatchingRules(
+  std::set<raw_ptr<const ContentRule, SetExperimental>> GetMatchingRules(
       content::WebContents* tab) const;
 
-  // Evaluates the conditions for |tab| based on the tab state and matching CSS
+  // Evaluates the conditions for `tab` based on the tab state and matching CSS
   // selectors.
   void EvaluateConditionsForTab(content::WebContents* tab);
 
-  // Returns true if a rule created by |extension| should be evaluated for an
+  // Returns true if a rule created by `extension` should be evaluated for an
   // incognito renderer.
   bool ShouldEvaluateExtensionRulesForIncognitoRenderer(
       const Extension* extension) const;
@@ -166,7 +169,9 @@ class ChromeContentRulesRegistry
   // This lets us call Revert as appropriate. Note that this is expected to have
   // a key-value pair for every WebContents the registry is tracking, even if
   // the value is the empty set.
-  std::map<content::WebContents*, std::set<const ContentRule*>> active_rules_;
+  std::map<content::WebContents*,
+           std::set<raw_ptr<const ContentRule, SetExperimental>>>
+      active_rules_;
 
   // The evaluators responsible for creating predicates and tracking
   // predicate-related state.
@@ -176,8 +181,8 @@ class ChromeContentRulesRegistry
   EvaluationDisposition evaluation_disposition_;
 
   // Contains WebContents which require rule evaluation. Only used while
-  // |evaluation_disposition_| is DEFER.
-  std::set<content::WebContents*> evaluation_pending_;
+  // `evaluation_disposition_` is DEFER.
+  std::set<raw_ptr<content::WebContents, SetExperimental>> evaluation_pending_;
 };
 
 }  // namespace extensions

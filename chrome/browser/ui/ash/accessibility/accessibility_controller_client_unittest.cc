@@ -4,13 +4,14 @@
 
 #include "chrome/browser/ui/ash/accessibility/accessibility_controller_client.h"
 
+#include <optional>
+
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/public/cpp/accessibility_controller_enums.h"
+#include "ash/test/ash_test_base.h"
 #include "base/time/time.h"
-#include "chrome/browser/ui/ash/accessibility/fake_accessibility_controller.h"
 #include "chromeos/ash/components/audio/sounds.h"
-#include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/gfx/geometry/point_f.h"
 
@@ -50,8 +51,6 @@ class FakeAccessibilityControllerClient : public AccessibilityControllerClient {
     return dictation_on_;
   }
   void SilenceSpokenFeedback() override { ++silence_spoken_feedback_count_; }
-  void OnTwoFingerTouchStart() override { ++on_two_finger_touch_start_count_; }
-  void OnTwoFingerTouchStop() override { ++on_two_finger_touch_stop_count_; }
   bool ShouldToggleSpokenFeedbackViaTouch() const override { return true; }
   void PlaySpokenFeedbackToggleCountdown(int tick_count) override {
     spoken_feedback_toggle_count_down_ = tick_count;
@@ -66,7 +65,7 @@ class FakeAccessibilityControllerClient : public AccessibilityControllerClient {
   }
 
   ash::AccessibilityAlert last_a11y_alert_ = ash::AccessibilityAlert::NONE;
-  absl::optional<Sound> last_sound_key_;
+  std::optional<Sound> last_sound_key_;
   ax::mojom::Gesture last_a11y_gesture_ = ax::mojom::Gesture::kNone;
   gfx::PointF last_a11y_gesture_point_;
   int toggle_dictation_count_ = 0;
@@ -85,7 +84,7 @@ class FakeAccessibilityControllerClient : public AccessibilityControllerClient {
 
 }  // namespace
 
-class AccessibilityControllerClientTest : public testing::Test {
+class AccessibilityControllerClientTest : public ash::AshTestBase {
  public:
   AccessibilityControllerClientTest() = default;
 
@@ -95,17 +94,14 @@ class AccessibilityControllerClientTest : public testing::Test {
       const AccessibilityControllerClientTest&) = delete;
 
   ~AccessibilityControllerClientTest() override = default;
-
- private:
-  content::BrowserTaskEnvironment task_environment_;
 };
 
 TEST_F(AccessibilityControllerClientTest, MethodCalls) {
-  FakeAccessibilityController controller;
   FakeAccessibilityControllerClient client;
 
-  // Tests client is set.
-  EXPECT_TRUE(controller.was_client_set());
+  ash::AccessibilityController* controller =
+      ash::AccessibilityController::Get();
+  controller->SetClient(&client);
 
   // Tests TriggerAccessibilityAlert method call.
   const ash::AccessibilityAlert alert = ash::AccessibilityAlert::SCREEN_ON;
@@ -135,16 +131,6 @@ TEST_F(AccessibilityControllerClientTest, MethodCalls) {
   EXPECT_EQ(0, client.silence_spoken_feedback_count_);
   client.SilenceSpokenFeedback();
   EXPECT_EQ(1, client.silence_spoken_feedback_count_);
-
-  // Tests OnTwoFingerTouchStart method call.
-  EXPECT_EQ(0, client.on_two_finger_touch_start_count_);
-  client.OnTwoFingerTouchStart();
-  EXPECT_EQ(1, client.on_two_finger_touch_start_count_);
-
-  // Tests OnTwoFingerTouchStop method call.
-  EXPECT_EQ(0, client.on_two_finger_touch_stop_count_);
-  client.OnTwoFingerTouchStop();
-  EXPECT_EQ(1, client.on_two_finger_touch_stop_count_);
 
   // Tests ShouldToggleSpokenFeedbackViaTouch method call.
   EXPECT_TRUE(client.ShouldToggleSpokenFeedbackViaTouch());

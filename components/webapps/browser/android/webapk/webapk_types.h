@@ -28,6 +28,9 @@ enum class WebApkUpdateReason {
   WEB_SHARE_TARGET_DIFFERS,
   MANUALLY_TRIGGERED,
   SHORTCUTS_DIFFER,
+  DARK_BACKGROUND_COLOR_DIFFERS,
+  DARK_THEME_COLOR_DIFFERS,
+  PRIMARY_ICON_CHANGE_BELOW_THRESHOLD,
 };
 
 // A Java counterpart will be generated for this enum.
@@ -46,10 +49,12 @@ enum class WebApkDistributor {
 // A Java counterpart will be generated for this enum.
 // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.webapps
 //
+// Indicates the result of an WebAPK install.
+//
 // This enum is used to back UMA/UKM histograms, and should therefore be treated
 // as append-only.
 //
-// Indicates the result of an WebAPK install.
+// LINT.IfChange(WebApkInstallResult)
 enum class WebApkInstallResult {
   SUCCESS = 0,
   // Install WebAPK with the installer service (i.e. Google Play) failed.
@@ -72,14 +77,16 @@ enum class WebApkInstallResult {
 
   NOT_ENOUGH_SPACE = 8,
   ICON_HASHER_ERROR = 9,
-  RESULT_MAX = 10,
+  // RESULT_MAX = 10,  // Deprecated.
 
   // Indicates that the WebAPK is currently already being installed and the new
   // install will be aborted. Used when the install was initiated through the
   // WebApkInstallCoordinator-service to propagate the status to the connecting
   // client.
   INSTALL_ALREADY_IN_PROGRESS = 11,
+  kMaxValue = INSTALL_ALREADY_IN_PROGRESS,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/web_apk/enums.xml:WebApkInstallResult)
 
 // A Java counterpart will be generated for this enum.
 // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.webapps

@@ -5,11 +5,18 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_INSTALL_OBSERVER_H_
 #define CHROME_BROWSER_EXTENSIONS_INSTALL_OBSERVER_H_
 
+#include <optional>
 #include <string>
 
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/image/image_skia.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
+namespace base {
+class FilePath;
+}
 
 namespace content {
 class BrowserContext;
@@ -66,26 +73,26 @@ class InstallObserver {
                                  const std::string& extension_id) {}
 
   // Called when installation of a crx has completed (either successfully or
-  // not).
+  // not). `source_file` is the source of the install. If the installation
+  // failed `extension` will be null but `extension_id` may be valid (it will
+  // have the ID we expected the extension to have).
   virtual void OnFinishCrxInstall(content::BrowserContext* context,
+                                  const base::FilePath& source_file,
                                   const std::string& extension_id,
+                                  const Extension* extension,
                                   bool success) {}
 
-  // Called if the extension fails to install.
-  virtual void OnInstallFailure(content::BrowserContext* context,
-                                const std::string& extension_id) {}
-
-  // Called when the app list is reordered. If |extension_id| is set, it
+  // Called when the app list is reordered. If `extension_id` is set, it
   // indicates the extension ID that was re-ordered.
-  virtual void OnAppsReordered(
-      content::BrowserContext* context,
-      const absl::optional<ExtensionId>& extension_id) {}
+  virtual void OnAppsReordered(content::BrowserContext* context,
+                               const std::optional<ExtensionId>& extension_id) {
+  }
 
   // Notifies observers that the observed object is going away.
   virtual void OnShutdown() {}
 
  protected:
-  virtual ~InstallObserver() {}
+  virtual ~InstallObserver() = default;
 };
 
 }  // namespace extensions

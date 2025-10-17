@@ -14,6 +14,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
 #include "base/synchronization/atomic_flag.h"
 #include "build/build_config.h"
 #include "ui/gfx/extension_set.h"
@@ -21,10 +22,10 @@
 #include "ui/gl/gl_implementation_wrapper.h"
 #include "ui/gl/gl_share_group.h"
 #include "ui/gl/gl_state_restorer.h"
-#include "ui/gl/gl_workarounds.h"
 #include "ui/gl/gpu_preference.h"
 
 namespace gl {
+class GLContextEGL;
 class GLDisplayEGL;
 }  // namespace gl
 
@@ -106,6 +107,10 @@ struct GL_EXPORT GLContextAttribs {
   int client_minor_es_version = 0;
   bool can_skip_validation = false;
 
+  // Use EXT_ANGLE_create_context_passthrough_shaders if it is available to tell
+  // ANGLE to not translate shaders and pass them unaltered to the driver.
+  bool passthrough_shaders = false;
+
   // If true, and if supported (for EGL, this requires the robustness
   // extension), set the reset notification strategy to lose context on reset.
   // This setting can be changed independently of robust_buffer_access.
@@ -116,14 +121,8 @@ struct GL_EXPORT GLContextAttribs {
   // create ANGLE context from the current native EGL context.
   bool angle_create_from_external_context = false;
 
-  // If true, ANGLE will support the creation of client arrays.
-  bool angle_create_context_client_arrays = false;
-
-  // If true, an ANGLE external context will be created with
-  // EGL_EXTERNAL_CONTEXT_SAVE_STATE_ANGLE is true, so when ReleaseCurrent is
-  // called, ANGLE will restore the GL state of the native EGL context to the
-  // state when MakeCurrent was previously called.
-  bool angle_restore_external_context_state = false;
+  // Allow the usage of client arrays in the created context
+  bool allow_client_arrays = true;
 
   AngleContextVirtualizationGroup angle_context_virtualization_group_number =
       AngleContextVirtualizationGroup::kDefault;
@@ -132,9 +131,21 @@ struct GL_EXPORT GLContextAttribs {
 };
 
 // Encapsulates an OpenGL context, hiding platform specific management.
-class GL_EXPORT GLContext : public base::RefCounted<GLContext>,
-                            public base::SupportsWeakPtr<GLContext> {
+// TODO(344606399): Consider folding GLContextEGL into this class.
+class GL_EXPORT GLContext : public base::RefCounted<GLContext> {
  public:
+  class GL_EXPORT GLContextObserver : public base::CheckedObserver {
+   public:
+    // Called for any observer when the context is marked lost.
+    virtual void OnGLContextLost(GLContext* context) = 0;
+
+    // Called for any observer when the context is about to be destroyed.
+    virtual void OnGLContextWillDestroy(GLContext* context) = 0;
+
+   protected:
+    ~GLContextObserver() override = default;
+  };
+
   explicit GLContext(GLShareGroup* share_group);
 
   GLContext(const GLContext&) = delete;
@@ -149,13 +160,23 @@ class GL_EXPORT GLContext : public base::RefCounted<GLContext>,
 
   // Initializes the GL context to be compatible with the given surface. The GL
   // context can be made with other surface's of the same type. The compatible
-  // surface is only needed for certain platforms like WGL and GLX. It
-  // should be specific for all platforms though.
-  virtual bool Initialize(GLSurface* compatible_surface,
-                          const GLContextAttribs& attribs) = 0;
+  // surface is only needed for certain platforms. It should be
+  // specific for all platforms though. If the compatible surface is an
+  // offscreen one, it is stored by the context and can be accessed via
+  // |default_surface|.
+  // TODO(344606399): Consider removing the compatible_surface if it is not
+  // needed for EGL.
+  bool Initialize(GLSurface* compatible_surface,
+                  const GLContextAttribs& attribs);
 
   // Makes the GL context and a surface current on the current thread.
   bool MakeCurrent(GLSurface* surface);
+  // Same as above, but uses the stored offscreen surface (named as default).
+  bool MakeCurrentDefault();
+
+  // Returns a weak ptr. This ptr is invalidate in the `OnContextDestroyed`
+  // call.
+  base::WeakPtr<GLContext> AsWeakPtr();
 
   // Releases this GL context and surface as current on the current thread.
   virtual void ReleaseCurrent(GLSurface* surface) = 0;
@@ -169,9 +190,6 @@ class GL_EXPORT GLContext : public base::RefCounted<GLContext>,
 
   // Creates a GPUTimingClient class which abstracts various GPU Timing exts.
   virtual scoped_refptr<GPUTimingClient> CreateGPUTimingClient() = 0;
-
-  // Set the GL workarounds.
-  void SetGLWorkarounds(const GLWorkarounds& workarounds);
 
   void SetDisabledGLExtensions(const std::string& disabled_gl_extensions);
 
@@ -255,11 +273,11 @@ class GL_EXPORT GLContext : public base::RefCounted<GLContext>,
   // context is made current.
   void DirtyVirtualContextState();
 
-#if defined(USE_EGL)
   // Returns GLDisplayEGL this context belongs to if this context is a
   // GLContextEGL; returns nullptr otherwise.
   virtual GLDisplayEGL* GetGLDisplayEGL();
-#endif  // USE_EGL
+
+  virtual GLContextEGL* AsGLContextEGL();
 
 #if BUILDFLAG(IS_APPLE)
   virtual void AddMetalSharedEventsForBackpressure(
@@ -278,6 +296,16 @@ class GL_EXPORT GLContext : public base::RefCounted<GLContext>,
   // https://crbug.com/863817
   virtual void FlushForDriverCrashWorkaround();
 #endif
+
+  gl::GLSurface* default_surface() const { return default_surface_.get(); }
+
+  void AddObserver(GLContextObserver* observer);
+  void RemoveObserver(GLContextObserver* observer);
+
+  // Returns true if |other_context| is compatible with |this| context, and a
+  // client can reuse already allocated textures in |this| context when
+  // |other_context| is made current.
+  virtual bool CanShareTexturesWithContext(GLContext* other_context);
 
  protected:
   virtual ~GLContext();
@@ -313,6 +341,8 @@ class GL_EXPORT GLContext : public base::RefCounted<GLContext>,
   virtual bool MakeCurrentImpl(GLSurface* surface) = 0;
   virtual unsigned int CheckStickyGraphicsResetStatusImpl();
   virtual void ResetExtensions() = 0;
+  virtual bool InitializeImpl(GLSurface* compatible_surface,
+                              const GLContextAttribs& attribs) = 0;
 
   GLApi* gl_api() { return gl_api_wrapper_->api(); }
 
@@ -323,6 +353,8 @@ class GL_EXPORT GLContext : public base::RefCounted<GLContext>,
   void DestroyBackpressureFences();
 #endif
 
+  void OnContextWillDestroy();
+
  private:
   friend class base::RefCounted<GLContext>;
 
@@ -331,11 +363,12 @@ class GL_EXPORT GLContext : public base::RefCounted<GLContext>,
 
   std::unique_ptr<GLVersionInfo> GenerateGLVersionInfo();
 
+  void MarkContextLost();
+
   static base::subtle::Atomic32 total_gl_contexts_;
 
   static bool switchable_gpus_supported_;
 
-  GLWorkarounds gl_workarounds_;
   std::string disabled_gl_extensions_;
 
   bool static_bindings_initialized_ = false;
@@ -356,6 +389,8 @@ class GL_EXPORT GLContext : public base::RefCounted<GLContext>,
   // This bit allows us to avoid virtual context state restoration in the case
   // where this underlying context becomes lost.  https://crbug.com/1061442
   bool context_lost_ = false;
+  // The offscreen surface that has been used to initialize this context.
+  scoped_refptr<gl::GLSurface> default_surface_;
 
 #if BUILDFLAG(IS_APPLE)
   using GLFenceAndMetalSharedEvents = std::pair<
@@ -367,6 +402,13 @@ class GL_EXPORT GLContext : public base::RefCounted<GLContext>,
   std::map<uint64_t, GLFenceAndMetalSharedEvents> backpressure_fences_;
   uint64_t next_backpressure_fence_ = 0;
 #endif
+
+  // Implementations of this must call OnContextWillDestroy so that observers
+  // are notified.
+  bool has_called_on_destory_ = false;
+
+  base::ObserverList<GLContextObserver> observer_list_;
+  base::WeakPtrFactory<GLContext> weak_ptr_factory_{this};
 };
 
 class GL_EXPORT GLContextReal : public GLContext {

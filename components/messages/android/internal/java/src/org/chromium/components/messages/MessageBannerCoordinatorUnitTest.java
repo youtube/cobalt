@@ -9,17 +9,16 @@ import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.components.browser_ui.widget.listmenu.ListMenuButton.PopupMenuShownListener;
+import org.chromium.ui.listmenu.ListMenuHost.PopupMenuShownListener;
+import org.chromium.ui.util.RunnableTimer;
 
-/**
- * Unit tests for MessageBannerCoordinator.
- */
+/** Unit tests for MessageBannerCoordinator. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class MessageBannerCoordinatorUnitTest {
     @Test
     public void testCreatePopupMenuShownListener() {
         MessageBannerCoordinator coordinator = Mockito.mock(MessageBannerCoordinator.class);
-        MessageAutoDismissTimer timer = Mockito.mock(MessageAutoDismissTimer.class);
+        RunnableTimer timer = Mockito.mock(RunnableTimer.class);
         Runnable onTimeUp = () -> {};
         long durationMs = 10000L;
         Mockito.when(coordinator.createPopupMenuShownListener(timer, durationMs, onTimeUp))

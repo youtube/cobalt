@@ -4,6 +4,8 @@
 
 #include "ash/ambient/resources/ambient_animation_static_resources.h"
 
+#include "ash/ambient/ambient_ui_settings.h"
+#include "ash/webui/personalization_app/mojom/personalization_app.mojom-shared.h"
 #include "base/logging.h"
 
 namespace ash {
@@ -18,8 +20,10 @@ namespace ash {
 
 // static
 std::unique_ptr<AmbientAnimationStaticResources>
-AmbientAnimationStaticResources::Create(AmbientTheme theme, bool serializable) {
-  if (theme == AmbientTheme::kSlideshow) {
+AmbientAnimationStaticResources::Create(AmbientUiSettings ui_settings,
+                                        bool serializable) {
+  if (ui_settings.theme() ==
+      personalization_app::mojom::AmbientTheme::kSlideshow) {
     return nullptr;
   }
 
@@ -27,7 +31,6 @@ AmbientAnimationStaticResources::Create(AmbientTheme theme, bool serializable) {
                 "To enable, an internal chrome-branded checkout is required, "
                 "and the include_ash_ambient_animation_resources GN flag must "
                 "be true.";
-  return nullptr;
 }
 
 }  // namespace ash

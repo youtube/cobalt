@@ -4,15 +4,17 @@
 
 #include "chrome/browser/renderer_context_menu/mock_render_view_context_menu.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+#include <vector>
+
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/prefs/pref_service.h"
 #include "components/renderer_context_menu/render_view_context_menu_observer.h"
-#include "components/services/screen_ai/buildflags/buildflags.h"
 #include "content/public/browser/browser_context.h"
+#include "services/screen_ai/buildflags/buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/color_palette.h"
@@ -24,7 +26,7 @@ MockRenderViewContextMenu::MockMenuItem::MockMenuItem()
 MockRenderViewContextMenu::MockMenuItem::MockMenuItem(
     const MockMenuItem& other) = default;
 
-MockRenderViewContextMenu::MockMenuItem::~MockMenuItem() {}
+MockRenderViewContextMenu::MockMenuItem::~MockMenuItem() = default;
 
 MockRenderViewContextMenu::MockMenuItem&
 MockRenderViewContextMenu::MockMenuItem::operator=(const MockMenuItem& other) =
@@ -37,7 +39,7 @@ MockRenderViewContextMenu::MockRenderViewContextMenu(bool incognito)
                                /*create_if_needed=*/true)
                          : original_profile_.get()) {}
 
-MockRenderViewContextMenu::~MockRenderViewContextMenu() {}
+MockRenderViewContextMenu::~MockRenderViewContextMenu() = default;
 
 bool MockRenderViewContextMenu::IsCommandIdChecked(int command_id) const {
   return observer_->IsCommandIdChecked(command_id);
@@ -175,23 +177,20 @@ void MockRenderViewContextMenu::UpdateMenuIcon(int command_id,
 }
 
 void MockRenderViewContextMenu::RemoveMenuItem(int command_id) {
-  auto old_end = items_.end();
-  auto new_end = std::remove_if(
-      items_.begin(), old_end,
+  size_t deleted_item_count = std::erase_if(
+      items_,
       [command_id](const auto& item) { return item.command_id == command_id; });
 
-  if (new_end == old_end) {
+  if (deleted_item_count == 0) {
     FAIL() << "Menu observer is trying to remove a menu item it doesn't own."
            << " command_id: " << command_id;
   }
-
-  items_.erase(new_end, old_end);
 }
 
 void MockRenderViewContextMenu::RemoveAdjacentSeparators() {}
 
 void MockRenderViewContextMenu::RemoveSeparatorBeforeMenuItem(int command_id) {
-  auto iter = base::ranges::find(items_, command_id, &MockMenuItem::command_id);
+  auto iter = std::ranges::find(items_, command_id, &MockMenuItem::command_id);
 
   if (iter == items_.end()) {
     FAIL() << "Menu observer is trying to remove a separator before a "
@@ -237,31 +236,8 @@ void MockRenderViewContextMenu::AddAccessibilityLabelsServiceItem(
   }
 }
 
-void MockRenderViewContextMenu::AddPdfOcrMenuItem(bool is_checked) {
-#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
-  if (is_checked) {
-    AddCheckItem(
-        IDC_CONTENT_CONTEXT_PDF_OCR,
-        l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_PDF_OCR_MENU_OPTION));
-  } else {
-    ui::SimpleMenuModel pdf_ocr_submenu_model_(this);
-    pdf_ocr_submenu_model_.AddItem(
-        IDC_CONTENT_CONTEXT_PDF_OCR_ALWAYS,
-        l10n_util::GetStringUTF16(
-            IDS_CONTENT_CONTEXT_PDF_OCR_MENU_OPTION_ALWAYS));
-    pdf_ocr_submenu_model_.AddItem(
-        IDC_CONTENT_CONTEXT_PDF_OCR_ONCE,
-        l10n_util::GetStringUTF16(
-            IDS_CONTENT_CONTEXT_PDF_OCR_MENU_OPTION_ONCE));
-    AddSubMenu(
-        IDC_CONTENT_CONTEXT_PDF_OCR,
-        l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_PDF_OCR_MENU_OPTION),
-        &pdf_ocr_submenu_model_);
-  }
-#endif  // BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
-}
-
-content::RenderViewHost* MockRenderViewContextMenu::GetRenderViewHost() const {
+content::RenderFrameHost* MockRenderViewContextMenu::GetRenderFrameHost()
+    const {
   return nullptr;
 }
 

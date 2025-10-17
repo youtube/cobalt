@@ -4,7 +4,8 @@
 
 #include "ui/views/widget/desktop_aura/desktop_capture_client.h"
 
-#include "base/containers/cxx20_erase.h"
+#include <set>
+
 #include "base/observer_list.h"
 #include "ui/aura/client/capture_client_observer.h"
 #include "ui/aura/env.h"
@@ -31,27 +32,30 @@ DesktopCaptureClient::ClientSet* DesktopCaptureClient::clients_ = nullptr;
 // static
 aura::Window* DesktopCaptureClient::GetCaptureWindowGlobal() {
   for (const auto& client : *clients_) {
-    if (client && client->capture_window_)
+    if (client && client->capture_window_) {
       return client->capture_window_;
+    }
   }
   return nullptr;
 }
 
 DesktopCaptureClient::DesktopCaptureClient(aura::Window* root) : root_(root) {
-  if (!clients_)
+  if (!clients_) {
     clients_ = new ClientSet(&CompareWeakPtrs);
+  }
   clients_->insert(weak_factory_.GetWeakPtr());
   aura::client::SetCaptureClient(root, this);
 }
 
 DesktopCaptureClient::~DesktopCaptureClient() {
   aura::client::SetCaptureClient(root_, nullptr);
-  base::EraseIf(*clients_, [this](const auto& c) { return c.get() == this; });
+  std::erase_if(*clients_, [this](const auto& c) { return c.get() == this; });
 }
 
 void DesktopCaptureClient::SetCapture(aura::Window* new_capture_window) {
-  if (capture_window_ == new_capture_window)
+  if (capture_window_ == new_capture_window) {
     return;
+  }
 
   // We should only ever be told to capture a child of |root_|. Otherwise
   // things are going to be really confused.
@@ -70,8 +74,9 @@ void DesktopCaptureClient::SetCapture(aura::Window* new_capture_window) {
     tracker.Add(new_capture_window);
     aura::Env::GetInstance()->gesture_recognizer()->CancelActiveTouchesExcept(
         new_capture_window);
-    if (!tracker.Contains(new_capture_window))
+    if (!tracker.Contains(new_capture_window)) {
       new_capture_window = nullptr;
+    }
   }
 
   capture_window_ = new_capture_window;
@@ -97,13 +102,14 @@ void DesktopCaptureClient::SetCapture(aura::Window* new_capture_window) {
     }
   }  // else case is capture is remaining in our root, nothing to do.
 
-  for (auto& observer : observers_)
-    observer.OnCaptureChanged(old_capture_window, capture_window_);
+  observers_.Notify(&aura::client::CaptureClientObserver::OnCaptureChanged,
+                    old_capture_window, capture_window_);
 }
 
 void DesktopCaptureClient::ReleaseCapture(aura::Window* window) {
-  if (capture_window_ == window)
+  if (capture_window_ == window) {
     SetCapture(nullptr);
+  }
 }
 
 aura::Window* DesktopCaptureClient::GetCaptureWindow() {

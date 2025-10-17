@@ -12,6 +12,7 @@
 #include "base/functional/callback.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/protobuf_matchers.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "services/network/public/mojom/trust_tokens.mojom.h"
@@ -26,6 +27,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
+using ::base::test::EqualsProto;
 using ::testing::IsNull;
 using ::testing::Pointee;
 
@@ -93,15 +95,6 @@ const auto AlwaysTrueKeyMatcher = base::BindRepeating(
 
 const auto AlwaysTrueTimeMatcher = base::BindRepeating(
     [](const base::Time& creation_time) -> bool { return true; });
-
-MATCHER_P(EqualsProto,
-          message,
-          "Match a proto Message equal to the matcher's argument.") {
-  std::string expected_serialized, actual_serialized;
-  message.SerializeToString(&expected_serialized);
-  arg.SerializeToString(&actual_serialized);
-  return expected_serialized == actual_serialized;
-}
 
 class InMemoryTrustTokenPersisterFactory {
  public:
@@ -171,7 +164,6 @@ class PersisterFactoryTypeNames {
     if (std::is_same<T, EndToEndSqliteTrustTokenPersisterFactory>())
       return "SQLitePersisterOnDisk";
     NOTREACHED();
-    return "";
   }
 };
 
@@ -631,6 +623,87 @@ TYPED_TEST(TrustTokenPersisterTest, RetrievesAvailableTrustTokens) {
   EXPECT_EQ(result.size(), 1ul);
   EXPECT_EQ(result.begin()->first, origin);
   EXPECT_EQ(result.begin()->second, 1);
+
+  // Some implementations of TrustTokenPersister may release resources
+  // asynchronously at destruction time; manually free the persister and allow
+  // this asynchronous release to occur, if any.
+  persister.reset();
+  env.RunUntilIdle();
+}
+
+TYPED_TEST(TrustTokenPersisterTest,
+           RetrievesRedemptionRecordsByIssuerToplevelPair) {
+  base::test::TaskEnvironment env;
+  std::unique_ptr<TrustTokenPersister> persister = TypeParam::Create();
+  env.RunUntilIdle();  // Give implementations with asynchronous initialization
+                       // time to initialize.
+  auto toplevel_a = *SuitableTrustTokenOrigin::Create(GURL("https://a.com/"));
+  auto toplevel_b = *SuitableTrustTokenOrigin::Create(GURL("https://b.com/"));
+  auto issuer_a =
+      *SuitableTrustTokenOrigin::Create(GURL("https://issuer_a.com/"));
+  auto issuer_b =
+      *SuitableTrustTokenOrigin::Create(GURL("https://issuer_b.com/"));
+  auto result = persister->GetRedemptionRecords();
+  EXPECT_TRUE(result.empty()) << result.size();
+
+  TrustTokenIssuerToplevelPairConfig config;
+  TrustTokenRedemptionRecord rr_a;
+
+  Timestamp last_redemption = TimestampFromMicros(200);
+  *rr_a.mutable_creation_time() = internal::TimeToTimestamp(before_begin);
+  *config.mutable_penultimate_redemption() = TimestampFromMicros(100);
+  *config.mutable_last_redemption() = last_redemption;
+  *config.mutable_redemption_record() = rr_a;
+
+  auto config_to_store =
+      std::make_unique<TrustTokenIssuerToplevelPairConfig>(config);
+  persister->SetIssuerToplevelPairConfig(issuer_a, toplevel_a,
+                                         std::move(config_to_store));
+  env.RunUntilIdle();  // Give implementations with asynchronous write
+                       // operations time to complete the operation.
+
+  result = persister->GetRedemptionRecords();
+
+  // Verify initial redemption record
+  EXPECT_EQ(result.size(), 1ul);
+  EXPECT_TRUE(result.contains(issuer_a.origin()));
+  EXPECT_EQ(result[issuer_a][0]->toplevel_origin, toplevel_a.origin());
+  EXPECT_EQ(result[issuer_a][0]->last_redemption,
+            internal::TimestampToTime(last_redemption));
+
+  TrustTokenRedemptionRecord rr_b;
+  *rr_b.mutable_creation_time() = internal::TimeToTimestamp(before_begin);
+  *config.mutable_penultimate_redemption() = TimestampFromMicros(100);
+  *config.mutable_last_redemption() = last_redemption;
+  *config.mutable_redemption_record() = rr_b;
+
+  // Add unique issuer/toplevel pair
+  auto config_to_store_b =
+      std::make_unique<TrustTokenIssuerToplevelPairConfig>(config);
+  persister->SetIssuerToplevelPairConfig(issuer_b, toplevel_b,
+                                         std::move(config_to_store_b));
+  env.RunUntilIdle();  // Give implementations with asynchronous write
+                       // operations time to complete the operation.
+
+  result = persister->GetRedemptionRecords();
+  EXPECT_EQ(result.size(), 2ul);
+  EXPECT_TRUE(result.contains(issuer_b.origin()));
+  EXPECT_EQ(result[issuer_b][0]->toplevel_origin, toplevel_b.origin());
+  EXPECT_EQ(result[issuer_b][0]->last_redemption,
+            internal::TimestampToTime(last_redemption));
+
+  // Add new redemption record for an existing issuer
+  auto config_to_store_c =
+      std::make_unique<TrustTokenIssuerToplevelPairConfig>(config);
+  persister->SetIssuerToplevelPairConfig(issuer_a, toplevel_b,
+                                         std::move(config_to_store_c));
+  env.RunUntilIdle();  // Give implementations with asynchronous write
+                       // operations time to complete the operation.
+
+  // Verify existing issuer list updated
+  result = persister->GetRedemptionRecords();
+  EXPECT_EQ(result.size(), 2ul);
+  EXPECT_EQ(result[issuer_a].size(), 2ul);
 
   // Some implementations of TrustTokenPersister may release resources
   // asynchronously at destruction time; manually free the persister and allow

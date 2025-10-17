@@ -8,8 +8,8 @@ bundle that need to be signed, as well as providing a function to sign them.
 
 import os.path
 
-from . import commands, signing
-from .model import CodeSignOptions, CodeSignedProduct, VerifyOptions
+from signing import commands, signing
+from signing.model import CodeSignOptions, CodeSignedProduct, VerifyOptions
 
 
 def get_parts(config):
@@ -53,9 +53,9 @@ def get_parts(config):
             config.keystone_app_name,
             options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
             verify_options=VerifyOptions.DEEP | VerifyOptions.STRICT),
-        CodeSignedProduct(  # Metainstaller
-            'UpdaterSetup',
-            'UpdaterSetup',
+        CodeSignedProduct(  # Updater Util
+            '{.app_product}Util'.format(config),
+            '{.app_product}Util'.format(config),
             options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
             verify_options=VerifyOptions.DEEP | VerifyOptions.STRICT),
         CodeSignedProduct(  # Updater bundle

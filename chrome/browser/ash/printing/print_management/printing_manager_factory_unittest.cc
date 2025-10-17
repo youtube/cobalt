@@ -23,8 +23,7 @@ std::unique_ptr<KeyedService> BuildTestHistoryService(
 
 std::unique_ptr<KeyedService> BuildPrintingManager(
     content::BrowserContext* context) {
-  return std::unique_ptr<KeyedService>(
-      PrintingManagerFactory::BuildInstanceFor(context));
+  return PrintingManagerFactory::BuildInstanceFor(context);
 }
 
 std::unique_ptr<Profile> CreateProfile(std::string file_path) {
@@ -65,15 +64,6 @@ TEST(PrintingManagerFactoryTest, SigninProfileNoService) {
 
   EXPECT_EQ(nullptr,
             PrintingManagerFactory::GetForProfile(signin_profile.get()));
-}
-
-TEST(PrintingManagerFactoryTest, LockScreenProfileNoService) {
-  content::BrowserTaskEnvironment task_environment;
-  std::unique_ptr<Profile> lockscreen_profile =
-      CreateProfile(ash::kLockScreenAppBrowserContextBaseName);
-
-  EXPECT_EQ(nullptr,
-            PrintingManagerFactory::GetForProfile(lockscreen_profile.get()));
 }
 
 }  // namespace print_management

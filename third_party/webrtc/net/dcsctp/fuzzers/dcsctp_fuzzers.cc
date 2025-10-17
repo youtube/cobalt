@@ -60,7 +60,7 @@ enum class StartingState : int {
 // State about the current fuzzing iteration
 class FuzzState {
  public:
-  explicit FuzzState(rtc::ArrayView<const uint8_t> data) : data_(data) {}
+  explicit FuzzState(webrtc::ArrayView<const uint8_t> data) : data_(data) {}
 
   uint8_t GetByte() {
     uint8_t value = 0;
@@ -79,7 +79,7 @@ class FuzzState {
  private:
   uint32_t tsn_ = kRandomValue;
   uint32_t mid_ = 0;
-  rtc::ArrayView<const uint8_t> data_;
+  webrtc::ArrayView<const uint8_t> data_;
   size_t offset_ = 0;
 };
 
@@ -397,7 +397,7 @@ std::vector<uint8_t> GeneratePacket(FuzzState& state) {
 
 void FuzzSocket(DcSctpSocketInterface& socket,
                 FuzzerCallbacks& cb,
-                rtc::ArrayView<const uint8_t> data) {
+                webrtc::ArrayView<const uint8_t> data) {
   if (data.size() < kMinInputLength || data.size() > kMaxInputLength) {
     return;
   }
@@ -434,7 +434,7 @@ void FuzzSocket(DcSctpSocketInterface& socket,
         SendOptions options;
         options.unordered = IsUnordered(flags & 0x01);
         options.max_retransmissions =
-            (flags & 0x02) != 0 ? absl::make_optional(0) : absl::nullopt;
+            (flags & 0x02) != 0 ? std::make_optional(0) : std::nullopt;
         options.lifecycle_id = LifecycleId(42);
         size_t payload_exponent = (flags >> 2) % 16;
         size_t payload_size = static_cast<size_t>(1) << payload_exponent;
@@ -446,7 +446,7 @@ void FuzzSocket(DcSctpSocketInterface& socket,
       case 7: {
         // Expire an active timeout/timer.
         uint8_t timeout_idx = state.GetByte();
-        absl::optional<TimeoutID> timeout_id = cb.ExpireTimeout(timeout_idx);
+        std::optional<TimeoutID> timeout_id = cb.ExpireTimeout(timeout_idx);
         if (timeout_id.has_value()) {
           socket.HandleTimeout(*timeout_id);
         }

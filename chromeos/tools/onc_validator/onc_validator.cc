@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chromeos/components/onc/onc_validator.h"
+
 #include <stddef.h>
 
 #include <cstdio>
@@ -13,9 +15,9 @@
 #include "base/json/json_file_value_serializer.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/values.h"
 #include "chromeos/components/onc/onc_signature.h"
-#include "chromeos/components/onc/onc_validator.h"
 
 // TODO Check why this file do not fail on default trybots
 // http://crbug.com/543919
@@ -90,7 +92,7 @@ void PrintHelp() {
           kStatusArgumentError);
 }
 
-absl::optional<base::Value::Dict> ReadDictionary(const std::string& filename) {
+std::optional<base::Value::Dict> ReadDictionary(const std::string& filename) {
   base::FilePath path(filename);
   JSONFileValueDeserializer deserializer(path,
                                          base::JSON_ALLOW_TRAILING_COMMAS);
@@ -101,7 +103,7 @@ absl::optional<base::Value::Dict> ReadDictionary(const std::string& filename) {
   if (!value) {
     LOG(ERROR) << "Couldn't json-deserialize file '" << filename
                << "': " << json_error;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (!value->is_dict()) {
@@ -124,7 +126,7 @@ int main(int argc, const char* argv[]) {
     return kStatusArgumentError;
   }
 
-  absl::optional<base::Value::Dict> onc_object = ReadDictionary(args[1]);
+  std::optional<base::Value::Dict> onc_object = ReadDictionary(args[1]);
 
   if (!onc_object) {
     return kStatusJsonError;
@@ -167,6 +169,6 @@ int main(int argc, const char* argv[]) {
     case chromeos::onc::Validator::INVALID:
       return kStatusInvalid;
     default:
-      CHECK(false);
+      NOTREACHED();
   }
 }

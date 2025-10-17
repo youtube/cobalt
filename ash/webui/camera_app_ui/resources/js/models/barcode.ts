@@ -2,14 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assertInstanceof} from '../assert.js';
-import * as Comlink from '../lib/comlink.js';
+import {assert, assertInstanceof} from '../assert.js';
+import * as comlink from '../lib/comlink.js';
+import {BARCODE_SCAN_INTERVAL} from '../photo_mode_auto_scanner.js';
+import * as state from '../state.js';
+import {getSanitizedScriptUrl} from '../trusted_script_url_policy_util.js';
+import {lazySingleton} from '../util.js';
 
 import {AsyncIntervalRunner} from './async_interval.js';
 import {BarcodeWorker} from './barcode_worker.js';
 
-// The delay interval between consecutive barcode detections.
-const SCAN_INTERVAL = 200;
+export interface ScanBarcodeResult {
+  barcode: DetectedBarcode;
+  imageWidth: number;
+  imageHeight: number;
+}
+
+type BoundingBox = DetectedBarcode['boundingBox'];
 
 // If any dimension of the video exceeds this size, the image would be cropped
 // and/or scaled before scanning to speed up the detection.
@@ -19,8 +28,10 @@ const MAX_SCAN_SIZE = 720;
 // TODO(b/172879638): Change 1.0 to match the final UI spec.
 const ACTIVE_SCAN_RATIO = 1.0;
 
-const BARCODE_WORKER = Comlink.wrap<BarcodeWorker>(
-    new Worker('/js/models/barcode_worker.js', {type: 'module'}));
+const getBarcodeWorker = lazySingleton(
+    () => comlink.wrap<BarcodeWorker>(new Worker(
+        getSanitizedScriptUrl('/js/models/barcode_worker.js'),
+        {type: 'module'})));
 
 /**
  * A barcode scanner to detect barcodes from a camera stream.
@@ -39,22 +50,26 @@ export class BarcodeScanner {
   /**
    * Starts scanning barcodes continuously. Calling this method when it's
    * already started would be no-op.
+   *
+   * @param scanIntervalMs Scan interval time. Unit is milliseconds.
    */
-  start(): void {
+  start(scanIntervalMs = BARCODE_SCAN_INTERVAL): void {
     if (this.scanRunner !== null) {
       return;
     }
     this.scanRunner = new AsyncIntervalRunner(async (stopped) => {
-      const code = await this.scan();
-      if (!stopped.isSignaled() && code !== null) {
-        this.callback(code);
+      // Not show detected code during taking a photo
+      if (state.get(state.State.TAKING)) {
+        return;
       }
-    }, SCAN_INTERVAL);
+
+      const result = await this.scan();
+      if (!stopped.isSignaled() && result !== null) {
+        this.callback(result.barcode.rawValue);
+      }
+    }, scanIntervalMs);
   }
 
-  /**
-   * Stops scanning barcodes.
-   */
   stop(): void {
     if (this.scanRunner === null) {
       return;
@@ -95,11 +110,55 @@ export class BarcodeScanner {
   /**
    * Scans barcodes from the current frame.
    *
-   * @return The detected barcode value, or null if no barcode is detected.
+   * @return `ScanBarcodeResult` which contains the dimensions of the scanned
+   * image and the barcode closest to the center. `null` if nothing is detected.
    */
-  private async scan(): Promise<string|null> {
+  async scan(): Promise<ScanBarcodeResult|null> {
     const frame = await this.grabFrameForScan();
-    const value = await BARCODE_WORKER.detect(Comlink.transfer(frame, [frame]));
-    return value;
+    const {width, height} = frame;
+    const codes =
+        await getBarcodeWorker().detect(comlink.transfer(frame, [frame]));
+    if (codes.length === 0) {
+      return null;
+    }
+    return {
+      barcode: getBestBarcode(codes, width, height),
+      imageWidth: width,
+      imageHeight: height,
+    };
   }
+}
+
+/**
+ * Returns the barcode that is closest to the center of the scanned image.
+ */
+function getBestBarcode(
+    barcodes: DetectedBarcode[], imageWidth: number,
+    imageHeight: number): DetectedBarcode {
+  assert(barcodes.length > 0);
+  let minDistance = Infinity;
+  let codeWithMinDistance = barcodes[0];
+  for (const code of barcodes) {
+    const distance =
+        getDistanceToCenter(code.boundingBox, imageWidth, imageHeight);
+    if (distance < minDistance) {
+      minDistance = distance;
+      codeWithMinDistance = code;
+    }
+  }
+  return codeWithMinDistance;
+}
+
+function getDistanceToCenter(
+    boundingBox: BoundingBox, imageWidth: number, imageHeight: number) {
+  const {top, right, bottom, left} = boundingBox;
+  const cx = imageWidth / 2;
+  const cy = imageHeight / 2;
+  const x = (left + right) / 2;
+  const y = (top + bottom) / 2;
+  const distance = Math.hypot(
+      x - cx,
+      y - cy,
+  );
+  return distance;
 }

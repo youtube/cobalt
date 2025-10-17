@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #ifndef THIRD_PARTY_BLINK_PUBLIC_COMMON_INPUT_WEB_GESTURE_EVENT_H_
 #define THIRD_PARTY_BLINK_PUBLIC_COMMON_INPUT_WEB_GESTURE_EVENT_H_
 
@@ -58,6 +63,7 @@ class BLINK_COMMON_EXPORT WebGestureEvent : public WebInputEvent {
     } tap;
 
     struct {
+      int tap_down_count;
       float width;
       float height;
     } tap_down;
@@ -120,8 +126,6 @@ class BLINK_COMMON_EXPORT WebGestureEvent : public WebInputEvent {
     struct {
       float delta_x;
       float delta_y;
-      float velocity_x;
-      float velocity_y;
       InertialPhaseState inertial_phase;
       // Default initialized to kScrollByPrecisePixel.
       ui::ScrollGranularity delta_units;
@@ -241,11 +245,9 @@ class BLINK_COMMON_EXPORT WebGestureEvent : public WebInputEvent {
   InertialPhaseState InertialPhase() const;
   bool Synthetic() const;
 
-  float VelocityX() const;
-  float VelocityY() const;
-
   gfx::SizeF TapAreaInRootFrame() const;
   int TapCount() const;
+  int TapDownCount() const;
 
   void ApplyTouchAdjustment(const gfx::PointF& root_frame_coords);
 
@@ -273,10 +275,10 @@ class BLINK_COMMON_EXPORT WebGestureEvent : public WebInputEvent {
       case Type::kGestureShortPress:
       case Type::kGestureLongPress:
       case Type::kGestureLongTap:
+      case Type::kGestureDoubleTap:
         return false;
       default:
         NOTREACHED();
-        return false;
     }
   }
 
@@ -314,7 +316,6 @@ class BLINK_COMMON_EXPORT WebGestureEvent : public WebInputEvent {
         return data.tap.needs_wheel_event;
       default:
         NOTREACHED();
-        return false;
     }
   }
 
@@ -354,16 +355,15 @@ class BLINK_COMMON_EXPORT WebGestureEvent : public WebInputEvent {
   static bool IsCompatibleScrollorPinch(const WebGestureEvent& new_event,
                                         const WebGestureEvent& event_in_queue);
 
-  // Generate a scroll gesture event (begin, update, or end), based on the
-  // parameters passed in. Populates the data field of the created
-  // WebGestureEvent based on the type.
-  static std::unique_ptr<blink::WebGestureEvent> GenerateInjectedScrollGesture(
-      WebInputEvent::Type type,
-      base::TimeTicks timestamp,
-      WebGestureDevice device,
-      gfx::PointF position_in_widget,
-      gfx::Vector2dF scroll_delta,
-      ui::ScrollGranularity granularity);
+  // For a scrollbar gesture, generate a scroll gesture event (begin, update,
+  // or end), based on the parameters passed in. Populates the data field of
+  // the created WebGestureEvent based on the type.
+  static std::unique_ptr<blink::WebGestureEvent>
+  GenerateInjectedScrollbarGestureScroll(WebInputEvent::Type type,
+                                         base::TimeTicks timestamp,
+                                         gfx::PointF position_in_widget,
+                                         gfx::Vector2dF scroll_delta,
+                                         ui::ScrollGranularity granularity);
 };
 
 }  // namespace blink

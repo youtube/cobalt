@@ -11,12 +11,11 @@ import android.os.Build;
 import android.os.Build.VERSION_CODES;
 
 import androidx.annotation.RequiresApi;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.lifecycle.Stage;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -24,6 +23,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.params.ParameterAnnotations;
 import org.chromium.base.test.params.ParameterProvider;
 import org.chromium.base.test.params.ParameterSet;
@@ -43,19 +43,16 @@ import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.components.embedder_support.util.UrlUtilities;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Tests for Android NMR1 launcher shortcuts.
- */
-// clang-format off
+/** Tests for Android NMR1 launcher shortcuts. */
 @RunWith(ParameterizedRunner.class)
 @ParameterAnnotations.UseRunnerDelegate(ChromeJUnit4RunnerDelegate.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
@@ -63,44 +60,41 @@ import java.util.concurrent.TimeoutException;
 @MinAndroidSdkLevel(Build.VERSION_CODES.N_MR1)
 @DoNotBatch(reason = "This class tests activity start behavior and thus cannot be batched.")
 public class LauncherShortcutTest {
-    // clang-format on
 
-    /**
-     * Used for parameterized tests to toggle whether an incognito or regular tab is created.
-     */
+    /** Used for parameterized tests to toggle whether an incognito or regular tab is created. */
     public static class IncognitoParams implements ParameterProvider {
         @Override
         public Iterable<ParameterSet> getParameters() {
-            return Arrays.asList(new ParameterSet().value(false).name("RegularTab"),
+            return Arrays.asList(
+                    new ParameterSet().value(false).name("RegularTab"),
                     new ParameterSet().value(true).name("IncognitoTab"));
         }
     }
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     private TabModelSelector mTabModelSelector;
-    private CallbackHelper mTabAddedCallback = new CallbackHelper();
+    private final CallbackHelper mTabAddedCallback = new CallbackHelper();
 
     @Before
     public void setUp() {
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mActivityTestRule.startOnBlankPage();
         mTabModelSelector = mActivityTestRule.getActivity().getTabModelSelector();
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            TabModelSelectorObserver tabModelSelectorObserver = new TabModelSelectorObserver() {
-                @Override
-                public void onNewTabCreated(Tab tab, @TabCreationState int creationState) {
-                    mTabAddedCallback.notifyCalled();
-                }
-            };
-            mTabModelSelector.addObserver(tabModelSelectorObserver);
-        });
-    }
-
-    @After
-    public void tearDown() {
-        LauncherShortcutActivity.setDynamicShortcutStringForTesting(null);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    TabModelSelectorObserver tabModelSelectorObserver =
+                            new TabModelSelectorObserver() {
+                                @Override
+                                public void onNewTabCreated(
+                                        Tab tab, @TabCreationState int creationState) {
+                                    mTabAddedCallback.notifyCalled();
+                                }
+                            };
+                    mTabModelSelector.addObserver(tabModelSelectorObserver);
+                });
     }
 
     @Test
@@ -110,8 +104,10 @@ public class LauncherShortcutTest {
         int initialTabCount = mTabModelSelector.getTotalTabCount();
 
         Intent intent =
-                new Intent(incognito ? LauncherShortcutActivity.ACTION_OPEN_NEW_INCOGNITO_TAB
-                                     : LauncherShortcutActivity.ACTION_OPEN_NEW_TAB);
+                new Intent(
+                        incognito
+                                ? LauncherShortcutActivity.ACTION_OPEN_NEW_INCOGNITO_TAB
+                                : LauncherShortcutActivity.ACTION_OPEN_NEW_TAB);
         intent.setClass(mActivityTestRule.getActivity(), LauncherShortcutActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         InstrumentationRegistry.getInstrumentation().startActivitySync(intent);
@@ -120,24 +116,34 @@ public class LauncherShortcutTest {
 
         // Verify NTP was created.
 
-        Tab activityTab = TestThreadUtils.runOnUiThreadBlocking(
-                () -> mActivityTestRule.getActivity().getActivityTab());
-        Assert.assertEquals("Incorrect tab launch type.", TabLaunchType.FROM_LAUNCHER_SHORTCUT,
+        Tab activityTab =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> mActivityTestRule.getActivity().getActivityTab());
+        Assert.assertEquals(
+                "Incorrect tab launch type.",
+                TabLaunchType.FROM_LAUNCHER_SHORTCUT,
                 activityTab.getLaunchType());
 
         Assert.assertTrue(
                 "Tab should be an NTP. Tab url: " + ChromeTabUtils.getUrlOnUiThread(activityTab),
-                UrlUtilities.isNTPUrl(ChromeTabUtils.getUrlOnUiThread(activityTab)));
+                UrlUtilities.isNtpUrl(ChromeTabUtils.getUrlOnUiThread(activityTab)));
 
         // Verify tab model.
-        Assert.assertEquals("Incorrect tab model selected.", incognito,
+        Assert.assertEquals(
+                "Incorrect tab model selected.",
+                incognito,
                 mTabModelSelector.isIncognitoSelected());
-        Assert.assertEquals("Incorrect total tab count.", initialTabCount + 1,
+        Assert.assertEquals(
+                "Incorrect total tab count.",
+                initialTabCount + 1,
                 mTabModelSelector.getTotalTabCount());
-        Assert.assertEquals("Incorrect normal tab count.",
+        Assert.assertEquals(
+                "Incorrect normal tab count.",
                 incognito ? initialTabCount : initialTabCount + 1,
                 mTabModelSelector.getModel(false).getCount());
-        Assert.assertEquals("Incorrect incognito tab count.", incognito ? 1 : 0,
+        Assert.assertEquals(
+                "Incorrect incognito tab count.",
+                incognito ? 1 : 0,
                 mTabModelSelector.getModel(true).getCount());
     }
 
@@ -147,34 +153,44 @@ public class LauncherShortcutTest {
     @MinAndroidSdkLevel(VERSION_CODES.S)
     public void testLauncherShortcut_SplitScreenLaunch(boolean incognito) throws Exception {
         Intent intent =
-                new Intent(incognito ? LauncherShortcutActivity.ACTION_OPEN_NEW_INCOGNITO_TAB
-                                     : LauncherShortcutActivity.ACTION_OPEN_NEW_TAB);
+                new Intent(
+                        incognito
+                                ? LauncherShortcutActivity.ACTION_OPEN_NEW_INCOGNITO_TAB
+                                : LauncherShortcutActivity.ACTION_OPEN_NEW_TAB);
         intent.setClass(mActivityTestRule.getActivity(), LauncherShortcutActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         // The intent originating from the task bar shortcut drag to split screen is expected to
         // contain FLAG_ACTIVITY_MULTIPLE_TASK.
         intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
 
-        ChromeTabbedActivity newWindowActivity = ApplicationTestUtils.waitForActivityWithClass(
-                ChromeTabbedActivity.class, Stage.CREATED,
-                () -> ContextUtils.getApplicationContext().startActivity(intent));
+        ChromeTabbedActivity newWindowActivity =
+                ApplicationTestUtils.waitForActivityWithClass(
+                        ChromeTabbedActivity.class,
+                        Stage.CREATED,
+                        () -> ContextUtils.getApplicationContext().startActivity(intent));
 
         // Verify that a new Chrome instance was created.
-        Assert.assertEquals("Number of Chrome instances should be correct.", 2,
+        Assert.assertEquals(
+                "Number of Chrome instances should be correct.",
+                2,
                 MultiWindowUtils.getInstanceCount());
 
         // Verify NTP was created in the new activity.
         CriteriaHelper.pollUiThread(() -> newWindowActivity.getActivityTab() != null);
-        Tab activityTab = TestThreadUtils.runOnUiThreadBlocking(newWindowActivity::getActivityTab);
-        Assert.assertEquals("Incorrect tab launch type.", TabLaunchType.FROM_LAUNCHER_SHORTCUT,
+        Tab activityTab = ThreadUtils.runOnUiThreadBlocking(newWindowActivity::getActivityTab);
+        Assert.assertEquals(
+                "Incorrect tab launch type.",
+                TabLaunchType.FROM_LAUNCHER_SHORTCUT,
                 activityTab.getLaunchType());
 
         Assert.assertTrue(
                 "Tab should have the NTP tab url: " + ChromeTabUtils.getUrlOnUiThread(activityTab),
-                UrlUtilities.isNTPUrl(ChromeTabUtils.getUrlOnUiThread(activityTab)));
+                UrlUtilities.isNtpUrl(ChromeTabUtils.getUrlOnUiThread(activityTab)));
 
         // Verify the tab model.
-        Assert.assertEquals("Incorrect tab model selected.", incognito,
+        Assert.assertEquals(
+                "Incorrect tab model selected.",
+                incognito,
                 newWindowActivity.getTabModelSelector().isIncognitoSelected());
     }
 
@@ -204,24 +220,30 @@ public class LauncherShortcutTest {
     @SmallTest
     public void testDynamicShortcuts() {
         IncognitoUtils.setEnabledForTesting(true);
-        LauncherShortcutActivity.updateIncognitoShortcut(mActivityTestRule.getActivity());
+        LauncherShortcutActivity.updateIncognitoShortcut(
+                mActivityTestRule.getActivity(), mActivityTestRule.getProfile(false));
         ShortcutManager shortcutManager =
                 mActivityTestRule.getActivity().getSystemService(ShortcutManager.class);
         List<ShortcutInfo> shortcuts = shortcutManager.getDynamicShortcuts();
         Assert.assertEquals("Incorrect number of dynamic shortcuts.", 1, shortcuts.size());
-        Assert.assertEquals("Incorrect dynamic shortcut id.",
+        Assert.assertEquals(
+                "Incorrect dynamic shortcut id.",
                 LauncherShortcutActivity.DYNAMIC_OPEN_NEW_INCOGNITO_TAB_ID,
                 shortcuts.get(0).getId());
 
         IncognitoUtils.setEnabledForTesting(false);
-        LauncherShortcutActivity.updateIncognitoShortcut(mActivityTestRule.getActivity());
+        LauncherShortcutActivity.updateIncognitoShortcut(
+                mActivityTestRule.getActivity(), mActivityTestRule.getProfile(false));
         shortcuts = shortcutManager.getDynamicShortcuts();
         Assert.assertEquals("Incorrect number of dynamic shortcuts.", 0, shortcuts.size());
 
         IncognitoUtils.setEnabledForTesting(true);
-        LauncherShortcutActivity.updateIncognitoShortcut(mActivityTestRule.getActivity());
+        LauncherShortcutActivity.updateIncognitoShortcut(
+                mActivityTestRule.getActivity(), mActivityTestRule.getProfile(false));
         shortcuts = shortcutManager.getDynamicShortcuts();
-        Assert.assertEquals("Incorrect number of dynamic shortcuts after re-enabling incognito.", 1,
+        Assert.assertEquals(
+                "Incorrect number of dynamic shortcuts after re-enabling incognito.",
+                1,
                 shortcuts.size());
     }
 
@@ -229,7 +251,8 @@ public class LauncherShortcutTest {
     @SmallTest
     public void testDynamicShortcuts_LanguageChange() {
         IncognitoUtils.setEnabledForTesting(true);
-        LauncherShortcutActivity.updateIncognitoShortcut(mActivityTestRule.getActivity());
+        LauncherShortcutActivity.updateIncognitoShortcut(
+                mActivityTestRule.getActivity(), mActivityTestRule.getProfile(false));
         ShortcutManager shortcutManager =
                 mActivityTestRule.getActivity().getSystemService(ShortcutManager.class);
         List<ShortcutInfo> shortcuts = shortcutManager.getDynamicShortcuts();
@@ -238,7 +261,8 @@ public class LauncherShortcutTest {
                 "Incorrect label", "New Incognito tab", shortcuts.get(0).getLongLabel());
 
         LauncherShortcutActivity.setDynamicShortcutStringForTesting("Foo");
-        LauncherShortcutActivity.updateIncognitoShortcut(mActivityTestRule.getActivity());
+        LauncherShortcutActivity.updateIncognitoShortcut(
+                mActivityTestRule.getActivity(), mActivityTestRule.getProfile(false));
         shortcuts = shortcutManager.getDynamicShortcuts();
         Assert.assertEquals(
                 "Incorrect number of dynamic shortcuts after updating.", 1, shortcuts.size());

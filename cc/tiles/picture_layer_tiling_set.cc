@@ -14,9 +14,8 @@
 #include <vector>
 
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/memory/ptr_util.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ptr.h"
 #include "base/trace_event/trace_event.h"
 #include "cc/raster/raster_source.h"
 #include "ui/gfx/geometry/rect_conversions.h"
@@ -111,6 +110,7 @@ void PictureLayerTilingSet::CopyTilingsAndPropertiesFromPendingTwin(
     }
     this_tiling->TakeTilesAndPropertiesFrom(pending_twin_tiling.get(),
                                             layer_invalidation);
+    all_tiles_done_ &= this_tiling->all_tiles_done();
   }
 
   if (tiling_sort_required) {
@@ -156,6 +156,8 @@ void PictureLayerTilingSet::UpdateTilingsToCurrentRasterSourceForActivation(
     // low resolution to not lose them.
     if (tiling->resolution() != LOW_RESOLUTION)
       tiling->set_resolution(NON_IDEAL_RESOLUTION);
+
+    all_tiles_done_ &= tiling->all_tiles_done();
   }
 
   VerifyTilings(pending_twin_set);
@@ -172,9 +174,12 @@ void PictureLayerTilingSet::UpdateTilingsToCurrentRasterSourceForCommit(
   raster_source_ = raster_source;
 
   // Invalidate tiles and update them to the new raster source.
-  for (const std::unique_ptr<PictureLayerTiling>& tiling : tilings_) {
+  all_tiles_done_ = true;
+  for (const auto& tiling : tilings_) {
     DCHECK(tree_ != PENDING_TREE || !tiling->has_tiles());
-    tiling->SetRasterSourceAndResize(raster_source);
+    // Force |UpdateTilePriorities| on commit for cases when tiling needs update
+    state_since_last_tile_priority_update_.tiling_needs_update |=
+        tiling->SetRasterSourceAndResize(raster_source);
 
     // Force |UpdateTilePriorities| on commit for cases where the compositor is
     // heavily pipelined resulting in back to back draw and commit. This
@@ -192,14 +197,18 @@ void PictureLayerTilingSet::UpdateTilingsToCurrentRasterSourceForCommit(
     // recordings exist in the raster source that did not exist on the last
     // raster source.
     tiling->CreateMissingTilesInLiveTilesRect();
+
+    all_tiles_done_ &= tiling->all_tiles_done();
   }
   VerifyTilings(nullptr /* pending_twin_set */);
 }
 
 void PictureLayerTilingSet::Invalidate(const Region& layer_invalidation) {
+  all_tiles_done_ = true;
   for (const auto& tiling : tilings_) {
     tiling->Invalidate(layer_invalidation);
     tiling->CreateMissingTilesInLiveTilesRect();
+    all_tiles_done_ &= tiling->all_tiles_done();
   }
   state_since_last_tile_priority_update_.invalidated = true;
 }
@@ -209,11 +218,11 @@ void PictureLayerTilingSet::VerifyTilings(
 #if DCHECK_IS_ON()
   for (const auto& tiling : tilings_) {
     DCHECK(tiling->tile_size() ==
-           client_->CalculateTileSize(tiling->tiling_size()))
+           client_->CalculateTileSize(tiling->tiling_rect().size()))
         << "tile_size: " << tiling->tile_size().ToString()
-        << " tiling_size: " << tiling->tiling_size().ToString()
+        << " tiling_size: " << tiling->tiling_rect().ToString()
         << " CalculateTileSize: "
-        << client_->CalculateTileSize(tiling->tiling_size()).ToString();
+        << client_->CalculateTileSize(tiling->tiling_rect().size()).ToString();
   }
 
   if (!tilings_.empty()) {
@@ -235,7 +244,8 @@ void PictureLayerTilingSet::VerifyTilings(
 void PictureLayerTilingSet::CleanUpTilings(
     float min_acceptable_high_res_scale_key,
     float max_acceptable_high_res_scale_key,
-    const std::vector<PictureLayerTiling*>& needed_tilings,
+    const std::vector<raw_ptr<PictureLayerTiling, VectorExperimental>>&
+        needed_tilings,
     PictureLayerTilingSet* twin_set) {
   std::vector<PictureLayerTiling*> to_remove;
   for (const auto& tiling : tilings_) {
@@ -264,7 +274,7 @@ void PictureLayerTilingSet::CleanUpTilings(
 }
 
 void PictureLayerTilingSet::RemoveNonIdealTilings() {
-  base::EraseIf(tilings_, [](const std::unique_ptr<PictureLayerTiling>& t) {
+  std::erase_if(tilings_, [](const std::unique_ptr<PictureLayerTiling>& t) {
     return t->resolution() == NON_IDEAL_RESOLUTION;
   });
 }
@@ -301,8 +311,8 @@ PictureLayerTiling* PictureLayerTilingSet::AddTiling(
 }
 
 int PictureLayerTilingSet::NumHighResTilings() const {
-  return base::ranges::count(tilings_, HIGH_RESOLUTION,
-                             &PictureLayerTiling::resolution);
+  return std::ranges::count(tilings_, HIGH_RESOLUTION,
+                            &PictureLayerTiling::resolution);
 }
 
 PictureLayerTiling* PictureLayerTilingSet::FindTilingWithScaleKey(
@@ -317,7 +327,7 @@ PictureLayerTiling* PictureLayerTilingSet::FindTilingWithScaleKey(
 PictureLayerTiling* PictureLayerTilingSet::FindTilingWithResolution(
     TileResolution resolution) const {
   auto iter =
-      base::ranges::find(tilings_, resolution, &PictureLayerTiling::resolution);
+      std::ranges::find(tilings_, resolution, &PictureLayerTiling::resolution);
   if (iter == tilings_.end())
     return nullptr;
   return iter->get();
@@ -341,7 +351,7 @@ PictureLayerTiling* PictureLayerTilingSet::FindTilingWithNearestScaleKey(
 
 void PictureLayerTilingSet::RemoveTilingsBelowScaleKey(
     float minimum_scale_key) {
-  base::EraseIf(
+  std::erase_if(
       tilings_,
       [minimum_scale_key](const std::unique_ptr<PictureLayerTiling>& tiling) {
         return tiling->contents_scale_key() < minimum_scale_key;
@@ -350,7 +360,7 @@ void PictureLayerTilingSet::RemoveTilingsBelowScaleKey(
 
 void PictureLayerTilingSet::RemoveTilingsAboveScaleKey(
     float maximum_scale_key) {
-  base::EraseIf(
+  std::erase_if(
       tilings_,
       [maximum_scale_key](const std::unique_ptr<PictureLayerTiling>& tiling) {
         return tiling->contents_scale_key() > maximum_scale_key;
@@ -364,11 +374,12 @@ void PictureLayerTilingSet::ReleaseAllResources() {
 
 void PictureLayerTilingSet::RemoveAllTilings() {
   tilings_.clear();
+  all_tiles_done_ = true;
 }
 
 void PictureLayerTilingSet::Remove(PictureLayerTiling* tiling) {
-  auto iter = base::ranges::find(tilings_, tiling,
-                                 &std::unique_ptr<PictureLayerTiling>::get);
+  auto iter = std::ranges::find(tilings_, tiling,
+                                &std::unique_ptr<PictureLayerTiling>::get);
   if (iter == tilings_.end())
     return;
   tilings_.erase(iter);
@@ -377,6 +388,7 @@ void PictureLayerTilingSet::Remove(PictureLayerTiling* tiling) {
 void PictureLayerTilingSet::RemoveAllTiles() {
   for (const auto& tiling : tilings_)
     tiling->Reset();
+  all_tiles_done_ = true;
 }
 
 float PictureLayerTilingSet::GetMaximumContentsScale() const {
@@ -405,12 +417,17 @@ bool PictureLayerTilingSet::TilingsNeedUpdate(
 
   // Finally, if some state changed (either frame time or visible rect), then we
   // need to inform the tilings of the change.
-  const auto& last_frame = visible_rect_history_.front();
+  const auto& last_frame = visible_rect_history_.back();
   if (current_frame_time_in_seconds != last_frame.frame_time_in_seconds)
     return true;
 
   if (visible_rect_in_layer_space != last_frame.visible_rect_in_layer_space)
     return true;
+
+  if (state_since_last_tile_priority_update_.tiling_needs_update) {
+    return true;
+  }
+
   return false;
 }
 
@@ -423,7 +440,7 @@ gfx::Rect PictureLayerTilingSet::ComputeSkewport(
     return skewport;
 
   // Use the oldest recorded history to get a stable skewport.
-  const auto& historical_frame = visible_rect_history_.back();
+  const auto& historical_frame = visible_rect_history_.front();
   double time_delta =
       current_frame_time_in_seconds - historical_frame.frame_time_in_seconds;
   if (time_delta == 0.)
@@ -484,26 +501,35 @@ void PictureLayerTilingSet::UpdatePriorityRects(
     const gfx::Rect& visible_rect_in_layer_space,
     double current_frame_time_in_seconds,
     float ideal_contents_scale) {
-  visible_rect_in_layer_space_ = gfx::Rect();
-  eventually_rect_in_layer_space_ = gfx::Rect();
-
-  // We keep things as floats in here.
+  bool has_visible_rects = false;
   if (!visible_rect_in_layer_space.IsEmpty()) {
     gfx::RectF eventually_rectf(visible_rect_in_layer_space);
     eventually_rectf.Inset(-tiling_interest_area_padding_ /
                            ideal_contents_scale);
     if (eventually_rectf.Intersects(
-            gfx::RectF(gfx::SizeF(raster_source_->GetSize())))) {
+            gfx::RectF(raster_source_->recorded_bounds()))) {
       visible_rect_in_layer_space_ = visible_rect_in_layer_space;
       eventually_rect_in_layer_space_ = gfx::ToEnclosingRect(eventually_rectf);
+      has_visible_rects = true;
     }
   }
 
-  skewport_in_layer_space_ =
+  if (!has_visible_rects) {
+    visible_rect_in_layer_space_ = gfx::Rect();
+    eventually_rect_in_layer_space_ = gfx::Rect();
+    skewport_rect_in_layer_space_ = gfx::Rect();
+    soon_border_rect_in_layer_space_ = gfx::Rect();
+    // If we have no visible rect, clear all interest rects.
+    visible_rect_history_.clear();
+    return;
+  }
+
+  skewport_rect_in_layer_space_ =
       ComputeSkewport(visible_rect_in_layer_space_,
                       current_frame_time_in_seconds, ideal_contents_scale);
-  DCHECK(skewport_in_layer_space_.Contains(visible_rect_in_layer_space_));
-  DCHECK(eventually_rect_in_layer_space_.Contains(skewport_in_layer_space_));
+  DCHECK(skewport_rect_in_layer_space_.Contains(visible_rect_in_layer_space_));
+  DCHECK(
+      eventually_rect_in_layer_space_.Contains(skewport_rect_in_layer_space_));
 
   soon_border_rect_in_layer_space_ =
       ComputeSoonBorderRect(visible_rect_in_layer_space_, ideal_contents_scale);
@@ -515,10 +541,15 @@ void PictureLayerTilingSet::UpdatePriorityRects(
   // Finally, update our visible rect history. Note that we use the original
   // visible rect here, since we want as accurate of a history as possible for
   // stable skewports.
-  if (visible_rect_history_.size() == 2)
-    visible_rect_history_.pop_back();
-  visible_rect_history_.push_front(FrameVisibleRect(
-      visible_rect_in_layer_space_, current_frame_time_in_seconds));
+  const auto frame_visible_rect = FrameVisibleRect(
+      visible_rect_in_layer_space_, current_frame_time_in_seconds);
+  if (visible_rect_history_.size() < 2) {
+    visible_rect_history_.reserve(2);
+    visible_rect_history_.push_back(frame_visible_rect);
+  } else {
+    DCHECK_EQ(visible_rect_history_.size(), 2u);
+    visible_rect_history_ = {visible_rect_history_[1], frame_visible_rect};
+  }
 }
 
 bool PictureLayerTilingSet::UpdateTilePriorities(
@@ -538,13 +569,15 @@ bool PictureLayerTilingSet::UpdateTilePriorities(
   UpdatePriorityRects(visible_rect_in_layer_space,
                       current_frame_time_in_seconds, ideal_contents_scale);
 
+  all_tiles_done_ = true;
   for (const auto& tiling : tilings_) {
     tiling->set_can_require_tiles_for_activation(
         can_require_tiles_for_activation);
     tiling->ComputeTilePriorityRects(
-        visible_rect_in_layer_space_, skewport_in_layer_space_,
+        visible_rect_in_layer_space_, skewport_rect_in_layer_space_,
         soon_border_rect_in_layer_space_, eventually_rect_in_layer_space_,
         ideal_contents_scale, occlusion_in_layer_space);
+    all_tiles_done_ &= tiling->all_tiles_done();
   }
   return true;
 }
@@ -555,162 +588,12 @@ void PictureLayerTilingSet::GetAllPrioritizedTilesForTracing(
     tiling->GetAllPrioritizedTilesForTracing(prioritized_tiles);
 }
 
-PictureLayerTilingSet::CoverageIterator::CoverageIterator(
-    const PictureLayerTilingSet* set,
-    float coverage_scale,
+PictureLayerTilingSet::CoverageIterator PictureLayerTilingSet::Cover(
     const gfx::Rect& coverage_rect,
-    float ideal_contents_scale)
-    : set_(set),
-      coverage_scale_(coverage_scale),
-      current_tiling_(std::numeric_limits<size_t>::max()) {
-  missing_region_.Union(coverage_rect);
-
-  // Determine the smallest content_scale tiling which a scale higher than the
-  // ideal (or the first tiling if all tilings have a scale less than ideal).
-  size_t tilings_size = set_->tilings_.size();
-  for (ideal_tiling_ = 0; ideal_tiling_ < tilings_size; ++ideal_tiling_) {
-    PictureLayerTiling* tiling = set_->tilings_[ideal_tiling_].get();
-    if (tiling->contents_scale_key() < ideal_contents_scale) {
-      if (ideal_tiling_ > 0)
-        ideal_tiling_--;
-      break;
-    }
-  }
-
-  // If all tilings have a scale larger than the ideal, then use the smallest
-  // scale (which is the last one).
-  if (ideal_tiling_ == tilings_size && ideal_tiling_ > 0)
-    ideal_tiling_--;
-
-  ++(*this);
-}
-
-PictureLayerTilingSet::CoverageIterator::~CoverageIterator() = default;
-
-gfx::Rect PictureLayerTilingSet::CoverageIterator::geometry_rect() const {
-  // If we don't have any more tilings to process, then return the region
-  // iterator rect that we need to fill, so that the caller can checkerboard it.
-  if (!tiling_iter_) {
-    if (region_iter_ == current_region_.end())
-      return gfx::Rect();
-    return *region_iter_;
-  }
-  return tiling_iter_.geometry_rect();
-}
-
-gfx::RectF PictureLayerTilingSet::CoverageIterator::texture_rect() const {
-  // Texture rects are only valid if we have a tiling.
-  if (!tiling_iter_)
-    return gfx::RectF();
-  return tiling_iter_.texture_rect();
-}
-
-Tile* PictureLayerTilingSet::CoverageIterator::operator->() const {
-  if (!tiling_iter_)
-    return nullptr;
-  return *tiling_iter_;
-}
-
-Tile* PictureLayerTilingSet::CoverageIterator::operator*() const {
-  if (!tiling_iter_)
-    return nullptr;
-  return *tiling_iter_;
-}
-
-TileResolution PictureLayerTilingSet::CoverageIterator::resolution() const {
-  const PictureLayerTiling* tiling = CurrentTiling();
-  DCHECK(tiling);
-  return tiling->resolution();
-}
-
-PictureLayerTiling* PictureLayerTilingSet::CoverageIterator::CurrentTiling()
-    const {
-  if (current_tiling_ == std::numeric_limits<size_t>::max())
-    return nullptr;
-  if (current_tiling_ >= set_->tilings_.size())
-    return nullptr;
-  return set_->tilings_[current_tiling_].get();
-}
-
-size_t PictureLayerTilingSet::CoverageIterator::NextTiling() const {
-  // Order returned by this method is:
-  // 1. Ideal tiling index
-  // 2. Tiling index < Ideal in decreasing order (higher res than ideal)
-  // 3. Tiling index > Ideal in increasing order (lower res than ideal)
-  // 4. Tiling index > tilings.size() (invalid index)
-  if (current_tiling_ == std::numeric_limits<size_t>::max())
-    return ideal_tiling_;
-  else if (current_tiling_ > ideal_tiling_)
-    return current_tiling_ + 1;
-  else if (current_tiling_)
-    return current_tiling_ - 1;
-  else
-    return ideal_tiling_ + 1;
-}
-
-PictureLayerTilingSet::CoverageIterator&
-PictureLayerTilingSet::CoverageIterator::operator++() {
-  bool first_time = current_tiling_ == std::numeric_limits<size_t>::max();
-
-  if (!*this && !first_time)
-    return *this;
-
-  if (tiling_iter_)
-    ++tiling_iter_;
-
-  // Loop until we find a valid place to stop.
-  while (true) {
-    // While we don't have a ready to draw tile, accumulate the geometry rects
-    // back into the missing region, which will be iterated after this tiling is
-    // processed.
-    while (tiling_iter_ &&
-           (!*tiling_iter_ || !tiling_iter_->draw_info().IsReadyToDraw())) {
-      missing_region_.Union(tiling_iter_.geometry_rect());
-      ++tiling_iter_;
-    }
-    // We found a ready tile, yield it!
-    if (tiling_iter_)
-      return *this;
-
-    // If the set of current rects for this tiling is done, go to the next
-    // tiling and set up to iterate through all of the remaining holes.
-    // This will also happen the first time through the loop.
-    if (region_iter_ == current_region_.end()) {
-      current_tiling_ = NextTiling();
-      current_region_.Swap(&missing_region_);
-      missing_region_.Clear();
-      region_iter_ = current_region_.begin();
-
-      // All done and all filled.
-      if (region_iter_ == current_region_.end()) {
-        current_tiling_ = set_->tilings_.size();
-        return *this;
-      }
-
-      // No more valid tiles, return this checkerboard rect.
-      if (current_tiling_ >= set_->tilings_.size())
-        return *this;
-    }
-
-    // Pop a rect off.  If there are no more tilings, then these will be
-    // treated as geometry with null tiles that the caller can checkerboard.
-    gfx::Rect last_rect = *region_iter_;
-    ++region_iter_;
-
-    // Done, found next checkerboard rect to return.
-    if (current_tiling_ >= set_->tilings_.size())
-      return *this;
-
-    // Construct a new iterator for the next tiling, but we need to loop
-    // again until we get to a valid one.
-    tiling_iter_ = PictureLayerTiling::CoverageIterator(
-        set_->tilings_[current_tiling_].get(), coverage_scale_, last_rect);
-  }
-}
-
-PictureLayerTilingSet::CoverageIterator::operator bool() const {
-  return current_tiling_ < set_->tilings_.size() ||
-         region_iter_ != current_region_.end();
+    float coverage_scale,
+    float ideal_contents_scale) {
+  return CoverageIterator(tilings_, coverage_rect, coverage_scale,
+                          ideal_contents_scale);
 }
 
 void PictureLayerTilingSet::AsValueInto(

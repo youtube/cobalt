@@ -3,7 +3,7 @@
 <meta name=timeout content=long>
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
-<script src="resources/helpers.js"></script>
+<script src="/attribution-reporting/resources/helpers.js"></script>
 <script>
 attribution_reporting_promise_test(async t => {
   const expectedSourceDebugKey = '246';
@@ -11,7 +11,6 @@ attribution_reporting_promise_test(async t => {
 
   registerAttributionSrcByImg(createRedirectChain([
     {
-      cookie: attributionDebugCookie,
       source: {
         aggregation_keys: {
           campaignCounts: '0x159',
@@ -53,7 +52,7 @@ attribution_reporting_promise_test(async t => {
   const aggregation_service_payload = report.aggregation_service_payloads[0];
   assert_own_property(aggregation_service_payload, 'debug_cleartext_payload');
 
-  const debugPayload = await pollAggregatableDebugReports();
+  const debugPayload = await pollAttributionSuccessDebugAggregatableReports();
   assert_equals(debugPayload.reports.length, 1);
   const debugReport = JSON.parse(debugPayload.reports[0].body);
   assert_equals(debugReport.source_debug_key, expectedSourceDebugKey);

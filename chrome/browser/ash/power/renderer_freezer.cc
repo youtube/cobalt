@@ -10,17 +10,11 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/process/process_handle.h"
-#include "chrome/browser/chrome_notification_types.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_source.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "extensions/browser/extension_registry.h"
-#include "extensions/browser/notification_types.h"
 #include "extensions/browser/process_map.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/permissions/api_permission.h"
@@ -64,7 +58,7 @@ void RendererFreezer::OnRenderProcessHostCreated(
     return;
   }
 
-  const int rph_id = rph->GetID();
+  const int rph_id = rph->GetDeprecatedID();
 
   if (gcm_extension_processes_.find(rph_id) != gcm_extension_processes_.end()) {
     LOG(ERROR) << "Received duplicate notifications about the creation of a "
@@ -84,26 +78,21 @@ void RendererFreezer::OnRenderProcessHostCreated(
   // iterate over all the extensions in the newly created process and take the
   // appropriate action based on whether we find an extension using GCM.
   content::BrowserContext* context = rph->GetBrowserContext();
-  extensions::ExtensionRegistry* registry =
-      extensions::ExtensionRegistry::Get(context);
-  for (const std::string& extension_id :
-       extensions::ProcessMap::Get(context)->GetExtensionsInProcess(rph_id)) {
-    const extensions::Extension* extension = registry->GetExtensionById(
-        extension_id, extensions::ExtensionRegistry::ENABLED);
-    if (!extension || !extension->permissions_data()->HasAPIPermission(
-                          extensions::mojom::APIPermissionID::kGcm)) {
-      continue;
+  if (const extensions::Extension* extension =
+          extensions::ProcessMap::Get(context)->GetEnabledExtensionByProcessID(
+              rph_id)) {
+    if (extension->permissions_data()->HasAPIPermission(
+            extensions::mojom::APIPermissionID::kGcm)) {
+      // This renderer has an extension that is using GCM.  Make sure it is not
+      // frozen during suspend.
+      delegate_->SetShouldFreezeRenderer(rph->GetProcess().Handle(), false);
+      gcm_extension_processes_.insert(rph_id);
+
+      // Watch to see if the renderer process or the RenderProcessHost is
+      // destroyed.
+      rph->AddObserver(this);
+      return;
     }
-
-    // This renderer has an extension that is using GCM.  Make sure it is not
-    // frozen during suspend.
-    delegate_->SetShouldFreezeRenderer(rph->GetProcess().Handle(), false);
-    gcm_extension_processes_.insert(rph_id);
-
-    // Watch to see if the renderer process or the RenderProcessHost is
-    // destroyed.
-    rph->AddObserver(this);
-    return;
   }
 
   // We didn't find an extension in this RenderProcessHost that is using GCM so
@@ -114,7 +103,7 @@ void RendererFreezer::OnRenderProcessHostCreated(
 void RendererFreezer::RenderProcessExited(
     content::RenderProcessHost* host,
     const content::ChildProcessTerminationInfo& info) {
-  auto it = gcm_extension_processes_.find(host->GetID());
+  auto it = gcm_extension_processes_.find(host->GetDeprecatedID());
   if (it == gcm_extension_processes_.end()) {
     LOG(ERROR) << "Received unrequested RenderProcessExited message";
     return;
@@ -131,7 +120,7 @@ void RendererFreezer::RenderProcessExited(
 
 void RendererFreezer::RenderProcessHostDestroyed(
     content::RenderProcessHost* host) {
-  auto it = gcm_extension_processes_.find(host->GetID());
+  auto it = gcm_extension_processes_.find(host->GetDeprecatedID());
   if (it == gcm_extension_processes_.end()) {
     LOG(ERROR) << "Received unrequested RenderProcessHostDestroyed message";
     return;

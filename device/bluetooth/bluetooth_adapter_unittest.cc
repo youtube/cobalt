@@ -31,9 +31,11 @@
 #include "device/bluetooth/test/bluetooth_test.h"
 #include "device/bluetooth/test/test_bluetooth_adapter_observer.h"
 #include "device/bluetooth/test/test_bluetooth_advertisement_observer.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/build_info.h"
 #include "device/bluetooth/test/bluetooth_test_android.h"
 #elif BUILDFLAG(IS_APPLE)
 #include "device/bluetooth/test/bluetooth_test_mac.h"
@@ -134,7 +136,7 @@ class TestBluetoothAdapter final : public BluetoothAdapter {
                         AdvertisementErrorCallback error_callback) override {}
   void ConnectDevice(
       const std::string& address,
-      const absl::optional<BluetoothDevice::AddressType>& address_type,
+      const std::optional<BluetoothDevice::AddressType>& address_type,
       ConnectDeviceCallback callback,
       ConnectDeviceErrorCallback error_callback) override {}
 #endif
@@ -160,11 +162,13 @@ class TestBluetoothAdapter final : public BluetoothAdapter {
       override {
     return nullptr;
   }
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+  std::vector<BluetoothRole> GetSupportedRoles() override {
+    return std::vector<BluetoothRole>{};
+  }
+
   void SetStandardChromeOSAdapterName() override {}
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   void OnStartDiscoverySessionQuitLoop(
       base::OnceClosure run_loop_quit,
@@ -345,6 +349,21 @@ class TestPairingDelegate : public BluetoothDevice::PairingDelegate {
   void ConfirmPasskey(BluetoothDevice* device, uint32_t passkey) override {}
   void AuthorizePairing(BluetoothDevice* device) override {}
 };
+
+bool ServiceSetsEqual(
+    std::vector<BluetoothLocalGattService*> services,
+    std::initializer_list<BluetoothLocalGattService*> services_to_check) {
+  using ServiceSet = std::set<BluetoothLocalGattService*,
+                              bool (*)(BluetoothLocalGattService*,
+                                       BluetoothLocalGattService*)>;
+  auto comparator = [](BluetoothLocalGattService* a,
+                       BluetoothLocalGattService* b) -> bool {
+    return a->GetIdentifier() < b->GetIdentifier();
+  };
+
+  return ServiceSet(services.begin(), services.end(), comparator) ==
+         ServiceSet(services_to_check, comparator);
+}
 
 }  // namespace
 
@@ -674,15 +693,11 @@ TEST_F(BluetoothAdapterTest, GetMergedDiscoveryFilterAllFields) {
   EXPECT_TRUE(resulting_filter->GetTransport());
   EXPECT_EQ(BLUETOOTH_TRANSPORT_DUAL, resulting_filter->GetTransport());
   EXPECT_EQ(-85, resulting_rssi);
-  EXPECT_EQ(4UL, resulting_uuids.size());
-  EXPECT_TRUE(resulting_uuids.find(device::BluetoothUUID("1000")) !=
-              resulting_uuids.end());
-  EXPECT_TRUE(resulting_uuids.find(device::BluetoothUUID("1001")) !=
-              resulting_uuids.end());
-  EXPECT_TRUE(resulting_uuids.find(device::BluetoothUUID("1003")) !=
-              resulting_uuids.end());
-  EXPECT_TRUE(resulting_uuids.find(device::BluetoothUUID("1020")) !=
-              resulting_uuids.end());
+  EXPECT_THAT(resulting_uuids,
+              testing::UnorderedElementsAre(device::BluetoothUUID("1000"),
+                                            device::BluetoothUUID("1001"),
+                                            device::BluetoothUUID("1003"),
+                                            device::BluetoothUUID("1020")));
 
   adapter_->CleanupSessions();
 }
@@ -714,7 +729,8 @@ TEST_F(BluetoothAdapterTest, StartDiscoverySessionError_Destroy) {
 }
 
 // TODO(scheib): Enable BluetoothTest fixture tests on all platforms.
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC)
+// TODO(https://crbug.com/331653043): Re-enable when passing on macOS 14 bots.
+#if BUILDFLAG(IS_ANDROID)
 #define MAYBE_ConstructDefaultAdapter ConstructDefaultAdapter
 #else
 #define MAYBE_ConstructDefaultAdapter DISABLED_ConstructDefaultAdapter
@@ -759,6 +775,10 @@ TEST_F(BluetoothTest, MAYBE_ConstructWithoutDefaultAdapter) {
 #endif
   EXPECT_FALSE(adapter_->IsDiscoverable());
   EXPECT_FALSE(adapter_->IsDiscovering());
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_EQ(adapter_->GetOsPermissionStatus(),
+            BluetoothAdapter::PermissionStatus::kDenied);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 // TODO(scheib): Enable BluetoothTest fixture tests on all platforms.
@@ -784,6 +804,10 @@ TEST_F(BluetoothTest, MAYBE_ConstructFakeAdapter) {
   EXPECT_TRUE(adapter_->CanPower());
   EXPECT_TRUE(adapter_->IsPresent());
   EXPECT_TRUE(adapter_->IsPowered());
+#if !BUILDFLAG(IS_APPLE)
+  EXPECT_EQ(BluetoothAdapter::PermissionStatus::kAllowed,
+            adapter_->GetOsPermissionStatus());
+#endif  //  !BUILDFLAG(IS_APPLE)
   EXPECT_TRUE(adapter_->IsPeripheralRoleSupported());
   EXPECT_FALSE(adapter_->IsDiscoverable());
   EXPECT_FALSE(adapter_->IsDiscovering());
@@ -899,6 +923,9 @@ TEST_F(BluetoothTest, MAYBE_NoPermissions) {
     return;
   }
 
+  EXPECT_EQ(BluetoothAdapter::PermissionStatus::kDenied,
+            adapter_->GetOsPermissionStatus());
+
   StartLowEnergyDiscoverySessionExpectedToFail();
 
   EXPECT_EQ(0, callback_count_);
@@ -914,10 +941,18 @@ TEST_F(BluetoothTest, NoLocationServices) {
   if (!PlatformSupportsLowEnergy()) {
     GTEST_SKIP() << "Low Energy Bluetooth unavailable, skipping unit test.";
   }
+  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
+      base::android::SDK_VERSION_S) {
+    GTEST_SKIP() << "Android S+ doesn't require location services perform "
+                    "Bluetooth scanning, skipping unit test.";
+  }
   InitWithFakeAdapter();
   TestBluetoothAdapterObserver observer(adapter_);
 
   SimulateLocationServicesOff();
+
+  EXPECT_EQ(BluetoothAdapter::PermissionStatus::kDenied,
+            adapter_->GetOsPermissionStatus());
 
   StartLowEnergyDiscoverySessionExpectedToFail();
 
@@ -1148,7 +1183,7 @@ TEST_P(BluetoothTestWinrt, SimulateAdapterPoweredOnAndOffWithoutRadio) {
 
 // Makes sure the error callback gets run when changing the adapter power state
 // fails.
-// TODO(https://crbug.com/878680): Implement SimulateAdapterPowerSuccess() and
+// TODO(crbug.com/41410591): Implement SimulateAdapterPowerSuccess() and
 // enable on all platforms.
 TEST_P(BluetoothTestWinrt, SimulateAdapterPowerFailure) {
   if (!PlatformSupportsLowEnergy()) {
@@ -1167,7 +1202,7 @@ TEST_P(BluetoothTestWinrt, SimulateAdapterPowerFailure) {
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-// TODO(https://crbug.com/804356): Enable this test on old Windows versions as
+// TODO(crbug.com/41366193): Enable this test on old Windows versions as
 // well.
 #if BUILDFLAG(IS_WIN)
 TEST_P(BluetoothTestWinrt, TogglePowerFakeAdapter) {
@@ -1455,7 +1490,7 @@ TEST_P(BluetoothTestWinrt, DiscoverySessionFailure) {
 #define MAYBE_TurnOffAdapterWithConnectedDevice \
   DISABLED_TurnOffAdapterWithConnectedDevice
 #endif
-// TODO(crbug.com/725270): Enable on relevant platforms.
+// TODO(crbug.com/40522060): Enable on relevant platforms.
 TEST_F(BluetoothTest, MAYBE_TurnOffAdapterWithConnectedDevice) {
   if (!PlatformSupportsLowEnergy()) {
     GTEST_SKIP() << "Low Energy Bluetooth unavailable, skipping unit test.";
@@ -1791,20 +1826,19 @@ TEST_P(BluetoothTestWinrt, SimulateAdvertisementStoppedByOS) {
 TEST_F(BluetoothTest, MAYBE_RegisterLocalGattServices) {
   InitWithFakeAdapter();
   base::WeakPtr<BluetoothLocalGattService> service =
-      BluetoothLocalGattService::Create(
-          adapter_.get(), BluetoothUUID(kTestUUIDGenericAttribute), true,
-          nullptr, nullptr);
+      adapter_->CreateLocalGattService(BluetoothUUID(kTestUUIDGenericAttribute),
+                                       true, nullptr);
   base::WeakPtr<BluetoothLocalGattCharacteristic> characteristic1 =
-      BluetoothLocalGattCharacteristic::Create(
+      service->CreateCharacteristic(
           BluetoothUUID(kTestUUIDGenericAttribute),
           BluetoothLocalGattCharacteristic::Properties(),
-          BluetoothLocalGattCharacteristic::Permissions(), service.get());
+          BluetoothLocalGattCharacteristic::Permissions());
 
   base::WeakPtr<BluetoothLocalGattCharacteristic> characteristic2 =
-      BluetoothLocalGattCharacteristic::Create(
+      service->CreateCharacteristic(
           BluetoothUUID(kTestUUIDGenericAttribute),
           BluetoothLocalGattCharacteristic::Properties(),
-          BluetoothLocalGattCharacteristic::Permissions(), service.get());
+          BluetoothLocalGattCharacteristic::Permissions());
 
   base::WeakPtr<BluetoothLocalGattDescriptor> descriptor =
       BluetoothLocalGattDescriptor::Create(
@@ -1820,6 +1854,101 @@ TEST_F(BluetoothTest, MAYBE_RegisterLocalGattServices) {
                       GetGattErrorCallback(Call::NOT_EXPECTED));
   service->Unregister(GetCallback(Call::NOT_EXPECTED),
                       GetGattErrorCallback(Call::EXPECTED));
+}
+
+#if (BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)) && \
+    !defined(USE_CAST_BLUETOOTH_ADAPTER)
+#define MAYBE_RegisterMultipleServices RegisterMultipleServices
+#else
+#define MAYBE_RegisterMultipleServices DISABLED_RegisterMultipleServices
+#endif
+TEST_F(BluetoothTest, MAYBE_RegisterMultipleServices) {
+  InitWithFakeAdapter();
+  base::WeakPtr<BluetoothLocalGattService> service2 =
+      adapter_->CreateLocalGattService(BluetoothUUID(kTestUUIDGenericAttribute),
+                                       true, nullptr);
+  base::WeakPtr<BluetoothLocalGattService> service3 =
+      adapter_->CreateLocalGattService(BluetoothUUID(kTestUUIDGenericAttribute),
+                                       true, nullptr);
+  base::WeakPtr<BluetoothLocalGattService> service4 =
+      adapter_->CreateLocalGattService(BluetoothUUID(kTestUUIDGenericAttribute),
+                                       true, nullptr);
+
+  service2->Register(GetCallback(Call::EXPECTED),
+                     GetGattErrorCallback(Call::NOT_EXPECTED));
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(), {service2.get()}));
+
+  service3->Register(GetCallback(Call::EXPECTED),
+                     GetGattErrorCallback(Call::NOT_EXPECTED));
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(),
+                               {service2.get(), service3.get()}));
+
+  service2->Unregister(GetCallback(Call::EXPECTED),
+                       GetGattErrorCallback(Call::NOT_EXPECTED));
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(), {service3.get()}));
+
+  service4->Register(GetCallback(Call::EXPECTED),
+                     GetGattErrorCallback(Call::NOT_EXPECTED));
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(),
+                               {service3.get(), service4.get()}));
+
+  service3->Register(GetCallback(Call::NOT_EXPECTED),
+                     GetGattErrorCallback(Call::EXPECTED));
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(),
+                               {service3.get(), service4.get()}));
+
+  service3->Unregister(GetCallback(Call::EXPECTED),
+                       GetGattErrorCallback(Call::NOT_EXPECTED));
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(), {service4.get()}));
+
+  service4->Unregister(GetCallback(Call::EXPECTED),
+                       GetGattErrorCallback(Call::NOT_EXPECTED));
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(), {}));
+}
+
+#if (BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)) && \
+    !defined(USE_CAST_BLUETOOTH_ADAPTER)
+#define MAYBE_DeleteServices DeleteServices
+#else
+#define MAYBE_DeleteServices DISABLED_DeleteServices
+#endif
+TEST_F(BluetoothTest, MAYBE_DeleteServices) {
+  InitWithFakeAdapter();
+  base::WeakPtr<BluetoothLocalGattService> service2 =
+      adapter_->CreateLocalGattService(BluetoothUUID(kTestUUIDGenericAttribute),
+                                       true, nullptr);
+  base::WeakPtr<BluetoothLocalGattService> service3 =
+      adapter_->CreateLocalGattService(BluetoothUUID(kTestUUIDGenericAttribute),
+                                       true, nullptr);
+  service2->Register(GetCallback(Call::EXPECTED),
+                     GetGattErrorCallback(Call::NOT_EXPECTED));
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(), {service2.get()}));
+
+  service3->Register(GetCallback(Call::EXPECTED),
+                     GetGattErrorCallback(Call::NOT_EXPECTED));
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(),
+                               {service2.get(), service3.get()}));
+
+  service2->Unregister(GetCallback(Call::EXPECTED),
+                       GetGattErrorCallback(Call::NOT_EXPECTED));
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(), {service3.get()}));
+
+  service2->Delete();
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(), {service3.get()}));
+
+  service3->Delete();
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(), {}));
+
+  // Create a service, register and then delete it, just to check everything
+  // still works.
+  base::WeakPtr<BluetoothLocalGattService> service4 =
+      adapter_->CreateLocalGattService(BluetoothUUID(kTestUUIDGenericAttribute),
+                                       true, nullptr);
+  service4->Register(GetCallback(Call::EXPECTED),
+                     GetGattErrorCallback(Call::NOT_EXPECTED));
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(), {service4.get()}));
+  service4->Delete();
+  EXPECT_TRUE(ServiceSetsEqual(RegisteredGattServices(), {}));
 }
 
 // This test should only be enabled for platforms that uses the

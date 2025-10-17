@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/base_export.h"
 #include "base/metrics/histogram_base.h"
@@ -26,16 +27,16 @@ class BASE_EXPORT DummyHistogram : public HistogramBase {
   DummyHistogram(const DummyHistogram&) = delete;
   DummyHistogram& operator=(const DummyHistogram&) = delete;
 
-  // HistogramBase:
-  void CheckName(const StringPiece& name) const override {}
+  // HistogramBase
+  void CheckName(std::string_view name) const override {}
   uint64_t name_hash() const override;
   HistogramType GetHistogramType() const override;
-  bool HasConstructionArguments(Sample expected_minimum,
-                                Sample expected_maximum,
+  bool HasConstructionArguments(Sample32 expected_minimum,
+                                Sample32 expected_maximum,
                                 size_t expected_bucket_count) const override;
-  void Add(Sample value) override {}
-  void AddCount(Sample value, int count) override {}
-  void AddSamples(const HistogramSamples& samples) override {}
+  void Add(Sample32 value) override {}
+  void AddCount(Sample32 value, int count) override {}
+  bool AddSamples(const HistogramSamples& samples) override;
   bool AddSamplesFromPickle(PickleIterator* iter) override;
   std::unique_ptr<HistogramSamples> SnapshotSamples() const override;
   std::unique_ptr<HistogramSamples> SnapshotUnloggedSamples() const override;
@@ -53,8 +54,8 @@ class BASE_EXPORT DummyHistogram : public HistogramBase {
  private:
   friend class NoDestructor<DummyHistogram>;
 
-  DummyHistogram() : HistogramBase("dummy_histogram") {}
-  ~DummyHistogram() override {}
+  DummyHistogram() : HistogramBase(DurableStringView("dummy_histogram")) {}
+  ~DummyHistogram() override = default;
 };
 
 }  // namespace base

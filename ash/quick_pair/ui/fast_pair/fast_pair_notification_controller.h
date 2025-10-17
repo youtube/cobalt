@@ -86,6 +86,7 @@ class FastPairNotificationController {
       base::RepeatingClosure on_save_clicked,
       base::RepeatingClosure on_learn_more_clicked,
       base::OnceCallback<void(FastPairNotificationDismissReason)> on_close);
+  void ShowPasskey(const std::u16string& device_name, uint32_t passkey);
   void RemoveNotifications();
   void ExtendNotification();
 
@@ -98,7 +99,7 @@ class FastPairNotificationController {
   // pairing/saving to their account.
   base::OneShotTimer expire_notification_timer_;
 
-  raw_ptr<message_center::MessageCenter, ExperimentalAsh> message_center_;
+  raw_ptr<message_center::MessageCenter, DanglingUntriaged> message_center_;
 
   base::WeakPtrFactory<FastPairNotificationController> weak_ptr_factory_{this};
 };

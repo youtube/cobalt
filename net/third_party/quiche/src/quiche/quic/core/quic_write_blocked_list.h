@@ -11,12 +11,13 @@
 
 #include "absl/container/inlined_vector.h"
 #include "quiche/http2/core/priority_write_scheduler.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream_priority.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace quic {
 
@@ -75,7 +76,7 @@ class QUICHE_EXPORT QuicWriteBlockedListInterface {
 };
 
 // Default implementation of QuicWriteBlockedListInterface.
-class QUIC_EXPORT_PRIVATE QuicWriteBlockedList
+class QUICHE_EXPORT QuicWriteBlockedList
     : public QuicWriteBlockedListInterface {
  public:
   explicit QuicWriteBlockedList();
@@ -166,9 +167,9 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList
 
   // A StaticStreamCollection is a vector of <QuicStreamId, bool> pairs plus a
   // eagerly-computed number of blocked static streams.
-  class QUIC_EXPORT_PRIVATE StaticStreamCollection {
+  class QUICHE_EXPORT StaticStreamCollection {
    public:
-    struct QUIC_EXPORT_PRIVATE StreamIdBlockedPair {
+    struct QUICHE_EXPORT StreamIdBlockedPair {
       QuicStreamId id;
       bool is_blocked;
     };

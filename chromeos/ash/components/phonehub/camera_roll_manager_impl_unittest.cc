@@ -4,6 +4,8 @@
 
 #include "chromeos/ash/components/phonehub/camera_roll_manager_impl.h"
 
+#include <optional>
+
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
@@ -23,12 +25,10 @@
 #include "chromeos/ash/services/secure_channel/public/cpp/client/fake_connection_manager.h"
 #include "chromeos/ash/services/secure_channel/public/mojom/secure_channel_types.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 namespace {
 
@@ -59,7 +59,7 @@ class FakeObserver : public CameraRollManager::Observer {
   void OnCameraRollDownloadError(
       CameraRollManager::Observer::DownloadErrorType error_type,
       const proto::CameraRollItemMetadata& metadata) override {
-    last_download_error_ = absl::make_optional(error_type);
+    last_download_error_ = std::make_optional(error_type);
   }
 
   CameraRollManager::Observer::DownloadErrorType last_download_error() const {
@@ -68,8 +68,8 @@ class FakeObserver : public CameraRollManager::Observer {
 
  private:
   int on_camera_roll_items_changed_call_count_ = 0;
-  absl::optional<CameraRollManager::Observer::DownloadErrorType>
-      last_download_error_ = absl::nullopt;
+  std::optional<CameraRollManager::Observer::DownloadErrorType>
+      last_download_error_ = std::nullopt;
 };
 
 void PopulateItemProto(proto::CameraRollItem* item_proto, std::string key) {
@@ -322,7 +322,7 @@ class CameraRollManagerImplTest : public testing::Test {
   FakeMessageSender fake_message_sender_;
   std::unique_ptr<secure_channel::FakeConnectionManager>
       fake_connection_manager_;
-  raw_ptr<FakeCameraRollDownloadManager, ExperimentalAsh>
+  raw_ptr<FakeCameraRollDownloadManager, DanglingUntriaged>
       fake_camera_roll_download_manager_;
   std::unique_ptr<CameraRollManagerImpl> camera_roll_manager_;
   FakeObserver fake_observer_;
@@ -837,5 +837,4 @@ TEST_F(CameraRollManagerImplTest, ItemsClearedWhenDeviceDisconnected) {
   EXPECT_EQ(0, GetCurrentItemsCount());
 }
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub

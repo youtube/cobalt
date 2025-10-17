@@ -72,7 +72,7 @@ class DomainReliabilityUploaderImpl : public DomainReliabilityUploader,
       const std::string& report_json,
       int max_upload_depth,
       const GURL& upload_url,
-      const net::NetworkAnonymizationKey& network_anonymization_key,
+      const net::IsolationInfo& isolation_info,
       DomainReliabilityUploader::UploadCallback callback) override {
     DVLOG(1) << "Uploading report to " << upload_url;
     DVLOG(2) << "Report JSON: " << report_json;
@@ -133,19 +133,21 @@ class DomainReliabilityUploaderImpl : public DomainReliabilityUploader,
     request->set_allow_credentials(false);
     request->SetExtraRequestHeaderByName(net::HttpRequestHeaders::kContentType,
                                          kJsonMimeType, true /* overwrite */);
+    CHECK_EQ(isolation_info.request_type(),
+             net::IsolationInfo::RequestType::kOther);
+    CHECK(isolation_info.site_for_cookies().IsNull());
+    request->set_isolation_info(isolation_info);
     // Since this is a POST with an upload body and no identifier, these
     // requests automatically bypass the cache, but for consistency set the
-    // IsolationInfo and load flags such that caching is explicitly disabled.
-    // This does mean we also disable the cache if we're redirected and the
-    // request becomes a GET, but these shouldn't be redirected.
-    request->set_isolation_info_from_network_anonymization_key(
-        network_anonymization_key);
+    // load flags such that caching is explicitly disabled. This does mean we
+    // also disable the cache if we're redirected and the request becomes a GET,
+    // but these shouldn't be redirected.
     request->SetLoadFlags(request->load_flags() | net::LOAD_DISABLE_CACHE);
     std::vector<char> report_data(report_json.begin(), report_json.end());
     auto upload_reader =
         std::make_unique<net::UploadOwnedBytesElementReader>(&report_data);
     request->set_upload(net::ElementsUploadDataStream::CreateWithReader(
-        std::move(upload_reader), 0 /* identifier */));
+        std::move(upload_reader)));
     request->SetUserData(
         UploadDepthData::kUserDataKey,
         std::make_unique<UploadDepthData>(max_upload_depth + 1));
@@ -176,7 +178,7 @@ class DomainReliabilityUploaderImpl : public DomainReliabilityUploader,
     DCHECK(!shutdown_);
 
     auto request_it = uploads_.find(request);
-    DCHECK(request_it != uploads_.end());
+    CHECK(request_it != uploads_.end());
 
     int http_response_code = -1;
     base::TimeDelta retry_after;
@@ -221,8 +223,8 @@ class DomainReliabilityUploaderImpl : public DomainReliabilityUploader,
   int discarded_upload_count_;
 };
 
-DomainReliabilityUploader::DomainReliabilityUploader() {}
-DomainReliabilityUploader::~DomainReliabilityUploader() {}
+DomainReliabilityUploader::DomainReliabilityUploader() = default;
+DomainReliabilityUploader::~DomainReliabilityUploader() = default;
 
 // static
 std::unique_ptr<DomainReliabilityUploader> DomainReliabilityUploader::Create(

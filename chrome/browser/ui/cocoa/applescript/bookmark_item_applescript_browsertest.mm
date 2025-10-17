@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#import "chrome/browser/ui/cocoa/applescript/bookmark_item_applescript.h"
+
 #import <Foundation/Foundation.h>
 
-#include "base/mac/scoped_nsobject.h"
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/browser/profiles/profile.h"
 #import "chrome/browser/ui/cocoa/applescript/bookmark_applescript_test_utils.h"
-#import "chrome/browser/ui/cocoa/applescript/bookmark_item_applescript.h"
 #import "chrome/browser/ui/cocoa/applescript/error_applescript.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -26,7 +26,7 @@ namespace {
 
 // Set and get title.
 IN_PROC_BROWSER_TEST_F(BookmarkItemAppleScriptTest, GetAndSetTitle) {
-  NSArray* bookmark_items = bookmark_bar_.get().bookmarkItems;
+  NSArray* bookmark_items = bookmark_bar_.bookmarkItems;
   BookmarkItemAppleScript* item1 = bookmark_items[0];
   item1.title = @"Foo";
   EXPECT_NSEQ(@"Foo", item1.title);
@@ -34,18 +34,17 @@ IN_PROC_BROWSER_TEST_F(BookmarkItemAppleScriptTest, GetAndSetTitle) {
 
 // Set and get URL.
 IN_PROC_BROWSER_TEST_F(BookmarkItemAppleScriptTest, GetAndSetURL) {
-  NSArray* bookmark_items = bookmark_bar_.get().bookmarkItems;
+  NSArray* bookmark_items = bookmark_bar_.bookmarkItems;
   BookmarkItemAppleScript* item1 = bookmark_items[0];
   item1.URL = @"http://foo-bar.org";
   EXPECT_EQ(GURL("http://foo-bar.org"),
             GURL(base::SysNSStringToUTF8(item1.URL)));
 
   // If scripter enters invalid URL.
-  base::scoped_nsobject<FakeScriptCommand> fake_script_command(
-      [[FakeScriptCommand alloc] init]);
+  FakeScriptCommand* fake_script_command = [[FakeScriptCommand alloc] init];
   item1.URL = @"invalid-url.org";
   EXPECT_EQ(static_cast<int>(Error::kInvalidURL),
-            fake_script_command.get().scriptErrorNumber);
+            fake_script_command.scriptErrorNumber);
 }
 
 // Creating bookmarks with javascript: URLs is controlled by a preference.
@@ -53,14 +52,13 @@ IN_PROC_BROWSER_TEST_F(BookmarkItemAppleScriptTest, GetAndSetJavascriptURL) {
   PrefService* prefs = profile()->GetPrefs();
   prefs->SetBoolean(prefs::kAllowJavascriptAppleEvents, false);
 
-  NSArray* bookmark_items = bookmark_bar_.get().bookmarkItems;
+  NSArray* bookmark_items = bookmark_bar_.bookmarkItems;
   BookmarkItemAppleScript* item1 = bookmark_items[0];
 
-  base::scoped_nsobject<FakeScriptCommand> fake_script_command(
-      [[FakeScriptCommand alloc] init]);
+  FakeScriptCommand* fake_script_command = [[FakeScriptCommand alloc] init];
   item1.URL = @"javascript:alert('hi');";
   EXPECT_EQ(static_cast<int>(Error::kJavaScriptUnsupported),
-            fake_script_command.get().scriptErrorNumber);
+            fake_script_command.scriptErrorNumber);
 
   prefs->SetBoolean(prefs::kAllowJavascriptAppleEvents, true);
   item1.URL = @"javascript:alert('hi');";

@@ -212,7 +212,6 @@ void HostGlobals::ModuleDeleted(PP_Module module) {
   auto found = module_map_.find(module);
   if (found == module_map_.end()) {
     NOTREACHED();
-    return;
   }
   module_map_.erase(found);
 }

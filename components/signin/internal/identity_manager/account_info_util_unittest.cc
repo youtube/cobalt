@@ -7,8 +7,12 @@
 #include "components/signin/internal/identity_manager/account_capabilities_constants.h"
 #include "components/signin/public/identity_manager/account_capabilities.h"
 #include "components/signin/public/identity_manager/account_info.h"
+#include "components/signin/public/identity_manager/signin_constants.h"
 #include "components/signin/public/identity_manager/tribool.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/platform_test.h"
+
+using signin::constants::kNoHostedDomainFound;
 
 namespace {
 // Returns a base::Value::Dict corresponding to the user info as would be
@@ -20,28 +24,40 @@ base::Value::Dict CreateUserInfoWithValues(const char* email,
                                            const char* full_name,
                                            const char* given_name,
                                            const char* locale,
-                                           const char* picture_url) {
+                                           const char* picture_url,
+                                           const char* sub = nullptr) {
   base::Value::Dict user_info;
-  if (email)
+  if (email) {
     user_info.Set("email", base::Value(email));
+  }
 
-  if (gaia)
+  if (gaia) {
     user_info.Set("id", base::Value(gaia));
+  }
 
-  if (hosted_domain)
+  if (hosted_domain) {
     user_info.Set("hd", base::Value(hosted_domain));
+  }
 
-  if (full_name)
+  if (full_name) {
     user_info.Set("name", base::Value(full_name));
+  }
 
-  if (given_name)
+  if (given_name) {
     user_info.Set("given_name", base::Value(given_name));
+  }
 
-  if (locale)
+  if (locale) {
     user_info.Set("locale", base::Value(locale));
+  }
 
-  if (picture_url)
+  if (picture_url) {
     user_info.Set("picture", base::Value(picture_url));
+  }
+
+  if (sub) {
+    user_info.Set("sub", base::Value(sub));
+  }
 
   return user_info;
 }
@@ -68,7 +84,7 @@ using AccountInfoUtilTest = PlatformTest;
 // Tests that AccountInfoFromUserInfo returns an AccountInfo with the value
 // extracted from the passed base::Value.
 TEST_F(AccountInfoUtilTest, FromUserInfo) {
-  absl::optional<AccountInfo> maybe_account_info =
+  std::optional<AccountInfo> maybe_account_info =
       AccountInfoFromUserInfo(CreateUserInfoWithValues(
           /*email=*/"user@example.com", /*gaia=*/"gaia_id_user_example_com",
           /*hosted_domain=*/"example.com", /*full_name=*/"full name",
@@ -79,7 +95,55 @@ TEST_F(AccountInfoUtilTest, FromUserInfo) {
 
   AccountInfo& account_info = maybe_account_info.value();
   ASSERT_EQ(account_info.email, "user@example.com");
-  ASSERT_EQ(account_info.gaia, "gaia_id_user_example_com");
+  ASSERT_EQ(account_info.gaia.ToString(), "gaia_id_user_example_com");
+  ASSERT_EQ(account_info.hosted_domain, "example.com");
+  ASSERT_EQ(account_info.full_name, "full name");
+  ASSERT_EQ(account_info.given_name, "given name");
+  ASSERT_EQ(account_info.locale, "locale");
+  ASSERT_EQ(account_info.picture_url, "https://example.com/picture/user");
+}
+
+// Tests that AccountInfoFromUserInfo returns an AccountInfo with the value
+// extracted from the passed base::Value when the GAIA ID is stored in
+// the "sub" value.
+TEST_F(AccountInfoUtilTest, FromUserInfoWithSub) {
+  std::optional<AccountInfo> maybe_account_info =
+      AccountInfoFromUserInfo(CreateUserInfoWithValues(
+          /*email=*/"user@example.com", /*gaia=*/nullptr,
+          /*hosted_domain=*/"example.com", /*full_name=*/"full name",
+          /*given_name=*/"given name", /*locale=*/"locale",
+          /*picture_url=*/"https://example.com/picture/user",
+          /*sub=*/"gaia_id_user_example_com"));
+
+  ASSERT_TRUE(maybe_account_info.has_value());
+
+  AccountInfo& account_info = maybe_account_info.value();
+  ASSERT_EQ(account_info.email, "user@example.com");
+  ASSERT_EQ(account_info.gaia.ToString(), "gaia_id_user_example_com");
+  ASSERT_EQ(account_info.hosted_domain, "example.com");
+  ASSERT_EQ(account_info.full_name, "full name");
+  ASSERT_EQ(account_info.given_name, "given name");
+  ASSERT_EQ(account_info.locale, "locale");
+  ASSERT_EQ(account_info.picture_url, "https://example.com/picture/user");
+}
+
+// Tests that AccountInfoFromUserInfo returns an AccountInfo with the value
+// extracted from the passed base::Value, and that the GAIA ID stored in "id"
+// takes precedence over the "sub" value.
+TEST_F(AccountInfoUtilTest, FromUserInfoWithIdAndSub) {
+  std::optional<AccountInfo> maybe_account_info =
+      AccountInfoFromUserInfo(CreateUserInfoWithValues(
+          /*email=*/"user@example.com", /*gaia=*/"gaia_id_user_example_com",
+          /*hosted_domain=*/"example.com", /*full_name=*/"full name",
+          /*given_name=*/"given name", /*locale=*/"locale",
+          /*picture_url=*/"https://example.com/picture/user",
+          /*sub=*/"gaia_sub_user_example_com"));
+
+  ASSERT_TRUE(maybe_account_info.has_value());
+
+  AccountInfo& account_info = maybe_account_info.value();
+  ASSERT_EQ(account_info.email, "user@example.com");
+  ASSERT_EQ(account_info.gaia.ToString(), "gaia_id_user_example_com");
   ASSERT_EQ(account_info.hosted_domain, "example.com");
   ASSERT_EQ(account_info.full_name, "full name");
   ASSERT_EQ(account_info.given_name, "given name");
@@ -91,7 +155,7 @@ TEST_F(AccountInfoUtilTest, FromUserInfo) {
 // default values if no fields are set in the user_info except for email or
 // gaia id.
 TEST_F(AccountInfoUtilTest, FromUserInfo_EmptyValues) {
-  absl::optional<AccountInfo> maybe_account_info =
+  std::optional<AccountInfo> maybe_account_info =
       AccountInfoFromUserInfo(CreateUserInfoWithValues(
           /*email=*/"user@example.com", /*gaia=*/"gaia_id_user_example_com",
           /*hosted_domain=*/"", /*full_name=*/"",
@@ -101,7 +165,7 @@ TEST_F(AccountInfoUtilTest, FromUserInfo_EmptyValues) {
 
   AccountInfo& account_info = maybe_account_info.value();
   ASSERT_EQ(account_info.email, "user@example.com");
-  ASSERT_EQ(account_info.gaia, "gaia_id_user_example_com");
+  ASSERT_EQ(account_info.gaia.ToString(), "gaia_id_user_example_com");
   ASSERT_EQ(account_info.hosted_domain, kNoHostedDomainFound);
   ASSERT_EQ(account_info.full_name, std::string());
   ASSERT_EQ(account_info.given_name, std::string());
@@ -113,7 +177,7 @@ TEST_F(AccountInfoUtilTest, FromUserInfo_EmptyValues) {
 // extracted from the passed base::Value, with default value for |hosted_domain|
 // if missing.
 TEST_F(AccountInfoUtilTest, FromUserInfo_NoHostedDomain) {
-  absl::optional<AccountInfo> maybe_account_info =
+  std::optional<AccountInfo> maybe_account_info =
       AccountInfoFromUserInfo(CreateUserInfoWithValues(
           /*email=*/"user@example.com", /*gaia=*/"gaia_id_user_example_com",
           /*hosted_domain=*/nullptr, /*full_name=*/"full name",
@@ -130,7 +194,7 @@ TEST_F(AccountInfoUtilTest, FromUserInfo_NoHostedDomain) {
 // extracted from the passed base::Value, with default value for |picture_url|
 // if missing.
 TEST_F(AccountInfoUtilTest, FromUserInfo_NoPictureUrl) {
-  absl::optional<AccountInfo> maybe_account_info =
+  std::optional<AccountInfo> maybe_account_info =
       AccountInfoFromUserInfo(CreateUserInfoWithValues(
           /*email=*/"user@example.com", /*gaia=*/"gaia_id_user_example_com",
           /*hosted_domain=*/"example.com", /*full_name=*/"full name",
@@ -146,7 +210,7 @@ TEST_F(AccountInfoUtilTest, FromUserInfo_NoPictureUrl) {
 // Tests that if AccountInfoFromUserInfo fails if the value passed has no
 // value for |email|.
 TEST_F(AccountInfoUtilTest, FromUserInfo_NoEmail) {
-  absl::optional<AccountInfo> maybe_account_info =
+  std::optional<AccountInfo> maybe_account_info =
       AccountInfoFromUserInfo(CreateUserInfoWithValues(
           /*email=*/nullptr, /*gaia=*/"gaia_id_user_example_com",
           /*hosted_domain=*/"example.com", /*full_name=*/"full name",
@@ -159,7 +223,7 @@ TEST_F(AccountInfoUtilTest, FromUserInfo_NoEmail) {
 // Tests that if AccountInfoFromUserInfo fails if the value passed has empty
 // string as value for |email|.
 TEST_F(AccountInfoUtilTest, FromUserInfo_EmptyEmail) {
-  absl::optional<AccountInfo> maybe_account_info =
+  std::optional<AccountInfo> maybe_account_info =
       AccountInfoFromUserInfo(CreateUserInfoWithValues(
           /*email=*/"", /*gaia=*/"gaia_id_user_example_com",
           /*hosted_domain=*/"example.com", /*full_name=*/"full name",
@@ -172,7 +236,7 @@ TEST_F(AccountInfoUtilTest, FromUserInfo_EmptyEmail) {
 // Tests that if AccountInfoFromUserInfo fails if the value passed has no
 // value for |gaia|.
 TEST_F(AccountInfoUtilTest, FromUserInfo_NoGaiaId) {
-  absl::optional<AccountInfo> maybe_account_info =
+  std::optional<AccountInfo> maybe_account_info =
       AccountInfoFromUserInfo(CreateUserInfoWithValues(
           /*email=*/"user@example.com", /*gaia=*/nullptr,
           /*hosted_domain=*/"example.com", /*full_name=*/"full name",
@@ -185,7 +249,7 @@ TEST_F(AccountInfoUtilTest, FromUserInfo_NoGaiaId) {
 // Tests that if AccountInfoFromUserInfo fails if the value passed has empty
 // string as value for |gaia|.
 TEST_F(AccountInfoUtilTest, FromUserInfo_EmptyGaiaId) {
-  absl::optional<AccountInfo> maybe_account_info =
+  std::optional<AccountInfo> maybe_account_info =
       AccountInfoFromUserInfo(CreateUserInfoWithValues(
           /*email=*/"user@example.com", /*gaia=*/"",
           /*hosted_domain=*/"example.com", /*full_name=*/"full name",
@@ -196,56 +260,76 @@ TEST_F(AccountInfoUtilTest, FromUserInfo_EmptyGaiaId) {
 }
 
 TEST_F(AccountInfoUtilTest, AccountCapabilitiesFromValue) {
-  absl::optional<AccountCapabilities> capabilities =
+  std::optional<AccountCapabilities> capabilities =
       AccountCapabilitiesFromValue(CreateAccountCapabilitiesValue(
-          {{kCanOfferExtendedChromeSyncPromosCapabilityName, true}}));
+          {{kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName,
+            true}}));
 
   ASSERT_TRUE(capabilities.has_value());
-  EXPECT_EQ(capabilities->can_offer_extended_chrome_sync_promos(),
-            signin::Tribool::kTrue);
+  EXPECT_EQ(
+      capabilities
+          ->can_show_history_sync_opt_ins_without_minor_mode_restrictions(),
+      signin::Tribool::kTrue);
+  EXPECT_EQ(
+      capabilities
+          ->can_show_history_sync_opt_ins_without_minor_mode_restrictions(),
+      signin::Tribool::kTrue);
 }
 
 TEST_F(AccountInfoUtilTest, AccountCapabilitiesFromValue_EmptyList) {
-  absl::optional<AccountCapabilities> capabilities =
+  std::optional<AccountCapabilities> capabilities =
       AccountCapabilitiesFromValue(CreateAccountCapabilitiesValue({}));
 
   ASSERT_TRUE(capabilities.has_value());
-  EXPECT_EQ(capabilities->can_offer_extended_chrome_sync_promos(),
-            signin::Tribool::kUnknown);
+  EXPECT_EQ(
+      capabilities
+          ->can_show_history_sync_opt_ins_without_minor_mode_restrictions(),
+      signin::Tribool::kUnknown);
+  EXPECT_EQ(
+      capabilities
+          ->can_show_history_sync_opt_ins_without_minor_mode_restrictions(),
+      signin::Tribool::kUnknown);
 }
 
 TEST_F(AccountInfoUtilTest, AccountCapabilitiesFromValue_SeveralCapabilities) {
-  absl::optional<AccountCapabilities> capabilities =
+  std::optional<AccountCapabilities> capabilities =
       AccountCapabilitiesFromValue(CreateAccountCapabilitiesValue(
           {{"testcapability", true},
-           {kCanOfferExtendedChromeSyncPromosCapabilityName, false}}));
+           {kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName,
+            false}}));
 
   ASSERT_TRUE(capabilities.has_value());
-  EXPECT_EQ(capabilities->can_offer_extended_chrome_sync_promos(),
-            signin::Tribool::kFalse);
+  EXPECT_EQ(
+      capabilities
+          ->can_show_history_sync_opt_ins_without_minor_mode_restrictions(),
+      signin::Tribool::kFalse);
 }
 
 TEST_F(AccountInfoUtilTest, AccountCapabilitiesFromValue_NonBooleanValue) {
   base::Value::Dict dict;
   base::Value* list = dict.Set("accountCapabilities", base::Value::List());
   base::Value::Dict entry;
-  entry.Set("name", kCanOfferExtendedChromeSyncPromosCapabilityName);
+  entry.Set(
+      "name",
+      kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName);
   entry.Set("intValue", 42);
   list->GetList().Append(std::move(entry));
 
-  absl::optional<AccountCapabilities> capabilities =
+  std::optional<AccountCapabilities> capabilities =
       AccountCapabilitiesFromValue(dict);
 
   ASSERT_TRUE(capabilities.has_value());
-  EXPECT_EQ(capabilities->can_offer_extended_chrome_sync_promos(),
-            signin::Tribool::kUnknown);
+  EXPECT_EQ(
+      capabilities
+          ->can_show_history_sync_opt_ins_without_minor_mode_restrictions(),
+      signin::Tribool::kUnknown);
 }
 
 TEST_F(AccountInfoUtilTest, AccountCapabilitiesFromValue_DoesNotContainList) {
   base::Value::Dict dict;
   dict.Set("accountCapabilities", base::Value::Dict());
 
-  absl::optional<AccountCapabilities> capabilities =
+  std::optional<AccountCapabilities> capabilities =
       AccountCapabilitiesFromValue(dict);
 
   EXPECT_FALSE(capabilities.has_value());
@@ -258,7 +342,7 @@ TEST_F(AccountInfoUtilTest, AccountCapabilitiesFromValue_NameNotFound) {
   entry.Set("booleanValue", true);
   list->GetList().Append(std::move(entry));
 
-  absl::optional<AccountCapabilities> capabilities =
+  std::optional<AccountCapabilities> capabilities =
       AccountCapabilitiesFromValue(dict);
 
   EXPECT_FALSE(capabilities.has_value());

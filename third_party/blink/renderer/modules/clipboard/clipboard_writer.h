@@ -19,8 +19,8 @@ namespace blink {
 class FileReaderLoader;
 class SystemClipboard;
 
-// Interface for writing an individual Clipboard API format as a Blob to the
-// System Clipboard, safely and asynchronously.
+// Interface for writing an individual Clipboard API format as a Blob or
+// String to the System Clipboard, safely and asynchronously.
 //
 // ClipboardWriter takes as input a ClipboardPromise, which manages writing
 // multiple formats and passes in unsanitized clipboard payloads.
@@ -54,25 +54,15 @@ class SystemClipboard;
 class ClipboardWriter : public GarbageCollected<ClipboardWriter>,
                         public FileReaderAccumulator {
  public:
-  // For writing sanitized and custom MIME types.
-  // IsValidType() must return true on types passed into `mime_type`.
   static ClipboardWriter* Create(SystemClipboard* system_clipboard,
                                  const String& mime_type,
                                  ClipboardPromise* promise);
 
   ~ClipboardWriter() override;
 
-  // Returns whether ClipboardWriter has implemented support for this type.
-  //
-  // IsValidType() is expected to be called before Create(). If it returns false
-  // for a `mime_type`, Create() must not be called with that `mime_type`.
-  //
-  // IsValidType() is used for both ClipboardWriter and ClipboardReader, as read
-  // and write currently support the same types. If this changes in the future,
-  // please create separate IsValidType functions.
-  static bool IsValidType(const String& mime_type);
-  // Begins the sequence of writing the Blob to the system clipbaord.
-  void WriteToSystem(Blob* blob);
+  // Begins the sequence of writing the ClipboardItemData to the system
+  // clipboard.
+  void WriteToSystem(V8UnionBlobOrString* clipboard_item_data);
 
   // FileReaderClient.
   void DidFinishLoading(FileReaderData) override;
@@ -93,7 +83,7 @@ class ClipboardWriter : public GarbageCollected<ClipboardWriter>,
   // be valid by the time it's used.
   SystemClipboard* system_clipboard() {
     DCHECK(promise_->GetLocalFrame());
-    return system_clipboard_;
+    return system_clipboard_.Get();
   }
 
   // This ClipboardPromise owns this ClipboardWriter. Subclasses use `promise_`

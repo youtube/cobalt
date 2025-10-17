@@ -13,12 +13,14 @@ import android.net.Uri;
 import android.text.TextUtils;
 import android.util.Log;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Helper class for Custom Tabs.
- */
+/** Helper class for Custom Tabs. */
+@NullMarked
 public class CustomTabsHelper {
     private static final String TAG = "CustomTabsHelper";
     static final String STABLE_PACKAGE = "com.android.chrome";
@@ -30,13 +32,16 @@ public class CustomTabsHelper {
     private static final String ACTION_CUSTOM_TABS_CONNECTION =
             "android.support.customtabs.action.CustomTabsService";
 
-    private static String sPackageNameToUse;
+    private static @Nullable String sPackageNameToUse;
 
     private CustomTabsHelper() {}
 
     public static void addKeepAliveExtra(Context context, Intent intent) {
-        Intent keepAliveIntent = new Intent().setClassName(
-                context.getPackageName(), KeepAliveService.class.getCanonicalName());
+        Intent keepAliveIntent =
+                new Intent()
+                        .setClassName(
+                                context.getPackageName(),
+                                KeepAliveService.class.getCanonicalName());
         intent.putExtra(EXTRA_CUSTOM_TABS_KEEP_ALIVE, keepAliveIntent);
     }
 
@@ -50,7 +55,7 @@ public class CustomTabsHelper {
      * @param context {@link Context} to use for accessing {@link PackageManager}.
      * @return The package name recommended to use for connecting to custom tabs related components.
      */
-    public static String getPackageNameToUse(Context context) {
+    public static @Nullable String getPackageNameToUse(Context context) {
         if (sPackageNameToUse != null) return sPackageNameToUse;
 
         PackageManager pm = context.getPackageManager();
@@ -104,9 +109,8 @@ public class CustomTabsHelper {
     private static boolean hasSpecializedHandlerIntents(Context context, Intent intent) {
         try {
             PackageManager pm = context.getPackageManager();
-            List<ResolveInfo> handlers = pm.queryIntentActivities(
-                    intent,
-                    PackageManager.GET_RESOLVED_FILTER);
+            List<ResolveInfo> handlers =
+                    pm.queryIntentActivities(intent, PackageManager.GET_RESOLVED_FILTER);
             if (handlers == null || handlers.size() == 0) {
                 return false;
             }
@@ -127,6 +131,6 @@ public class CustomTabsHelper {
      * @return All possible chrome package names that provide custom tabs feature.
      */
     public static String[] getPackages() {
-        return new String[]{"", STABLE_PACKAGE, BETA_PACKAGE, DEV_PACKAGE, LOCAL_PACKAGE};
+        return new String[] {"", STABLE_PACKAGE, BETA_PACKAGE, DEV_PACKAGE, LOCAL_PACKAGE};
     }
 }

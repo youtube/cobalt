@@ -8,14 +8,17 @@
 #include <vector>
 
 #include "ash/ash_export.h"
-#include "ash/public/cpp/tablet_mode.h"
-#include "ash/public/cpp/tablet_mode_observer.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/sharesheet/sharesheet_types.h"
 #include "components/services/app_service/public/cpp/intent.h"
+#include "ui/display/display_observer.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/widget/widget.h"
+
+namespace display {
+enum class TabletState;
+}  // namespace display
 
 namespace views {
 class TableLayoutView;
@@ -33,9 +36,10 @@ class SharesheetHeaderView;
 class SharesheetExpandButton;
 
 class SharesheetBubbleView : public views::BubbleDialogDelegateView,
-                             public TabletModeObserver {
+                             public display::DisplayObserver {
+  METADATA_HEADER(SharesheetBubbleView, views::BubbleDialogDelegateView)
+
  public:
-  METADATA_HEADER(SharesheetBubbleView);
   using TargetInfo = ::sharesheet::TargetInfo;
 
   SharesheetBubbleView(gfx::NativeWindow native_window,
@@ -51,6 +55,8 @@ class SharesheetBubbleView : public views::BubbleDialogDelegateView,
                   apps::IntentPtr intent,
                   ::sharesheet::DeliveredCallback delivered_callback,
                   ::sharesheet::CloseCallback close_callback);
+  // Triggers the sharesheet bubble, then immediately triggers the nearby share
+  // action, which opens within the bubble, bypassing the sharesheet entirely.
   void ShowNearbyShareBubbleForArc(
       apps::IntentPtr intent,
       ::sharesheet::DeliveredCallback delivered_callback,
@@ -59,17 +65,7 @@ class SharesheetBubbleView : public views::BubbleDialogDelegateView,
   void ResizeBubble(const int& width, const int& height);
   void CloseBubble(views::Widget::ClosedReason reason);
 
-  // --- Added for debugging purposes. Remove after bug fixed.
-
-  ASH_EXPORT void PerformLoggingAndChecks(gfx::NativeWindow native_window);
-  ASH_EXPORT void SetUpDialog();
-  ASH_EXPORT void SetUpParentWindow(gfx::NativeWindow native_window);
-
-  // --- End of functions added for debugging.
-
  private:
-  class SharesheetParentWidgetObserver;
-
   // ui::AcceleratorTarget:
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
 
@@ -81,15 +77,24 @@ class SharesheetBubbleView : public views::BubbleDialogDelegateView,
       views::Widget* widget) override;
 
   // views::BubbleDialogDelegateView:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
 
-  // TabletModeObserver:
-  void OnTabletModeStarted() override;
-  void OnTabletModeEnded() override;
-  void OnTabletControllerDestroyed() override;
+  // display::DisplayObserver:
+  void OnDisplayTabletStateChanged(display::TabletState state) override;
 
-  void CreateBubble();
+  // Initialises the base views in the bubble: main_view (for the sharesheet)
+  // and share_action_view (for the Nearby Share UI). Also defines basic bubble
+  // properties.
+  void InitBubble();
+  // Called from ShowBubble or ShowNearbyShareBubbleForArc when the bubble is
+  // launching. Creates the bubble and shows it to the user.
+  void SetUpAndShowBubble();
+
+  // Returns the designed bubble widget's bounds.
+  gfx::Rect GetDesiredBubbleBounds();
+
   std::unique_ptr<views::View> MakeScrollableTargetView(
       std::vector<TargetInfo> targets);
   void PopulateLayoutsWithTargets(std::vector<TargetInfo> targets,
@@ -98,15 +103,15 @@ class SharesheetBubbleView : public views::BubbleDialogDelegateView,
   void ExpandButtonPressed();
   void AnimateToExpandedState();
   void TargetButtonPressed(TargetInfo target);
-  void UpdateAnchorPosition();
   void SetToDefaultBubbleSizing();
   void ShowWidgetWithAnimateFadeIn();
   void CloseWidgetWithAnimateFadeOut(views::Widget::ClosedReason closed_reason);
   void CloseWidgetWithReason(views::Widget::ClosedReason closed_reason);
 
   // Owns this class.
-  raw_ptr<::sharesheet::SharesheetServiceDelegator, ExperimentalAsh> delegator_;
-  std::u16string active_target_;
+  raw_ptr<::sharesheet::SharesheetServiceDelegator, DanglingUntriaged>
+      delegator_;
+  std::optional<::sharesheet::ShareActionType> active_share_action_type_;
   apps::IntentPtr intent_;
   ::sharesheet::DeliveredCallback delivered_callback_;
   ::sharesheet::CloseCallback close_callback_;
@@ -120,25 +125,21 @@ class SharesheetBubbleView : public views::BubbleDialogDelegateView,
 
   size_t keyboard_highlighted_target_ = 0;
 
-  raw_ptr<views::View, ExperimentalAsh> main_view_ = nullptr;
-  raw_ptr<SharesheetHeaderView, ExperimentalAsh> header_view_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> body_view_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> footer_view_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> default_view_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> expanded_view_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> share_action_view_ = nullptr;
+  raw_ptr<views::View> main_view_ = nullptr;
+  raw_ptr<SharesheetHeaderView> header_view_ = nullptr;
+  raw_ptr<views::View> body_view_ = nullptr;
+  raw_ptr<views::View> footer_view_ = nullptr;
+  raw_ptr<views::View> default_view_ = nullptr;
+  raw_ptr<views::View> expanded_view_ = nullptr;
+  raw_ptr<views::View> share_action_view_ = nullptr;
   // Separator that appears between the |header_view_| and the |body_view|.
-  raw_ptr<views::Separator, ExperimentalAsh> header_body_separator_ = nullptr;
+  raw_ptr<views::Separator> header_body_separator_ = nullptr;
   // Separator that appears between the |body_view| and the |footer_view_|.
-  raw_ptr<views::Separator, ExperimentalAsh> body_footer_separator_ = nullptr;
+  raw_ptr<views::Separator> body_footer_separator_ = nullptr;
   // Separator between the default_view and the expanded_view.
-  raw_ptr<views::Separator, ExperimentalAsh> expanded_view_separator_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> parent_view_ = nullptr;
-  raw_ptr<SharesheetExpandButton, ExperimentalAsh> expand_button_ = nullptr;
-
-  std::unique_ptr<SharesheetParentWidgetObserver> parent_widget_observer_;
-  base::ScopedObservation<TabletMode, TabletModeObserver>
-      tablet_mode_observation_{this};
+  raw_ptr<views::Separator> expanded_view_separator_ = nullptr;
+  raw_ptr<views::View> parent_view_ = nullptr;
+  raw_ptr<SharesheetExpandButton> expand_button_ = nullptr;
 };
 
 }  // namespace sharesheet

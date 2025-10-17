@@ -92,7 +92,7 @@ class UILockController : public ui::EventHandler,
   void OnEscapeHeld();
   void StopTimer();
 
-  raw_ptr<Seat, ExperimentalAsh> seat_;
+  raw_ptr<Seat> seat_;
   base::OneShotTimer exit_fullscreen_timer_;
 
   // Whether the screen brightness is low enough to make the display dark.
@@ -102,10 +102,10 @@ class UILockController : public ui::EventHandler,
   // running, or nullptr if the timer isn't running. Do not dereference; may
   // dangle if the Surface is destroyed while the timer is running. Valid only
   // for comparison purposes.
-  raw_ptr<Surface, ExperimentalAsh> focused_surface_to_unlock_ = nullptr;
+  raw_ptr<Surface> focused_surface_to_unlock_ = nullptr;
 
   // Pointers currently being captured.
-  base::flat_set<base::raw_ptr<Pointer>> captured_pointers_;
+  base::flat_set<raw_ptr<Pointer>> captured_pointers_;
 
   base::ObserverList<Notifier> notifiers_;
 

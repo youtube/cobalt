@@ -8,10 +8,10 @@
 #include <memory>
 #include <unordered_map>
 
-#include "ash/components/arc/mojom/app.mojom-forward.h"
-#include "ash/components/arc/session/connection_holder.h"
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
+#include "chromeos/ash/experiences/arc/mojom/app.mojom-forward.h"
+#include "chromeos/ash/experiences/arc/session/connection_holder.h"
 
 class ArcAppListPrefs;
 
@@ -27,14 +27,14 @@ class ArcAppListPrefsFactory : public ProfileKeyedServiceFactory {
   void RecreateServiceInstanceForTesting(content::BrowserContext* context);
 
  private:
-  friend struct base::DefaultSingletonTraits<ArcAppListPrefsFactory>;
+  friend base::NoDestructor<ArcAppListPrefsFactory>;
 
   ArcAppListPrefsFactory();
   ArcAppListPrefsFactory(const ArcAppListPrefsFactory&) = delete;
   ArcAppListPrefsFactory& operator=(const ArcAppListPrefsFactory&) = delete;
   ~ArcAppListPrefsFactory() override;
 
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 
   static bool is_sync_test_;

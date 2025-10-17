@@ -4,29 +4,22 @@
 
 #import "ios/web/download/download_native_task_bridge.h"
 
+#import <optional>
+
+#import "base/apple/foundation_util.h"
 #import "base/check.h"
 #import "base/files/file_util.h"
 #import "base/functional/callback.h"
-#import "base/mac/foundation_util.h"
-#import "base/strings/sys_string_conversions.h"
 #import "base/task/thread_pool.h"
 #import "ios/web/download/download_result.h"
-#import "ios/web/web_view/error_translation_util.h"
+#import "ios/web/util/error_translation_util.h"
 #import "net/base/net_errors.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
 // Helper to get the size of file at `file_path`. Returns -1 in case of error.
 int64_t FileSizeForFileAtPath(base::FilePath file_path) {
-  int64_t file_size = 0;
-  if (!base::GetFileSize(file_path, &file_size))
-    return -1;
-
-  return file_size;
+  return base::GetFileSize(file_path).value_or(-1);
 }
 
 // Helper to invoke the download complete callback after getting the file
@@ -45,15 +38,32 @@ void DownloadDidFinishWithSize(
   std::move(complete_callback).Run(download_result);
 }
 
+// Represents the possible state of the DownloadNativeTaskBridge.
+enum class DownloadNativeTaskState {
+  // The object has been initialized.
+  kInitialized,
+
+  // The download is in progress.
+  kInProgress,
+
+  // The download has been resumed. It is waiting for WebKit to acknowledge
+  // the download request and ask for the path for the file.
+  kResumed,
+
+  // WebKit is ready to start the download. It is waiting for Chromium to
+  // provide the path where the data should be written to disk.
+  kPendingStart,
+
+  // The download has been stopped (either cancelled, or due to an error)
+  // and can be resumed (i.e. _resumeData is not nil).
+  kStoppedResumable,
+
+  // The download has been stopped (either cancelled, or due to an error)
+  // but cannot be resume (i.e. _resumeData is nil).
+  kStoppedPermanent,
+};
+
 }  // anonymous namespace
-
-@interface DownloadNativeTaskBridge ()
-
-@property(nonatomic, readwrite, strong) NSData* resumeData;
-@property(nonatomic, readwrite, strong)
-    WKDownload* download API_AVAILABLE(ios(15));
-
-@end
 
 @implementation DownloadNativeTaskBridge {
   void (^_startDownloadBlock)(NSURL*);
@@ -61,29 +71,45 @@ void DownloadDidFinishWithSize(
   NativeDownloadTaskProgressCallback _progressCallback;
   NativeDownloadTaskResponseCallback _responseCallback;
   NativeDownloadTaskCompleteCallback _completeCallback;
-  BOOL _observingDownloadProgress;
+  DownloadNativeTaskState _status;
+  WKDownload* _download;
+  NSData* _resumeData;
 }
 
 - (instancetype)initWithDownload:(WKDownload*)download
-                        delegate:(id<DownloadNativeTaskBridgeDelegate>)delegate
-    API_AVAILABLE(ios(15)) {
+                        delegate:
+                            (id<DownloadNativeTaskBridgeDelegate>)delegate {
   if ((self = [super init])) {
     _download = download;
     _delegate = delegate;
     _download.delegate = self;
+
+    _status = DownloadNativeTaskState::kInitialized;
   }
   return self;
 }
 
 - (void)dealloc {
   [self stopObservingDownloadProgress];
+
+  // At this point, _startDownloadBlock should be nil. However as seen in
+  // https://crbug.com/344476170 it appears this invariant is not true.
+  // Since WebKit terminates the app with a NSException if the block is
+  // not called, invoke here if it is still set. This is a workaround
+  // until a proper fix is implemented (i.e. using a real state object
+  // to ensure that it is not possible for the block to not be invoked
+  // when the `_status` changes).
+  if (_startDownloadBlock) {
+    _startDownloadBlock(nil);
+    _startDownloadBlock = nil;
+  }
 }
 
 - (void)cancel {
-  if (_startDownloadBlock) {
+  if (_status == DownloadNativeTaskState::kPendingStart) {
     // WKDownload will pass a block to its delegate when calling its
     // - download:decideDestinationUsingResponse:suggestedFilename
-    //:completionHandler: method. WKDownload enforces that this block is called
+    //: completionHandler: method. WKDownload enforces that this block is called
     // before the object is destroyed or the download is cancelled. Thus it
     // must be called now.
     //
@@ -97,6 +123,7 @@ void DownloadDidFinishWithSize(
         [NSURL fileURLWithPath:[NSTemporaryDirectory()
                                    stringByAppendingPathComponent:filename]];
 
+    CHECK(_startDownloadBlock);
     _startDownloadBlock(url);
     _startDownloadBlock = nil;
 
@@ -107,10 +134,9 @@ void DownloadDidFinishWithSize(
   }
 
   [self stopObservingDownloadProgress];
-
   __weak __typeof(self) weakSelf = self;
   [_download cancel:^(NSData* data) {
-    weakSelf.resumeData = data;
+    [weakSelf stoppedWithResumeData:data];
   }];
   _download = nil;
 }
@@ -119,33 +145,47 @@ void DownloadDidFinishWithSize(
      progressCallback:(NativeDownloadTaskProgressCallback)progressCallback
      responseCallback:(NativeDownloadTaskResponseCallback)responseCallback
      completeCallback:(NativeDownloadTaskCompleteCallback)completeCallback {
-  DCHECK(!path.empty());
+  CHECK(!path.empty());
 
   _progressCallback = std::move(progressCallback);
   _responseCallback = std::move(responseCallback);
   _completeCallback = std::move(completeCallback);
-  _urlForDownload =
-      [NSURL fileURLWithPath:base::SysUTF8ToNSString(path.AsUTF8Unsafe())];
+  _urlForDownload = base::apple::FilePathToNSURL(path);
 
-  if (_resumeData) {
-    DCHECK(!_startDownloadBlock);
-    if (@available(iOS 15, *)) {
+  switch (_status) {
+    case DownloadNativeTaskState::kPendingStart: {
+      [self responseReceived:_response];
+      [self startObservingDownloadProgress];
+      _startDownloadBlock(_urlForDownload);
+      _startDownloadBlock = nil;
+      return;
+    }
+
+    case DownloadNativeTaskState::kStoppedResumable: {
+      CHECK(_resumeData);
       __weak __typeof(self) weakSelf = self;
+      _status = DownloadNativeTaskState::kResumed;
       [_delegate resumeDownloadNativeTask:_resumeData
                         completionHandler:^(WKDownload* download) {
                           [weakSelf onResumedDownload:download];
                         }];
+      return;
     }
-    return;
-  }
 
-  [self responseReceived:_response];
-  [self startObservingDownloadProgress];
-  _startDownloadBlock(_urlForDownload);
-  _startDownloadBlock = nil;
+    default: {
+      [self downloadDidFailWithErrorCode:net::ERR_UNEXPECTED resumeData:nil];
+      return;
+    }
+  }
 }
 
-- (void)onResumedDownload:(WKDownload*)download API_AVAILABLE(ios(15)) {
+- (void)stoppedWithResumeData:(NSData*)resumeData {
+  _resumeData = resumeData;
+  _status = _resumeData ? DownloadNativeTaskState::kStoppedResumable
+                        : DownloadNativeTaskState::kStoppedPermanent;
+}
+
+- (void)onResumedDownload:(WKDownload*)download {
   _resumeData = nil;
   if (download) {
     _download = download;
@@ -156,7 +196,20 @@ void DownloadDidFinishWithSize(
   } else {
     _progressCallback.Reset();
 
+    _status = DownloadNativeTaskState::kStoppedPermanent;
     web::DownloadResult download_result(net::ERR_FAILED, /*can_retry=*/false);
+    std::move(_completeCallback).Run(download_result);
+  }
+}
+
+- (void)downloadDidFailWithErrorCode:(int)errorCode
+                          resumeData:(NSData*)resumeData {
+  [self stopObservingDownloadProgress];
+  [self stoppedWithResumeData:resumeData];
+  if (!_completeCallback.is_null()) {
+    _progressCallback.Reset();
+
+    web::DownloadResult download_result(errorCode, resumeData != nil);
     std::move(_completeCallback).Run(download_result);
   }
 }
@@ -172,44 +225,66 @@ void DownloadDidFinishWithSize(
 - (void)download:(WKDownload*)download
     decideDestinationUsingResponse:(NSURLResponse*)response
                  suggestedFilename:(NSString*)suggestedFilename
-                 completionHandler:(void (^)(NSURL* destination))handler
-    API_AVAILABLE(ios(15)) {
+                 completionHandler:(void (^)(NSURL* destination))handler {
+  CHECK_EQ(download, _download);
+
   _response = response;
   _suggestedFilename = suggestedFilename;
   [self responseReceived:_response];
 
-  if (_urlForDownload) {
-    // Resuming a download.
-    [self startObservingDownloadProgress];
-    handler(_urlForDownload);
-  } else {
-    _startDownloadBlock = handler;
-    if (![_delegate onDownloadNativeTaskBridgeReadyForDownload:self]) {
-      [self cancel];
+  switch (_status) {
+    case DownloadNativeTaskState::kInitialized: {
+      CHECK(!_startDownloadBlock);
+      _startDownloadBlock = handler;
+      _status = DownloadNativeTaskState::kPendingStart;
+      if (![_delegate onDownloadNativeTaskBridgeReadyForDownload:self]) {
+        [self cancel];
+      }
+      return;
+    }
+
+    case DownloadNativeTaskState::kResumed: {
+      CHECK(_urlForDownload);
+      [self startObservingDownloadProgress];
+      handler(_urlForDownload);
+      return;
+    }
+
+    // Under certain circumstances, it was found that this method may be called
+    // multiple times for the same object by WebKit. This may be due to a bug
+    // in WebKit or in Chromium. Investigation is still pending.
+    //
+    // When this happen, the download cannot make progress if we call either of
+    // the `handler` block passed, and if the UI is notified, the code will try
+    // to cancel the download before starting it. To prevent entering this state
+    // mark the download as in a permanent error.
+    //
+    // TODO(crbug.com/340644917): Explain root cause when found.
+    default: {
+      [self downloadDidFailWithErrorCode:net::ERR_UNEXPECTED resumeData:nil];
+      if (_startDownloadBlock) {
+        _startDownloadBlock(nil);
+        _startDownloadBlock = nil;
+      }
+      handler(nil);
+      return;
     }
   }
 }
 
 - (void)download:(WKDownload*)download
     didFailWithError:(NSError*)error
-          resumeData:(NSData*)resumeData API_AVAILABLE(ios(15)) {
-  self.resumeData = resumeData;
-  [self stopObservingDownloadProgress];
-  if (!_completeCallback.is_null()) {
-    _progressCallback.Reset();
-
-    int error_code = net::OK;
-    NSURL* url = _response.URL;
-    if (!web::GetNetErrorFromIOSErrorCode(error.code, &error_code, url)) {
-      error_code = net::ERR_FAILED;
-    }
-
-    web::DownloadResult download_result(error_code, resumeData != nil);
-    std::move(_completeCallback).Run(download_result);
+          resumeData:(NSData*)resumeData {
+  int errorCode = net::OK;
+  NSURL* url = _response.URL;
+  if (!web::GetNetErrorFromIOSErrorCode(error.code, &errorCode, url)) {
+    errorCode = net::ERR_FAILED;
   }
+
+  [self downloadDidFailWithErrorCode:errorCode resumeData:resumeData];
 }
 
-- (void)downloadDidFinish:(WKDownload*)download API_AVAILABLE(ios(15)) {
+- (void)downloadDidFinish:(WKDownload*)download {
   [self stopObservingDownloadProgress];
   if (!_completeCallback.is_null()) {
     // The method -downloadDidFinish: will be called as soon as the
@@ -223,9 +298,8 @@ void DownloadDidFinishWithSize(
     // See https://crbug.com/1346030 for examples of truncation.
     base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE, {base::TaskPriority::USER_VISIBLE, base::MayBlock()},
-        base::BindOnce(
-            &FileSizeForFileAtPath,
-            base::FilePath(base::SysNSStringToUTF8(_urlForDownload.path))),
+        base::BindOnce(&FileSizeForFileAtPath,
+                       base::apple::NSStringToFilePath(_urlForDownload.path)),
         base::BindOnce(&DownloadDidFinishWithSize, std::move(_progressCallback),
                        std::move(_completeCallback)));
   }
@@ -236,7 +310,8 @@ void DownloadDidFinishWithSize(
 - (void)observeValueForKeyPath:(NSString*)keyPath
                       ofObject:(id)object
                         change:(NSDictionary*)change
-                       context:(void*)context API_AVAILABLE(ios(15)) {
+                       context:(void*)context {
+  CHECK_EQ(_status, DownloadNativeTaskState::kInProgress);
   if (!_progressCallback.is_null()) {
     NSProgress* progress = self.progress;
     _progressCallback.Run(progress.completedUnitCount, progress.totalUnitCount,
@@ -247,9 +322,8 @@ void DownloadDidFinishWithSize(
 #pragma mark - Private methods
 
 - (void)startObservingDownloadProgress {
-  DCHECK(!_observingDownloadProgress);
-
-  _observingDownloadProgress = YES;
+  CHECK_NE(_status, DownloadNativeTaskState::kInProgress);
+  _status = DownloadNativeTaskState::kInProgress;
   [self.progress addObserver:self
                   forKeyPath:@"fractionCompleted"
                      options:NSKeyValueObservingOptionNew
@@ -257,12 +331,12 @@ void DownloadDidFinishWithSize(
 }
 
 - (void)stopObservingDownloadProgress {
-  if (_observingDownloadProgress) {
-    _observingDownloadProgress = NO;
+  if (_status == DownloadNativeTaskState::kInProgress) {
     [self.progress removeObserver:self
                        forKeyPath:@"fractionCompleted"
                           context:nil];
   }
+  _status = DownloadNativeTaskState::kStoppedPermanent;
 }
 
 - (void)responseReceived:(NSURLResponse*)response {
@@ -273,10 +347,10 @@ void DownloadDidFinishWithSize(
   int http_error = -1;
   if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
     http_error =
-        base::mac::ObjCCastStrict<NSHTTPURLResponse>(response).statusCode;
+        base::apple::ObjCCastStrict<NSHTTPURLResponse>(response).statusCode;
   }
 
-  std::move(_responseCallback).Run(http_error, response.MIMEType);
+  std::move(_responseCallback).Run(http_error, response.MIMEType, response.URL);
 }
 
 @end

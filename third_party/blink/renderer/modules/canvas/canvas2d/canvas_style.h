@@ -27,76 +27,85 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_CANVAS_STYLE_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_CANVAS2D_CANVAS_STYLE_H_
 
+#include "base/check.h"
 #include "base/check_op.h"
-#include "base/types/pass_key.h"
+#include "base/compiler_specific.h"
 #include "cc/paint/paint_flags.h"
 #include "third_party/blink/public/mojom/frame/color_scheme.mojom-blink.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/forward.h"  // IWYU pragma: keep (blink::Visitor)
 #include "third_party/blink/renderer/platform/heap/member.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+
+// https://github.com/include-what-you-use/include-what-you-use/issues/1546
+// IWYU pragma: no_forward_declare WTF::internal::__thisIsHereToForceASemicolonAfterThisMacro
+
+// IWYU pragma: no_include "third_party/blink/renderer/platform/heap/visitor.h"
+
+namespace ui {
+class ColorProvider;
+}  // namespace ui
 
 namespace blink {
 
 class CanvasGradient;
 class CanvasPattern;
-class CanvasRenderingContext2DState;
-class HTMLCanvasElement;
 
-class CanvasStyle final : public GarbageCollected<CanvasStyle> {
+class CanvasStyle final {
+  DISALLOW_NEW();
+
  public:
-  // Only CanvasRenderingContext2DState is allowed to mutate this.
-  using PassKey = base::PassKey<CanvasRenderingContext2DState>;
-
-  explicit CanvasStyle(Color);
-  explicit CanvasStyle(CanvasGradient*);
-  explicit CanvasStyle(CanvasPattern*);
-
-  // Marks this style as potentially being referenced by multiple
-  // CanvasRenderingContext2DStates. If the style is shared, then it should not
-  // be mutated.
-  void MarkShared(PassKey key) { shared_ = true; }
-  bool is_shared() const { return shared_; }
+  CanvasStyle() : type_(kColor), color_(Color::kBlack) {}
+  CanvasStyle(const CanvasStyle& other) = default;
 
   String GetColorAsString() const {
     DCHECK_EQ(type_, kColor);
     return color_.SerializeAsCanvasColor();
   }
   CanvasGradient* GetCanvasGradient() const { return gradient_.Get(); }
-  CanvasPattern* GetCanvasPattern() const { return pattern_; }
+  CanvasPattern* GetCanvasPattern() const { return pattern_.Get(); }
 
-  void ApplyToFlags(cc::PaintFlags&) const;
-  Color PaintColor() const;
+  // Applies the CanvasStyle to PaintFlags. This is the slow path to be used
+  // in cases where PaintFlags has never been initialized and no assumptions
+  // can be made about the CanvasStyle's type
+  void ApplyToFlags(cc::PaintFlags&, float global_alpha) const;
+
+  // Like ApplyFlags, but does nothing if type is Color. This method is called
+  // at draw time to synchronize the states of live CanvasPattern and
+  // CanvasGradientObjects.
+  void SyncFlags(cc::PaintFlags&, float global_alpha) const;
+
+  // FastPath: Call this instead of ApplyToFlags when the CanvasStyle is known
+  // to be of type kColor.
+  void ApplyColorToFlags(cc::PaintFlags&, float global_alpha) const;
 
   bool IsEquivalentColor(Color color) const {
     return type_ == kColor && color_ == color;
   }
 
-  bool IsEquivalentPattern(CanvasPattern* pattern) const {
-    return type_ == kImagePattern && pattern_ == pattern;
-  }
-
-  bool IsEquivalentGradient(CanvasGradient* gradient) const {
-    return type_ == kGradient && gradient_ == gradient;
-  }
-
-  void SetColor(PassKey key, Color color) {
-    DCHECK(!shared_);
+  bool SetColor(Color color) {
+    if (type_ == kColor) [[likely]] {
+      if (color == color_) {
+        return false;
+      }
+      color_ = color;
+      return true;
+    }
     type_ = kColor;
     color_ = color;
     gradient_ = nullptr;
     pattern_ = nullptr;
+    return true;
   }
 
-  void SetPattern(PassKey key, CanvasPattern* pattern) {
-    DCHECK(!shared_);
+  void SetPattern(CanvasPattern* pattern) {
     type_ = kImagePattern;
     pattern_ = pattern;
     gradient_ = nullptr;
   }
 
-  void SetGradient(PassKey key, CanvasGradient* gradient) {
-    DCHECK(!shared_);
+  void SetGradient(CanvasGradient* gradient) {
     type_ = kGradient;
     gradient_ = gradient;
     pattern_ = nullptr;
@@ -106,16 +115,32 @@ class CanvasStyle final : public GarbageCollected<CanvasStyle> {
 
  private:
   enum Type { kColor, kGradient, kImagePattern };
-
   Type type_;
 
-  bool shared_ = false;
-
   Color color_;
-
   Member<CanvasGradient> gradient_;
   Member<CanvasPattern> pattern_;
 };
+
+ALWAYS_INLINE void CanvasStyle::ApplyColorToFlags(cc::PaintFlags& flags,
+                                                  float global_alpha) const {
+  // Inlined fast path for color values: because color values are immutable
+  // they can be applied once at style set time.
+  DCHECK(type_ == kColor);
+  flags.setShader(nullptr);
+  Color color = color_;
+  color.SetAlpha(color.Alpha() * global_alpha);
+  flags.setColor(color.toSkColor4f());
+}
+
+ALWAYS_INLINE void CanvasStyle::SyncFlags(cc::PaintFlags& flags,
+                                          float global_alpha) const {
+  if (type_ == kColor) [[likely]] {
+    // Color values are immutable so they never need to be sync'ed at draw time.
+    return;
+  }
+  ApplyToFlags(flags, global_alpha);
+}
 
 enum class ColorParseResult {
   // The string identified a valid color.
@@ -123,6 +148,10 @@ enum class ColorParseResult {
 
   // The string identified the current color.
   kCurrentColor,
+
+  // The string contains a color-mix or relative color function, which may
+  // contain currentcolor.
+  kColorFunction,
 
   // Parsing failed.
   kParseFailed
@@ -132,7 +161,9 @@ enum class ColorParseResult {
 // `kParsedColor`, `parsed_color` is set appropriately.
 ColorParseResult ParseCanvasColorString(const String& color_string,
                                         mojom::blink::ColorScheme color_scheme,
-                                        Color& parsed_color);
+                                        Color& parsed_color,
+                                        const ui::ColorProvider* color_provider,
+                                        bool is_in_web_app_scope);
 
 // Parses the canvas color string, returning true on success. If `color_string`
 // indicates the current color should be used, `parsed_color` is set to black.

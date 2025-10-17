@@ -4,6 +4,8 @@
 
 #import "ios/web/find_in_page/java_script_find_in_page_manager_impl.h"
 
+#import <optional>
+
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
@@ -13,20 +15,19 @@
 #import "ios/web/find_in_page/find_in_page_metrics.h"
 #import "ios/web/public/find_in_page/find_in_page_manager_delegate.h"
 #import "ios/web/public/js_messaging/web_frame.h"
-#import "ios/web/public/js_messaging/web_frame_util.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/thread/web_task_traits.h"
 #import "ios/web/public/thread/web_thread.h"
 #import "ios/web/web_state/web_state_impl.h"
-#import "third_party/abseil-cpp/absl/types/optional.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace web {
 
 // static
+std::unique_ptr<JavaScriptFindInPageManager>
+JavaScriptFindInPageManager::Create(WebState* web_state) {
+  return std::make_unique<JavaScriptFindInPageManagerImpl>(web_state);
+}
+
 JavaScriptFindInPageManagerImpl::JavaScriptFindInPageManagerImpl(
     WebState* web_state)
     : web_state_(web_state), weak_factory_(this) {
@@ -35,15 +36,6 @@ JavaScriptFindInPageManagerImpl::JavaScriptFindInPageManagerImpl(
       FindInPageJavaScriptFeature::GetInstance()->GetWebFramesManager(
           web_state);
   web_frames_manager->AddObserver(this);
-}
-
-void JavaScriptFindInPageManagerImpl::CreateForWebState(WebState* web_state) {
-  DCHECK(web_state);
-  if (!FromWebState(web_state)) {
-    web_state->SetUserData(
-        UserDataKey(),
-        std::make_unique<JavaScriptFindInPageManagerImpl>(web_state));
-  }
 }
 
 JavaScriptFindInPageManagerImpl::~JavaScriptFindInPageManagerImpl() {
@@ -181,7 +173,7 @@ bool JavaScriptFindInPageManagerImpl::CanSearchContent() {
 void JavaScriptFindInPageManagerImpl::ProcessFindInPageResult(
     const std::string& frame_id,
     const int unique_id,
-    absl::optional<int> result_matches) {
+    std::optional<int> result_matches) {
   if (unique_id != last_find_request_.GetRequestId()) {
     // New find was started or current find was stopped.
     return;
@@ -241,7 +233,7 @@ void JavaScriptFindInPageManagerImpl::SelectDidFinish(
   if (result && result->is_dict()) {
     const base::Value::Dict& result_dict = result->GetDict();
     // Get updated match count.
-    const absl::optional<double> matches =
+    const std::optional<double> matches =
         result_dict.FindDouble(kSelectAndScrollResultMatches);
     if (matches) {
       int match_count = static_cast<int>(matches.value());
@@ -255,7 +247,7 @@ void JavaScriptFindInPageManagerImpl::SelectDidFinish(
       }
     }
     // Get updated currently selected index.
-    const absl::optional<double> index =
+    const std::optional<double> index =
         result_dict.FindDouble(kSelectAndScrollResultIndex);
     if (index) {
       int current_index = static_cast<int>(index.value());
@@ -315,7 +307,5 @@ void JavaScriptFindInPageManagerImpl::SelectCurrentMatch() {
                        weak_factory_.GetWeakPtr()));
   }
 }
-
-WEB_STATE_USER_DATA_KEY_IMPL(JavaScriptFindInPageManager)
 
 }  // namespace web

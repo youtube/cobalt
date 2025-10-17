@@ -16,6 +16,7 @@
 #include "chromeos/ash/services/device_sync/proto/cryptauth_common.pb.h"
 #include "chromeos/ash/services/device_sync/public/cpp/gcm_constants.h"
 #include "components/gcm_driver/gcm_driver.h"
+#include "components/gcm_driver/instance_id/instance_id_driver.h"
 #include "components/prefs/pref_service.h"
 
 namespace ash {
@@ -68,11 +69,11 @@ const char kDeviceSyncGroupNameKey[] = "K";
 // "S". In practice, one and only one of these keys should exist in a GCM
 // message. Return null if neither is set to a valid value. If both are set for
 // some reason, arbitrarily prefer a valid "S" value.
-absl::optional<cryptauthv2::TargetService> TargetServiceFromMessage(
+std::optional<cryptauthv2::TargetService> TargetServiceFromMessage(
     const gcm::IncomingMessage& message) {
-  absl::optional<cryptauthv2::TargetService>
+  std::optional<cryptauthv2::TargetService>
       target_from_registration_tickle_type;
-  absl::optional<cryptauthv2::TargetService> target_from_target_service;
+  std::optional<cryptauthv2::TargetService> target_from_target_service;
 
   auto it = message.data.find(kRegistrationTickleTypeKey);
   if (it != message.data.end()) {
@@ -136,27 +137,27 @@ absl::optional<cryptauthv2::TargetService> TargetServiceFromMessage(
 }
 
 // Returns null if |key| doesn't exist in the |message.data| map.
-absl::optional<std::string> StringValueFromMessage(
+std::optional<std::string> StringValueFromMessage(
     const std::string& key,
     const gcm::IncomingMessage& message) {
   auto it = message.data.find(key);
   if (it == message.data.end())
-    return absl::nullopt;
+    return std::nullopt;
 
   return it->second;
 }
 
 // Returns null if |message| does not contain the feature type key-value pair or
 // if the value does not correspond to one of the CryptAuthFeatureType enums.
-absl::optional<CryptAuthFeatureType> FeatureTypeFromMessage(
+std::optional<CryptAuthFeatureType> FeatureTypeFromMessage(
     const gcm::IncomingMessage& message) {
-  absl::optional<std::string> feature_type_hash =
+  std::optional<std::string> feature_type_hash =
       StringValueFromMessage(kFeatureTypeHashKey, message);
 
   if (!feature_type_hash)
-    return absl::nullopt;
+    return std::nullopt;
 
-  absl::optional<CryptAuthFeatureType> feature_type =
+  std::optional<CryptAuthFeatureType> feature_type =
       CryptAuthFeatureTypeFromGcmHash(*feature_type_hash);
   base::UmaHistogramBoolean("CryptAuth.Gcm.Message.IsKnownFeatureType",
                             feature_type.has_value());
@@ -175,7 +176,7 @@ absl::optional<CryptAuthFeatureType> FeatureTypeFromMessage(
 // value agrees with the name of the corresponding enrolled key. On Chrome OS,
 // the only relevant DeviceSync group name is "DeviceSync:BetterTogether".
 bool IsDeviceSyncGroupNameValid(const gcm::IncomingMessage& message) {
-  absl::optional<std::string> group_name =
+  std::optional<std::string> group_name =
       StringValueFromMessage(kDeviceSyncGroupNameKey, message);
   if (!group_name)
     return true;
@@ -189,14 +190,14 @@ bool IsDeviceSyncGroupNameValid(const gcm::IncomingMessage& message) {
   return is_device_sync_group_name_valid;
 }
 
-void RecordGCMRegistrationMetrics(gcm::GCMClient::Result result,
+void RecordGCMRegistrationMetrics(instance_id::InstanceID::Result result,
                                   base::TimeDelta execution_time) {
   base::UmaHistogramCustomTimes(
       "CryptAuth.Gcm.Registration.AttemptTimeWithRetries", execution_time,
       base::Seconds(1) /* min */, base::Minutes(10) /* max */,
       100 /* buckets */);
 
-  base::UmaHistogramEnumeration("CryptAuth.Gcm.Registration.Result", result);
+  base::UmaHistogramEnumeration("CryptAuth.Gcm.Registration.Result2", result);
 }
 
 }  // namespace
@@ -208,12 +209,14 @@ CryptAuthGCMManagerImpl::Factory*
 // static
 std::unique_ptr<CryptAuthGCMManager> CryptAuthGCMManagerImpl::Factory::Create(
     gcm::GCMDriver* gcm_driver,
+    instance_id::InstanceIDDriver* instance_id_driver,
     PrefService* pref_service) {
   if (factory_instance_)
-    return factory_instance_->CreateInstance(gcm_driver, pref_service);
+    return factory_instance_->CreateInstance(gcm_driver, instance_id_driver,
+                                             pref_service);
 
-  return base::WrapUnique(
-      new CryptAuthGCMManagerImpl(gcm_driver, pref_service));
+  return base::WrapUnique(new CryptAuthGCMManagerImpl(
+      gcm_driver, instance_id_driver, pref_service));
 }
 
 // static
@@ -223,9 +226,12 @@ void CryptAuthGCMManagerImpl::Factory::SetFactoryForTesting(Factory* factory) {
 
 CryptAuthGCMManagerImpl::Factory::~Factory() = default;
 
-CryptAuthGCMManagerImpl::CryptAuthGCMManagerImpl(gcm::GCMDriver* gcm_driver,
-                                                 PrefService* pref_service)
+CryptAuthGCMManagerImpl::CryptAuthGCMManagerImpl(
+    gcm::GCMDriver* gcm_driver,
+    instance_id::InstanceIDDriver* instance_id_driver,
+    PrefService* pref_service)
     : gcm_driver_(gcm_driver),
+      instance_id_driver_(instance_id_driver),
       pref_service_(pref_service),
       registration_in_progress_(false) {}
 
@@ -257,11 +263,12 @@ void CryptAuthGCMManagerImpl::RegisterWithGCM() {
   registration_in_progress_ = true;
   gcm_registration_start_timestamp_ = base::TimeTicks::Now();
 
-  std::vector<std::string> sender_ids(1, kCryptAuthGcmSenderId);
-  gcm_driver_->Register(
-      kCryptAuthGcmAppId, sender_ids,
-      base::BindOnce(&CryptAuthGCMManagerImpl::OnRegistrationCompleted,
-                     weak_ptr_factory_.GetWeakPtr()));
+  instance_id_driver_->GetInstanceID(kCryptAuthGcmAppId)
+      ->GetToken(
+          kCryptAuthGcmSenderId, instance_id::kGCMScope,
+          /*time_to_live=*/base::TimeDelta(), /*flags=*/{},
+          base::BindOnce(&CryptAuthGCMManagerImpl::OnRegistrationCompleted,
+                         weak_ptr_factory_.GetWeakPtr()));
 }
 
 std::string CryptAuthGCMManagerImpl::GetRegistrationId() {
@@ -295,7 +302,7 @@ void CryptAuthGCMManagerImpl::OnMessage(const std::string& app_id,
                   << "  collapse_key: " << message.collapse_key << "\n"
                   << "  data:\n    " << base::JoinString(fields, "\n    ");
 
-  absl::optional<cryptauthv2::TargetService> target_service =
+  std::optional<cryptauthv2::TargetService> target_service =
       TargetServiceFromMessage(message);
   if (!target_service) {
     PA_LOG(ERROR) << "GCM message does not specify a valid target service.";
@@ -308,9 +315,9 @@ void CryptAuthGCMManagerImpl::OnMessage(const std::string& app_id,
     return;
   }
 
-  absl::optional<std::string> session_id =
+  std::optional<std::string> session_id =
       StringValueFromMessage(kSessionIdKey, message);
-  absl::optional<CryptAuthFeatureType> feature_type =
+  std::optional<CryptAuthFeatureType> feature_type =
       FeatureTypeFromMessage(message);
 
   if (target_service == cryptauthv2::TargetService::ENROLLMENT) {
@@ -341,13 +348,13 @@ void CryptAuthGCMManagerImpl::OnSendAcknowledged(
 
 void CryptAuthGCMManagerImpl::OnRegistrationCompleted(
     const std::string& registration_id,
-    gcm::GCMClient::Result result) {
+    instance_id::InstanceID::Result result) {
   registration_in_progress_ = false;
   RecordGCMRegistrationMetrics(
       result, base::TimeTicks::Now() -
                   gcm_registration_start_timestamp_ /* execution_time */);
 
-  if (result != gcm::GCMClient::SUCCESS) {
+  if (result != instance_id::InstanceID::Result::SUCCESS) {
     PA_LOG(WARNING) << "GCM registration failed with result="
                     << static_cast<int>(result);
     for (auto& observer : observers_)

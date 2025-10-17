@@ -5,16 +5,18 @@
 #include "components/sync/nigori/nigori_key_bag.h"
 
 #include <utility>
+#include <vector>
 
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "components/sync/engine/nigori/nigori.h"
+#include "components/sync/protocol/nigori_local_data.pb.h"
 #include "components/sync/protocol/nigori_specifics.pb.h"
 
 namespace syncer {
 namespace {
 
-// Note that |key_name| is redundant but computing the name from |nigori| can be
+// Note that `key_name` is redundant but computing the name from `nigori` can be
 // expensive.
 sync_pb::NigoriKey NigoriToProto(const Nigori& nigori,
                                  const std::string& key_name) {
@@ -47,11 +49,12 @@ NigoriKeyBag NigoriKeyBag::CreateEmpty() {
 }
 
 // static
-NigoriKeyBag NigoriKeyBag::CreateFromProto(const sync_pb::NigoriKeyBag& proto) {
+NigoriKeyBag NigoriKeyBag::CreateFromProto(
+    const sync_pb::LocalNigoriKeyBag& proto) {
   NigoriKeyBag output;
   for (const sync_pb::NigoriKey& key : proto.key()) {
     if (output.AddKeyFromProto(key).empty()) {
-      // TODO(crbug.com/1368018): Consider propagating this error to callers
+      // TODO(crbug.com/40868132): Consider propagating this error to callers
       // such that they can do smarter handling.
       DLOG(ERROR) << "Invalid NigoriKey protocol buffer message.";
     }
@@ -63,16 +66,12 @@ NigoriKeyBag::NigoriKeyBag(NigoriKeyBag&& other) = default;
 
 NigoriKeyBag::~NigoriKeyBag() = default;
 
-void NigoriKeyBag::CopyFrom(const NigoriKeyBag& other) {
-  nigori_map_.clear();
-  AddAllUnknownKeysFrom(other);
-}
-
-sync_pb::NigoriKeyBag NigoriKeyBag::ToProto() const {
-  sync_pb::NigoriKeyBag output;
+sync_pb::LocalNigoriKeyBag NigoriKeyBag::ToProto() const {
+  sync_pb::LocalNigoriKeyBag output;
   for (const auto& [key_name, nigori] : nigori_map_) {
     *output.add_key() = NigoriToProto(*nigori, key_name);
   }
+
   return output;
 }
 
@@ -105,7 +104,6 @@ std::string NigoriKeyBag::AddKey(std::unique_ptr<Nigori> nigori) {
   const std::string key_name = nigori->GetKeyName();
   if (key_name.empty()) {
     NOTREACHED();
-    return key_name;
   }
   nigori_map_.emplace(key_name, std::move(nigori));
   return key_name;
@@ -134,20 +132,16 @@ void NigoriKeyBag::AddAllUnknownKeysFrom(const NigoriKeyBag& other) {
   }
 }
 
-bool NigoriKeyBag::EncryptWithKey(
+sync_pb::EncryptedData NigoriKeyBag::EncryptWithKey(
     const std::string& key_name,
-    const std::string& input,
-    sync_pb::EncryptedData* encrypted_output) const {
-  DCHECK(encrypted_output);
-  DCHECK(HasKey(key_name));
+    const std::string& input) const {
+  CHECK(HasKey(key_name));
 
-  encrypted_output->set_blob(
-      nigori_map_.find(key_name)->second->Encrypt(input));
-  encrypted_output->set_key_name(key_name);
+  sync_pb::EncryptedData result;
+  result.set_blob(nigori_map_.find(key_name)->second->Encrypt(input));
+  result.set_key_name(key_name);
 
-  // TODO(crbug.com/1368018): returned value is always true, update interface
-  // to return void or `encrypted_output`.
-  return true;
+  return result;
 }
 
 bool NigoriKeyBag::CanDecrypt(

@@ -18,7 +18,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
-namespace cricket {
+namespace webrtc {
 template <typename IdStruct>
 class UsedIds {
  public:
@@ -96,6 +96,16 @@ class UsedPayloadTypes : public UsedIds<Codec> {
       : UsedIds<Codec>(kFirstDynamicPayloadTypeLowerRange,
                        kLastDynamicPayloadTypeUpperRange) {}
 
+  // Check if a payload type is valid. The range [64-95] is forbidden
+  // when rtcp-mux is used.
+  static bool IsIdValid(Codec codec, bool rtcp_mux) {
+    if (rtcp_mux && (codec.id > kLastDynamicPayloadTypeLowerRange &&
+                     codec.id < kFirstDynamicPayloadTypeUpperRange)) {
+      return false;
+    }
+    return codec.id >= 0 && codec.id <= kLastDynamicPayloadTypeUpperRange;
+  }
+
  protected:
   bool IsIdUsed(int new_id) override {
     // Range marked for RTCP avoidance is "used".
@@ -115,7 +125,7 @@ class UsedPayloadTypes : public UsedIds<Codec> {
 
 // Helper class used for finding duplicate RTP Header extension ids among
 // audio and video extensions.
-class UsedRtpHeaderExtensionIds : public UsedIds<webrtc::RtpExtension> {
+class UsedRtpHeaderExtensionIds : public UsedIds<RtpExtension> {
  public:
   enum class IdDomain {
     // Only allocate IDs that fit in one-byte header extensions.
@@ -126,26 +136,23 @@ class UsedRtpHeaderExtensionIds : public UsedIds<webrtc::RtpExtension> {
   };
 
   explicit UsedRtpHeaderExtensionIds(IdDomain id_domain)
-      : UsedIds<webrtc::RtpExtension>(
-            webrtc::RtpExtension::kMinId,
-            id_domain == IdDomain::kTwoByteAllowed
-                ? webrtc::RtpExtension::kMaxId
-                : webrtc::RtpExtension::kOneByteHeaderExtensionMaxId),
+      : UsedIds<RtpExtension>(RtpExtension::kMinId,
+                              id_domain == IdDomain::kTwoByteAllowed
+                                  ? RtpExtension::kMaxId
+                                  : RtpExtension::kOneByteHeaderExtensionMaxId),
         id_domain_(id_domain),
-        next_extension_id_(webrtc::RtpExtension::kOneByteHeaderExtensionMaxId) {
-  }
+        next_extension_id_(RtpExtension::kOneByteHeaderExtensionMaxId) {}
 
  private:
   // Returns the first unused id in reverse order from the max id of one byte
-  // header extensions. This hopefully reduce the risk of more collisions. We
+  // header extensions. This hopefully reduces the risk of more collisions. We
   // want to change the default ids as little as possible. If no unused id is
   // found and two byte header extensions are enabled (i.e.,
-  // `extmap_allow_mixed_` is true), search for unused ids from 15 to 255.
+  // `extmap_allow_mixed_` is true), search for unused ids from 16 to 255.
   int FindUnusedId() override {
-    if (next_extension_id_ <=
-        webrtc::RtpExtension::kOneByteHeaderExtensionMaxId) {
+    if (next_extension_id_ <= RtpExtension::kOneByteHeaderExtensionMaxId) {
       // First search in reverse order from the max id of one byte header
-      // extensions.
+      // extensions (14).
       while (IsIdUsed(next_extension_id_) &&
              next_extension_id_ >= min_allowed_id_) {
         --next_extension_id_;
@@ -155,13 +162,12 @@ class UsedRtpHeaderExtensionIds : public UsedIds<webrtc::RtpExtension> {
     if (id_domain_ == IdDomain::kTwoByteAllowed) {
       if (next_extension_id_ < min_allowed_id_) {
         // We have searched among all one-byte IDs without finding an unused ID,
-        // continue at the first two-byte ID.
-        next_extension_id_ =
-            webrtc::RtpExtension::kOneByteHeaderExtensionMaxId + 1;
+        // continue at the first two-byte ID (16; avoid 15 since it is somewhat
+        // special per https://www.rfc-editor.org/rfc/rfc8285#section-4.2
+        next_extension_id_ = RtpExtension::kOneByteHeaderExtensionMaxId + 2;
       }
 
-      if (next_extension_id_ >
-          webrtc::RtpExtension::kOneByteHeaderExtensionMaxId) {
+      if (next_extension_id_ > RtpExtension::kOneByteHeaderExtensionMaxId) {
         while (IsIdUsed(next_extension_id_) &&
                next_extension_id_ <= max_allowed_id_) {
           ++next_extension_id_;
@@ -177,6 +183,16 @@ class UsedRtpHeaderExtensionIds : public UsedIds<webrtc::RtpExtension> {
   int next_extension_id_;
 };
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace cricket {
+using ::webrtc::UsedIds;
+using ::webrtc::UsedPayloadTypes;
+using ::webrtc::UsedRtpHeaderExtensionIds;
 }  // namespace cricket
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // PC_USED_IDS_H_

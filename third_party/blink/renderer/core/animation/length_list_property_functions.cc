@@ -21,7 +21,6 @@ const FillLayer* GetFillLayerForPosition(const CSSProperty& property,
       return &style.MaskLayers();
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
@@ -36,7 +35,6 @@ FillLayer* AccessFillLayerForPosition(const CSSProperty& property,
       return &builder.AccessMaskLayers();
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
@@ -61,7 +59,6 @@ struct FillLayerMethods {
         break;
       default:
         NOTREACHED();
-        break;
     }
   }
 
@@ -97,7 +94,6 @@ Length::ValueRange LengthListPropertyFunctions::GetValueRange(
 
     default:
       NOTREACHED();
-      return Length::ValueRange::kAll;
   }
 }
 
@@ -182,7 +178,6 @@ bool LengthListPropertyFunctions::GetLengthList(const CSSProperty& property,
 
     default:
       NOTREACHED();
-      return false;
   }
 }
 
@@ -265,7 +260,6 @@ void LengthListPropertyFunctions::SetLengthList(const CSSProperty& property,
 
     default:
       NOTREACHED();
-      break;
   }
 }
 

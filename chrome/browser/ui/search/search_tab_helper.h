@@ -32,7 +32,7 @@
 namespace content {
 class WebContents;
 struct LoadCommittedDetails;
-}
+}  // namespace content
 
 namespace gfx {
 class Image;
@@ -98,8 +98,10 @@ class SearchTabHelper : public content::WebContentsObserver,
 
   // Overridden from OmniboxTabHelper::Observer:
   void OnOmniboxInputStateChanged() override;
+  void OnOmniboxInputInProgress(bool in_progress) override {}
   void OnOmniboxFocusChanged(OmniboxFocusState state,
                              OmniboxFocusChangeReason reason) override;
+  void OnOmniboxPopupVisibilityChanged(bool popup_is_open) override {}
 
   void OnBitmapFetched(int match_index,
                        const std::string& image_url,
@@ -118,9 +120,9 @@ class SearchTabHelper : public content::WebContentsObserver,
   // Called when a user confirms deleting an autocomplete match. Note: might be
   // called synchronously with accepted = true if this feature is disabled
   // (which defaults the behavior to silent deletions).
-  void OnDeleteAutocompleteMatchConfirm(
-      uint8_t line,
-      bool accepted);
+  void OnDeleteAutocompleteMatchConfirm(uint8_t line, bool accepted);
+
+  void CloseNTPCustomizeChromeFeaturePromo();
 
   SearchIPCRouter ipc_router_;
 

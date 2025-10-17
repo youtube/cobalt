@@ -5,12 +5,17 @@
 #include "ui/message_center/views/notification_view.h"
 
 #include <memory>
+#include <utility>
 
 #include "build/build_config.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
+#include "ui/color/color_variant.h"
 #include "ui/compositor/layer.h"
+#include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/text_elider.h"
 #include "ui/message_center/message_center.h"
@@ -36,7 +41,7 @@ namespace message_center {
 
 namespace {
 
-// TODO(crbug/1243889): Move the padding and spacing definition from
+// TODO(crbug.com/40787532): Move the padding and spacing definition from
 // NotificationViewBase to this class.
 
 constexpr auto kContentRowPadding = gfx::Insets::TLBR(0, 12, 16, 12);
@@ -116,6 +121,8 @@ gfx::Insets CalculateTopPadding(int font_list_height) {
 // as well as capitalizing the given label string. Used by chrome notifications.
 // Ash notifications create their own.
 class NotificationTextButton : public views::MdTextButton {
+  METADATA_HEADER(NotificationTextButton, views::MdTextButton)
+
  public:
   NotificationTextButton(PressedCallback callback, const std::u16string& label)
       : views::MdTextButton(std::move(callback), label) {
@@ -123,8 +130,10 @@ class NotificationTextButton : public views::MdTextButton {
     views::InstallRectHighlightPathGenerator(this);
     SetTextSubpixelRenderingEnabled(false);
   }
+
   NotificationTextButton(const NotificationTextButton&) = delete;
   NotificationTextButton& operator=(const NotificationTextButton&) = delete;
+
   ~NotificationTextButton() override = default;
 
   // views::MdTextButton:
@@ -134,26 +143,30 @@ class NotificationTextButton : public views::MdTextButton {
 
   void OnThemeChanged() override {
     views::MdTextButton::OnThemeChanged();
-    SetEnabledTextColors(color_);
     label()->SetBackgroundColor(
         GetColorProvider()->GetColor(ui::kColorNotificationActionsBackground));
   }
 
-  void SetEnabledTextColors(absl::optional<SkColor> color) override {
+  void SetEnabledTextColors(std::optional<ui::ColorVariant> color) override {
     color_ = std::move(color);
     views::MdTextButton::SetEnabledTextColors(color_);
     label()->SetAutoColorReadabilityEnabled(true);
   }
 
-  absl::optional<SkColor> color() const { return color_; }
+  const std::optional<ui::ColorVariant>& color() const { return color_; }
 
  private:
-  absl::optional<SkColor> color_;
+  std::optional<ui::ColorVariant> color_;
 };
+
+BEGIN_METADATA(NotificationTextButton)
+END_METADATA
 
 // InlineSettingsRadioButton ///////////////////////////////////////////////////
 
 class InlineSettingsRadioButton : public views::RadioButton {
+  METADATA_HEADER(InlineSettingsRadioButton, views::RadioButton)
+
  public:
   explicit InlineSettingsRadioButton(const std::u16string& label_text)
       : views::RadioButton(label_text, 1 /* group */) {
@@ -174,6 +187,9 @@ class InlineSettingsRadioButton : public views::RadioButton {
     return GetColorProvider()->GetColor(ui::kColorLabelForeground);
   }
 };
+
+BEGIN_METADATA(InlineSettingsRadioButton)
+END_METADATA
 
 // NotificationInkDropImpl /////////////////////////////////////////////////////
 
@@ -204,7 +220,7 @@ class NotificationView::NotificationViewPathGenerator
       const NotificationViewPathGenerator&) = delete;
 
   // views::HighlightPathGenerator:
-  absl::optional<gfx::RRectF> GetRoundRect(const gfx::RectF& rect) override {
+  std::optional<gfx::RRectF> GetRoundRect(const gfx::RectF& rect) override {
     gfx::RectF bounds = rect;
     if (!preferred_size_.IsEmpty())
       bounds.set_size(gfx::SizeF(preferred_size_));
@@ -226,8 +242,7 @@ class NotificationView::NotificationViewPathGenerator
   // This custom PathGenerator is used for the ink drop clipping bounds. By
   // setting |preferred_size_| we set the correct clip bounds in
   // GetRoundRect(). This is needed as the correct bounds for the ink drop are
-  // required before a Layout() on the view is run. See
-  // http://crbug.com/915222.
+  // required before the view does layout. See http://crbug.com/915222.
   gfx::Size preferred_size_;
 };
 
@@ -255,7 +270,7 @@ NotificationView::NotificationView(
   views::InkDrop::Get(this)->SetCreateRippleCallback(base::BindRepeating(
       [](NotificationViewBase* host) -> std::unique_ptr<views::InkDropRipple> {
         return std::make_unique<views::FloodFillInkDropRipple>(
-            views::InkDrop::Get(host), host->GetPreferredSize(),
+            views::InkDrop::Get(host), host->GetPreferredSize({}),
             views::InkDrop::Get(host)->GetInkDropCenterBasedOnLastEvent(),
             views::InkDrop::Get(host)->GetBaseColor(),
             views::InkDrop::Get(host)->GetVisibleOpacity());
@@ -270,7 +285,7 @@ NotificationView::NotificationView(
   const int font_list_height = font_list.GetHeight();
   const gfx::Insets& text_view_padding(CalculateTopPadding(font_list_height));
   header_row->ConfigureLabelsStyle(font_list, text_view_padding, false);
-  header_row->SetPreferredSize(header_row->GetPreferredSize() -
+  header_row->SetPreferredSize(header_row->GetPreferredSize({}) -
                                gfx::Size(GetInsets().width(), 0));
   header_row->SetCallback(base::BindRepeating(
       &NotificationView::HeaderRowPressed, base::Unretained(this)));
@@ -303,6 +318,7 @@ NotificationView::NotificationView(
           .SetBorder(views::CreateEmptyBorder(kLargeImageContainerPadding))
           .Build());
   AddChildView(CreateInlineSettingsBuilder().Build());
+  AddChildView(CreateSnoozeSettingsBuilder().Build());
   AddChildView(CreateActionsRow());
 
   CreateOrUpdateViews(notification);
@@ -323,11 +339,12 @@ NotificationView::~NotificationView() {
   views::InkDrop::Remove(this);
 }
 
-SkColor NotificationView::GetActionButtonColorForTesting(
+const std::optional<ui::ColorVariant>&
+NotificationView::GetActionButtonColorForTesting(
     views::LabelButton* action_button) {
   NotificationTextButton* button =
       static_cast<NotificationTextButton*>(action_button);
-  return button->color().value_or(SkColor());
+  return button->color();
 }
 
 void NotificationView::CreateOrUpdateHeaderView(
@@ -355,8 +372,8 @@ void NotificationView::CreateOrUpdateTitleView(
       notification.title(), kTitleCharacterLimit, gfx::WORD_BREAK);
   if (!title_view_) {
     auto title_view = GenerateTitleView(title);
-    // TODO(crbug.com/682266): multiline should not be required, but we need to
-    // set the width of |title_view_|, which only works in multiline mode.
+    // TODO(crbug.com/41295639): multiline should not be required, but we need
+    // to set the width of |title_view_|, which only works in multiline mode.
     title_view->SetMultiLine(true);
     title_view->SetMaxLines(kMaxLinesForTitleView);
     title_view_ = AddViewToLeftContent(std::move(title_view));
@@ -382,7 +399,7 @@ void NotificationView::CreateOrUpdateSmallIconView(
           accent_color, GetNotificationHeaderViewBackgroundColor())
           .color;
 
-  // TODO(crbug.com/768748): figure out if this has a performance impact and
+  // TODO(crbug.com/40541732): figure out if this has a performance impact and
   // cache images if so.
   gfx::Image masked_small_icon = notification.GenerateMaskedSmallIcon(
       kSmallImageSizeMD, icon_color,
@@ -432,12 +449,12 @@ void NotificationView::CreateOrUpdateInlineSettingsViews(
     // PhoneHub notifications do not have inline settings.
     case NotifierType::PHONE_HUB:
       NOTREACHED();
-      break;
   }
   DCHECK_NE(block_notifications_message_id, 0);
 
-  inline_settings_row()->SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kVertical, kSettingsRowPadding, 0));
+  inline_settings_row()->SetOrientation(
+      views::BoxLayout::Orientation::kVertical);
+  inline_settings_row()->SetInsideBorderInsets(kSettingsRowPadding);
 
   auto block_all_button = std::make_unique<InlineSettingsRadioButton>(
       l10n_util::GetStringUTF16(block_notifications_message_id));
@@ -469,6 +486,11 @@ void NotificationView::CreateOrUpdateInlineSettingsViews(
   settings_done_button_ =
       settings_button_row->AddChildView(std::move(settings_done_button));
   inline_settings_row()->AddChildView(std::move(settings_button_row));
+}
+
+void NotificationView::CreateOrUpdateSnoozeSettingsViews(
+    const Notification& notification) {
+  // Not implemented by default.
 }
 
 std::unique_ptr<views::LabelButton>
@@ -529,7 +551,7 @@ void NotificationView::ToggleInlineSettings(const ui::Event& event) {
 
   bool inline_settings_visible = !inline_settings_row()->GetVisible();
 
-  // TODO(crbug/1233670): In later refactor, `block_all_button_` and
+  // TODO(crbug.com/40781007): In later refactor, `block_all_button_` and
   // `dont_block_button_` should be moved from NotificationViewBase to this
   // class, since AshNotificationView will use a different UI for inline
   // settings.
@@ -552,13 +574,17 @@ void NotificationView::ToggleInlineSettings(const ui::Event& event) {
     RemoveBackgroundAnimation();
 
   UpdateHeaderViewBackgroundColor();
-  Layout();
+  DeprecatedLayoutImmediately();
   SchedulePaint();
 
   // Call DisableNotification() at the end, because |this| can be deleted at any
   // point after it's called.
   if (disable_notification)
     MessageCenter::Get()->DisableNotification(notification_id());
+}
+
+void NotificationView::ToggleSnoozeSettings(const ui::Event& event) {
+  // Not implemented by default.
 }
 
 bool NotificationView::IsExpandable() const {
@@ -605,15 +631,41 @@ void NotificationView::RemoveLayerFromRegions(ui::Layer* layer) {
     child->DestroyLayer();
 }
 
-void NotificationView::Layout() {
-  NotificationViewBase::Layout();
+void NotificationView::Layout(PassKey) {
+  LayoutSuperclass<NotificationViewBase>(this);
+
+  // We need to call IsExpandable() after doing superclass layout, since whether
+  // we should show expand button or not depends on the current view layout.
+  // (e.g. Show expand button when `message_label_` exceeds one line.)
+  SetExpandButtonVisibility(IsExpandable());
+  header_row()->DeprecatedLayoutImmediately();
+
+  // The notification background is rounded in MessageView layout, but we also
+  // have to round the actions row background here.
+  if (actions_row()->GetVisible()) {
+    constexpr SkScalar kCornerRadius = SkIntToScalar(kNotificationCornerRadius);
+
+    // Use vertically larger clip path, so that actions row's top corners will
+    // not be rounded.
+    SkPath path;
+    gfx::Rect bounds = actions_row()->GetLocalBounds();
+    bounds.set_y(bounds.y() - bounds.height());
+    bounds.set_height(bounds.height() * 2);
+    path.addRoundRect(gfx::RectToSkRect(bounds), kCornerRadius, kCornerRadius);
+
+    action_buttons_row()->SetClipPath(path);
+
+    if (inline_reply()) {
+      inline_reply()->SetClipPath(path);
+    }
+  }
 
   // The animation is needed to run inside of the border.
   ink_drop_container_->SetBoundsRect(GetLocalBounds());
 }
 
 void NotificationView::PreferredSizeChanged() {
-  highlight_path_generator_->set_preferred_size(GetPreferredSize());
+  highlight_path_generator_->set_preferred_size(GetPreferredSize({}));
   MessageView::PreferredSizeChanged();
 }
 
@@ -684,8 +736,11 @@ void NotificationView::HeaderRowPressed() {
   // cause |this| to be deleted.
   if (!weak_ptr)
     return;
-  Layout();
+  DeprecatedLayoutImmediately();
   SchedulePaint();
 }
+
+BEGIN_METADATA(NotificationView)
+END_METADATA
 
 }  // namespace message_center

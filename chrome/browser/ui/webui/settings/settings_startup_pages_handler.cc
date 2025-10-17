@@ -20,15 +20,14 @@
 namespace settings {
 
 StartupPagesHandler::StartupPagesHandler(content::WebUI* webui)
-    : startup_custom_pages_table_model_(Profile::FromWebUI(webui)) {
-}
+    : startup_custom_pages_table_model_(Profile::FromWebUI(webui)) {}
 
-StartupPagesHandler::~StartupPagesHandler() {
-}
+StartupPagesHandler::~StartupPagesHandler() = default;
 
 void StartupPagesHandler::RegisterMessages() {
-  if (Profile::FromWebUI(web_ui())->IsOffTheRecord())
+  if (Profile::FromWebUI(web_ui())->IsOffTheRecord()) {
     return;
+  }
 
   web_ui()->RegisterMessageCallback(
       "addStartupPage",
@@ -60,8 +59,9 @@ void StartupPagesHandler::OnJavascriptAllowed() {
   SessionStartupPref pref = SessionStartupPref::GetStartupPref(prefService);
   startup_custom_pages_table_model_.SetURLs(pref.urls);
 
-  if (pref.urls.empty())
+  if (pref.urls.empty()) {
     pref.type = SessionStartupPref::DEFAULT;
+  }
 
   pref_change_registrar_.Init(prefService);
   pref_change_registrar_.Add(
@@ -82,7 +82,11 @@ void StartupPagesHandler::OnModelChanged() {
   for (size_t i = 0; i < page_count; ++i) {
     base::Value::Dict entry;
     entry.Set("title", startup_custom_pages_table_model_.GetText(i, 0));
-    entry.Set("url", urls[i].spec());
+    std::string spec;
+    if (urls[i].is_valid()) {
+      spec = urls[i].spec();
+    }
+    entry.Set("url", std::move(spec));
     entry.Set("tooltip", startup_custom_pages_table_model_.GetTooltip(i));
     entry.Set("modelIndex", base::checked_cast<int>(i));
     startup_pages.Append(std::move(entry));
@@ -110,7 +114,6 @@ void StartupPagesHandler::HandleAddStartupPage(const base::Value::List& args) {
 
   if (!args[1].is_string()) {
     NOTREACHED();
-    return;
   }
 
   std::string url_string = args[1].GetString();
@@ -136,7 +139,6 @@ void StartupPagesHandler::HandleEditStartupPage(const base::Value::List& args) {
                        startup_custom_pages_table_model_.RowCount()) {
     RejectJavascriptCallback(callback_id, base::Value());
     NOTREACHED();
-    return;
   }
 
   std::string url_string = args[2].GetString();
@@ -163,14 +165,12 @@ void StartupPagesHandler::HandleRemoveStartupPage(
   CHECK_EQ(args.size(), 1u);
   if (!args[0].is_int()) {
     NOTREACHED();
-    return;
   }
   int selected_index = args[0].GetInt();
 
   if (selected_index < 0 || static_cast<size_t>(selected_index) >=
                                 startup_custom_pages_table_model_.RowCount()) {
     NOTREACHED();
-    return;
   }
 
   startup_custom_pages_table_model_.Remove(selected_index);
@@ -190,8 +190,9 @@ void StartupPagesHandler::SaveStartupPagesPref() {
   SessionStartupPref pref = SessionStartupPref::GetStartupPref(prefs);
   pref.urls = startup_custom_pages_table_model_.GetURLs();
 
-  if (pref.urls.empty())
+  if (pref.urls.empty()) {
     pref.type = SessionStartupPref::DEFAULT;
+  }
 
   SessionStartupPref::SetStartupPref(prefs, pref);
 }

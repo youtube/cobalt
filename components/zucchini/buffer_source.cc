@@ -2,37 +2,56 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/zucchini/buffer_source.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
 #include "components/zucchini/algorithm.h"
 
 namespace zucchini {
 
-BufferSource::BufferSource(ConstBufferView buffer) : ConstBufferView(buffer) {}
+BufferSource::BufferSource(const ConstBufferView& buffer)
+    : ConstBufferView(buffer) {}
 
-BufferSource& BufferSource::Skip(size_type n) {
-  remove_prefix(std::min(n, Remaining()));
-  return *this;
+BufferSource::BufferSource(const ConstBufferView& buffer, size_type offset)
+    : ConstBufferView(buffer) {
+  Skip(offset);
+}
+
+bool BufferSource::Skip(size_type n) {
+  if (n > Remaining()) {
+    remove_prefix(Remaining());
+    return false;
+  }
+  remove_prefix(n);
+  return true;
 }
 
 bool BufferSource::CheckNextBytes(std::initializer_list<uint8_t> bytes) const {
-  if (Remaining() < bytes.size())
+  if (Remaining() < bytes.size()) {
     return false;
-  return base::ranges::mismatch(bytes, *this).first == bytes.end();
+  }
+  return std::ranges::mismatch(bytes, *this).in1 == bytes.end();
 }
 
 bool BufferSource::ConsumeBytes(std::initializer_list<uint8_t> bytes) {
-  if (!CheckNextBytes(bytes))
+  if (!CheckNextBytes(bytes)) {
     return false;
+  }
   remove_prefix(bytes.size());
   return true;
 }
 
 bool BufferSource::GetRegion(size_type count, ConstBufferView* buffer) {
   DCHECK_NE(begin(), nullptr);
-  if (Remaining() < count)
+  if (Remaining() < count) {
     return false;
+  }
   *buffer = ConstBufferView(begin(), count);
   remove_prefix(count);
   return true;

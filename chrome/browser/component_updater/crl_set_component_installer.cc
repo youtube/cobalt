@@ -52,7 +52,7 @@ std::string LoadCRLSet(const base::FilePath& crl_path) {
 // Singleton object used to configure Network Services and memoize the CRLSet
 // configuration.
 //
-// TODO(https://crbug.com/1085233): if CertVerifierServiceFactory is moved out
+// TODO(crbug.com/40693524): if CertVerifierServiceFactory is moved out
 // of the browser process, this will need to be updated to handle
 // CertVerifierServiceFactory disconnections/restarts, so that a newly
 // restarted CertVerifierServiceFactory can be reinitialized with the current
@@ -81,8 +81,9 @@ base::LazyInstance<CRLSetData>::Leaky g_crl_set_data =
     LAZY_INSTANCE_INITIALIZER;
 
 void CRLSetData::ConfigureCertVerifierServiceFactory() {
-  if (crl_set_path_.empty())
+  if (crl_set_path_.empty()) {
     return;
+  }
 
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
@@ -94,7 +95,7 @@ void CRLSetData::UpdateCRLSetOnUI(const std::string& crl_set_bytes) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   content::GetCertVerifierServiceFactory()->UpdateCRLSet(
-      base::as_bytes(base::make_span(crl_set_bytes)), base::DoNothing());
+      base::as_byte_span(crl_set_bytes), base::DoNothing());
 }
 
 }  // namespace

@@ -28,7 +28,7 @@ SynchronousTaskGraphRunner* GetGlobalTaskGraphRunner() {
 }
 
 FakeRasterBufferProviderImpl* GetGlobalRasterBufferProvider() {
-  static auto* buffer_provider = new FakeRasterBufferProviderImpl;
+  static auto* buffer_provider = new FakeRasterBufferProviderImpl();
   return buffer_provider;
 }
 
@@ -40,6 +40,7 @@ FakeTileManager::FakeTileManager(TileManagerClient* client,
                   base::SingleThreadTaskRunner::GetCurrentDefault().get(),
                   nullptr,
                   std::numeric_limits<size_t>::max(),
+                  false,
                   TileManagerSettings()),
       image_decode_cache_(
           kN32_SkColorType,

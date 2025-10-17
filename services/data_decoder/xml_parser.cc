@@ -40,8 +40,8 @@ void ReportError(XmlParser::ParseCallback callback,
     error = generic_error;
   }
 
-  std::move(callback).Run(/*result=*/absl::nullopt,
-                          absl::make_optional(std::move(error)));
+  std::move(callback).Run(/*result=*/std::nullopt,
+                          std::make_optional(std::move(error)));
 }
 
 enum class TextNodeType { kText, kCData };
@@ -100,9 +100,9 @@ void PopulateNamespaces(base::Value::Dict& node_value, XmlReader* xml_reader) {
     return;
 
   base::Value::Dict namespace_dict;
-  for (auto ns : namespaces)
+  for (const auto& ns : namespaces) {
     namespace_dict.Set(ns.first, ns.second);
-
+  }
   node_value.Set(mojom::XmlParser::kNamespacesKey, std::move(namespace_dict));
 }
 
@@ -112,9 +112,9 @@ void PopulateAttributes(base::Value::Dict& node_value, XmlReader* xml_reader) {
     return;
 
   base::Value::Dict attribute_dict;
-  for (auto attribute : attributes)
+  for (const auto& attribute : attributes) {
     attribute_dict.Set(attribute.first, base::Value(attribute.second));
-
+  }
   node_value.Set(mojom::XmlParser::kAttributesKey, std::move(attribute_dict));
 }
 
@@ -214,8 +214,8 @@ void XmlParser::Parse(const std::string& xml,
     ReportError(std::move(callback), "Invalid XML: bad content", errors);
     return;
   }
-  std::move(callback).Run(absl::make_optional(std::move(root_element)),
-                          absl::optional<std::string>());
+  std::move(callback).Run(std::make_optional(std::move(root_element)),
+                          std::optional<std::string>());
 }
 
 }  // namespace data_decoder

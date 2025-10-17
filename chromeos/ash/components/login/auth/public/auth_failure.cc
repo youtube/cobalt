@@ -73,7 +73,6 @@ const std::string AuthFailure::GetErrorString() const {
     case NONE:
     case NUM_FAILURE_REASONS:
       NOTREACHED();
-      return std::string();
   }
 }
 

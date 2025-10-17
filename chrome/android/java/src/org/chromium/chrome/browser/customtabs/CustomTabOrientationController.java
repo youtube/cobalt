@@ -9,35 +9,28 @@ import android.os.Build;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.ui.splashscreen.SplashController;
 import org.chromium.chrome.browser.browserservices.ui.splashscreen.SplashscreenObserver;
-import org.chromium.chrome.browser.dependency_injection.ActivityScope;
 import org.chromium.content_public.browser.ScreenOrientationProvider;
 import org.chromium.device.mojom.ScreenOrientationLockType;
 import org.chromium.ui.base.ActivityWindowAndroid;
 
-import javax.inject.Inject;
-
 /**
- * Manages setting the initial screen orientation for the custom tab.
- * Delays all screen orientation requests till the activity translucency is removed.
+ * Manages setting the initial screen orientation for the custom tab. Delays all screen orientation
+ * requests till the activity translucency is removed.
  */
-@ActivityScope
 public class CustomTabOrientationController {
     private final ActivityWindowAndroid mActivityWindowAndroid;
-    private int mLockScreenOrientation;
+    private final int mLockScreenOrientation;
 
-    @Inject
-    public CustomTabOrientationController(ActivityWindowAndroid activityWindowAndroid,
+    public CustomTabOrientationController(
+            ActivityWindowAndroid windowAndroid,
             BrowserServicesIntentDataProvider intentDataProvider) {
-        mActivityWindowAndroid = activityWindowAndroid;
-
+        mActivityWindowAndroid = windowAndroid;
         mLockScreenOrientation = intentDataProvider.getDefaultOrientation();
     }
 
     /**
      * Delays screen orientation requests if the activity window's initial translucency and the
-     * Android OS version requires it.
-     * Should be called:
-     * - Prior to pre inflation startup occurring.
+     * Android OS version requires it. Should be called: - Prior to pre inflation startup occurring.
      * - Only if the splash screen is shown for the activity.
      */
     public void delayOrientationRequestsIfNeeded(
@@ -48,23 +41,25 @@ public class CustomTabOrientationController {
 
         ScreenOrientationProvider.getInstance().delayOrientationRequests(mActivityWindowAndroid);
 
-        splashController.addObserver(new SplashscreenObserver() {
-            @Override
-            public void onTranslucencyRemoved() {
-                ScreenOrientationProvider.getInstance().runDelayedOrientationRequests(
-                        mActivityWindowAndroid);
-            }
+        splashController.addObserver(
+                new SplashscreenObserver() {
+                    @Override
+                    public void onTranslucencyRemoved() {
+                        ScreenOrientationProvider.getInstance()
+                                .runDelayedOrientationRequests(mActivityWindowAndroid);
+                    }
 
-            @Override
-            public void onSplashscreenHidden(long startTimestamp, long endTimestamp) {}
-        });
+                    @Override
+                    public void onSplashscreenHidden(long startTimestamp, long endTimestamp) {}
+                });
     }
 
     public void setCanControlOrientation(boolean inAppMode) {
         int defaultWebOrientation =
                 inAppMode ? mLockScreenOrientation : ScreenOrientationLockType.DEFAULT;
-        ScreenOrientationProvider.getInstance().setOverrideDefaultOrientation(
-                mActivityWindowAndroid, (byte) defaultWebOrientation);
+        ScreenOrientationProvider.getInstance()
+                .setOverrideDefaultOrientation(
+                        mActivityWindowAndroid, (byte) defaultWebOrientation);
 
         ScreenOrientationProvider.getInstance().unlockOrientation(mActivityWindowAndroid);
     }

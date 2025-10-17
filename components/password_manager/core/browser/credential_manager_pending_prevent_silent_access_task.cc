@@ -5,7 +5,7 @@
 #include "components/password_manager/core/browser/credential_manager_pending_prevent_silent_access_task.h"
 
 #include "components/password_manager/core/browser/password_form.h"
-#include "components/password_manager/core/browser/password_store_interface.h"
+#include "components/password_manager/core/browser/password_store/password_store_interface.h"
 
 namespace password_manager {
 
@@ -42,14 +42,19 @@ void CredentialManagerPendingPreventSilentAccessTask::
         PasswordStoreInterface* store,
         std::vector<std::unique_ptr<PasswordForm>> results) {
   for (const auto& form : results) {
+    if (form->match_type == PasswordForm::MatchType::kGrouped ||
+        form->blocked_by_user) {
+      continue;
+    }
     if (!form->skip_zero_click) {
       form->skip_zero_click = true;
       store->UpdateLogin(*form);
     }
   }
   pending_requests_--;
-  if (!pending_requests_)
+  if (!pending_requests_) {
     delegate_->DoneRequiringUserMediation();
+  }
 }
 
 }  // namespace password_manager

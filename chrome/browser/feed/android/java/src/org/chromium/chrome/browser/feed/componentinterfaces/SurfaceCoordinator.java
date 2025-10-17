@@ -5,21 +5,30 @@ package org.chromium.chrome.browser.feed.componentinterfaces;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger.ClosedReason;
+
 /** Interface for referencing FeedSurfaceCoordinator in this library. */
+@NullMarked
 public interface SurfaceCoordinator {
     /** Observes the SurfaceCoordinator. */
     interface Observer {
         default void surfaceOpened() {}
     }
+
     void addObserver(Observer observer);
+
     void removeObserver(Observer observer);
 
     void onSurfaceClosed();
+
     void onSurfaceOpened();
+
     boolean isActive();
 
-    void onApplicationStopped();
     void onActivityPaused();
+
     void onActivityResumed();
 
     /** Enumeration of the possible selection options of feed tabs. */
@@ -30,11 +39,18 @@ public interface SurfaceCoordinator {
          * selection.
          */
         int DEFAULT = -1;
+
         /** Selects the For you feed tab. */
         int FOR_YOU = 0;
+
         /** Selects the Following feed tab. */
         int FOLLOWING = 1;
     };
-    void restoreInstanceState(String state);
+
+    void restoreInstanceState(@Nullable String state);
+
     String getSavedInstanceStateString();
+
+    @ClosedReason
+    int getClosedReason();
 }

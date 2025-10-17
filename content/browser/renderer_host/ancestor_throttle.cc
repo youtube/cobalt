@@ -4,10 +4,11 @@
 
 #include "content/browser/renderer_host/ancestor_throttle.h"
 
+#include <algorithm>
+
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -19,14 +20,15 @@
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_view_host_delegate.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_client.h"
-#include "content/public/common/content_features.h"
 #include "net/http/http_response_headers.h"
+#include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "services/network/public/cpp/content_security_policy/csp_context.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom.h"
@@ -38,7 +40,7 @@ namespace {
 
 bool HeadersContainFrameAncestorsCSP(
     const network::mojom::ParsedHeadersPtr& headers) {
-  return base::ranges::any_of(
+  return std::ranges::any_of(
       headers->content_security_policy, [](const auto& csp) {
         return csp->header->type ==
                    network::mojom::ContentSecurityPolicyType::kEnforce &&
@@ -47,12 +49,46 @@ bool HeadersContainFrameAncestorsCSP(
       });
 }
 
-// From a RenderFrameHost |rfh|, return its parent. This goes through nested
-// WebContents like Portals, but doesn't go through FencedFrames. This returns
-// nullptr for the top-level document and FencedFrame top-level document.
-RenderFrameHostImpl* GetParentExceptForFencedFrame(RenderFrameHostImpl* frame) {
-  return frame->IsFencedFrameRoot() ? nullptr
-                                    : frame->GetParentOrOuterDocument();
+// From a RenderFrameHost |frame|, return its parent. This escapes FencedFrames
+// that allow for information inflow, but does not escape nested WebContents.
+// This returns nullptr for the top-level document and fenced frame roots (if
+// information inflow is not allowed for the fenced frame). |request| is only
+// supplied when |frame| is the frame being navigated. The FencedFrameProperties
+// has not been installed in |frame|'s FrameTreeNode yet. Instead, we look at
+// the one attached to the NavigationRequest.
+RenderFrameHostImpl* GetParentForFrameAncestors(NavigationRequest* request,
+                                                RenderFrameHostImpl* frame) {
+  bool allows_information_inflow = false;
+  if (base::FeatureList::IsEnabled(
+          blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
+    if (request) {
+      allows_information_inflow =
+          !request->GetFencedFrameProperties().has_value() ||
+          request->GetFencedFrameProperties()->allows_information_inflow();
+    } else {
+      // We are in one of the navigated frame's ancestors.
+      allows_information_inflow =
+          !frame->frame_tree_node()->HasFencedFrameProperties() ||
+          frame->frame_tree_node()
+              ->GetFencedFrameProperties()
+              ->allows_information_inflow();
+    }
+  } else {
+    allows_information_inflow = !frame->IsFencedFrameRoot();
+  }
+
+  if (!allows_information_inflow && request &&
+      base::FeatureList::IsEnabled(
+          blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
+    request->AddDeferredConsoleMessage(
+        blink::mojom::ConsoleMessageLevel::kWarning,
+        "'CSP frame-ancestors' and 'X-Frame-Options' directives will not look "
+        "past a fenced frame boundary if created with an API that disallows "
+        "information inflow, such as Protected Audience.");
+  }
+
+  return allows_information_inflow ? frame->GetParentOrOuterDocument()
+                                   : nullptr;
 }
 
 }  // namespace
@@ -94,8 +130,7 @@ NavigationThrottle::ThrottleCheckResult AncestorThrottle::ProcessResponseImpl(
     bool is_response_check) {
   NavigationRequest* request = NavigationRequest::From(navigation_handle());
 
-  bool is_portal = request->frame_tree_node()->frame_tree().IsPortal();
-  if (request->IsInMainFrame() && !is_portal) {
+  if (request->IsInOutermostMainFrame()) {
     // Allow main frame navigations.
     return NavigationThrottle::PROCEED;
   }
@@ -139,8 +174,8 @@ void AncestorThrottle::ParseXFrameOptionsError(
          disposition == network::mojom::XFrameOptionsValue::kInvalid);
   DCHECK(headers);
 
-  std::string value;
-  headers->GetNormalizedHeader("X-Frame-Options", &value);
+  std::string value =
+      headers->GetNormalizedHeader("X-Frame-Options").value_or(std::string());
 
   std::string message;
   if (disposition == network::mojom::XFrameOptionsValue::kConflict) {
@@ -247,8 +282,8 @@ AncestorThrottle::CheckResult AncestorThrottle::EvaluateXFrameOptions(
       // Block the request when any ancestor is not same-origin.
       // We enforce XFrameOptions in the outer documents, but not for
       // embedders/GuestViews.
-      RenderFrameHostImpl* parent = GetParentExceptForFencedFrame(
-          request->frame_tree_node()->current_frame_host());
+      RenderFrameHostImpl* parent = GetParentForFrameAncestors(
+          request, request->frame_tree_node()->current_frame_host());
       url::Origin current_origin =
           url::Origin::Create(navigation_handle()->GetURL());
       while (parent) {
@@ -258,7 +293,7 @@ AncestorThrottle::CheckResult AncestorThrottle::EvaluateXFrameOptions(
             ConsoleErrorXFrameOptions(disposition);
           return CheckResult::BLOCK;
         }
-        parent = GetParentExceptForFencedFrame(parent);
+        parent = GetParentForFrameAncestors(nullptr, parent);
       }
       return CheckResult::PROCEED;
     }
@@ -282,8 +317,8 @@ AncestorThrottle::CheckResult AncestorThrottle::EvaluateEmbeddingOptIn(
   if (request->response()->parsed_headers->xfo ==
           network::mojom::XFrameOptionsValue::kNone &&
       !HeadersContainFrameAncestorsCSP(request->response()->parsed_headers)) {
-    RenderFrameHostImpl* parent = GetParentExceptForFencedFrame(
-        request->frame_tree_node()->current_frame_host());
+    RenderFrameHostImpl* parent = GetParentForFrameAncestors(
+        request, request->frame_tree_node()->current_frame_host());
     while (parent) {
       if (!parent->GetLastCommittedOrigin().IsSameOriginWith(
               navigation_handle()->GetURL())) {
@@ -299,7 +334,7 @@ AncestorThrottle::CheckResult AncestorThrottle::EvaluateEmbeddingOptIn(
 
         return CheckResult::BLOCK;
       }
-      parent = GetParentExceptForFencedFrame(parent);
+      parent = GetParentForFrameAncestors(nullptr, parent);
     }
   }
   return CheckResult::PROCEED;
@@ -308,17 +343,18 @@ AncestorThrottle::CheckResult AncestorThrottle::EvaluateEmbeddingOptIn(
 AncestorThrottle::CheckResult AncestorThrottle::EvaluateFrameAncestors(
     const std::vector<network::mojom::ContentSecurityPolicyPtr>&
         content_security_policy) {
+  NavigationRequest* request = NavigationRequest::From(navigation_handle());
   // TODO(lfg): If the initiating document is known and correspond to the
   // navigating frame's current document, consider using:
   // navigation_request().common_params().source_location here instead.
   auto empty_source_location = network::mojom::SourceLocation::New();
 
-  // Check CSP frame-ancestors against every parent.
-  // We enforce frame-ancestors in the outer documents, but not for
-  // embedders/GuestViews.
-  RenderFrameHostImpl* parent =
-      GetParentExceptForFencedFrame(static_cast<RenderFrameHostImpl*>(
-          navigation_handle()->GetRenderFrameHost()));
+  // Check CSP frame-ancestors against every parent. We enforce frame-ancestors
+  // in the outer documents (except for fenced frames created under certain
+  // conditions), but not for embedders or GuestViews.
+  RenderFrameHostImpl* parent = GetParentForFrameAncestors(
+      request, static_cast<RenderFrameHostImpl*>(
+                   navigation_handle()->GetRenderFrameHost()));
 
   while (parent) {
     // CSP violations (if any) are reported via the disallowed ancestor of the
@@ -326,18 +362,24 @@ AncestorThrottle::CheckResult AncestorThrottle::EvaluateFrameAncestors(
     // committed yet and the target frame might not yet have a URLLoaderFactory
     // that could be used to report the violation).
     // See also https://crbug.com/1111049.
-    if (!RenderFrameHostCSPContext(parent).IsAllowedByCsp(
+    network::CSPCheckResult result =
+        RenderFrameHostCSPContext(parent).IsAllowedByCsp(
             content_security_policy,
             network::mojom::CSPDirectiveName::FrameAncestors,
             parent->GetLastCommittedOrigin().GetURL(),
             GURL(),  // url_before_redirects is ignored for frame-ancestors
-            navigation_handle()->WasServerRedirect(),
-            true /* is_response_check */, empty_source_location,
+            navigation_handle()->WasServerRedirect(), empty_source_location,
             network::CSPContext::CheckCSPDisposition::CHECK_ALL_CSP,
-            navigation_handle()->IsFormSubmission())) {
+            navigation_handle()->IsFormSubmission());
+    if (result.WouldBlockIfWildcardDoesNotMatchWs()) {
+      GetContentClient()->browser()->LogWebFeatureForCurrentPage(
+          parent,
+          blink::mojom::WebFeature::kCspWouldBlockIfWildcardDoesNotMatchWs);
+    }
+    if (!result) {
       return CheckResult::BLOCK;
     }
-    parent = GetParentExceptForFencedFrame(parent);
+    parent = GetParentForFrameAncestors(nullptr, parent);
   }
 
   return CheckResult::PROCEED;

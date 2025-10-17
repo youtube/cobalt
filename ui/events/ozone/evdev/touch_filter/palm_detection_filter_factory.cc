@@ -14,12 +14,13 @@
 #include "base/strings/string_split.h"
 #include "base/system/sys_info.h"
 #include "base/time/time.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/events/ozone/evdev/event_device_info.h"
+#include "ui/events/ozone/evdev/heatmap_palm_detector.h"
+#include "ui/events/ozone/evdev/touch_event_converter_evdev.h"
+#include "ui/events/ozone/evdev/touch_filter/heatmap_palm_detection_filter.h"
 #include "ui/events/ozone/evdev/touch_filter/heuristic_stylus_palm_detection_filter.h"
 #include "ui/events/ozone/evdev/touch_filter/neural_stylus_palm_detection_filter.h"
 #include "ui/events/ozone/evdev/touch_filter/neural_stylus_palm_detection_filter_model.h"
-#include "ui/events/ozone/evdev/touch_filter/neural_stylus_palm_report_filter.h"
 #include "ui/events/ozone/evdev/touch_filter/open_palm_detection_filter.h"
 #include "ui/events/ozone/evdev/touch_filter/palm_detection_filter.h"
 #include "ui/events/ozone/evdev/touch_filter/palm_model/onedevice_train_palm_detection_filter_model.h"
@@ -51,7 +52,7 @@ std::string FetchNeuralPalmRadiusPolynomial(const EventDeviceInfo& devinfo,
   }
 
   // look at the command line.
-  absl::optional<base::Value> ozone_switch_value = base::JSONReader::Read(
+  std::optional<base::Value> ozone_switch_value = base::JSONReader::Read(
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           kOzoneNNPalmSwitchName));
   if (ozone_switch_value.has_value() && ozone_switch_value->is_dict()) {
@@ -63,7 +64,7 @@ std::string FetchNeuralPalmRadiusPolynomial(const EventDeviceInfo& devinfo,
   }
 
   // TODO(robsc): Remove this when comfortable.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // We should really only be running in chromeos anyway; We do a check here
   // temporarily for hatch and reef.  These numbers should live in config on
   // chromeos side but for now during experiment are hard-coded here.
@@ -92,7 +93,7 @@ std::string FetchNeuralPalmModelVersion(const EventDeviceInfo& devinfo,
   }
 
   // look at the command line.
-  absl::optional<base::Value> ozone_switch_value = base::JSONReader::Read(
+  std::optional<base::Value> ozone_switch_value = base::JSONReader::Read(
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           kOzoneNNPalmSwitchName));
   if (ozone_switch_value.has_value() && ozone_switch_value->is_dict()) {
@@ -141,13 +142,39 @@ std::unique_ptr<PalmDetectionFilter> CreatePalmDetectionFilter(
         shared_palm_state, stroke_count, hold_time, cancel_time);
   }
 
-  if (base::FeatureList::IsEnabled(kEnableNeuralStylusReportFilter) &&
-      NeuralStylusReportFilter::CompatibleWithNeuralStylusReportFilter(
+  return std::make_unique<OpenPalmDetectionFilter>(shared_palm_state);
+}
+
+// The HeatmapPalmDetectionFilter is necessary for better user experience when
+// HeatmapPalmDetection flag is enabled. Create a separate function instead of
+// use CreatePalmDetectionFilter to allow more than one filter on some devices.
+std::unique_ptr<PalmDetectionFilter> CreateHeatmapPalmDetectionFilter(
+    const EventDeviceInfo& devinfo,
+    SharedPalmDetectionFilterState* shared_palm_state) {
+  if (base::FeatureList::IsEnabled(kEnableHeatmapPalmDetection) &&
+      HeatmapPalmDetectionFilter::CompatibleWithHeatmapPalmDetectionFilter(
           devinfo)) {
-    return std::make_unique<NeuralStylusReportFilter>(shared_palm_state);
-  } else {
-    return std::make_unique<OpenPalmDetectionFilter>(shared_palm_state);
+    HeatmapPalmDetector::ModelId model_id =
+        TouchEventConverterEvdev::GetHidrawModelId(devinfo);
+    uint32_t max_sample = 0;
+
+    if (model_id == HeatmapPalmDetector::ModelId::kRex) {
+      // TODO: crbug.com/394945512 - Rex ML model was developed for ~90hz touch
+      // device, need to test.
+      max_sample = 9;
+    } else if (model_id == HeatmapPalmDetector::ModelId::kGeralt) {
+      // Geralt ML model was developed for ~120hz touch device.
+      max_sample = 12;
+    } else {
+      return nullptr;
+    }
+    auto model_config =
+        std::make_unique<HeatmapPalmDetectionFilterModelConfig>(max_sample);
+    return std::make_unique<HeatmapPalmDetectionFilter>(
+        devinfo, std::move(model_config), shared_palm_state);
   }
+
+  return nullptr;
 }
 
 }  // namespace ui

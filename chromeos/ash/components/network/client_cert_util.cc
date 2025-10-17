@@ -9,6 +9,8 @@
 #include <stddef.h>
 
 #include <list>
+#include <optional>
+#include <variant>
 
 #include "base/check.h"
 #include "base/strings/string_number_conversions.h"
@@ -21,8 +23,6 @@
 #include "net/cert/nss_cert_database.h"
 #include "net/cert/scoped_nss_types.h"
 #include "net/cert/x509_certificate.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 
 namespace ash::client_cert {
@@ -55,7 +55,7 @@ void GetClientCertTypeAndDescriptor(
     const base::Value::Dict* pattern_value =
         dict_with_client_cert.FindDict(::onc::client_cert::kClientCertPattern);
     if (pattern_value) {
-      absl::optional<OncCertificatePattern> pattern =
+      std::optional<OncCertificatePattern> pattern =
           OncCertificatePattern::ReadFromONCDictionary(*pattern_value);
       if (!pattern.has_value()) {
         LOG(ERROR) << "ClientCertPattern invalid";

@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "ash/accelerators/key_hold_detector.h"
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/shell.h"
 #include "ui/events/event.h"
 
@@ -40,7 +40,7 @@ bool SpokenFeedbackToggler::ShouldProcessEvent(
 }
 
 bool SpokenFeedbackToggler::IsStartEvent(const ui::KeyEvent* event) const {
-  return event->type() == ui::ET_KEY_PRESSED &&
+  return event->type() == ui::EventType::kKeyPressed &&
          event->flags() & ui::EF_SHIFT_DOWN;
 }
 
@@ -52,7 +52,7 @@ bool SpokenFeedbackToggler::ShouldStopEventPropagation() const {
 void SpokenFeedbackToggler::OnKeyHold(const ui::KeyEvent* event) {
   if (!toggled_) {
     toggled_ = true;
-    AccessibilityControllerImpl* controller =
+    AccessibilityController* controller =
         Shell::Get()->accessibility_controller();
     controller->SetSpokenFeedbackEnabled(
         !controller->spoken_feedback().enabled(), A11Y_NOTIFICATION_SHOW);

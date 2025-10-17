@@ -6,13 +6,13 @@
 
 #include <memory>
 
+#include "ash/login/test_login_screen.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/gtest_util.h"
 #include "base/test/mock_callback.h"
-#include "chrome/browser/ash/login/ui/login_screen_extension_ui/create_options.h"
-#include "chrome/browser/ash/login/ui/login_screen_extension_ui/window.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
-#include "chrome/browser/ui/ash/test_login_screen.h"
+#include "chrome/browser/ui/ash/login/login_screen_extension_ui/create_options.h"
+#include "chrome/browser/ui/ash/login/login_screen_extension_ui/window.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -139,7 +139,7 @@ class LoginScreenExtensionUiHandlerUnittest : public testing::Test {
                      /*name=*/"LoginScreenUi test extension")
                      .SetID(kAllowlistedExtensionID1)
                      .SetLocation(ManifestLocation::kExternalPolicy)
-                     .AddPermission(kPermissionName)
+                     .AddAPIPermission(kPermissionName)
                      .AddFlags(extensions::Extension::FOR_LOGIN_SCREEN)
                      .Build();
     extension_registry_->AddEnabled(extension_);
@@ -171,8 +171,7 @@ class LoginScreenExtensionUiHandlerUnittest : public testing::Test {
 
   void CheckCanCloseWindow(const extensions::Extension* extension) {
     base::MockCallback<UiHandler::WindowClosedCallback> callback;
-    EXPECT_CALL(callback,
-                Run(true, absl::optional<std::string>(absl::nullopt)));
+    EXPECT_CALL(callback, Run(true, std::optional<std::string>(std::nullopt)));
     ui_handler_->Close(extension, callback.Get());
     // Invoke close callback from dialog delegate because UiHandler::Close() is
     // synchronous and will invoke its callback after that.
@@ -194,14 +193,14 @@ class LoginScreenExtensionUiHandlerUnittest : public testing::Test {
                               const std::string& expected_error) {
     base::MockCallback<UiHandler::WindowClosedCallback> callback;
     EXPECT_CALL(callback,
-                Run(false, absl::optional<std::string>(expected_error)));
+                Run(false, std::optional<std::string>(expected_error)));
     ui_handler_->Close(extension, callback.Get());
     // No need to invoke the close callback here since in case of no open window
     // we directly invoke the callback with an error.
   }
 
   void CheckCannotUseAPI(const extensions::Extension* extension) {
-    ::testing::FLAGS_gtest_death_test_style = "fast";
+    GTEST_FLAG_SET(death_test_style, "fast");
     std::string error;
     EXPECT_CHECK_DEATH(
         ui_handler_->Show(extension, kUrl, kCanBeClosedByUser, &error));
@@ -212,15 +211,13 @@ class LoginScreenExtensionUiHandlerUnittest : public testing::Test {
 
   session_manager::SessionManager session_manager_;
   TestingProfileManager profile_manager_;
-  raw_ptr<ash::StubInstallAttributes, ExperimentalAsh>
-      stub_install_attributes_ = nullptr;
-  raw_ptr<extensions::ExtensionRegistry, ExperimentalAsh> extension_registry_ =
-      nullptr;
+  raw_ptr<ash::StubInstallAttributes> stub_install_attributes_ = nullptr;
+  raw_ptr<extensions::ExtensionRegistry> extension_registry_ = nullptr;
   scoped_refptr<const extensions::Extension> extension_;
 
   TestLoginScreen test_login_screen_;
 
-  raw_ptr<FakeWindowFactory, ExperimentalAsh> fake_window_factory_ = nullptr;
+  raw_ptr<FakeWindowFactory, DanglingUntriaged> fake_window_factory_ = nullptr;
 
   std::unique_ptr<UiHandler> ui_handler_;
 };
@@ -306,7 +303,7 @@ TEST_F(LoginScreenExtensionUiHandlerUnittest, OnlyOneWindow) {
       extensions::ExtensionBuilder(/*name=*/"Imprivata")
           .SetID(kAllowlistedExtensionID2)
           .SetLocation(ManifestLocation::kExternalPolicy)
-          .AddPermission(kPermissionName)
+          .AddAPIPermission(kPermissionName)
           .AddFlags(extensions::Extension::FOR_LOGIN_SCREEN)
           .Build();
   extension_registry_->AddEnabled(other_extension);
@@ -385,7 +382,7 @@ TEST_F(LoginScreenExtensionUiHandlerDeathUnittest, NotAllowed) {
       extensions::ExtensionBuilder(/*name=*/"other profile")
           .SetID(kAllowlistedExtensionID2)  // allowlisted
           .SetLocation(ManifestLocation::kExternalPolicy)
-          .AddPermission(kPermissionName)
+          .AddAPIPermission(kPermissionName)
           .AddFlags(extensions::Extension::FOR_LOGIN_SCREEN)
           .Build();
 

@@ -26,14 +26,6 @@ namespace extensions {
 
 namespace {
 
-// Whether this build supports the window.shape requirement.
-const bool kSupportsWindowShape =
-#if defined(USE_AURA)
-    true;
-#else
-    false;
-#endif
-
 // Returns true if a WebGL check might not fail immediately.
 bool MightSupportWebGL() {
   return content::GpuDataManager::GetInstance()->GpuAccessAllowed(nullptr);
@@ -65,19 +57,14 @@ class RequirementsCheckerTest : public ExtensionsTest {
  protected:
   void StartChecker() {
     checker_ = std::make_unique<RequirementsChecker>(extension_);
-    // TODO(michaelpg): This should normally not have to be async. Use Run()
-    // instead of RunUntilComplete() after crbug.com/708354 is addressed.
-    runner_.RunUntilComplete(checker_.get());
-  }
-
-  void RequireWindowShape() {
-    manifest_dict_.SetByDottedPath("requirements.window.shape", true);
+    runner_.Run(checker_.get());
   }
 
   void RequireFeature(const char feature[]) {
     base::Value* features_list = manifest_dict_.Find(kFeaturesKey);
-    if (!features_list)
+    if (!features_list) {
       features_list = manifest_dict_.Set(kFeaturesKey, base::Value::List());
+    }
     features_list->GetList().Append(feature);
   }
 
@@ -100,9 +87,6 @@ TEST_F(RequirementsCheckerTest, RequirementsEmpty) {
 
 // Tests fulfilled requirements.
 TEST_F(RequirementsCheckerTest, RequirementsSuccess) {
-  if (kSupportsWindowShape)
-    RequireWindowShape();
-
   RequireFeature(kFeatureCSS3d);
 
   CreateExtension();
@@ -115,10 +99,6 @@ TEST_F(RequirementsCheckerTest, RequirementsSuccess) {
 // Tests multiple requirements failing (on some builds).
 TEST_F(RequirementsCheckerTest, RequirementsFailMultiple) {
   size_t expected_errors = 0u;
-  if (!kSupportsWindowShape) {
-    RequireWindowShape();
-    expected_errors++;
-  }
   if (!MightSupportWebGL()) {
     RequireFeature(kFeatureWebGL);
     expected_errors++;

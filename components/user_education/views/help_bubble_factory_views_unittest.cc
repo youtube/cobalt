@@ -10,7 +10,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/test/bind.h"
 #include "base/test/mock_callback.h"
-#include "components/user_education/common/help_bubble_params.h"
+#include "components/user_education/common/help_bubble/help_bubble_params.h"
 #include "components/user_education/views/help_bubble_view.h"
 #include "components/user_education/views/help_bubble_views_test_util.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -76,8 +76,8 @@ class HelpBubbleFactoryViewsTest : public views::ViewsTestBase {
 
   test::TestHelpBubbleDelegate test_delegate_;
   HelpBubbleFactoryViews factory_{&test_delegate_};
-  base::raw_ptr<views::View> contents_view_;
-  base::raw_ptr<views::View> anchor_view_;
+  raw_ptr<views::View, DanglingUntriaged> contents_view_;
+  raw_ptr<views::View, DanglingUntriaged> anchor_view_;
   std::unique_ptr<views::Widget> widget_;
 };
 
@@ -94,10 +94,12 @@ TEST_F(HelpBubbleFactoryViewsTest, HelpBubbleDismissedOnAnchorHidden) {
 
   // Wait for the help bubble to close.
   base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
-  EXPECT_CALL(closed, Run).WillOnce([&](HelpBubble* bubble) {
-    EXPECT_EQ(help_bubble.get(), bubble);
-    run_loop.Quit();
-  });
+  EXPECT_CALL(closed, Run)
+      .WillOnce([&](HelpBubble* bubble, HelpBubble::CloseReason reason) {
+        EXPECT_EQ(help_bubble.get(), bubble);
+        EXPECT_EQ(HelpBubble::CloseReason::kAnchorHidden, reason);
+        run_loop.Quit();
+      });
   anchor_view_->SetVisible(false);
   run_loop.Run();
 }

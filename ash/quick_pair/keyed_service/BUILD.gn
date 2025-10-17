@@ -2,11 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
+assert(is_chromeos, "Quick Pair protocols (e.g. Fast Pair) are ash-chrome only")
 
-assert(is_chromeos_ash,
-       "Quick Pair protocols (e.g. Fast Pair) are ash-chrome only")
-
+# TODO(b/279954848): Convert this to a component build
 static_library("keyed_service") {
   sources = [
     "battery_update_message_handler.cc",
@@ -24,6 +22,7 @@ static_library("keyed_service") {
   deps = [
     "//ash/public/cpp",
     "//ash/quick_pair/common",
+    "//ash/quick_pair/companion_app",
     "//ash/quick_pair/fast_pair_handshake",
     "//ash/quick_pair/feature_status_tracker",
     "//ash/quick_pair/message_stream",
@@ -36,11 +35,35 @@ static_library("keyed_service") {
     "//chromeos/ash/services/bluetooth_config/public/cpp",
     "//chromeos/ash/services/bluetooth_config/public/mojom",
     "//chromeos/ash/services/quick_pair",
+    "//components/cross_device/logging:logging",
     "//components/keyed_service/core",
     "//components/prefs",
     "//components/user_manager",
     "//device/bluetooth",
     "//mojo/public/cpp/bindings",
+  ]
+}
+
+static_library("test_support") {
+  testonly = true
+
+  sources = [
+    "fake_quick_pair_mediator_factory.cc",
+    "fake_quick_pair_mediator_factory.h",
+  ]
+
+  deps = [
+    ":keyed_service",
+    "//ash/quick_pair/companion_app",
+    "//ash/quick_pair/fast_pair_handshake",
+    "//ash/quick_pair/feature_status_tracker",
+    "//ash/quick_pair/message_stream",
+    "//ash/quick_pair/pairing",
+    "//ash/quick_pair/repository:test_support",
+    "//ash/quick_pair/scanning",
+    "//ash/quick_pair/ui",
+    "//base",
+    "//chromeos/ash/services/quick_pair",
   ]
 }
 
@@ -59,6 +82,8 @@ source_set("unit_tests") {
     "//ash/constants:constants",
     "//ash/quick_pair/common",
     "//ash/quick_pair/common:test_support",
+    "//ash/quick_pair/companion_app",
+    "//ash/quick_pair/companion_app:test_support",
     "//ash/quick_pair/fast_pair_handshake:test_support",
     "//ash/quick_pair/feature_status_tracker:test_support",
     "//ash/quick_pair/message_stream",
@@ -72,6 +97,7 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//chromeos/ash/services/bluetooth_config",
+    "//chromeos/ash/services/bluetooth_config:in_process_bluetooth_config",
     "//chromeos/ash/services/bluetooth_config:test_support",
     "//chromeos/ash/services/bluetooth_config/public/mojom",
     "//chromeos/ash/services/quick_pair",

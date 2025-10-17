@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/try.star", "location_filters_without_defaults")
+load("@chromium-luci//try.star", "location_filters_without_defaults", "owner_whitelist_group_without_defaults", "try_")
 load("//outages/config.star", outages_config = "config")
 
 _MD_HEADER = """\
@@ -13,13 +13,7 @@ _MD_HEADER = """\
 
 [TOC]
 
-Changes that only modify files in //infra/config, which do not change any build
-outputs, only require the chromium_presubmit builder to pass before landing.
-
-Each builder name links to that builder on Milo. The "matching builders" links
-point to the file used to determine which configurations a builder should copy
-when running. These links might 404 or error; they are hard-coded right now,
-using common assumptions about how builders are configured.
+Each builder name links to that builder on Milo.
 """
 
 _REQUIRED_HEADER = """\
@@ -43,6 +37,11 @@ as required builders.
 These builders are currently disabled due to the cq_disable_experiments outages
 setting. See //infra/config/outages/README.md for more information.
 """ if outages_config.disable_cq_experiments else "")
+
+_MEGA_MODE_HEADER = """\
+These builders run when the "Mega" CQ mode is triggered. This mode runs all the
+builders required in the standard CQ, plus a large amount of optional builders.
+"""
 
 _TRY_BUILDER_VIEW_URL = "https://ci.chromium.org/p/{project}/builders/{bucket}/{builder}"
 
@@ -71,18 +70,23 @@ def _get_main_config_group_builders(ctx):
 
 def _normalize_builder(builder):
     location_filters = location_filters_without_defaults(builder)
+    owner_whitelist_group = owner_whitelist_group_without_defaults(builder)
 
     return struct(
         name = builder.name,
         experiment_percentage = builder.experiment_percentage,
         includable_only = builder.includable_only,
         location_filters = location_filters,
+        mode_allowlist = builder.mode_allowlist,
+        equivalent_to = proto.clone(builder).equivalent_to,
+        owner_whitelist_group = owner_whitelist_group,
     )
 
 def _group_builders_by_section(builders):
     required = []
     experimental = []
     optional = []
+    mega = []
 
     for builder in builders:
         builder = _normalize_builder(builder)
@@ -92,6 +96,8 @@ def _group_builders_by_section(builders):
             optional.append(builder)
         elif builder.includable_only:
             continue
+        elif try_.MEGA_CQ_FULL_RUN_NAME in builder.mode_allowlist:
+            mega.append(builder)
         else:
             required.append(builder)
 
@@ -99,6 +105,7 @@ def _group_builders_by_section(builders):
         required = required,
         experimental = experimental,
         optional = optional,
+        mega = mega,
     )
 
 def _codesearch_query(url, *atoms):
@@ -148,6 +155,7 @@ def _generate_cq_builders_md(ctx):
         ("Required builders", _REQUIRED_HEADER, "required"),
         ("Optional builders", _OPTIONAL_HEADER, "optional"),
         ("Experimental builders", _EXPERIMENTAL_HEADER, "experimental"),
+        ("Mega CQ builders", _MEGA_MODE_HEADER, "mega"),
     ):
         builders = getattr(builders_by_section, section)
         if not builders:
@@ -205,6 +213,32 @@ def _generate_cq_builders_md(ctx):
                         title = details.title,
                         url = details.url,
                     ))
+            if b.owner_whitelist_group:
+                lines.append("")
+                lines.append("  This builder is only run when the CL owner is in the group:")
+                for g in b.owner_whitelist_group:
+                    lines.append("  * [`{group}`](https://chrome-infra-auth.appspot.com/auth/lookup?p={group})".format(group = g))
+
+            if getattr(b, "equivalent_to") and b.equivalent_to.name:
+                eq_project, eq_bucket, eq_name = b.equivalent_to.name.split("/")
+                eq_builder_url = _TRY_BUILDER_VIEW_URL.format(
+                    project = eq_project,
+                    bucket = eq_bucket,
+                    builder = eq_name,
+                )
+                lines.append("")
+                s = ("    * Replaced with builder: [{name}]({builder}) \
+when CL owner is in group \
+[{group}](https://chrome-infra-auth.appspot.com/auth/lookup?p={group})".format(
+                    name = eq_name,
+                    builder = eq_builder_url,
+                    group = b.equivalent_to.owner_whitelist_group,
+                ))
+                if b.equivalent_to.percentage != 100:
+                    s = s + (" with percentage {p}".format(
+                        p = b.equivalent_to.percentage,
+                    ))
+                lines.append(s)
 
             lines.append("")
 

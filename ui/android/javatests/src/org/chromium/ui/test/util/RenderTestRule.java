@@ -43,13 +43,17 @@ import java.util.concurrent.Callable;
  * A TestRule for creating Render Tests. The comparison is performed using the Skia Gold image
  * diffing service on the host.
  *
- * General usage:
+ * <p>General usage:
  *
  * <pre>
  * {@code
  *
  * @RunWith(BaseJUnit4ClassRunner.class)
- * public class MyTest extends BlankUiTestActivityTestCase {
+ * public class MyTest {
+ *     @ClassRule
+ *     public static final BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
+ *             new BaseActivityTestRule<>(BlankUiTestActivity.class);
+ *
  *     @Rule
  *     public RenderTestRule mRenderTestRule = new RenderTestRule.Builder()
  *             // Required. If using ANDROID_RENDER_TESTS_PUBLIC, the Builder can be created with
@@ -103,14 +107,17 @@ public class RenderTestRule extends TestWatcher {
     /** Prefix on the render test images that describes light/dark mode. */
     private String mNightModePrefix;
 
-    private String mSkiaGoldCorpus;
-    private int mSkiaGoldRevision;
-    private String mSkiaGoldRevisionDescription;
-    private boolean mFailOnUnsupportedConfigs;
-    private String mBugComponent;
+    private final String mSkiaGoldCorpus;
+    private final int mSkiaGoldRevision;
+    private final String mSkiaGoldRevisionDescription;
+    private final boolean mFailOnUnsupportedConfigs;
+    private final String mBugComponent;
 
-    @StringDef({Corpus.ANDROID_RENDER_TESTS_PUBLIC, Corpus.ANDROID_RENDER_TESTS_INTERNAL,
-            Corpus.ANDROID_VR_RENDER_TESTS})
+    @StringDef({
+        Corpus.ANDROID_RENDER_TESTS_PUBLIC,
+        Corpus.ANDROID_RENDER_TESTS_INTERNAL,
+        Corpus.ANDROID_VR_RENDER_TESTS
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Corpus {
         // Corpus for general use and public results.
@@ -121,26 +128,55 @@ public class RenderTestRule extends TestWatcher {
         String ANDROID_VR_RENDER_TESTS = "android-vr-render-tests";
     }
 
-    @StringDef({Component.BLINK_CONTACTS, Component.BLINK_FORMS_COLOR, Component.BLINK_PAYMENTS,
-            Component.FREEZE_DRIED_TABS, Component.PRIVACY, Component.PRIVACY_INCOGNITO,
-            Component.SERVICES_SIGN_IN, Component.SERVICES_SYNC, Component.UI_BROWSER_AUTOFILL,
-            Component.UI_BROWSER_BOOKMARKS, Component.UI_BROWSER_BUBBLES_PAGE_INFO,
-            Component.UI_BROWSER_CONTENT_SUGGESTIONS, Component.UI_BROWSER_CONTENT_SUGGESTIONS_FEED,
-            Component.UI_BROWSER_CONTENT_SUGGESTIONS_HISTORY, Component.UI_BROWSER_FIRST_RUN,
-            Component.UI_BROWSER_INCOGNITO, Component.UI_BROWSER_INFOBARS,
-            Component.UI_BROWSER_MEDIA_PICKER, Component.UI_BROWSER_MOBILE,
-            Component.UI_BROWSER_MOBILE_APP_MENU, Component.UI_BROWSER_MOBILE_CONTEXT_MENU,
-            Component.UI_BROWSER_MOBILE_CUSTOM_TABS, Component.UI_BROWSER_MOBILE_MESSAGES,
-            Component.UI_BROWSER_MOBILE_RECENT_TABS, Component.UI_BROWSER_MOBILE_SETTINGS,
-            Component.UI_BROWSER_MOBILE_START, Component.UI_BROWSER_MOBILE_TAB_GROUPS,
-            Component.UI_BROWSER_MOBILE_TAB_SWITCHER, Component.UI_BROWSER_MOBILE_TAB_SWITCHER_GRID,
-            Component.UI_BROWSER_NEW_TAB_PAGE, Component.UI_BROWSER_NEW_TAB_PAGE_EXPLORE_SITES,
-            Component.UI_BROWSER_OMNIBOX, Component.UI_BROWSER_SEARCH_VOICE,
-            Component.UI_BROWSER_SHARING, Component.UI_BROWSER_SHOPPING,
-            Component.UI_BROWSER_SHOPPING_MERCHANT_TRUST,
-            Component.UI_BROWSER_SHOPPING_PRICE_TRACKING, Component.UI_BROWSER_TOOLBAR,
-            Component.UI_BROWSER_THUMBNAIL, Component.UI_BROWSER_WEB_APP_INSTALLS,
-            Component.UI_SETTINGS_PRIVACY})
+    @StringDef({
+        Component.BLINK_CONTACTS,
+        Component.BLINK_FORMS_COLOR,
+        Component.BLINK_PAYMENTS,
+        Component.FREEZE_DRIED_TABS,
+        Component.PRIVACY,
+        Component.PRIVACY_INCOGNITO,
+        Component.SERVICES_SIGN_IN,
+        Component.SERVICES_SYNC,
+        Component.UI_BROWSER_AUTOFILL,
+        Component.UI_BROWSER_BOOKMARKS,
+        Component.UI_BROWSER_BUBBLES_PAGE_INFO,
+        Component.UI_BROWSER_CHROME_TABS_CHROME_TAB_GROUPS_SHARED_TAB_GROUPS,
+        Component.UI_BROWSER_CONTENT_SUGGESTIONS,
+        Component.UI_BROWSER_CONTENT_SUGGESTIONS_FEED,
+        Component.UI_BROWSER_CONTENT_SUGGESTIONS_HISTORY,
+        Component.UI_BROWSER_FIRST_RUN,
+        Component.UI_BROWSER_INCOGNITO,
+        Component.UI_BROWSER_INFOBARS,
+        Component.UI_BROWSER_MEDIA_PICKER,
+        Component.UI_BROWSER_MOBILE,
+        Component.UI_BROWSER_MOBILE_APP_MENU,
+        Component.UI_BROWSER_MOBILE_CONTEXT_MENU,
+        Component.UI_BROWSER_MOBILE_CUSTOM_TABS,
+        Component.UI_BROWSER_MOBILE_EDGE_TO_EDGE,
+        Component.UI_BROWSER_MOBILE_HUB,
+        Component.UI_BROWSER_MOBILE_MESSAGES,
+        Component.UI_BROWSER_MOBILE_RECENT_TABS,
+        Component.UI_BROWSER_MOBILE_SETTINGS,
+        Component.UI_BROWSER_MOBILE_START,
+        Component.UI_BROWSER_MOBILE_TAB_GROUPS,
+        Component.UI_BROWSER_MOBILE_TAB_SWITCHER,
+        Component.UI_BROWSER_MOBILE_TAB_SWITCHER_GRID,
+        Component.UI_BROWSER_NAVIGATION_GESTURENAV,
+        Component.UI_BROWSER_NEW_TAB_PAGE,
+        Component.UI_BROWSER_OMNIBOX,
+        Component.UI_BROWSER_PASSWORDS,
+        Component.UI_BROWSER_PRIVACY_SANDBOX,
+        Component.UI_BROWSER_SEARCH_VOICE,
+        Component.UI_BROWSER_SHARING,
+        Component.UI_BROWSER_SHOPPING,
+        Component.UI_BROWSER_SHOPPING_DEALS,
+        Component.UI_BROWSER_SHOPPING_MERCHANT_TRUST,
+        Component.UI_BROWSER_SHOPPING_PRICE_TRACKING,
+        Component.UI_BROWSER_TOOLBAR,
+        Component.UI_BROWSER_THUMBNAIL,
+        Component.UI_BROWSER_WEB_APP_INSTALLS,
+        Component.UI_SETTINGS_PRIVACY,
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Component {
         String BLINK_CONTACTS = "Blink>Contacts";
@@ -155,6 +191,8 @@ public class RenderTestRule extends TestWatcher {
         String UI_BROWSER_AUTOFILL = "UI>Browser>Autofill";
         String UI_BROWSER_BOOKMARKS = "UI>Browser>Bookmarks";
         String UI_BROWSER_BUBBLES_PAGE_INFO = "UI>Browser>Bubbles>PageInfo";
+        String UI_BROWSER_CHROME_TABS_CHROME_TAB_GROUPS_SHARED_TAB_GROUPS =
+                "UI>Browser>ChromeTabs>ChromeTabGroups>SharedTabGroups";
         String UI_BROWSER_CONTENT_SUGGESTIONS = "UI>Browser>ContentSuggestions";
         String UI_BROWSER_CONTENT_SUGGESTIONS_FEED = "UI>Browser>ContentSuggestions>Feed";
         String UI_BROWSER_CONTENT_SUGGESTIONS_HISTORY = "UI>Browser>ContentSuggestions>History";
@@ -166,6 +204,8 @@ public class RenderTestRule extends TestWatcher {
         String UI_BROWSER_MOBILE_APP_MENU = "UI>Browser>Mobile>AppMenu";
         String UI_BROWSER_MOBILE_CONTEXT_MENU = "UI>Browser>Mobile>ContextMenu";
         String UI_BROWSER_MOBILE_CUSTOM_TABS = "UI>Browser>Mobile>CustomTabs";
+        String UI_BROWSER_MOBILE_EDGE_TO_EDGE = "UI>Browser>Mobile>EdgeToEdge";
+        String UI_BROWSER_MOBILE_HUB = "UI>Browser>Mobile>Hub";
         String UI_BROWSER_MOBILE_MESSAGES = "UI>Browser>Mobile>Messages";
         String UI_BROWSER_MOBILE_RECENT_TABS = "UI>Browser>Mobile>RecentTabs";
         String UI_BROWSER_MOBILE_SETTINGS = "UI>Browser>Mobile>Settings";
@@ -173,12 +213,15 @@ public class RenderTestRule extends TestWatcher {
         String UI_BROWSER_MOBILE_TAB_GROUPS = "UI>Browser>Mobile>TabGroups";
         String UI_BROWSER_MOBILE_TAB_SWITCHER = "UI>Browser>Mobile>TabSwitcher";
         String UI_BROWSER_MOBILE_TAB_SWITCHER_GRID = "UI>Browser>Mobile>TabSwitcher>Grid";
+        String UI_BROWSER_NAVIGATION_GESTURENAV = "UI>Browser>Navigation>GestureNav";
         String UI_BROWSER_NEW_TAB_PAGE = "UI>Browser>NewTabPage";
-        String UI_BROWSER_NEW_TAB_PAGE_EXPLORE_SITES = "UI>Browser>NewTabPage>ExploreSites";
         String UI_BROWSER_OMNIBOX = "UI>Browser>Omnibox";
+        String UI_BROWSER_PASSWORDS = "UI>Browser>Passwords";
+        String UI_BROWSER_PRIVACY_SANDBOX = "UI>Browser>Privacy Sandbox";
         String UI_BROWSER_SEARCH_VOICE = "UI>Browser>Search>Voice";
         String UI_BROWSER_SHARING = "UI>Browser>Sharing";
         String UI_BROWSER_SHOPPING = "UI>Browser>Shopping";
+        String UI_BROWSER_SHOPPING_DEALS = "UI>Browser>Shopping>Deals";
         String UI_BROWSER_SHOPPING_MERCHANT_TRUST = "UI>Browser>Shopping>MerchantTrust";
         String UI_BROWSER_SHOPPING_PRICE_TRACKING = "UI>Browser>Shopping>PriceTracking";
         String UI_BROWSER_THUMBNAIL = "UI>Browser>Thumbnail";
@@ -191,8 +234,12 @@ public class RenderTestRule extends TestWatcher {
     // Note that each corpus/description combination results in some additional initialization
     // on the host (~250 ms), so consider whether adding unique descriptions is necessary before
     // adding them to a bunch of test classes.
-    protected RenderTestRule(int revision, @Corpus String corpus, String description,
-            boolean failOnUnsupportedConfigs, @Component String component) {
+    protected RenderTestRule(
+            int revision,
+            @Corpus String corpus,
+            String description,
+            boolean failOnUnsupportedConfigs,
+            @Component String component) {
         assert revision >= 0;
         // Don't have a default corpus so that users explicitly specify whether
         // they want their test results to be public or not.
@@ -235,21 +282,24 @@ public class RenderTestRule extends TestWatcher {
         Assert.assertTrue("Render Tests must have the RenderTest feature.", mHasRenderTestFeature);
 
         // De-flake by flushing the tasks that are already queued on the Looper's Handler.
-        // TODO(https://crbug.com/1424788): Remove this and properly fix flaky tests.
+        // TODO(crbug.com/40260566): Remove this and properly fix flaky tests.
         TestThreadUtils.flushNonDelayedLooperTasks();
-        Bitmap testBitmap = ThreadUtils.runOnUiThreadBlockingNoException(new Callable<Bitmap>() {
-            @Override
-            public Bitmap call() {
-                int height = view.getMeasuredHeight();
-                int width = view.getMeasuredWidth();
-                if (height <= 0 || width <= 0) {
-                    throw new IllegalStateException(
-                            "Invalid view dimensions: " + width + "x" + height);
-                }
+        Bitmap testBitmap =
+                ThreadUtils.runOnUiThreadBlocking(
+                        new Callable<Bitmap>() {
+                            @Override
+                            public Bitmap call() {
+                                int height = view.getMeasuredHeight();
+                                int width = view.getMeasuredWidth();
+                                if (height <= 0 || width <= 0) {
+                                    throw new IllegalStateException(
+                                            "Invalid view dimensions: " + width + "x" + height);
+                                }
 
-                return UiUtils.generateScaledScreenshot(view, 0, Bitmap.Config.ARGB_8888);
-            }
-        });
+                                return UiUtils.generateScaledScreenshot(
+                                        view, 0, Bitmap.Config.ARGB_8888);
+                            }
+                        });
 
         compareForResult(testBitmap, id);
     }
@@ -336,9 +386,7 @@ public class RenderTestRule extends TestWatcher {
         mVariantPrefix = variantPrefix;
     }
 
-    /**
-     * Sets a string prefix that describes the light/dark mode in the golden image name.
-     */
+    /** Sets a string prefix that describes the light/dark mode in the golden image name. */
     public void setNightModeEnabled(boolean nightModeEnabled) {
         mNightModePrefix = nightModeEnabled ? "NightModeEnabled" : "NightModeDisabled";
     }
@@ -375,16 +423,7 @@ public class RenderTestRule extends TestWatcher {
         return String.format("%s.%s.rev_%s", testClass, desc, mSkiaGoldRevision);
     }
 
-    /**
-     * Returns a string encoding the device model and sdk. It is used to identify device goldens.
-     */
-    private static String modelSdkIdentifier() {
-        return Build.MODEL.replace(' ', '_') + "-" + Build.VERSION.SDK_INT;
-    }
-
-    /**
-     * Saves a the given |bitmap| to the |file|.
-     */
+    /** Saves a the given |bitmap| to the |file|. */
     private static void saveBitmap(Bitmap bitmap, File file) throws IOException {
         FileOutputStream out = new FileOutputStream(file);
         try {
@@ -394,9 +433,7 @@ public class RenderTestRule extends TestWatcher {
         }
     }
 
-    /**
-     * Saves the given |string| to the |file|.
-     */
+    /** Saves the given |string| to the |file|. */
     private static void saveString(String string, File file) throws IOException {
         try (PrintWriter out = new PrintWriter(file)) {
             out.println(string);
@@ -421,9 +458,7 @@ public class RenderTestRule extends TestWatcher {
         return new File(path + "/" + filename);
     }
 
-    /**
-     * Base Builder class for creating RenderTestRules and its derivatives.
-     */
+    /** Base Builder class for creating RenderTestRules and its derivatives. */
     protected abstract static class BaseBuilder<B extends BaseBuilder<B>> {
         protected int mRevision;
         protected @Corpus String mCorpus;
@@ -441,9 +476,7 @@ public class RenderTestRule extends TestWatcher {
             return self();
         }
 
-        /**
-         * Sets the corpus in the Gold instance that images belong to.
-         */
+        /** Sets the corpus in the Gold instance that images belong to. */
         public B setCorpus(@Corpus String corpus) {
             mCorpus = corpus;
             return self();
@@ -468,9 +501,7 @@ public class RenderTestRule extends TestWatcher {
             return self();
         }
 
-        /**
-         * Sets the bug component that will be shown alongside the image in the Gold web UI.
-         */
+        /** Sets the bug component that will be shown alongside the image in the Gold web UI. */
         public B setBugComponent(@Component String component) {
             mBugComponent = component;
             return self();
@@ -483,9 +514,7 @@ public class RenderTestRule extends TestWatcher {
         public abstract RenderTestRule build();
     }
 
-    /**
-     * Builder to create a RenderTestRule.
-     */
+    /** Builder to create a RenderTestRule. */
     public static class Builder extends BaseBuilder<Builder> {
         @Override
         public RenderTestRule build() {
@@ -493,9 +522,7 @@ public class RenderTestRule extends TestWatcher {
                     mRevision, mCorpus, mDescription, mFailOnUnsupportedConfigs, mBugComponent);
         }
 
-        /**
-         * Creates a Builder with the default public corpus.
-         */
+        /** Creates a Builder with the default public corpus. */
         public static Builder withPublicCorpus() {
             return new Builder().setCorpus(Corpus.ANDROID_RENDER_TESTS_PUBLIC);
         }

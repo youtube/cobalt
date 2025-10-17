@@ -6,7 +6,6 @@ package org.chromium.content.browser;
 
 import androidx.test.filters.SmallTest;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -22,9 +21,7 @@ import org.chromium.content_shell_apk.ContentShellActivityTestRule;
 
 import java.util.concurrent.TimeoutException;
 
-/**
- * Integration tests for the Wake Lock API.
- */
+/** Integration tests for the Wake Lock API. */
 @RunWith(ContentJUnit4ClassRunner.class)
 @CommandLineFlags.Add({"enable-experimental-web-platform-features"})
 public class WakeLockTest {
@@ -38,7 +35,7 @@ public class WakeLockTest {
         try {
             mActivityTestRule.launchContentShellWithUrlSync(TEST_PATH);
         } catch (Throwable t) {
-            Assert.fail("Couldn't load test page.");
+            throw new AssertionError("Couldn't load test page.", t);
         }
     }
 
@@ -47,24 +44,25 @@ public class WakeLockTest {
         JavaScriptUtils.executeJavaScriptAndWaitForResult(mActivityTestRule.getWebContents(), code);
     }
 
-    @After
-    public void tearDown() {}
-
     @Test
     @SmallTest
     @Feature({"WakeLock"})
     public void testScreenLock() throws Exception {
-        Assert.assertFalse(mActivityTestRule.getActivity()
-                                   .getActiveShell()
-                                   .getContentView()
-                                   .getKeepScreenOn());
+        Assert.assertFalse(
+                mActivityTestRule
+                        .getActivity()
+                        .getActiveShell()
+                        .getContentView()
+                        .getKeepScreenOn());
 
         getWakeLock("screen");
 
-        CriteriaHelper.pollInstrumentationThread(()
-                                                         -> mActivityTestRule.getActivity()
-                                                                    .getActiveShell()
-                                                                    .getContentView()
-                                                                    .getKeepScreenOn());
+        CriteriaHelper.pollInstrumentationThread(
+                () ->
+                        mActivityTestRule
+                                .getActivity()
+                                .getActiveShell()
+                                .getContentView()
+                                .getKeepScreenOn());
     }
 }

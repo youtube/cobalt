@@ -40,7 +40,6 @@ struct IOSurfaceFormatInfo
 constexpr std::array<IOSurfaceFormatInfo, 9> kIOSurfaceFormats = {{
     {GL_RED,      GL_UNSIGNED_BYTE,                1, GL_R8},
     {GL_RED,      GL_UNSIGNED_SHORT,               2, GL_R16_EXT},
-    {GL_R16UI,    GL_UNSIGNED_SHORT,               2, GL_R16UI},
     {GL_RG,       GL_UNSIGNED_BYTE,                2, GL_RG8},
     {GL_RG,       GL_UNSIGNED_SHORT,               4, GL_RG16_EXT},
     {GL_RGB,      GL_UNSIGNED_BYTE,                4, GL_RGBX8_ANGLE},
@@ -68,7 +67,7 @@ int FindIOSurfaceFormatIndex(GLenum internalFormat, GLenum type)
 IOSurfaceSurfaceVkMac::IOSurfaceSurfaceVkMac(const egl::SurfaceState &state,
                                              EGLClientBuffer buffer,
                                              const egl::AttributeMap &attribs,
-                                             RendererVk *renderer)
+                                             vk::Renderer *renderer)
     : OffscreenSurfaceVk(state, renderer), mIOSurface(nullptr), mPlane(0), mFormatIndex(-1)
 {
     // Keep reference to the IOSurface so it doesn't get deleted while the pbuffer exists.
@@ -100,12 +99,12 @@ egl::Error IOSurfaceSurfaceVkMac::initialize(const egl::Display *display)
 {
     DisplayVk *displayVk = vk::GetImpl(display);
     angle::Result result = initializeImpl(displayVk);
-    return angle::ToEGL(result, displayVk, EGL_BAD_SURFACE);
+    return angle::ToEGL(result, EGL_BAD_SURFACE);
 }
 
 angle::Result IOSurfaceSurfaceVkMac::initializeImpl(DisplayVk *displayVk)
 {
-    RendererVk *renderer      = displayVk->getRenderer();
+    vk::Renderer *renderer    = displayVk->getRenderer();
     const egl::Config *config = mState.config;
 
     // Should never be > 1
@@ -134,9 +133,9 @@ egl::Error IOSurfaceSurfaceVkMac::unMakeCurrent(const gl::Context *context)
 {
     ASSERT(context != nullptr);
     ContextVk *contextVk = vk::GetImpl(context);
-    DisplayVk *displayVk = vk::GetImpl(context->getDisplay());
-    angle::Result result = contextVk->flushImpl(nullptr, RenderPassClosureReason::ContextChange);
-    return angle::ToEGL(result, displayVk, EGL_BAD_SURFACE);
+    angle::Result result =
+        contextVk->flushAndSubmitCommands(nullptr, nullptr, RenderPassClosureReason::ContextChange);
+    return angle::ToEGL(result, EGL_BAD_SURFACE);
 }
 
 int IOSurfaceSurfaceVkMac::computeAlignment() const
@@ -161,9 +160,8 @@ egl::Error IOSurfaceSurfaceVkMac::bindTexImage(const gl::Context *context,
 {
     IOSurfaceLock(mIOSurface, 0, nullptr);
 
-    ContextVk *contextVk = vk::GetImpl(context);
-    DisplayVk *displayVk = vk::GetImpl(context->getDisplay());
-    RendererVk *renderer = displayVk->getRenderer();
+    ContextVk *contextVk   = vk::GetImpl(context);
+    vk::Renderer *renderer = contextVk->getRenderer();
 
     size_t width             = IOSurfaceGetWidthOfPlane(mIOSurface, mPlane);
     size_t height            = IOSurfaceGetHeightOfPlane(mIOSurface, mPlane);
@@ -182,28 +180,29 @@ egl::Error IOSurfaceSurfaceVkMac::bindTexImage(const gl::Context *context,
     const vk::Format &format =
         renderer->getFormat(kIOSurfaceFormats[mFormatIndex].nativeSizedInternalFormat);
 
-    angle::Result result = mColorAttachment.image.stageSubresourceUpdate(
+    bool updateAppliedImmediately = false;
+    angle::Result result          = mColorAttachment.image.stageSubresourceUpdate(
         contextVk, gl::ImageIndex::Make2D(0),
         gl::Extents(static_cast<int>(width), pixelUnpack.imageHeight, 1), gl::Offset(),
         internalFormatInfo, pixelUnpack, kIOSurfaceFormats[mFormatIndex].type,
-        reinterpret_cast<uint8_t *>(source), format, vk::ImageAccess::Renderable);
+        reinterpret_cast<uint8_t *>(source), format, vk::ImageAccess::Renderable,
+        vk::ApplyImageUpdate::Defer, &updateAppliedImmediately);
 
     IOSurfaceUnlock(mIOSurface, 0, nullptr);
 
-    return angle::ToEGL(result, displayVk, EGL_BAD_SURFACE);
+    return angle::ToEGL(result, EGL_BAD_SURFACE);
 }
 
 egl::Error IOSurfaceSurfaceVkMac::releaseTexImage(const gl::Context *context, EGLint buffer)
 {
     ASSERT(context != nullptr);
     ContextVk *contextVk = vk::GetImpl(context);
-    DisplayVk *displayVk = vk::GetImpl(context->getDisplay());
 
     angle::Result result = mColorAttachment.image.flushAllStagedUpdates(contextVk);
 
     if (result != angle::Result::Continue)
     {
-        return angle::ToEGL(result, displayVk, EGL_BAD_SURFACE);
+        return angle::ToEGL(result, EGL_BAD_SURFACE);
     }
 
     gl::Rectangle bounds(0, 0, mWidth, mHeight);
@@ -224,7 +223,7 @@ egl::Error IOSurfaceSurfaceVkMac::releaseTexImage(const gl::Context *context, EG
 
     IOSurfaceUnlock(mIOSurface, 0, nullptr);
 
-    return angle::ToEGL(result, displayVk, EGL_BAD_SURFACE);
+    return angle::ToEGL(result, EGL_BAD_SURFACE);
 }
 
 // static

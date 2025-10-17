@@ -4,7 +4,7 @@
     innerContent = innerContent ?? '<span><!--This is the leaf node--></span>';
     lightDomDuplicates = lightDomDuplicates ?? 1;
     PerfTestRunner.assert_true(!useShadowDom || lightDomDuplicates === 1,'Only light dom content can use duplicates');
-    let openTag = useShadowDom ? '<template shadowroot=open>' : `<${lightDomElementName} shadowroot=open>`;
+    let openTag = useShadowDom ? '<template shadowrootmode=open>' : `<${lightDomElementName} shadowrootmode=open>`;
     let closeTag = useShadowDom ? '</template>' : `</${lightDomElementName}>`;
     let hiddenLightDomContent = useShadowDom ? '<span>Some non-slotted light dom content</span>' : '<!--   Some hidden light-dom content here   -->';
     let extraCopies = '';
@@ -41,7 +41,7 @@
 
   const domParser = new DOMParser();
   function parseHtml(html) {
-    return domParser.parseFromString(html, 'text/html', {includeShadowRoots: true});
+    return Document.parseHTMLUnsafe(html);
   }
 
   function measureParse(html) {
@@ -51,7 +51,7 @@
   }
 
   function parseAndAppend(parent, html) {
-    const fragment = domParser.parseFromString(html, 'text/html', {includeShadowRoots: true});
+    const fragment = Document.parseHTMLUnsafe(html);
     parent.replaceChildren(...fragment.body.childNodes);
   }
 

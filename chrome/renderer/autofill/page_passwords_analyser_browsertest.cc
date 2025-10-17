@@ -13,13 +13,12 @@
 #include "third_party/blink/public/web/web_form_element.h"
 
 namespace autofill {
-
 namespace {
 
 class MockPageFormAnalyserLogger : public PageFormAnalyserLogger {
  public:
   MockPageFormAnalyserLogger() : PageFormAnalyserLogger(nullptr) {}
-  virtual ~MockPageFormAnalyserLogger() {}
+  virtual ~MockPageFormAnalyserLogger() = default;
 
   void Send(std::string message,
             ConsoleLevel level,
@@ -113,8 +112,6 @@ const std::string AutocompleteSuggestionString(const std::string& suggestion) {
          suggestion + "\"):";
 }
 
-}  // namespace
-
 class PagePasswordsAnalyserTest : public ChromeRenderViewTest {
  public:
   PagePasswordsAnalyserTest(const PagePasswordsAnalyserTest&) = delete;
@@ -137,7 +134,7 @@ class PagePasswordsAnalyserTest : public ChromeRenderViewTest {
     LoadHTML(html);
     blink::WebLocalFrame* frame = GetMainFrame();
     blink::WebElementCollection collection = frame->GetDocument().All();
-    for (blink::WebElement element = collection.FirstItem(); !element.IsNull();
+    for (blink::WebElement element = collection.FirstItem(); element;
          element = collection.NextItem()) {
       elements_.push_back(element);
     }
@@ -279,4 +276,5 @@ TEST_F(PagePasswordsAnalyserTest, PasswordFieldWithAndWithoutAutocomplete) {
   RunTestCase();
 }
 
+}  // namespace
 }  // namespace autofill

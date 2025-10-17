@@ -5,8 +5,6 @@
 #ifndef CHROME_BROWSER_SUPERVISED_USER_SUPERVISED_USER_GOOGLE_AUTH_NAVIGATION_THROTTLE_H_
 #define CHROME_BROWSER_SUPERVISED_USER_SUPERVISED_USER_GOOGLE_AUTH_NAVIGATION_THROTTLE_H_
 
-#include <memory>
-
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -14,7 +12,10 @@
 #include "components/supervised_user/core/common/supervised_users.h"
 #include "content/public/browser/navigation_throttle.h"
 
+namespace supervised_user {
 class ChildAccountService;
+}  // namespace supervised_user
+
 class Profile;
 
 class SupervisedUserGoogleAuthNavigationThrottle
@@ -22,8 +23,7 @@ class SupervisedUserGoogleAuthNavigationThrottle
  public:
   // Returns a new throttle for the given navigation handle, or nullptr if no
   // throttling is required.
-  static std::unique_ptr<SupervisedUserGoogleAuthNavigationThrottle>
-  MaybeCreate(content::NavigationHandle* navigation_handle);
+  static void MaybeCreateAndAdd(content::NavigationThrottleRegistry& registry);
 
   SupervisedUserGoogleAuthNavigationThrottle(
       const SupervisedUserGoogleAuthNavigationThrottle&) = delete;
@@ -43,7 +43,7 @@ class SupervisedUserGoogleAuthNavigationThrottle
  private:
   SupervisedUserGoogleAuthNavigationThrottle(
       Profile* profile,
-      content::NavigationHandle* navigation_handle);
+      content::NavigationThrottleRegistry& registry);
 
   void OnGoogleAuthStateChanged();
 
@@ -53,7 +53,7 @@ class SupervisedUserGoogleAuthNavigationThrottle
 
   void OnReauthenticationFailed();
 
-  raw_ptr<ChildAccountService> child_account_service_;
+  raw_ptr<supervised_user::ChildAccountService> child_account_service_;
   base::CallbackListSubscription google_auth_state_subscription_;
 
 #if BUILDFLAG(IS_ANDROID)

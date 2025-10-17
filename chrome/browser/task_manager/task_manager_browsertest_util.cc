@@ -4,7 +4,9 @@
 
 #include "chrome/browser/task_manager/task_manager_browsertest_util.h"
 
+#include <iomanip>
 #include <string>
+#include <string_view>
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
@@ -186,7 +188,7 @@ void WaitForTaskManagerStatToExceed(const std::u16string& title_pattern,
   observer.RunUntilSatisfied();
 }
 
-std::u16string MatchTab(base::StringPiece title) {
+std::u16string MatchTab(std::string_view title) {
   return l10n_util::GetStringFUTF16(IDS_TASK_MANAGER_TAB_PREFIX,
                                     base::UTF8ToUTF16(title));
 }
@@ -199,7 +201,7 @@ std::u16string MatchAboutBlankTab() {
   return MatchTab("about:blank");
 }
 
-std::u16string MatchIncognitoTab(base::StringPiece title) {
+std::u16string MatchIncognitoTab(std::string_view title) {
   return l10n_util::GetStringFUTF16(IDS_TASK_MANAGER_TAB_INCOGNITO_PREFIX,
                                     base::UTF8ToUTF16(title));
 }
@@ -270,7 +272,7 @@ std::u16string MatchAnyUtility() {
   return MatchUtility(u"*");
 }
 
-std::u16string MatchBFCache(base::StringPiece title) {
+std::u16string MatchBFCache(std::string_view title) {
   return l10n_util::GetStringFUTF16(IDS_TASK_MANAGER_BACK_FORWARD_CACHE_PREFIX,
                                     base::UTF8ToUTF16(title));
 }
@@ -279,7 +281,7 @@ std::u16string MatchAnyBFCache() {
   return MatchBFCache("*");
 }
 
-std::u16string MatchPrerender(base::StringPiece title) {
+std::u16string MatchPrerender(std::string_view title) {
   return l10n_util::GetStringFUTF16(IDS_TASK_MANAGER_PRERENDER_PREFIX,
                                     base::UTF8ToUTF16(title));
 }
@@ -288,7 +290,7 @@ std::u16string MatchAnyPrerender() {
   return MatchPrerender("*");
 }
 
-std::u16string MatchFencedFrame(base::StringPiece title) {
+std::u16string MatchFencedFrame(std::string_view title) {
   return l10n_util::GetStringFUTF16(IDS_TASK_MANAGER_FENCED_FRAME_PREFIX,
                                     base::UTF8ToUTF16(title));
 }
@@ -297,7 +299,7 @@ std::u16string MatchAnyFencedFrame() {
   return MatchFencedFrame("*");
 }
 
-std::u16string MatchIncognitoFencedFrame(base::StringPiece title) {
+std::u16string MatchIncognitoFencedFrame(std::string_view title) {
   return l10n_util::GetStringFUTF16(
       IDS_TASK_MANAGER_FENCED_FRAME_INCOGNITO_PREFIX, base::UTF8ToUTF16(title));
 }

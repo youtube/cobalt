@@ -17,6 +17,7 @@
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
@@ -27,8 +28,8 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/metrics/metrics_service.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/spare_render_process_host_manager.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/back_forward_cache_util.h"
@@ -38,7 +39,6 @@
 #include "content/public/test/prerender_test_util.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/common/switches.h"
-#include "extensions/common/value_builder.h"
 #include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -48,9 +48,7 @@
 
 using base::Bucket;
 using content::WebContents;
-using extensions::DictionaryBuilder;
 using extensions::Extension;
-using extensions::ListBuilder;
 using extensions::TestExtensionDir;
 using testing::ElementsAre;
 using testing::PrintToString;
@@ -67,7 +65,7 @@ class TestMemoryDetails : public MetricsMemoryDetails {
   void StartFetchAndWait() {
     uma_ = std::make_unique<base::HistogramTester>();
     StartFetch();
-    content::RunMessageLoop();
+    loop_.Run();
   }
 
   // Returns a HistogramTester which observed the most recent call to
@@ -99,15 +97,16 @@ class TestMemoryDetails : public MetricsMemoryDetails {
   }
 
  private:
-  ~TestMemoryDetails() override {}
+  ~TestMemoryDetails() override = default;
 
   void OnDetailsAvailable() override {
     MetricsMemoryDetails::OnDetailsAvailable();
     // Exit the loop initiated by StartFetchAndWait().
-    base::RunLoop::QuitCurrentWhenIdleDeprecated();
+    loop_.QuitWhenIdle();
   }
 
   std::unique_ptr<base::HistogramTester> uma_;
+  base::RunLoop loop_;
 };
 
 // This matcher takes three other matchers as arguments, and applies one of them
@@ -172,12 +171,12 @@ void PrintTo(const SampleMatcherP2<P1, P2>& matcher, std::ostream* os) {
 
 class SiteDetailsBrowserTest : public extensions::ExtensionBrowserTest {
  public:
-  SiteDetailsBrowserTest() {}
+  SiteDetailsBrowserTest() = default;
 
   SiteDetailsBrowserTest(const SiteDetailsBrowserTest&) = delete;
   SiteDetailsBrowserTest& operator=(const SiteDetailsBrowserTest&) = delete;
 
-  ~SiteDetailsBrowserTest() override {}
+  ~SiteDetailsBrowserTest() override = default;
 
   void SetUpOnMainThread() override {
     extensions::ExtensionBrowserTest::SetUpOnMainThread();
@@ -185,7 +184,8 @@ class SiteDetailsBrowserTest : public extensions::ExtensionBrowserTest {
 
     // Add content/test/data so we can use cross_site_iframe_factory.html
     base::FilePath test_data_dir;
-    ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir));
+    ASSERT_TRUE(
+        base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir));
     embedded_test_server()->ServeFilesFromDirectory(
         test_data_dir.AppendASCII("content/test/data/"));
     ASSERT_TRUE(embedded_test_server()->Start());
@@ -197,22 +197,20 @@ class SiteDetailsBrowserTest : public extensions::ExtensionBrowserTest {
                                    bool has_background_process) {
     TestExtensionDir dir;
 
-    DictionaryBuilder manifest;
-    manifest.Set("name", name)
-        .Set("version", "1.0")
-        .Set("manifest_version", 2)
-        .Set("web_accessible_resources", ListBuilder()
-                                             .Append("blank_iframe.html")
-                                             .Append("http_iframe.html")
-                                             .Append("two_http_iframes.html")
-                                             .Build());
+    auto manifest = base::Value::Dict()
+                        .Set("name", name)
+                        .Set("version", "1.0")
+                        .Set("manifest_version", 2)
+                        .Set("web_accessible_resources",
+                             base::Value::List()
+                                 .Append("blank_iframe.html")
+                                 .Append("http_iframe.html")
+                                 .Append("two_http_iframes.html"));
 
     if (has_background_process) {
-      manifest.Set(
-          "background",
-          DictionaryBuilder()
-              .Set("scripts", ListBuilder().Append("script.js").Build())
-              .Build());
+      manifest.Set("background",
+                   base::Value::Dict().Set(
+                       "scripts", base::Value::List().Append("script.js")));
       dir.WriteFile(FILE_PATH_LITERAL("script.js"),
                     "console.log('" + name + " running');");
     }
@@ -243,7 +241,7 @@ class SiteDetailsBrowserTest : public extensions::ExtensionBrowserTest {
                       "  <iframe width=80 height=80 src='%s'></iframe>"
                       "</body></html>",
                       name.c_str(), iframe_url.c_str(), iframe_url2.c_str()));
-    dir.WriteManifest(manifest.ToJSON());
+    dir.WriteManifest(manifest);
 
     const Extension* extension = LoadExtension(dir.UnpackedPath());
     EXPECT_TRUE(extension);
@@ -255,18 +253,17 @@ class SiteDetailsBrowserTest : public extensions::ExtensionBrowserTest {
                                    const GURL& app_url) {
     TestExtensionDir dir;
 
-    DictionaryBuilder manifest;
-    manifest.Set("name", name)
-        .Set("version", "1.0")
-        .Set("manifest_version", 2)
-        .Set(
-            "app",
-            DictionaryBuilder()
-                .Set("urls", ListBuilder().Append(app_url.spec()).Build())
-                .Set("launch",
-                     DictionaryBuilder().Set("web_url", app_url.spec()).Build())
-                .Build());
-    dir.WriteManifest(manifest.ToJSON());
+    auto manifest =
+        base::Value::Dict()
+            .Set("name", name)
+            .Set("version", "1.0")
+            .Set("manifest_version", 2)
+            .Set("app",
+                 base::Value::Dict()
+                     .Set("urls", base::Value::List().Append(app_url.spec()))
+                     .Set("launch",
+                          base::Value::Dict().Set("web_url", app_url.spec())));
+    dir.WriteManifest(manifest);
 
     const Extension* extension = LoadExtension(dir.UnpackedPath());
     EXPECT_TRUE(extension);
@@ -275,15 +272,14 @@ class SiteDetailsBrowserTest : public extensions::ExtensionBrowserTest {
   }
 
   int GetRenderProcessCountFromUma(base::HistogramTester* uma) {
-    auto buckets = uma->GetAllSamples("Memory.RenderProcessHost.Count.All");
+    auto buckets = uma->GetAllSamples("Memory.RenderProcessHost.Count2.All");
     EXPECT_EQ(buckets.size(), 1u);
     int rph_count = buckets[0].min;
 
-    // Memory.RenderProcessHost.Count.All includes the spare process. If a
-    // spare is present, subtract it from total count since the tests below
-    // assume no spare.
-    if (content::RenderProcessHost::GetSpareRenderProcessHostForTesting())
-      rph_count--;
+    // Memory.RenderProcessHost.Count2.All includes all spare processes.
+    // Subtract them from total count since the tests below assume no spare.
+    rph_count -=
+        content::SpareRenderProcessHostManager::Get().GetSpares().size();
 
     return rph_count;
   }
@@ -414,12 +410,11 @@ IN_PROC_BROWSER_TEST_F(SiteDetailsBrowserTest, DISABLED_ManyIframes) {
   // four processes already in the BrowsingInstance.
   GURL dcbae_url = embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?d(c(b(a(e))))");
-  ui_test_utils::UrlLoadObserver load_complete(
-      dcbae_url, content::NotificationService::AllSources());
+  ui_test_utils::UrlLoadObserver load_complete(dcbae_url);
   ASSERT_EQ(3, browser()->tab_strip_model()->count());
-  ASSERT_TRUE(content::ExecuteScript(
-      browser()->tab_strip_model()->GetActiveWebContents(),
-      "window.open('" + dcbae_url.spec() + "');"));
+  ASSERT_TRUE(
+      content::ExecJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                      "window.open('" + dcbae_url.spec() + "');"));
   ASSERT_EQ(4, browser()->tab_strip_model()->count());
   load_complete.Wait();
 
@@ -443,7 +438,7 @@ IN_PROC_BROWSER_TEST_F(SiteDetailsBrowserTest, DISABLED_ManyIframes) {
                   ElementsAre(Bucket(12, 1), Bucket(29, 1), Bucket(68, 1))));
 }
 
-// TODO(crbug.com/671891): This test is flaky.
+// TODO(crbug.com/40496888): This test is flaky.
 IN_PROC_BROWSER_TEST_F(SiteDetailsBrowserTest, DISABLED_IsolateExtensions) {
   // We start on "about:blank", which should be credited with a process in this
   // case.
@@ -712,12 +707,11 @@ IN_PROC_BROWSER_TEST_F(SiteDetailsBrowserTest,
   // BrowsingInstance.
   GURL dcbae_url = embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?d(c(b(j(k))))");
-  ui_test_utils::UrlLoadObserver load_complete(
-      dcbae_url, content::NotificationService::AllSources());
+  ui_test_utils::UrlLoadObserver load_complete(dcbae_url);
   ASSERT_EQ(1, browser()->tab_strip_model()->count());
-  ASSERT_TRUE(content::ExecuteScript(
-      browser()->tab_strip_model()->GetActiveWebContents(),
-      "window.open('" + dcbae_url.spec() + "');"));
+  ASSERT_TRUE(
+      content::ExecJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                      "window.open('" + dcbae_url.spec() + "');"));
   ASSERT_EQ(2, browser()->tab_strip_model()->count());
   load_complete.Wait();
 
@@ -829,7 +823,7 @@ class PrerenderSiteDetailsBrowserTest : public InProcessBrowserTest {
       const PrerenderSiteDetailsBrowserTest&) = delete;
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     InProcessBrowserTest::SetUp();
   }
   void SetUpOnMainThread() override {
@@ -851,7 +845,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderSiteDetailsBrowserTest,
 
   // Load a page in the prerender.
   GURL prerender_url = embedded_test_server()->GetURL("/title2.html");
-  int host_id = prerender_helper_.AddPrerender(prerender_url);
+  content::FrameTreeNodeId host_id =
+      prerender_helper_.AddPrerender(prerender_url);
   content::test::PrerenderHostObserver host_observer(*web_contents(), host_id);
   EXPECT_FALSE(host_observer.was_activated());
 

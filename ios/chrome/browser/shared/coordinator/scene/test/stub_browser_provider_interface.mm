@@ -6,14 +6,10 @@
 
 #import "ios/chrome/browser/shared/coordinator/scene/test/stub_browser_provider.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation StubBrowserProviderInterface
 
 - (instancetype)init {
-  if (self = [super init]) {
+  if ((self = [super init])) {
     _mainBrowserProvider = [[StubBrowserProvider alloc] init];
     _incognitoBrowserProvider = [[StubBrowserProvider alloc] init];
     _currentBrowserProvider = _mainBrowserProvider;

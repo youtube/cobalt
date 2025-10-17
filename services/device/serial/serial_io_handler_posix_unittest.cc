@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "services/device/serial/serial_io_handler_posix.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -44,8 +49,8 @@ class SerialIoHandlerPosixTest : public testing::Test {
     bool break_detected = false;
     bool parity_error_detected = false;
     size_t new_bytes_read = serial_io_handler_posix_->CheckReceiveError(
-        base::make_span(reinterpret_cast<uint8_t*>(buffer), buffer_len),
-        bytes_read, break_detected, parity_error_detected);
+        base::span(reinterpret_cast<uint8_t*>(buffer), buffer_len), bytes_read,
+        break_detected, parity_error_detected);
 
     EXPECT_EQ(error_detect_state_expected,
               serial_io_handler_posix_->error_detect_state_);

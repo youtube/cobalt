@@ -6,9 +6,9 @@
     return location.protocol === 'https:';
   }
 
-  function setCookie() {
+  function setCookie(data = 'foo=bar') {
     const samesite_none_secure = '; SameSite=None; Secure';
-    document.cookie = 'foo=bar; Max-Age=1000' + (isHttps_() ? samesite_none_secure : '');
+    document.cookie = `${data}; Max-Age=1000` + (isHttps_() ? samesite_none_secure : '');
     return true;
   }
   function setCookieAsync() {
@@ -49,8 +49,16 @@
   }
 
   function setLocalStorage() {
-    localStorage.setItem('foo', 'bar');
-    return true;
+    try{
+      localStorage.setItem('foo', 'bar');
+      return true;
+    } catch(e){
+      // Expect false for storage access denied.
+      if(e.code == DOMException.SECURITY_ERR){
+        return false;
+      }
+      throw e;
+    }
   }
   function setLocalStorageAsync() {
     // Provided for Java.
@@ -70,8 +78,16 @@
   }
 
   function setSessionStorage() {
-    sessionStorage.setItem('foo', 'bar');
-    return true;
+    try {
+      sessionStorage.setItem('foo', 'bar');
+      return true;
+    } catch (e) {
+      // Expect false for storage access denied.
+      if(e.code == DOMException.SECURITY_ERR){
+        return false;
+      }
+      throw e;
+    }
   }
 
   function hasSessionStorage() {
@@ -172,47 +188,6 @@
     } catch (e) {
       return false;
     }
-  }
-
-  async function setWebSql() {
-    try {
-      var db = openDatabase('testdb', '1.0', 'a test db', 1024);
-      await new Promise((resolve, reject) => {
-        db.transaction(function (tx) {
-          tx.executeSql('CREATE TABLE IF NOT EXISTS foo (text)');
-          tx.executeSql('INSERT INTO foo (text) VALUES ("bar")');
-        }, reject, resolve);
-      });
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-  async function setWebSqlAsync() {
-    // Provided for Java.
-    domAutomationController.send(await setWebSql());
-  }
-
-  async function hasWebSql() {
-    try {
-      var db = openDatabase('testdb', '1.0', 'a test db', 1024);
-      var num_results;
-      await new Promise((resolve, reject) => {
-        db.transaction(function (tx) {
-          tx.executeSql('CREATE TABLE IF NOT EXISTS foo (text)');
-          tx.executeSql('SELECT * FROM foo', [], function (tx, results) {
-            num_results = results.rows.length;
-          });
-        }, reject, resolve);
-      });
-      return num_results > 0;
-    } catch (e) {
-      return false;
-    }
-  }
-  async function hasWebSqlAsync() {
-    // Provided for Java.
-    domAutomationController.send(await hasWebSql());
   }
 
   function setIndexedDb() {
@@ -339,6 +314,24 @@
     return navigator.locks.query()
     .then(locks => !!locks.held.length && locks.held[0].name === "foo")
     .catch(() => false);
+  }
+
+  async function setSharedDictionary() {
+    await (await fetch('../shared_dictionary/test.dict')).text();
+    // Need the polling because writing the dictionary to the storage and the
+    // database may take time.
+    while (!await hasSharedDictionary()) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return true;
+  }
+
+  async function hasSharedDictionary() {
+    const path = '../shared_dictionary/path/compressed.data';
+    const expectedResult =
+        'This is compressed test data using a test dictionary';
+    const result = await (await fetch(path)).text();
+    return result === expectedResult;
   }
 </script>
 

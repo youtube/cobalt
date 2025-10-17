@@ -5,8 +5,11 @@
 #ifndef COMPONENTS_SYNC_PREFERENCES_TEST_SYNCABLE_PREFS_DATABASE_H_
 #define COMPONENTS_SYNC_PREFERENCES_TEST_SYNCABLE_PREFS_DATABASE_H_
 
+#include <functional>
+#include <map>
+#include <set>
 #include <string>
-#include <unordered_map>
+#include <string_view>
 
 #include "components/sync_preferences/syncable_prefs_database.h"
 
@@ -14,18 +17,18 @@ namespace sync_preferences {
 
 class TestSyncablePrefsDatabase : public SyncablePrefsDatabase {
  public:
-  explicit TestSyncablePrefsDatabase(
-      const std::unordered_map<std::string,
-                               sync_preferences::SyncablePrefMetadata>&
-          syncable_prefs_map);
+  using PrefsMap = std::
+      map<std::string, sync_preferences::SyncablePrefMetadata, std::less<>>;
+
+  explicit TestSyncablePrefsDatabase(const PrefsMap& syncable_prefs_map);
   ~TestSyncablePrefsDatabase() override;
 
-  absl::optional<sync_preferences::SyncablePrefMetadata>
-  GetSyncablePrefMetadata(const std::string& pref_name) const override;
+  std::optional<sync_preferences::SyncablePrefMetadata> GetSyncablePrefMetadata(
+      std::string_view pref_name) const override;
 
  private:
-  std::unordered_map<std::string, sync_preferences::SyncablePrefMetadata>
-      syncable_prefs_map_;
+  PrefsMap syncable_prefs_map_;
+  std::set<std::string_view> always_syncing_prefs_;
 };
 
 }  // namespace sync_preferences

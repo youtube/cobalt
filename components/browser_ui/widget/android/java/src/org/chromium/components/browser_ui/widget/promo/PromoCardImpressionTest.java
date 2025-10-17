@@ -19,27 +19,24 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.DisabledTest;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.test.util.BlankUiTestActivity;
-import org.chromium.ui.test.util.DisableAnimationsTestRule;
 
 import java.util.concurrent.TimeoutException;
 
 /**
- * Tests targeting functionality to track impression on PromoCard component.
- * TODO(wenyufu): Add the test when the primary button is hidden initially.
+ * Tests targeting functionality to track impression on PromoCard component. TODO(wenyufu): Add the
+ * test when the primary button is hidden initially.
  */
 @RunWith(BaseJUnit4ClassRunner.class)
 @Batch(Batch.UNIT_TESTS)
 public class PromoCardImpressionTest {
-    @ClassRule
-    public static DisableAnimationsTestRule disableAnimationsRule = new DisableAnimationsTestRule();
     @ClassRule
     public static BaseActivityTestRule<BlankUiTestActivity> activityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
@@ -55,43 +52,50 @@ public class PromoCardImpressionTest {
     @BeforeClass
     public static void setupSuite() {
         activityTestRule.launchActivity(null);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            sActivity = activityTestRule.getActivity();
-            sContent = new FrameLayout(sActivity);
-            sActivity.setContentView(sContent);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    sActivity = activityTestRule.getActivity();
+                    sContent = new FrameLayout(sActivity);
+                    sActivity.setContentView(sContent);
+                });
     }
 
     @Before
     public void setupTest() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> sContent.removeAllViews());
+        ThreadUtils.runOnUiThreadBlocking(() -> sContent.removeAllViews());
     }
 
     @After
     public void tearDown() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> mCoordinator.destroy());
+        ThreadUtils.runOnUiThreadBlocking(() -> mCoordinator.destroy());
     }
 
     private void setUpPromoCard(boolean trackPrimary, boolean hidePromo) {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mModel =
-                    new PropertyModel.Builder(PromoCardProperties.ALL_KEYS)
-                            .with(PromoCardProperties.IMPRESSION_SEEN_CALLBACK,
-                                    mPromoSeenCallback::notifyCalled)
-                            .with(PromoCardProperties.IS_IMPRESSION_ON_PRIMARY_BUTTON, trackPrimary)
-                            .with(PromoCardProperties.TITLE, "Title")
-                            .with(PromoCardProperties.DESCRIPTION, "Description")
-                            .with(PromoCardProperties.PRIMARY_BUTTON_TEXT, "Primary")
-                            .with(PromoCardProperties.HAS_SECONDARY_BUTTON, false)
-                            .build();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mModel =
+                            new PropertyModel.Builder(PromoCardProperties.ALL_KEYS)
+                                    .with(
+                                            PromoCardProperties.IMPRESSION_SEEN_CALLBACK,
+                                            mPromoSeenCallback::notifyCalled)
+                                    .with(
+                                            PromoCardProperties.IS_IMPRESSION_ON_PRIMARY_BUTTON,
+                                            trackPrimary)
+                                    .with(PromoCardProperties.TITLE, "Title")
+                                    .with(PromoCardProperties.DESCRIPTION, "Description")
+                                    .with(PromoCardProperties.PRIMARY_BUTTON_TEXT, "Primary")
+                                    .with(PromoCardProperties.HAS_SECONDARY_BUTTON, false)
+                                    .build();
 
-            mCoordinator = new PromoCardCoordinator(sActivity, mModel, "impression-test");
-            View promoView = mCoordinator.getView();
+                    mCoordinator =
+                            PromoCardCoordinator.create(sActivity, mModel, "impression-test");
+                    View promoView = mCoordinator.getView();
 
-            if (hidePromo) promoView.setVisibility(View.INVISIBLE);
-            sContent.addView(promoView,
-                    new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
-        });
+                    if (hidePromo) promoView.setVisibility(View.INVISIBLE);
+                    sContent.addView(
+                            promoView,
+                            new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+                });
     }
 
     @Test
@@ -119,8 +123,10 @@ public class PromoCardImpressionTest {
         Assert.assertEquals(
                 "Promo should not be seen yet.", initCount, mPromoSeenCallback.getCallCount());
 
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mCoordinator.getView().setVisibility(View.VISIBLE); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mCoordinator.getView().setVisibility(View.VISIBLE);
+                });
         mPromoSeenCallback.waitForCallback("PromoCard is never seen.", initCount);
     }
 }

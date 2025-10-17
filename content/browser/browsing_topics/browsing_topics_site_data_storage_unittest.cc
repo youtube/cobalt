@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <memory>
+#include <string_view>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -55,9 +56,9 @@ class BrowsingTopicsSiteDataStorageTest : public testing::Test {
     return temp_dir_.GetPath().AppendASCII("TestBrowsingTopicsSiteData.db");
   }
 
-  base::FilePath GetSqlFilePath(base::StringPiece sql_filename) {
+  base::FilePath GetSqlFilePath(std::string_view sql_filename) {
     base::FilePath file_path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &file_path);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &file_path);
     file_path = file_path.AppendASCII("content/test/data/browsing_topics/");
     file_path = file_path.AppendASCII(sql_filename);
     EXPECT_TRUE(base::PathExists(file_path));
@@ -67,6 +68,14 @@ class BrowsingTopicsSiteDataStorageTest : public testing::Test {
   size_t CountApiUsagesEntries(sql::Database& db) {
     static const char kCountSQL[] =
         "SELECT COUNT(*) FROM browsing_topics_api_usages";
+    sql::Statement s(db.GetUniqueStatement(kCountSQL));
+    EXPECT_TRUE(s.Step());
+    return s.ColumnInt(0);
+  }
+
+  size_t CountContextDomainsEntries(sql::Database& db) {
+    static const char kCountSQL[] =
+        "SELECT COUNT(*) FROM browsing_topics_api_hashed_to_unhashed_domain";
     sql::Statement s(db.GetUniqueStatement(kCountSQL));
     EXPECT_TRUE(s.Step());
     return s.ColumnInt(0);
@@ -111,11 +120,12 @@ TEST_F(BrowsingTopicsSiteDataStorageTest,
 
   EXPECT_TRUE(base::PathExists(DbPath()));
 
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   EXPECT_TRUE(db.Open(DbPath()));
 
-  // [browsing_topics_api_usages], [meta].
-  EXPECT_EQ(2u, sql::test::CountSQLTables(&db));
+  // [browsing_topics_api_usages],
+  // [browsing_topics_api_hashed_to_unhashed_domain], [meta].
+  EXPECT_EQ(3u, sql::test::CountSQLTables(&db));
 
   EXPECT_EQ(1, VersionFromMetaTable(db));
 
@@ -128,6 +138,12 @@ TEST_F(BrowsingTopicsSiteDataStorageTest,
             sql::test::CountTableColumns(&db, "browsing_topics_api_usages"));
 
   EXPECT_EQ(0u, CountApiUsagesEntries(db));
+
+  // `hashed_context_domain`, `context_domain`.
+  EXPECT_EQ(2u, sql::test::CountTableColumns(
+                    &db, "browsing_topics_api_hashed_to_unhashed_domain"));
+
+  EXPECT_EQ(0u, CountContextDomainsEntries(db));
 
   histograms.ExpectUniqueSample("BrowsingTopics.SiteDataStorage.InitStatus",
                                 true, /*expected_bucket_count=*/1);
@@ -145,11 +161,42 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, LoadFromFile_CurrentVersion_Success) {
       /*begin_time=*/base::Time(), /*end_time=*/base::Time());
   CloseDatabase();
 
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   EXPECT_TRUE(db.Open(DbPath()));
-  EXPECT_EQ(2u, sql::test::CountSQLTables(&db));
+  EXPECT_EQ(3u, sql::test::CountSQLTables(&db));
   EXPECT_EQ(1, VersionFromMetaTable(db));
   EXPECT_EQ(1u, CountApiUsagesEntries(db));
+  EXPECT_EQ(1u, CountContextDomainsEntries(db));
+
+  histograms.ExpectUniqueSample("BrowsingTopics.SiteDataStorage.InitStatus",
+                                true, /*expected_bucket_count=*/1);
+
+  histograms.ExpectTotalCount("BrowsingTopics.SiteDataStorage.FileSize.KB", 1);
+  EXPECT_GT(
+      histograms.GetTotalSum("BrowsingTopics.SiteDataStorage.FileSize.KB"), 0);
+}
+
+TEST_F(BrowsingTopicsSiteDataStorageTest,
+       LoadFromFile_V1NoContextDomainsTable_Success) {
+  base::HistogramTester histograms;
+
+  ASSERT_TRUE(sql::test::CreateDatabaseFromSQL(
+      DbPath(), GetSqlFilePath("v1.no_hashed_to_unhashed_domains_table.sql")));
+
+  OpenDatabase();
+  // Trigger the lazy-initialization.
+  topics_storage()->GetBrowsingTopicsApiUsage(
+      /*begin_time=*/base::Time(), /*end_time=*/base::Time());
+  CloseDatabase();
+
+  sql::Database db(sql::test::kTestTag);
+  EXPECT_TRUE(db.Open(DbPath()));
+  EXPECT_EQ(3u, sql::test::CountSQLTables(&db));
+  EXPECT_EQ(1, VersionFromMetaTable(db));
+  EXPECT_EQ(1u, CountApiUsagesEntries(db));
+
+  // An empty `browsing_topics_api_hashed_to_unhashed_domain` table is created.
+  EXPECT_EQ(0u, CountContextDomainsEntries(db));
 
   histograms.ExpectUniqueSample("BrowsingTopics.SiteDataStorage.InitStatus",
                                 true, /*expected_bucket_count=*/1);
@@ -169,7 +216,7 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, LoadFromFile_VersionTooOld_Failure) {
 
   // Expect that the initialization was unsuccessful. The original database was
   // unaffected.
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   EXPECT_TRUE(db.Open(DbPath()));
   EXPECT_EQ(2u, sql::test::CountSQLTables(&db));
   EXPECT_EQ(0, VersionFromMetaTable(db));
@@ -193,9 +240,9 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, LoadFromFile_VersionTooNew_Failure) {
 
   // Expect that the initialization was successful. The original database was
   // razed and re-initialized.
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   EXPECT_TRUE(db.Open(DbPath()));
-  EXPECT_EQ(2u, sql::test::CountSQLTables(&db));
+  EXPECT_EQ(3u, sql::test::CountSQLTables(&db));
   EXPECT_EQ(1, VersionFromMetaTable(db));
   EXPECT_EQ(0u, CountApiUsagesEntries(db));
 
@@ -207,13 +254,14 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, OnBrowsingTopicsApiUsed_SingleEntry) {
   OpenDatabase();
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(456)},
-      base::Time::Now());
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(456),
+      /*context_domain=*/"456.com", base::Time::Now());
   CloseDatabase();
 
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   EXPECT_TRUE(db.Open(DbPath()));
   EXPECT_EQ(1u, CountApiUsagesEntries(db));
+  EXPECT_EQ(1u, CountContextDomainsEntries(db));
 
   const char kGetAllEntriesSql[] =
       "SELECT hashed_context_domain, hashed_main_frame_host, last_usage_time "
@@ -231,6 +279,21 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, OnBrowsingTopicsApiUsed_SingleEntry) {
   EXPECT_EQ(time, base::Time::Now());
 
   EXPECT_FALSE(s.Step());
+
+  const char kGetAllContextDomainsEntriesSql[] =
+      "SELECT hashed_context_domain, context_domain "
+      "FROM "
+      "browsing_topics_api_hashed_to_unhashed_domain";
+  sql::Statement t(db.GetUniqueStatement(kGetAllContextDomainsEntriesSql));
+  EXPECT_TRUE(t.Step());
+
+  hashed_context_domain = t.ColumnInt64(0);
+  std::string context_domain = t.ColumnString(1);
+
+  EXPECT_EQ(hashed_context_domain, 456);
+  EXPECT_EQ(context_domain, "456.com");
+
+  EXPECT_FALSE(t.Step());
 }
 
 TEST_F(BrowsingTopicsSiteDataStorageTest,
@@ -238,25 +301,31 @@ TEST_F(BrowsingTopicsSiteDataStorageTest,
   OpenDatabase();
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(123)},
-      base::Time::Now());
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(123),
+      /*context_domain=*/"123.com", base::Time::Now());
 
   task_environment_.FastForwardBy(base::Seconds(1));
 
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/
-      {browsing_topics::HashedDomain(456), browsing_topics::HashedDomain(789)},
-      base::Time::Now());
+      /*hashed_context_domain=*/
+      browsing_topics::HashedDomain(456),
+      /*context_domain=*/"456.com", base::Time::Now());
+  topics_storage()->OnBrowsingTopicsApiUsed(
+      /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(789),
+      /*context_domain=*/"789.com", base::Time::Now());
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(456),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(789)},
-      base::Time::Now());
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(789),
+      /*context_domain=*/"789.com", base::Time::Now());
   CloseDatabase();
 
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   EXPECT_TRUE(db.Open(DbPath()));
   EXPECT_EQ(4u, CountApiUsagesEntries(db));
+  // 789 should not be a duplicate entry in the context domains table.
+  EXPECT_EQ(3u, CountContextDomainsEntries(db));
 
   const char kGetAllEntriesSql[] =
       "SELECT hashed_context_domain, hashed_main_frame_host, last_usage_time "
@@ -315,6 +384,25 @@ TEST_F(BrowsingTopicsSiteDataStorageTest,
   }
 
   EXPECT_FALSE(s.Step());
+
+  const char kGetAllContextDomainsEntriesSql[] =
+      "SELECT hashed_context_domain, context_domain "
+      "FROM "
+      "browsing_topics_api_hashed_to_unhashed_domain";
+  sql::Statement t(db.GetUniqueStatement(kGetAllContextDomainsEntriesSql));
+
+  std::map<uint32_t, std::string> expected_context_domains(
+      {{123, "123.com"}, {456, "456.com"}, {789, "789.com"}});
+  for (auto [expected_hashed_domain, expected_domain] :
+       expected_context_domains) {
+    EXPECT_TRUE(t.Step());
+    int64_t hashed_context_domain = t.ColumnInt64(0);
+    std::string context_domain = t.ColumnString(1);
+
+    EXPECT_EQ(hashed_context_domain, expected_hashed_domain);
+    EXPECT_EQ(context_domain, expected_domain);
+  }
+  EXPECT_FALSE(t.Step());
 }
 
 TEST_F(BrowsingTopicsSiteDataStorageTest, GetBrowsingTopicsApiUsage) {
@@ -322,15 +410,15 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, GetBrowsingTopicsApiUsage) {
 
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(123)},
-      base::Time::Now());
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(123),
+      /*context_domain=*/"123.com", base::Time::Now());
 
   task_environment_.FastForwardBy(base::Seconds(1));
 
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(456)},
-      base::Time::Now());
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(456),
+      /*context_domain=*/"456.com", base::Time::Now());
 
   task_environment_.FastForwardBy(base::Seconds(1));
 
@@ -359,43 +447,51 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, GetBrowsingTopicsApiUsage) {
 }
 
 TEST_F(BrowsingTopicsSiteDataStorageTest,
-       GetBrowsingTopicsApiUsage_AutoExpireDataBeforeBeginTime) {
+       GetContextDomainsFromHashedContextDomains) {
   OpenDatabase();
 
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(123)},
-      base::Time::Now());
-
-  task_environment_.FastForwardBy(base::Seconds(1));
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(123),
+      /*context_domain=*/"123.com", base::Time::Now());
 
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(456)},
-      base::Time::Now());
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(456),
+      /*context_domain=*/"456.com", base::Time::Now());
 
-  task_environment_.FastForwardBy(base::Seconds(1));
+  std::map<browsing_topics::HashedDomain, std::string> one_domain_in_database =
+      topics_storage()->GetContextDomainsFromHashedContextDomains(
+          {browsing_topics::HashedDomain(123)});
+  std::map<browsing_topics::HashedDomain, std::string> two_domains_in_database =
+      topics_storage()->GetContextDomainsFromHashedContextDomains(
+          {browsing_topics::HashedDomain(123),
+           browsing_topics::HashedDomain(456)});
+  std::map<browsing_topics::HashedDomain, std::string>
+      one_domain_in_database_one_domain_not =
+          topics_storage()->GetContextDomainsFromHashedContextDomains(
+              {browsing_topics::HashedDomain(789),
+               browsing_topics::HashedDomain(456)});
+  std::map<browsing_topics::HashedDomain, std::string>
+      one_domain_not_in_database =
+          topics_storage()->GetContextDomainsFromHashedContextDomains(
+              {browsing_topics::HashedDomain(789)});
 
-  browsing_topics::ApiUsageContextQueryResult result =
-      topics_storage()->GetBrowsingTopicsApiUsage(
-          /*begin_time=*/base::Time::Now() - base::Seconds(1),
-          /*end_time=*/base::Time::Now());
   CloseDatabase();
 
-  EXPECT_TRUE(result.success);
-  EXPECT_EQ(result.api_usage_contexts.size(), 1u);
-  EXPECT_EQ(result.api_usage_contexts[0].hashed_main_frame_host,
-            browsing_topics::HashedHost(123));
-  EXPECT_EQ(result.api_usage_contexts[0].hashed_context_domain,
-            browsing_topics::HashedDomain(456));
-  EXPECT_EQ(result.api_usage_contexts[0].time,
-            base::Time::Now() - base::Seconds(1));
+  std::map<browsing_topics::HashedDomain, std::string> expected_result(
+      {{browsing_topics::HashedDomain(123), "123.com"}});
+  EXPECT_EQ(one_domain_in_database, expected_result);
 
-  // The `GetBrowsingTopicsApiUsage()` should have deleted the first inserted
-  // entry.
-  sql::Database db;
-  EXPECT_TRUE(db.Open(DbPath()));
-  EXPECT_EQ(1u, CountApiUsagesEntries(db));
+  expected_result = {{browsing_topics::HashedDomain(123), "123.com"},
+                     {browsing_topics::HashedDomain(456), "456.com"}};
+  EXPECT_EQ(two_domains_in_database, expected_result);
+
+  expected_result = {{browsing_topics::HashedDomain(456), "456.com"}};
+  EXPECT_EQ(one_domain_in_database_one_domain_not, expected_result);
+
+  expected_result = {};
+  EXPECT_EQ(one_domain_not_in_database, expected_result);
 }
 
 TEST_F(BrowsingTopicsSiteDataStorageTest, ExpireDataBefore) {
@@ -403,14 +499,14 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, ExpireDataBefore) {
 
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(123)},
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(123), "123.com",
       base::Time::Now());
 
   task_environment_.FastForwardBy(base::Seconds(1));
 
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(456)},
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(456), "456.com",
       base::Time::Now());
 
   task_environment_.FastForwardBy(base::Seconds(1));
@@ -418,9 +514,10 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, ExpireDataBefore) {
   topics_storage()->ExpireDataBefore(base::Time::Now() - base::Seconds(1));
   CloseDatabase();
 
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   EXPECT_TRUE(db.Open(DbPath()));
   EXPECT_EQ(1u, CountApiUsagesEntries(db));
+  EXPECT_EQ(1u, CountContextDomainsEntries(db));
 
   // The `ExpireDataBefore()` should have deleted the first inserted entry.
   const char kGetAllEntriesSql[] =
@@ -439,6 +536,109 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, ExpireDataBefore) {
   EXPECT_EQ(time, base::Time::Now() - base::Seconds(1));
 
   EXPECT_FALSE(s.Step());
+
+  const char kGetAllContextDomainsEntriesSql[] =
+      "SELECT hashed_context_domain, context_domain "
+      "FROM "
+      "browsing_topics_api_hashed_to_unhashed_domain";
+  sql::Statement t(db.GetUniqueStatement(kGetAllContextDomainsEntriesSql));
+  EXPECT_TRUE(t.Step());
+
+  hashed_context_domain = t.ColumnInt64(0);
+  std::string context_domain = t.ColumnString(1);
+
+  EXPECT_EQ(hashed_context_domain, 456);
+  EXPECT_EQ(context_domain, "456.com");
+
+  EXPECT_FALSE(t.Step());
+}
+
+TEST_F(BrowsingTopicsSiteDataStorageTest,
+       ExpireDataBefore_ContextDomainBeforeAndAfterTime) {
+  OpenDatabase();
+
+  topics_storage()->OnBrowsingTopicsApiUsed(
+      /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(123), "123.com",
+      base::Time::Now());
+
+  task_environment_.FastForwardBy(base::Seconds(1));
+
+  topics_storage()->OnBrowsingTopicsApiUsed(
+      /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(123), "123.com",
+      base::Time::Now());
+
+  topics_storage()->OnBrowsingTopicsApiUsed(
+      /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(456), "456.com",
+      base::Time::Now());
+
+  task_environment_.FastForwardBy(base::Seconds(1));
+
+  topics_storage()->ExpireDataBefore(base::Time::Now() - base::Seconds(1));
+  CloseDatabase();
+
+  sql::Database db(sql::test::kTestTag);
+  EXPECT_TRUE(db.Open(DbPath()));
+  EXPECT_EQ(2u, CountApiUsagesEntries(db));
+  EXPECT_EQ(2u, CountContextDomainsEntries(db));
+
+  // The `ExpireDataBefore()` should have deleted the first inserted entry.
+  const char kGetAllEntriesSql[] =
+      "SELECT hashed_context_domain, hashed_main_frame_host, last_usage_time "
+      "FROM "
+      "browsing_topics_api_usages";
+  sql::Statement s(db.GetUniqueStatement(kGetAllEntriesSql));
+
+  {
+    EXPECT_TRUE(s.Step());
+
+    int64_t hashed_context_domain = s.ColumnInt64(0);
+    int64_t hashed_main_frame_host = s.ColumnInt64(1);
+    base::Time time = s.ColumnTime(2);
+
+    EXPECT_EQ(hashed_context_domain, 123);
+    EXPECT_EQ(hashed_main_frame_host, 123);
+    EXPECT_EQ(time, base::Time::Now() - base::Seconds(1));
+  }
+  {
+    EXPECT_TRUE(s.Step());
+
+    int64_t hashed_context_domain = s.ColumnInt64(0);
+    int64_t hashed_main_frame_host = s.ColumnInt64(1);
+    base::Time time = s.ColumnTime(2);
+
+    EXPECT_EQ(hashed_context_domain, 456);
+    EXPECT_EQ(hashed_main_frame_host, 123);
+    EXPECT_EQ(time, base::Time::Now() - base::Seconds(1));
+  }
+  EXPECT_FALSE(s.Step());
+
+  const char kGetAllContextDomainsEntriesSql[] =
+      "SELECT hashed_context_domain, context_domain "
+      "FROM "
+      "browsing_topics_api_hashed_to_unhashed_domain";
+  sql::Statement t(db.GetUniqueStatement(kGetAllContextDomainsEntriesSql));
+  {
+    EXPECT_TRUE(t.Step());
+
+    int64_t hashed_context_domain = t.ColumnInt64(0);
+    std::string context_domain = t.ColumnString(1);
+
+    EXPECT_EQ(hashed_context_domain, 123);
+    EXPECT_EQ(context_domain, "123.com");
+  }
+  {
+    EXPECT_TRUE(t.Step());
+
+    int64_t hashed_context_domain = t.ColumnInt64(0);
+    std::string context_domain = t.ColumnString(1);
+
+    EXPECT_EQ(hashed_context_domain, 456);
+    EXPECT_EQ(context_domain, "456.com");
+  }
+  EXPECT_FALSE(t.Step());
 }
 
 TEST_F(BrowsingTopicsSiteDataStorageTest, ClearContextDomain) {
@@ -446,14 +646,14 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, ClearContextDomain) {
 
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(123)},
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(123), "123.com",
       base::Time::Now());
 
   task_environment_.FastForwardBy(base::Seconds(1));
 
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(456)},
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(456), "456.com",
       base::Time::Now());
 
   task_environment_.FastForwardBy(base::Seconds(1));
@@ -461,7 +661,7 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, ClearContextDomain) {
   topics_storage()->ClearContextDomain(browsing_topics::HashedDomain(123));
   CloseDatabase();
 
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   EXPECT_TRUE(db.Open(DbPath()));
   EXPECT_EQ(1u, CountApiUsagesEntries(db));
 
@@ -482,6 +682,21 @@ TEST_F(BrowsingTopicsSiteDataStorageTest, ClearContextDomain) {
   EXPECT_EQ(time, base::Time::Now() - base::Seconds(1));
 
   EXPECT_FALSE(s.Step());
+
+  const char kGetAllContextDomainsEntriesSql[] =
+      "SELECT hashed_context_domain, context_domain "
+      "FROM "
+      "browsing_topics_api_hashed_to_unhashed_domain";
+  sql::Statement t(db.GetUniqueStatement(kGetAllContextDomainsEntriesSql));
+  EXPECT_TRUE(t.Step());
+
+  hashed_context_domain = t.ColumnInt64(0);
+  std::string context_domain = t.ColumnString(1);
+
+  EXPECT_EQ(hashed_context_domain, 456);
+  EXPECT_EQ(context_domain, "456.com");
+
+  EXPECT_FALSE(t.Step());
 }
 
 class BrowsingTopicsSiteDataStorageMaxEntriesToLoadTest
@@ -489,7 +704,7 @@ class BrowsingTopicsSiteDataStorageMaxEntriesToLoadTest
  public:
   BrowsingTopicsSiteDataStorageMaxEntriesToLoadTest() {
     feature_list_.InitAndEnableFeatureWithParameters(
-        blink::features::kBrowsingTopics,
+        blink::features::kBrowsingTopicsParameters,
         {{"max_number_of_api_usage_context_entries_to_load_per_epoch", "1"}});
   }
 
@@ -502,14 +717,14 @@ TEST_F(BrowsingTopicsSiteDataStorageMaxEntriesToLoadTest, MaxEntriesToLoad) {
 
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(123)},
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(123), "123.com",
       base::Time::Now());
 
   task_environment_.FastForwardBy(base::Seconds(1));
 
   topics_storage()->OnBrowsingTopicsApiUsed(
       /*hashed_main_frame_host=*/browsing_topics::HashedHost(123),
-      /*hashed_context_domains=*/{browsing_topics::HashedDomain(456)},
+      /*hashed_context_domain=*/browsing_topics::HashedDomain(456), "456.com",
       base::Time::Now());
 
   task_environment_.FastForwardBy(base::Seconds(1));
@@ -531,9 +746,10 @@ TEST_F(BrowsingTopicsSiteDataStorageMaxEntriesToLoadTest, MaxEntriesToLoad) {
   EXPECT_EQ(result.api_usage_contexts[0].time,
             base::Time::Now() - base::Seconds(1));
 
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   EXPECT_TRUE(db.Open(DbPath()));
   EXPECT_EQ(2u, CountApiUsagesEntries(db));
+  EXPECT_EQ(2u, CountContextDomainsEntries(db));
 }
 
 }  // namespace content

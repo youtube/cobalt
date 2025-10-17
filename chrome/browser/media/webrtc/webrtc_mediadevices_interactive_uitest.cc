@@ -7,9 +7,12 @@
 #include "base/json/json_reader.h"
 #include "base/strings/string_util.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
+#include "chrome/browser/media/webrtc/media_device_salt_service_factory.h"
 #include "chrome/browser/media/webrtc/webrtc_browsertest_base.h"
 #include "chrome/browser/media/webrtc/webrtc_browsertest_common.h"
 #include "chrome/browser/profiles/profile.h"
@@ -20,12 +23,17 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
+#include "components/content_settings/core/common/content_settings.h"
+#include "components/media_device_salt/media_device_salt_service.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/permissions/test/permission_request_observer.h"
+#include "components/prefs/pref_service.h"
+#include "components/privacy_sandbox/tracking_protection_prefs.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/browsing_data_remover_test_util.h"
@@ -42,6 +50,7 @@
 namespace {
 
 const char kMainWebrtcTestHtmlPage[] = "/webrtc/webrtc_jsep01_test.html";
+const char kClearCookiesPage[] = "/clear_cookies";
 
 const char kDeviceKindAudioInput[] = "audioinput";
 const char kDeviceKindVideoInput[] = "videoinput";
@@ -53,15 +62,13 @@ const char kDeviceKindAudioOutput[] = "audiooutput";
 // It needs to be a browser test (and not content browser test) to be able to
 // test that labels are cleared or not depending on if access to devices has
 // been granted.
-class WebRtcMediaDevicesInteractiveUITest
-    : public WebRtcTestBase,
-      public testing::WithParamInterface<bool> {
+class WebRtcMediaDevicesInteractiveUITest : public WebRtcTestBase {
  public:
   WebRtcMediaDevicesInteractiveUITest()
       : has_audio_output_devices_initialized_(false),
         has_audio_output_devices_(false) {
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kUserMediaCaptureOnFocus);
+    scoped_feature_list_.InitWithFeatures({features::kUserMediaCaptureOnFocus},
+                                          {});
   }
 
   void SetUpInProcessBrowserTestFixture() override {
@@ -87,19 +94,16 @@ class WebRtcMediaDevicesInteractiveUITest
     std::string devices_as_json = ExecuteJavascript("enumerateDevices()", tab);
     EXPECT_FALSE(devices_as_json.empty());
 
-    auto parsed_json = base::JSONReader::ReadAndReturnValueWithError(
-        devices_as_json, base::JSON_ALLOW_TRAILING_COMMAS);
-
-    ASSERT_TRUE(parsed_json.has_value()) << parsed_json.error().message;
-    EXPECT_EQ(parsed_json->type(), base::Value::Type::LIST);
-
-    base::Value& values = *parsed_json;
-    ASSERT_TRUE(values.is_list());
-    ASSERT_FALSE(values.GetList().empty());
+    ASSERT_OK_AND_ASSIGN(
+        auto parsed_json,
+        base::JSONReader::ReadAndReturnValueWithError(
+            devices_as_json, base::JSON_ALLOW_TRAILING_COMMAS));
+    ASSERT_TRUE(parsed_json.is_list());
+    ASSERT_FALSE(parsed_json.GetList().empty());
     bool found_audio_input = false;
     bool found_video_input = false;
 
-    for (const auto& value : values.GetList()) {
+    for (const auto& value : parsed_json.GetList()) {
       const base::Value::Dict* dict = value.GetIfDict();
       ASSERT_TRUE(dict);
       MediaDeviceInfo device;
@@ -313,6 +317,8 @@ IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesInteractiveUITest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   CookieSettingsFactory::GetForProfile(browser()->profile())
       ->SetDefaultCookieSetting(CONTENT_SETTING_BLOCK);
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kBlockAll3pcToggleEnabled,
+                                               true);
   content::WebContents* tab1 =
       browser()->tab_strip_model()->GetActiveWebContents();
 
@@ -342,6 +348,8 @@ IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesInteractiveUITest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   CookieSettingsFactory::GetForProfile(browser()->profile())
       ->SetDefaultCookieSetting(CONTENT_SETTING_BLOCK);
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kBlockAll3pcToggleEnabled,
+                                               true);
   content::WebContents* tab =
       browser()->tab_strip_model()->GetActiveWebContents();
 
@@ -359,6 +367,96 @@ IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesInteractiveUITest,
 
   EXPECT_EQ(devices.size(), devices2.size());
   CheckEnumerationsAreDifferent(devices, devices2);
+}
+
+IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesInteractiveUITest,
+                       DeviceIdDiffersAfterClearSiteDataHeader) {
+  embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+      [](const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        if (request.GetURL().path() == kClearCookiesPage) {
+          auto response =
+              std::make_unique<net::test_server::BasicHttpResponse>();
+          response->AddCustomHeader("Clear-Site-Data", "\"cookies\"");
+          response->set_code(net::HTTP_OK);
+          response->set_content_type("text/html");
+          response->set_content(std::string());
+          return response;
+        }
+
+        // Use the default handler for other requests.
+        return nullptr;
+      }));
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL(kMainWebrtcTestHtmlPage)));
+  content::WebContents* tab =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  EXPECT_TRUE(GetUserMediaAndAccept(tab));
+  std::vector<MediaDeviceInfo> devices;
+  EnumerateDevices(tab, &devices);
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL(kClearCookiesPage)));
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL(kMainWebrtcTestHtmlPage)));
+
+  std::vector<MediaDeviceInfo> devices2;
+  EnumerateDevices(tab, &devices2);
+  EXPECT_EQ(devices.size(), devices2.size());
+  CheckEnumerationsAreDifferent(devices, devices2);
+}
+
+IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesInteractiveUITest,
+                       PRE_SaltsDeletedForSessionOnlyCookies) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url(embedded_test_server()->GetURL(kMainWebrtcTestHtmlPage));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  CookieSettingsFactory::GetForProfile(browser()->profile())
+      ->SetDefaultCookieSetting(CONTENT_SETTING_SESSION_ONLY);
+  content::WebContents* tab =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  std::vector<MediaDeviceInfo> devices;
+  EnumerateDevices(tab, &devices);
+
+  media_device_salt::MediaDeviceSaltService* salt_service =
+      MediaDeviceSaltServiceFactory::GetForBrowserContext(browser()->profile());
+  base::test::TestFuture<std::vector<blink::StorageKey>> keys_future;
+  salt_service->GetAllStorageKeys(keys_future.GetCallback());
+  EXPECT_FALSE(keys_future.Get().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesInteractiveUITest,
+                       SaltsDeletedForSessionOnlyCookies) {
+  media_device_salt::MediaDeviceSaltService* salt_service =
+      MediaDeviceSaltServiceFactory::GetForBrowserContext(browser()->profile());
+  base::test::TestFuture<std::vector<blink::StorageKey>> keys_future;
+  salt_service->GetAllStorageKeys(keys_future.GetCallback());
+  EXPECT_TRUE(keys_future.Get().empty());
+}
+
+IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesInteractiveUITest,
+                       NoPersistentSaltStoredWithCookiesDisabled) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url(embedded_test_server()->GetURL(kMainWebrtcTestHtmlPage));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  CookieSettingsFactory::GetForProfile(browser()->profile())
+      ->SetDefaultCookieSetting(CONTENT_SETTING_BLOCK);
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kBlockAll3pcToggleEnabled,
+                                               true);
+  content::WebContents* tab =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  std::vector<MediaDeviceInfo> devices;
+  EnumerateDevices(tab, &devices);
+
+  media_device_salt::MediaDeviceSaltService* salt_service =
+      MediaDeviceSaltServiceFactory::GetForBrowserContext(browser()->profile());
+  base::test::TestFuture<std::vector<blink::StorageKey>> keys_future;
+  salt_service->GetAllStorageKeys(keys_future.GetCallback());
+  EXPECT_TRUE(keys_future.Get().empty());
 }
 
 class WebRtcMediaDevicesPrerenderingBrowserTest
@@ -397,7 +495,8 @@ IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesPrerenderingBrowserTest,
 
   // Loads a page in the prerender.
   auto prerender_url = embedded_test_server()->GetURL(kMainWebrtcTestHtmlPage);
-  int host_id = prerender_helper()->AddPrerender(prerender_url);
+  content::FrameTreeNodeId host_id =
+      prerender_helper()->AddPrerender(prerender_url);
   content::test::PrerenderHostObserver host_observer(*web_contents(), host_id);
   content::RenderFrameHost* prerender_rfh =
       prerender_helper()->GetPrerenderedMainFrameHost(host_id);
@@ -408,7 +507,8 @@ IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesPrerenderingBrowserTest,
   base::RunLoop run_loop;
   permissions::PermissionRequestObserver observer(web_contents());
   prerender_rfh->ExecuteJavaScriptForTests(
-      u"doGetUserMedia({audio: true, video: true});", base::NullCallback());
+      u"doGetUserMedia({audio: true, video: true});", base::NullCallback(),
+      content::ISOLATED_WORLD_ID_GLOBAL);
 
   // The prerendering page should not show a permission request's bubble UI.
   EXPECT_FALSE(observer.request_shown());

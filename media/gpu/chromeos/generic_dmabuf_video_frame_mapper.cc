@@ -2,84 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/chromeos/generic_dmabuf_video_frame_mapper.h"
 
 #include <sys/mman.h>
 
+#include <array>
 #include <utility>
 #include <vector>
 
 #include "base/containers/contains.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "media/gpu/macros.h"
-#include "third_party/libyuv/include/libyuv.h"
 
 namespace media {
 
 namespace {
-
-// The format coming in is P010, but it's tagged as P016LE.  The
-// difference being that P010 uses the MSB while P016LE uses the LSB.
-// The conversion is done to YUV420P10 aka I010 which is a tri-planar
-// format that will be used for md5 sum computations and writing out to
-// disk.
-scoped_refptr<VideoFrame> ConvertYUV420P10Frame(
-    scoped_refptr<const VideoFrame> src_video_frame,
-    uint8_t* plane_addrs[VideoFrame::kMaxPlanes]) {
-  const size_t kNumPlanesYUV420P10 =
-      VideoFrame::NumPlanes(PIXEL_FORMAT_YUV420P10);
-  std::vector<std::unique_ptr<uint16_t[]>> yuv420p10_buffers(
-      kNumPlanesYUV420P10);
-
-  const auto& visible_rect = src_video_frame->visible_rect();
-  const int32_t src_stride = src_video_frame->stride(VideoFrame::kYPlane);
-  std::vector<int32_t> dst_strides = {src_stride, src_stride >> 1,
-                                      src_stride >> 1};
-  const auto layout = VideoFrameLayout::CreateWithStrides(
-      PIXEL_FORMAT_YUV420P10, src_video_frame->natural_size(), dst_strides);
-
-  const uint16_t* src_plane_y =
-      reinterpret_cast<const uint16_t*>(plane_addrs[0]);
-  const uint16_t* src_plane_uv =
-      reinterpret_cast<const uint16_t*>(plane_addrs[1]);
-
-  for (size_t i = 0; i < kNumPlanesYUV420P10; i++) {
-    const size_t plane_height =
-        VideoFrame::Rows(i, PIXEL_FORMAT_YUV420P10, visible_rect.height());
-    const size_t plane_size_16bit_words =
-        (layout->planes()[i].stride * plane_height) >> 1;
-
-    yuv420p10_buffers[i] = std::make_unique<uint16_t[]>(plane_size_16bit_words);
-    plane_addrs[i] = reinterpret_cast<uint8_t*>(yuv420p10_buffers[i].get());
-  }
-
-  // VideoFrame stores strides in bytes per line. libyuv expects strides
-  // in samples per line. Dividing bytes per line by two gives samples per line
-  libyuv::P010ToI010(
-      src_plane_y, src_video_frame->stride(VideoFrame::kYPlane) >> 1,
-      src_plane_uv, src_video_frame->stride(VideoFrame::kUVPlane) >> 1,
-      yuv420p10_buffers[0].get(),
-      layout->planes()[VideoFrame::kYPlane].stride >> 1,
-      yuv420p10_buffers[1].get(),
-      layout->planes()[VideoFrame::kUPlane].stride >> 1,
-      yuv420p10_buffers[2].get(),
-      layout->planes()[VideoFrame::kVPlane].stride >> 1, visible_rect.width(),
-      visible_rect.height());
-
-  scoped_refptr<VideoFrame> video_frame =
-      VideoFrame::WrapExternalYuvDataWithLayout(
-          layout.value(), visible_rect, visible_rect.size(), plane_addrs[0],
-          plane_addrs[1], plane_addrs[2], src_video_frame->timestamp());
-
-  for (auto&& buffer : yuv420p10_buffers) {
-    video_frame->AddDestructionObserver(
-        base::DoNothingWithBoundArgs(std::move(buffer)));
-  }
-
-  return video_frame;
-}
 
 uint8_t* Mmap(const size_t length, const int fd, int permissions) {
   void* addr = mmap(nullptr, length, permissions, MAP_SHARED, fd, 0u);
@@ -92,7 +36,7 @@ uint8_t* Mmap(const size_t length, const int fd, int permissions) {
 }
 
 void MunmapBuffers(const std::vector<std::pair<uint8_t*, size_t>>& chunks,
-                   scoped_refptr<const VideoFrame> video_frame) {
+                   scoped_refptr<const FrameResource> video_frame) {
   for (const auto& chunk : chunks) {
     DLOG_IF(ERROR, !chunk.first) << "Pointer to be released is nullptr.";
     munmap(chunk.first, chunk.second);
@@ -104,22 +48,17 @@ void MunmapBuffers(const std::vector<std::pair<uint8_t*, size_t>>& chunks,
 // |chunks| is the vector of pair of (address, size) to be called in munmap().
 // |src_video_frame| is the video frame that owns dmabufs to the mapped planes.
 scoped_refptr<VideoFrame> CreateMappedVideoFrame(
-    scoped_refptr<const VideoFrame> src_video_frame,
-    uint8_t* plane_addrs[VideoFrame::kMaxPlanes],
+    scoped_refptr<const FrameResource> src_video_frame,
+    base::span<uint8_t*, VideoFrame::kMaxPlanes> plane_addrs,
     const std::vector<std::pair<uint8_t*, size_t>>& chunks) {
   scoped_refptr<VideoFrame> video_frame;
 
   const auto& layout = src_video_frame->layout();
   const auto& visible_rect = src_video_frame->visible_rect();
-
   if (IsYuvPlanar(layout.format())) {
-    if (src_video_frame->format() == PIXEL_FORMAT_P016LE) {
-      video_frame = ConvertYUV420P10Frame(src_video_frame, plane_addrs);
-    } else {
-      video_frame = VideoFrame::WrapExternalYuvDataWithLayout(
-          layout, visible_rect, visible_rect.size(), plane_addrs[0],
-          plane_addrs[1], plane_addrs[2], src_video_frame->timestamp());
-    }
+    video_frame = VideoFrame::WrapExternalYuvDataWithLayout(
+        layout, visible_rect, visible_rect.size(), plane_addrs[0],
+        plane_addrs[1], plane_addrs[2], src_video_frame->timestamp());
   } else if (VideoFrame::NumPlanes(layout.format()) == 1) {
     video_frame = VideoFrame::WrapExternalDataWithLayout(
         layout, visible_rect, visible_rect.size(), plane_addrs[0],
@@ -130,10 +69,11 @@ scoped_refptr<VideoFrame> CreateMappedVideoFrame(
     return nullptr;
   }
 
+  video_frame->set_color_space(src_video_frame->ColorSpace());
+
   // Pass org_video_frame so that it outlives video_frame.
   video_frame->AddDestructionObserver(
       base::BindOnce(MunmapBuffers, chunks, std::move(src_video_frame)));
-
   return video_frame;
 }
 
@@ -148,7 +88,7 @@ bool IsFormatSupported(VideoPixelFormat format) {
       PIXEL_FORMAT_I420,
       PIXEL_FORMAT_NV12,
       PIXEL_FORMAT_YV12,
-      PIXEL_FORMAT_P016LE,
+      PIXEL_FORMAT_P010LE,
 
       // Compressed format.
       PIXEL_FORMAT_MJPEG,
@@ -172,9 +112,9 @@ GenericDmaBufVideoFrameMapper::GenericDmaBufVideoFrameMapper(
     VideoPixelFormat format)
     : VideoFrameMapper(format) {}
 
-scoped_refptr<VideoFrame> GenericDmaBufVideoFrameMapper::Map(
-    scoped_refptr<const VideoFrame> video_frame,
-    int permissions) const {
+scoped_refptr<VideoFrame> GenericDmaBufVideoFrameMapper::MapFrame(
+    scoped_refptr<const FrameResource> video_frame,
+    int permissions) {
   if (!video_frame) {
     LOG(ERROR) << "Video frame is nullptr";
     return nullptr;
@@ -202,11 +142,10 @@ scoped_refptr<VideoFrame> GenericDmaBufVideoFrameMapper::Map(
   // Always prepare VideoFrame::kMaxPlanes addresses for planes initialized by
   // nullptr. This enables to specify nullptr to redundant plane, for pixel
   // format whose number of planes are less than VideoFrame::kMaxPlanes.
-  uint8_t* plane_addrs[VideoFrame::kMaxPlanes] = {};
+  std::array<uint8_t*, VideoFrame::kMaxPlanes> plane_addrs = {};
   const size_t num_planes = planes.size();
-  const auto& dmabuf_fds = video_frame->DmabufFds();
   std::vector<std::pair<uint8_t*, size_t>> chunks;
-  DCHECK_EQ(dmabuf_fds.size(), num_planes);
+  DCHECK_EQ(video_frame->NumDmabufFds(), num_planes);
   for (size_t i = 0; i < num_planes;) {
     size_t next_buf = i + 1;
     // Search the index of the plane from which the next buffer starts.
@@ -225,7 +164,8 @@ scoped_refptr<VideoFrame> GenericDmaBufVideoFrameMapper::Map(
       return nullptr;
     }
 
-    uint8_t* mapped_addr = Mmap(mapped_size, dmabuf_fds[i].get(), permissions);
+    uint8_t* mapped_addr =
+        Mmap(mapped_size, video_frame->GetDmabufFd(i), permissions);
     if (!mapped_addr) {
       VLOGF(1) << "nullptr returned by Mmap";
       MunmapBuffers(chunks, /*video_frame=*/nullptr);

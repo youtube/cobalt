@@ -6,14 +6,13 @@
 #define CHROME_BROWSER_RENDERER_HOST_CHROME_NAVIGATION_UI_DATA_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
-#include "base/uuid.h"
 #include "components/offline_pages/buildflags/buildflags.h"
 #include "components/offline_pages/core/request_header/offline_page_navigation_ui_data.h"
 #include "content/public/browser/navigation_ui_data.h"
 #include "extensions/buildflags/buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "extensions/browser/extension_navigation_ui_data.h"
@@ -23,8 +22,6 @@ namespace content {
 class NavigationHandle;
 class WebContents;
 }
-
-enum class WindowOpenDisposition;
 
 // Contains data that is passed from the UI thread to the IO thread at the
 // beginning of each navigation. The class is instantiated on the UI thread,
@@ -41,15 +38,15 @@ class ChromeNavigationUIData : public content::NavigationUIData {
   ~ChromeNavigationUIData() override;
 
   // Creates an instance of ChromeNavigationUIData associated with the given
-  // |web_contents| with the given |disposition|.
+  // |web_contents|.
   // If |is_using_https_as_default_scheme|, this is a typed main frame
   // navigation where the omnibox used HTTPS as the default URL scheme because
   // the user didn't type a scheme (e.g. they entered "example.com" and we
   // are navigating to https://example.com).
   static std::unique_ptr<ChromeNavigationUIData> CreateForMainFrameNavigation(
       content::WebContents* web_contents,
-      WindowOpenDisposition disposition,
-      bool is_using_https_as_default_scheme);
+      bool is_using_https_as_default_scheme,
+      bool force_no_https_upgrade);
 
   // Creates a new ChromeNavigationUIData that is a deep copy of the original.
   // Any changes to the original after the clone is created will not be
@@ -75,17 +72,21 @@ class ChromeNavigationUIData : public content::NavigationUIData {
     return offline_page_data_.get();
   }
 #endif
-  WindowOpenDisposition window_open_disposition() const { return disposition_; }
   bool is_no_state_prefetching() const { return is_no_state_prefetching_; }
-  const std::string& prerender_histogram_prefix() {
-    return prerender_histogram_prefix_;
-  }
   bool is_using_https_as_default_scheme() const {
     return is_using_https_as_default_scheme_;
   }
+  bool force_no_https_upgrade() const { return force_no_https_upgrade_; }
 
-  absl::optional<base::Uuid> bookmark_id() { return bookmark_id_; }
-  void set_bookmark_id(absl::optional<base::Uuid> id) { bookmark_id_ = id; }
+  std::optional<int64_t> bookmark_id() { return bookmark_id_; }
+  void set_bookmark_id(std::optional<int64_t> id) { bookmark_id_ = id; }
+
+  bool navigation_initiated_from_sync() {
+    return navigation_initiated_from_sync_;
+  }
+  void set_navigation_initiated_from_sync(bool navigation_initiated_from_sync) {
+    navigation_initiated_from_sync_ = navigation_initiated_from_sync;
+  }
 
  private:
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -99,9 +100,8 @@ class ChromeNavigationUIData : public content::NavigationUIData {
       offline_page_data_;
 #endif
 
-  WindowOpenDisposition disposition_;
   bool is_no_state_prefetching_ = false;
-  std::string prerender_histogram_prefix_;
+
   // True if the navigation was initiated by typing in the omnibox but the typed
   // text didn't have a scheme such as http or https (e.g. google.com), and
   // https was used as the default scheme for the navigation. This is used by
@@ -109,8 +109,22 @@ class ChromeNavigationUIData : public content::NavigationUIData {
   // observed and fall back to using http scheme if necessary.
   bool is_using_https_as_default_scheme_ = false;
 
+  // True if the navigation should be excluded from HTTPS upgrades.
+  // This can happen in the following cases:
+  // - the navigatioon was initiated by typing in the omnibox, and the
+  // typed text had an explicit http scheme.
+  // - the navigation was initiated as a captive portal login.
+  bool force_no_https_upgrade_ = false;
+
   // Id of the bookmark which started this navigation.
-  absl::optional<base::Uuid> bookmark_id_ = absl::nullopt;
+  std::optional<int64_t> bookmark_id_ = std::nullopt;
+
+  // True if the navigation was initiated in response to a sync message. This is
+  // used in tab group sync to identify the sync initiated navigations and
+  // blocking them from sending back to sync which would otherwise cause
+  // ping-pong issue. They will still be allowed to load locally like a normal
+  // navigation.
+  bool navigation_initiated_from_sync_ = false;
 };
 
 #endif  // CHROME_BROWSER_RENDERER_HOST_CHROME_NAVIGATION_UI_DATA_H_

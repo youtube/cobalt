@@ -6,6 +6,7 @@
 #define CONTENT_PUBLIC_BROWSER_BROWSING_DATA_REMOVER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/functional/callback_forward.h"
 #include "base/time/time.h"
@@ -23,6 +24,7 @@ namespace content {
 
 class BrowsingDataFilterBuilder;
 class BrowsingDataRemoverDelegate;
+class StoragePartitionConfig;
 
 ////////////////////////////////////////////////////////////////////////////////
 // BrowsingDataRemover is responsible for removing data related to browsing:
@@ -57,8 +59,8 @@ class BrowsingDataRemoverDelegate;
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// TODO(crbug.com/668114): BrowsingDataRemover does not currently support plugin
-// data deletion. Use PluginDataRemover instead.
+// TODO(crbug.com/40495069): BrowsingDataRemover does not currently support
+// plugin data deletion. Use PluginDataRemover instead.
 class BrowsingDataRemover {
  public:
   // Mask used for Remove.
@@ -95,10 +97,12 @@ class BrowsingDataRemover {
   // prohibited from deleting history or downloads.
   static constexpr DataType DATA_TYPE_NO_CHECKS = 1 << 13;
 
+  // 14 is already taken by DATA_TYPE_BACKGROUND_FETCH.
+
   // AVOID_CLOSING_CONNECTIONS is a pseudo-datatype indicating that when
   // deleting COOKIES, BrowsingDataRemover should skip
   // storage backends whose deletion would cause closing network connections.
-  // TODO(crbug.com/798760): Remove when fixed.
+  // TODO(crbug.com/41363015): Remove when fixed.
   static constexpr DataType DATA_TYPE_AVOID_CLOSING_CONNECTIONS = 1 << 15;
 
   // Trust Token API (https://github.com/wicg/trust-token-api) persistent
@@ -142,9 +146,26 @@ class BrowsingDataRemover {
   // information.
   static constexpr DataType DATA_TYPE_INTEREST_GROUPS_INTERNAL = 1 << 23;
 
+  // Permissions granted by Related Website Sets
+  // (https://github.com/WICG/first-party-sets).
+  static constexpr DataType DATA_TYPE_RELATED_WEBSITE_SETS_PERMISSIONS = 1
+                                                                         << 24;
+
+  // Device bound sessions
+  // (https://github.com/WICG/dbsc/blob/main/README.md)
+  static constexpr DataType DATA_TYPE_DEVICE_BOUND_SESSIONS = 1 << 25;
+
+  // Interest group data that should be cleared in response to user action,
+  // but not Clear-Site-Site data.
+  // (https://github.com/WICG/turtledove/blob/main/FLEDGE.md)
+  static constexpr DataType DATA_TYPE_INTEREST_GROUPS_USER_CLEAR = 1 << 26;
+
+  // Clear-Site-Data Interaction with Prefetch and Prerender.
+  static constexpr DataType DATA_TYPE_PREFETCH_CACHE = 1 << 27;
+  static constexpr DataType DATA_TYPE_PRERENDER_CACHE = 1 << 28;
+
   // Embedders can add more datatypes beyond this point.
-  static constexpr DataType DATA_TYPE_CONTENT_END =
-      DATA_TYPE_INTEREST_GROUPS_INTERNAL;
+  static constexpr DataType DATA_TYPE_CONTENT_END = DATA_TYPE_PRERENDER_CACHE;
 
   // All data stored by the Attribution Reporting API.
   static constexpr DataType DATA_TYPE_ATTRIBUTION_REPORTING =
@@ -156,7 +177,7 @@ class BrowsingDataRemover {
       DATA_TYPE_TRUST_TOKENS | DATA_TYPE_ATTRIBUTION_REPORTING |
       DATA_TYPE_AGGREGATION_SERVICE | DATA_TYPE_INTEREST_GROUPS |
       DATA_TYPE_SHARED_STORAGE | DATA_TYPE_PRIVATE_AGGREGATION_INTERNAL |
-      DATA_TYPE_INTEREST_GROUPS_INTERNAL;
+      DATA_TYPE_INTEREST_GROUPS_INTERNAL | DATA_TYPE_INTEREST_GROUPS_USER_CLEAR;
 
   // Internal data stored by APIs in the Privacy Sandbox, e.g. privacy budgeting
   // information.
@@ -164,6 +185,14 @@ class BrowsingDataRemover {
       DATA_TYPE_ATTRIBUTION_REPORTING_INTERNAL |
       DATA_TYPE_PRIVATE_AGGREGATION_INTERNAL |
       DATA_TYPE_INTEREST_GROUPS_INTERNAL;
+
+  // Data types stored within a StoragePartition (i.e. not Profile-scoped).
+  static constexpr DataType DATA_TYPE_ON_STORAGE_PARTITION =
+      DATA_TYPE_DOM_STORAGE | DATA_TYPE_COOKIES |
+      DATA_TYPE_AVOID_CLOSING_CONNECTIONS | DATA_TYPE_CACHE |
+      DATA_TYPE_APP_CACHE_DEPRECATED | DATA_TYPE_PRIVACY_SANDBOX |
+      DATA_TYPE_DEVICE_BOUND_SESSIONS | DATA_TYPE_PREFETCH_CACHE |
+      DATA_TYPE_PRERENDER_CACHE;
 
   using OriginType = uint64_t;
   // Web storage origins that StoragePartition recognizes as NOT protected
@@ -177,19 +206,6 @@ class BrowsingDataRemover {
   // Embedders can add more origin types beyond this point.
   static constexpr OriginType ORIGIN_TYPE_CONTENT_END =
       ORIGIN_TYPE_PROTECTED_WEB;
-
-  // A helper enum to report the deletion of cookies and/or cache. Do not
-  // reorder the entries, as this enum is passed to UMA.
-  // A Java counterpart will be generated for this enum so that it can be
-  // logged on Android.
-  // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.browsing_data
-  enum CookieOrCacheDeletionChoice {
-    NEITHER_COOKIES_NOR_CACHE,
-    ONLY_COOKIES,
-    ONLY_CACHE,
-    BOTH_COOKIES_AND_CACHE,
-    MAX_CHOICE_VALUE
-  };
 
   // Observer is notified when its own removal task is done.
   class Observer {
@@ -271,6 +287,9 @@ class BrowsingDataRemover {
   virtual const base::Time& GetLastUsedBeginTimeForTesting() = 0;
   virtual uint64_t GetLastUsedRemovalMaskForTesting() = 0;
   virtual uint64_t GetLastUsedOriginTypeMaskForTesting() = 0;
+  virtual std::optional<StoragePartitionConfig>
+  GetLastUsedStoragePartitionConfigForTesting() = 0;
+  virtual uint64_t GetPendingTaskCountForTesting() = 0;
 };
 
 }  // namespace content

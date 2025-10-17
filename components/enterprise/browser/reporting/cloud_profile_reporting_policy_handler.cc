@@ -4,6 +4,7 @@
 
 #include "components/enterprise/browser/reporting/cloud_profile_reporting_policy_handler.h"
 
+#include "base/command_line.h"
 #include "base/values.h"
 #include "components/enterprise/browser/reporting/common_pref_names.h"
 #include "components/policy/core/browser/policy_error_map.h"

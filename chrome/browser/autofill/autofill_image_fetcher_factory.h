@@ -13,13 +13,15 @@ class Profile;
 
 namespace autofill {
 
-class AutofillImageFetcher;
+class AutofillImageFetcherBase;
 
+// Singleton that owns all AutofillImageFetchers and associates them with
+// Profiles.
 class AutofillImageFetcherFactory : public ProfileKeyedServiceFactory {
  public:
   // Returns the AutofillImageFetcher for |profile|, creating it if it is not
   // yet created.
-  static AutofillImageFetcher* GetForProfile(Profile* profile);
+  static AutofillImageFetcherBase* GetForProfile(Profile* profile);
 
   static AutofillImageFetcherFactory* GetInstance();
 
@@ -33,7 +35,7 @@ class AutofillImageFetcherFactory : public ProfileKeyedServiceFactory {
   ~AutofillImageFetcherFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* profile) const override;
 };
 

@@ -2,16 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/webui/diagnostics_ui/diagnostics_ui.h"
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "ash/constants/ash_features.h"
 #include "ash/webui/common/backend/plural_string_handler.h"
 #include "ash/webui/common/keyboard_diagram_strings.h"
+#include "ash/webui/common/trusted_types_util.h"
 #include "ash/webui/diagnostics_ui/backend/common/histogram_util.h"
 #include "ash/webui/diagnostics_ui/backend/connectivity/network_health_provider.h"
 #include "ash/webui/diagnostics_ui/backend/diagnostics_manager.h"
@@ -30,7 +37,6 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
@@ -44,8 +50,8 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/webui/web_ui_util.h"
 #include "ui/chromeos/strings/network/network_element_localized_strings_provider.h"
-#include "ui/resources/grit/webui_resources.h"
 #include "ui/webui/color_change_listener/color_change_handler.h"
+#include "ui/webui/resources/grit/webui_resources.h"
 
 namespace ash {
 
@@ -62,9 +68,9 @@ diagnostics::metrics::NavigationView GetInitialView(const GURL url) {
   }
 
   // Note: Valid query strings map to strings in the GetUrlForPage located in
-  // chrome/browser/ui/webui/ash/diagnostics_dialog.cc.
+  // chrome/browser/ui/webui/ash/diagnostics_dialog/diagnostics_dialog.cc.
   const std::string& original_query = url.query();  // must outlive |query|.
-  const base::StringPiece& query =
+  std::string_view query =
       base::TrimString(original_query, " \t", base::TRIM_ALL);
 
   if (base::EqualsCaseInsensitiveASCII(query, "system")) {
@@ -299,6 +305,8 @@ void AddDiagnosticsStrings(content::WebUIDataSource* html_source) {
       {"noIpAddressText", IDS_NETWORK_DIAGNOSTICS_NO_IP_ADDRESS_TEXT},
       {"notEnoughAvailableMemoryMessage",
        IDS_DIAGNOSTICS_NOT_ENOUGH_AVAILABLE_MEMORY},
+      {"notEnoughAvailableMemoryCpuMessage",
+       IDS_DIAGNOSTICS_NOT_ENOUGH_AVAILABLE_MEMORY_CPU},
       {"percentageLabel", IDS_DIAGNOSTICS_PERCENTAGE_LABEL},
       {"reconnectLinkText", IDS_DIAGNOSTICS_RECONNECT_LINK_TEXT},
       {"remainingCharge", IDS_DIAGNOSTICS_REMAINING_CHARGE_LABEL},
@@ -378,14 +386,10 @@ void SetUpWebUIDataSource(content::WebUIDataSource* source,
   source->AddResourcePath("test_loader_util.js",
                           IDR_WEBUI_JS_TEST_LOADER_UTIL_JS);
   source->AddBoolean("isLoggedIn", LoginState::Get()->IsUserLoggedIn());
-  source->AddBoolean("isInputEnabled",
-                     features::IsInputInDiagnosticsAppEnabled());
   source->AddBoolean("isTouchpadEnabled",
                      features::IsTouchpadInDiagnosticsAppEnabled());
   source->AddBoolean("isTouchscreenEnabled",
                      features::IsTouchscreenInDiagnosticsAppEnabled());
-  source->AddBoolean("isJellyEnabledForDiagnosticsApp",
-                     ash::features::IsJellyEnabledForDiagnosticsApp());
 }
 
 void SetUpPluralStringHandler(content::WebUI* web_ui) {
@@ -409,13 +413,10 @@ DiagnosticsDialogUI::DiagnosticsDialogUI(
           kChromeUIDiagnosticsAppHost);
   html_source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src chrome://resources chrome://test chrome://webui-test "
-      "'self';");
-  html_source->DisableTrustedTypesCSP();
+      "script-src chrome://resources chrome://webui-test 'self';");
+  ash::EnableTrustedTypesCSP(html_source);
 
-  const auto resources = base::make_span(kAshDiagnosticsAppResources,
-                                         kAshDiagnosticsAppResourcesSize);
-  SetUpWebUIDataSource(html_source, resources,
+  SetUpWebUIDataSource(html_source, kAshDiagnosticsAppResources,
                        IDR_ASH_DIAGNOSTICS_APP_INDEX_HTML);
 
   SetUpPluralStringHandler(web_ui);

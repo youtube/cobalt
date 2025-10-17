@@ -7,33 +7,37 @@ package org.chromium.media;
 import android.media.MediaCodec;
 import android.util.SparseArray;
 
+import org.jni_zero.JNINamespace;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.JNINamespace;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 
 /**
- * This class extends MediaCodecBridge for encoding processing.
- * As to H264, WebRTC requires that each IDR/keyframe should have SPS/PPS at the beginning.
- * Unlike other HW/SW H264 codec implementations, MediaCodec will generate a separate config
- * frame with SPS/PPS as the first frame and won't include them in the following keyframes.
- * So here we append the SPS/PPS NALs at the start of each keyframe.
+ * This class extends MediaCodecBridge for encoding processing. As to H264, WebRTC requires that
+ * each IDR/keyframe should have SPS/PPS at the beginning. Unlike other HW/SW H264 codec
+ * implementations, MediaCodec will generate a separate config frame with SPS/PPS as the first frame
+ * and won't include them in the following keyframes. So here we append the SPS/PPS NALs at the
+ * start of each keyframe.
  */
 @JNINamespace("media")
+@NullMarked
 class MediaCodecEncoder extends MediaCodecBridge {
     private static final String TAG = "MediaCodecEncoder";
 
     // Output buffers mapping with MediaCodec output buffers for the possible frame-merging.
-    private SparseArray<ByteBuffer> mOutputBuffers = new SparseArray<>();
+    private final SparseArray<ByteBuffer> mOutputBuffers = new SparseArray<>();
     // SPS and PPS NALs (Config frame).
-    private ByteBuffer mConfigData;
+    private @Nullable ByteBuffer mConfigData;
 
     protected MediaCodecEncoder(MediaCodec mediaCodec, @BitrateAdjuster.Type int bitrateAdjuster) {
         super(mediaCodec, bitrateAdjuster, false);
     }
 
     @Override
-    protected ByteBuffer getOutputBuffer(int index) {
+    protected @Nullable ByteBuffer getOutputBuffer(int index) {
         return mOutputBuffers.get(index);
     }
 
@@ -61,7 +65,10 @@ class MediaCodecEncoder extends MediaCodecBridge {
             if (indexOrStatus >= 0) {
                 boolean isConfigFrame = (info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0;
                 if (isConfigFrame) {
-                    Log.d(TAG, "Config frame generated. Offset: %d, size: %d", info.offset,
+                    Log.d(
+                            TAG,
+                            "Config frame generated. Offset: %d, size: %d",
+                            info.offset,
                             info.size);
                     codecOutputBuffer = getMediaCodecOutputBuffer(indexOrStatus);
                     codecOutputBuffer.position(info.offset);
@@ -95,8 +102,11 @@ class MediaCodecEncoder extends MediaCodecBridge {
                 }
                 final ByteBuffer frameBuffer;
                 if (isKeyFrame && mConfigData != null) {
-                    Log.d(TAG, "Appending config frame of size %d to output buffer with size %d",
-                            mConfigData.capacity(), info.size);
+                    Log.d(
+                            TAG,
+                            "Appending config frame of size %d to output buffer with size %d",
+                            mConfigData.capacity(),
+                            info.size);
                     // For encoded key frame append SPS and PPS NALs at the start.
                     frameBuffer = ByteBuffer.allocateDirect(mConfigData.capacity() + info.size);
                     mConfigData.rewind();

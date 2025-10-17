@@ -6,26 +6,27 @@
 // that the app can be made entireless silent, as required by omaha.
 
 #include <Windows.h>
-#include <shlobj.h>  // Needed for IsUserAnAdmin()
 
+#include <shlobj.h>  // Needed for IsUserAnAdmin()
 #include <stdlib.h>
+
+#include <algorithm>
 #include <string>
 
 #include "base/at_exit.h"
 #include "base/command_line.h"
-#include "base/cxx17_backports.h"
+#include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/process/memory.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/atl.h"
 #include "base/win/process_startup_helper.h"
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_handle.h"
-#include "base/win/win_util.h"
+#include "base/win/windows_handle_util.h"
 #include "base/win/windows_version.h"
 #include "chrome/common/chrome_version.h"
 #include "chrome/credential_provider/eventlog/gcp_eventlog_messages.h"
@@ -96,7 +97,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
   logging::SetEventSource("GCPW", GCPW_CATEGORY, MSG_LOG_MESSAGE);
 
   if (GetGlobalFlagOrDefault(kRegEnableVerboseLogging, 1))
-    logging::SetMinLogLevel(logging::LOG_VERBOSE);
+    logging::SetMinLogLevel(logging::LOGGING_VERBOSE);
 
   // Set GCPW as the default credential provider for the end user.
   MakeGcpwDefaultCP();
@@ -116,6 +117,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
   // Make sure the process exits cleanly on unexpected errors.
   base::EnableTerminationOnHeapCorruption();
   base::EnableTerminationOnOutOfMemory();
+  logging::RegisterAbslAbortHook();
   base::win::RegisterInvalidParamHandler();
   base::win::SetupCRT(*base::CommandLine::ForCurrentProcess());
 
@@ -146,7 +148,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
                         time_string, std::size(time_string)) == 0) {
     HRESULT last_error_hr = HRESULT_FROM_WIN32(::GetLastError());
     LOGFN(ERROR) << "GetTimeFormatEx(start) hr=" << putHR(last_error_hr);
-    wcscpy_s(time_string, std::size(time_string), L"Unknown");
+    UNSAFE_TODO(wcscpy_s(time_string, std::size(time_string), L"Unknown"));
   }
 
   LOGFN(INFO) << "Start: " << time_string;
@@ -216,7 +218,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
                           time_string, std::size(time_string)) == 0) {
       HRESULT last_error_hr = HRESULT_FROM_WIN32(::GetLastError());
       LOGFN(ERROR) << "GetTimeFormatEx(end) hr=" << putHR(last_error_hr);
-      wcscpy_s(time_string, std::size(time_string), L"Unknown");
+      UNSAFE_TODO(wcscpy_s(time_string, std::size(time_string), L"Unknown"));
     }
 
     LOGFN(INFO) << (SUCCEEDED(hr) ? "Setup completed successfully"

@@ -11,7 +11,7 @@ class Profile;
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }
 namespace permissions {
 class PredictionService;
@@ -25,15 +25,21 @@ class PredictionServiceFactory : public ProfileKeyedServiceFactory {
   PredictionServiceFactory(const PredictionServiceFactory&) = delete;
   PredictionServiceFactory& operator=(const PredictionServiceFactory&) = delete;
 
+  void set_prediction_service_for_testing(
+      permissions::PredictionService* service);
+
  private:
-  friend struct base::DefaultSingletonTraits<PredictionServiceFactory>;
+  friend base::NoDestructor<PredictionServiceFactory>;
 
   PredictionServiceFactory();
   ~PredictionServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
+
+  std::optional<permissions::PredictionService*>
+      prediction_service_for_testing_;
 };
 
 #endif  // CHROME_BROWSER_PERMISSIONS_PREDICTION_SERVICE_FACTORY_H_

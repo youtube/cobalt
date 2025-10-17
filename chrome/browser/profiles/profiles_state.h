@@ -10,10 +10,8 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 #include <vector>
-
-#include "chrome/browser/profiles/avatar_menu.h"
 #endif
 
 struct AccountInfo;
@@ -48,6 +46,11 @@ void RegisterPrefs(PrefRegistrySimple* registry);
 // System Profile directory, which is an invalid last used profile.
 void SetLastUsedProfile(const base::FilePath& profile_dir);
 
+// Returns true if the profile is a regular profile and specifically not an Ash
+// internal profile. Callers who do not care about checking for Ash internal
+// profiles should use `Profile::IsRegularProfile()` instead.
+bool IsRegularUserProfile(Profile* profile);
+
 #if !BUILDFLAG(IS_ANDROID)
 // Returns the display name of the specified on-the-record profile (or guest),
 // specified by |profile_path|, used in the avatar button or user manager. If
@@ -57,7 +60,7 @@ void SetLastUsedProfile(const base::FilePath& profile_dir);
 // custom name.
 std::u16string GetAvatarNameForProfile(const base::FilePath& profile_path);
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 // Update the name of |profile| to |new_profile_name|. This updates the profile
 // preferences, which triggers an update in the ProfileAttributesStorage. This
 // method should be called when the user is explicitely changing the profile
@@ -65,7 +68,7 @@ std::u16string GetAvatarNameForProfile(const base::FilePath& profile_path);
 void UpdateProfileName(Profile* profile,
                        const std::u16string& new_profile_name);
 
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 // Returns whether the |browser|'s profile is not incognito (a regular profile
 // or a guest session).
@@ -83,14 +86,13 @@ bool IsGuestModeRequested(const base::CommandLine& command_line,
 // Returns true if profile creation is allowed by prefs.
 bool IsProfileCreationAllowed();
 
-// Returns true if guest mode is allowed by prefs.
+// Returns true if guest mode is allowed by prefs, for an entry point not
+// associated with a specific profile.
 bool IsGuestModeEnabled();
 
-#if BUILDFLAG(IS_CHROMEOS)
-// Returns true if secondary profiles are allowed by
-// |prefs::kLacrosSecondaryProfilesAllowed|.
-bool AreSecondaryProfilesAllowed();
-#endif  // BUILDFLAG(IS_CHROMEOS)
+// Returns true if guest mode is allowed by prefs, for an entry point that is
+// associated with |profile|.
+bool IsGuestModeEnabled(const Profile& profile);
 
 // Returns true if sign in is required to browse as this profile.  Call with
 // profile->GetPath() if you have a profile pointer.
@@ -98,21 +100,15 @@ bool AreSecondaryProfilesAllowed();
 // ProfileAttributesStorage::IsSigninRequired to call here instead.
 bool IsProfileLocked(const base::FilePath& profile_path);
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 // Starts an update for a new version of the Gaia profile picture and other
 // profile info.
 void UpdateGaiaProfileInfoIfNeeded(Profile* profile);
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 // If the profile given by |profile_path| is loaded in the ProfileManager, use
 // a BrowsingDataRemover to delete all the Profile's data.
 void RemoveBrowsingDataForProfile(const base::FilePath& profile_path);
-
-// Returns whether a public session is being run currently.
-bool IsPublicSession();
-
-// Returns whether a kiosk session is being run currently.
-bool IsKioskSession();
 
 // Returns true if the current session is a Demo session.
 bool IsDemoSession();
@@ -120,30 +116,22 @@ bool IsDemoSession();
 // Returns true if the current session is a Chrome App Kiosk session.
 bool IsChromeAppKioskSession();
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-// Returns true if the current session is a Web Kiosk session.
-bool IsWebKioskSession();
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-// Returns whether it's a regular session (with gaia account)
-bool SessionHasGaiaAccount();
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-// Returns the default name for a new enterprise profile.
+#if !BUILDFLAG(IS_CHROMEOS)
+// Returns the default name for a new enterprise profile. Never returns an empty
+// string.
 std::u16string GetDefaultNameForNewEnterpriseProfile(
     const std::string& hosted_domain = std::string());
 
 // Returns the default name for a new signed-in profile, based on
-// `account_info`.
+// `account_info`. Never returns an empty string.
 std::u16string GetDefaultNameForNewSignedInProfile(
     const AccountInfo& account_info);
 
-// The same as above but using incomplete account info.
+// The same as above but using incomplete account info. `account_info` must be
+// valid. Never returns an empty string.
 std::u16string GetDefaultNameForNewSignedInProfileWithIncompleteInfo(
     const CoreAccountInfo& account_info);
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 #endif  // !BUILDFLAG(IS_ANDROID)
 

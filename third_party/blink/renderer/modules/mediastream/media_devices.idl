@@ -11,7 +11,7 @@
     ActiveScriptWrappable,
     SecureContext
 ] interface MediaDevices : EventTarget {
-    [RuntimeEnabled=OnDeviceChange] attribute EventHandler ondevicechange;
+    attribute EventHandler ondevicechange;
     [
       CallWith = ScriptState, RaisesException, HighEntropy, MeasureAs = MediaDevicesEnumerateDevices
     ] Promise<sequence<MediaDeviceInfo>>
@@ -30,14 +30,17 @@
     getDisplayMedia(optional DisplayMediaStreamOptions constraints = {});
 
     [
-      RuntimeEnabled = GetDisplayMediaSet, CallWith = ScriptState, RaisesException
-    ] Promise<sequence<MediaStream>>
-    getDisplayMediaSet(optional DisplayMediaStreamOptions constraints = {});
-
-    [
-      RuntimeEnabled = GetAllScreensMedia, CallWith = ScriptState, RaisesException
+      RuntimeEnabled = GetAllScreensMedia, CallWith = ScriptState, RaisesException,
+      MeasureAs = GetAllScreensMedia, IsolatedContext
     ] Promise<sequence<MediaStream>>
     getAllScreensMedia();
+
+    [
+      RuntimeEnabled = SelectAudioOutput,
+      CallWith = ScriptState, RaisesException,
+      MeasureAs = SelectAudioOutput
+    ] Promise<MediaDeviceInfo>
+    selectAudioOutput(optional AudioOutputOptions options = {});
 
     // https://w3c.github.io/mediacapture-handle/identity/
     // Allows an application APP to opt-in to exposing certain information to
@@ -46,4 +49,11 @@
       RuntimeEnabled = CaptureHandle, CallWith = ScriptState, RaisesException
     ] void
     setCaptureHandleConfig(optional CaptureHandleConfig config = {});
+
+    [
+      RuntimeEnabled = PreferredAudioOutputDevices,
+      CallWith = ScriptState, RaisesException,
+      MeasureAs = PreferredAudioOutputDevices
+    ] Promise<undefined>
+    setPreferredSinkId(DOMString sinkId);
 };

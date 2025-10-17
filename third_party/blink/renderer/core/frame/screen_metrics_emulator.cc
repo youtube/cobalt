@@ -13,13 +13,13 @@ namespace blink {
 ScreenMetricsEmulator::ScreenMetricsEmulator(
     WebFrameWidgetImpl* frame_widget,
     const display::ScreenInfos& screen_infos,
-    const gfx::Size& widget_size,
+    const gfx::Size& widget_size_dips,
     const gfx::Size& visible_viewport_size,
     const gfx::Rect& view_screen_rect,
     const gfx::Rect& window_screen_rect)
     : frame_widget_(frame_widget),
       original_screen_infos_(screen_infos),
-      original_widget_size_(widget_size),
+      original_widget_size_dips_(widget_size_dips),
       original_visible_viewport_size_(visible_viewport_size),
       original_view_screen_rect_(view_screen_rect),
       original_window_screen_rect_(window_screen_rect) {}
@@ -37,10 +37,13 @@ void ScreenMetricsEmulator::DisableAndApply() {
   frame_widget_->SetScreenMetricsEmulationParameters(false, emulation_params_);
   frame_widget_->SetScreenRects(original_view_screen_rect_,
                                 original_window_screen_rect_);
-  frame_widget_->SetWindowSegments(original_root_window_segments_);
+  frame_widget_->SetViewportSegments(original_root_viewport_segments_);
   frame_widget_->SetScreenInfoAndSize(original_screen_infos_,
-                                      original_widget_size_,
+                                      original_widget_size_dips_,
                                       original_visible_viewport_size_);
+  // The posture service will restore the original device posture coming from
+  // the platform.
+  frame_widget_->DisableDevicePostureOverrideForEmulation();
 }
 
 void ScreenMetricsEmulator::ChangeEmulationParams(
@@ -61,7 +64,7 @@ gfx::Point ScreenMetricsEmulator::ViewRectOrigin() {
 void ScreenMetricsEmulator::Apply() {
   // The WidgetScreenRect gets derived from the widget size of the main frame
   // widget, not from the original WidgetScreenRect.
-  gfx::Size widget_size = original_widget_size_;
+  gfx::Size widget_size = original_widget_size_dips_;
   // The WindowScreenRect gets derived from the original WindowScreenRect,
   // though.
   gfx::Size window_size = original_window_rect().size();
@@ -140,17 +143,20 @@ void ScreenMetricsEmulator::Apply() {
   frame_widget_->SetScreenRects(gfx::Rect(widget_pos, widget_size),
                                 gfx::Rect(window_pos, window_size));
 
-  // If there are no emulated window segments, use the emulated widget size
+  // If there are no emulated viewport segments, use the emulated widget size
   // instead. When we switch from emulated segments to not having any, we should
   // have a single segment that matches the widget size.
-  bool has_emulated_segments = emulation_params_.window_segments.size();
+  bool has_emulated_segments = emulation_params_.viewport_segments.size();
   if (has_emulated_segments) {
-    frame_widget_->SetWindowSegments(emulation_params_.window_segments);
+    frame_widget_->SetViewportSegments(emulation_params_.viewport_segments);
   } else {
     std::vector<gfx::Rect> emulated_segments{
         {0, 0, widget_size.width(), widget_size.height()}};
-    frame_widget_->SetWindowSegments(emulated_segments);
+    frame_widget_->SetViewportSegments(emulated_segments);
   }
+
+  frame_widget_->OverrideDevicePostureForEmulation(
+      emulation_params_.device_posture);
 
   display::ScreenInfos emulated_screen_infos = original_screen_infos_;
   display::ScreenInfo& emulated_screen_info =
@@ -172,10 +178,15 @@ void ScreenMetricsEmulator::UpdateVisualProperties(
   DCHECK(!frame_widget_->AutoResizeMode());
 
   original_screen_infos_ = visual_properties.screen_infos;
-  original_widget_size_ = visual_properties.new_size;
-  original_visible_viewport_size_ = visual_properties.visible_viewport_size;
-  original_root_window_segments_ =
-      visual_properties.root_widget_window_segments;
+
+  original_widget_size_dips_ = gfx::ScaleToFlooredSize(
+      visual_properties.new_size_device_px,
+      1 / original_screen_infos_.current().device_scale_factor);
+
+  original_visible_viewport_size_ =
+      visual_properties.visible_viewport_size_device_px;
+  original_root_viewport_segments_ =
+      visual_properties.root_widget_viewport_segments;
   Apply();
 
   // Appy the compositor viewport rect and surface id allocation. The screen

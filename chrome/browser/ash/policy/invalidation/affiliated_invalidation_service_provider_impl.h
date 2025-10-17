@@ -5,7 +5,10 @@
 #ifndef CHROME_BROWSER_ASH_POLICY_INVALIDATION_AFFILIATED_INVALIDATION_SERVICE_PROVIDER_IMPL_H_
 #define CHROME_BROWSER_ASH_POLICY_INVALIDATION_AFFILIATED_INVALIDATION_SERVICE_PROVIDER_IMPL_H_
 
+#include <stdint.h>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -31,7 +34,7 @@ class AffiliatedInvalidationServiceProviderImpl
     : public AffiliatedInvalidationServiceProvider,
       public session_manager::SessionManagerObserver {
  public:
-  AffiliatedInvalidationServiceProviderImpl();
+  explicit AffiliatedInvalidationServiceProviderImpl(int64_t project_number);
 
   AffiliatedInvalidationServiceProviderImpl(
       const AffiliatedInvalidationServiceProviderImpl&) = delete;
@@ -78,8 +81,7 @@ class AffiliatedInvalidationServiceProviderImpl
   // Destroy the device-global invalidation service, if any.
   void DestroyDeviceInvalidationService();
 
-  // Initializes and returns either TiclInvalidationService or
-  // FCMInvalidationService depending on the feature kPolicyFcmInvalidations.
+  // Initializes and returns an `InvalidationService`.
   std::unique_ptr<invalidation::InvalidationService>
   InitializeDeviceInvalidationService();
 
@@ -111,13 +113,15 @@ class AffiliatedInvalidationServiceProviderImpl
   // The invalidation service currently used by consumers. nullptr if there are
   // no registered consumers or no connected invalidation service is available
   // for use.
-  raw_ptr<invalidation::InvalidationService, ExperimentalAsh>
-      current_invalidation_service_;
+  raw_ptr<invalidation::InvalidationService> current_invalidation_service_;
 
   base::ObserverList<Consumer, true>::Unchecked consumers_;
   int consumer_count_;
 
   bool is_shut_down_;
+
+  // GCM project number used for invalidations.
+  const int64_t project_number_;
 };
 
 }  // namespace policy

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<grit current_release="1" latest_public_release="0" output_all_resource_defines="false">
+<grit current_release="1" latest_public_release="0">
   <outputs>
     <output filename="grit/chromeos_media_app_bundle_resources.h" type="rc_header">
       <emit emit_type="prepend"/>
@@ -11,7 +11,9 @@
   <release seq="1">
     <includes>
       <include name="IDR_MEDIA_APP_APP_MAIN_JS"
-          file="js/app_main.js"
+          file="${root_gen_dir}/ash/webui/media_app_ui/resources/mock/js/tsc/app_main.js"
+          resource_path="js/app_main/js"
+          use_base_dir="false"
           compress="brotli"
           type="BINDATA" />
       <include name="IDR_MEDIA_APP_APP_IMAGE_HANDLER_MODULE_JS"

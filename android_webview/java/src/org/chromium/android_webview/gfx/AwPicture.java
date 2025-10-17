@@ -7,9 +7,11 @@ package org.chromium.android_webview.gfx;
 import android.graphics.Canvas;
 import android.graphics.Picture;
 
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.android_webview.CleanupReference;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
 
 import java.io.OutputStream;
 
@@ -18,37 +20,38 @@ import java.io.OutputStream;
  * chromium skia library.
  */
 @JNINamespace("android_webview")
+@NullMarked
 public class AwPicture extends Picture {
-    private long mNativeAwPicture;
+    private final long mNativeAwPicture;
 
     // There is no explicit destroy method on Picture base-class, so cleanup is always
     // handled via the CleanupReference.
     private static final class DestroyRunnable implements Runnable {
-        private long mNativeAwPicture;
+        private final long mNativeAwPicture;
+
         private DestroyRunnable(long nativeAwPicture) {
             mNativeAwPicture = nativeAwPicture;
         }
+
         @Override
         public void run() {
             AwPictureJni.get().destroy(mNativeAwPicture);
         }
     }
 
-    private CleanupReference mCleanupReference;
-
     /**
-     * @param nativeAwPicture is an instance of the AwPicture native class. Ownership is
-     *                        taken by this java instance.
+     * @param nativeAwPicture is an instance of the AwPicture native class. Ownership is taken by
+     *     this java instance.
      */
     public AwPicture(long nativeAwPicture) {
         mNativeAwPicture = nativeAwPicture;
-        mCleanupReference = new CleanupReference(this, new DestroyRunnable(nativeAwPicture));
+        // Constructor has side-effects, so no need to store this in a field.
+        new CleanupReference(this, new DestroyRunnable(nativeAwPicture));
     }
 
     @Override
     public Canvas beginRecording(int width, int height) {
-        unsupportedOperation();
-        return null;
+        throw new IllegalStateException("Unsupported in AwPicture");
     }
 
     @Override
@@ -73,18 +76,17 @@ public class AwPicture extends Picture {
 
     @SuppressWarnings("deprecation")
     public void writeToStream(OutputStream stream) {
-        unsupportedOperation();
-    }
-
-    private void unsupportedOperation() {
         throw new IllegalStateException("Unsupported in AwPicture");
     }
 
     @NativeMethods
     interface Natives {
         void destroy(long nativeAwPicture);
+
         int getWidth(long nativeAwPicture, AwPicture caller);
+
         int getHeight(long nativeAwPicture, AwPicture caller);
+
         void draw(long nativeAwPicture, AwPicture caller, Canvas canvas);
     }
 }

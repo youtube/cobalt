@@ -33,7 +33,11 @@
 - (void)saveCredentialWithUsername:(NSString*)username
                           password:(NSString*)password
                               note:(NSString*)note
+                              gaia:(NSString*)gaia
                      shouldReplace:(BOOL)shouldReplace;
+
+// Returns the gaia for the account used for credential creation.
+- (NSString*)gaia;
 
 @end
 
@@ -47,7 +51,7 @@
 @property(nonatomic, weak) id<NewCredentialHandler> credentialHandler;
 
 // The host for the password being generated.
-@property(nonatomic, strong) NSString* currentHost;
+@property(nonatomic, copy) NSString* currentHost;
 
 @end
 

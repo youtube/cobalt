@@ -27,10 +27,12 @@ void FuzzTraceProcessor(const uint8_t* data, size_t size) {
       TraceProcessorStorage::CreateInstance(Config());
   std::unique_ptr<uint8_t[]> buf(new uint8_t[size]);
   memcpy(buf.get(), data, size);
-  util::Status status = processor->Parse(std::move(buf), size);
+  base::Status status = processor->Parse(std::move(buf), size);
   if (!status.ok())
     return;
-  processor->NotifyEndOfFile();
+  if (auto s = processor->NotifyEndOfFile(); !s.ok()) {
+    return;
+  }
 }
 
 }  // namespace trace_processor

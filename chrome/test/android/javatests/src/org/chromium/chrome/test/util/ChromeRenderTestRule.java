@@ -6,15 +6,13 @@ package org.chromium.chrome.test.util;
 
 import android.view.View;
 
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
+import org.chromium.base.ThreadUtils;
 import org.chromium.ui.test.util.RenderTestRule;
 
 /**
  * A TestRule for creating Render Tests for Chrome.
  *
- * <pre>
- * {@code
- *
+ * <pre>{@code
  * @RunWith(ChromeJUnit4ClassRunner.class)
  * @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
  * public class MyTest {
@@ -49,12 +47,14 @@ import org.chromium.ui.test.util.RenderTestRule;
  *     }
  * }
  *
- * }
- * </pre>
+ * }</pre>
  */
 public class ChromeRenderTestRule extends RenderTestRule {
-    protected ChromeRenderTestRule(int revision, @RenderTestRule.Corpus String corpus,
-            String description, boolean failOnUnsupportedConfigs,
+    protected ChromeRenderTestRule(
+            int revision,
+            @RenderTestRule.Corpus String corpus,
+            String description,
+            boolean failOnUnsupportedConfigs,
             @RenderTestRule.Component String component) {
         super(revision, corpus, description, failOnUnsupportedConfigs, component);
     }
@@ -64,12 +64,10 @@ public class ChromeRenderTestRule extends RenderTestRule {
      * example it will disable the blinking cursor in EditTexts.
      */
     public static void sanitize(View view) {
-        TestThreadUtils.runOnUiThreadBlocking(() -> RenderTestRule.sanitize(view));
+        ThreadUtils.runOnUiThreadBlocking(() -> RenderTestRule.sanitize(view));
     }
 
-    /**
-     * Builder to create a ChromeRenderTestRule.
-     */
+    /** Builder to create a ChromeRenderTestRule. */
     public static class Builder extends RenderTestRule.BaseBuilder<Builder> {
         @Override
         public ChromeRenderTestRule build() {
@@ -77,9 +75,7 @@ public class ChromeRenderTestRule extends RenderTestRule {
                     mRevision, mCorpus, mDescription, mFailOnUnsupportedConfigs, mBugComponent);
         }
 
-        /**
-         * Creates a Builder with the default public corpus.
-         */
+        /** Creates a Builder with the default public corpus. */
         public static Builder withPublicCorpus() {
             return new Builder().setCorpus(Corpus.ANDROID_RENDER_TESTS_PUBLIC);
         }

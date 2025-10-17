@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "media/audio/audio_debug_recording_helper.h"
 
 #include <limits>
@@ -9,22 +10,20 @@
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/containers/heap_array.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
-#include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
-#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
-#include "media/audio/audio_bus_pool.h"
+#include "base/test/test_file_util.h"
 #include "media/base/audio_bus.h"
+#include "media/base/audio_bus_pool.h"
 #include "media/base/audio_sample_types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -60,11 +59,8 @@ class MockAudioDebugFileWriter : public AudioDebugFileWriter {
     CHECK(reference_data_);
     EXPECT_EQ(reference_data_->channels(), data.channels());
     EXPECT_EQ(reference_data_->frames(), data.frames());
-    for (int i = 0; i < data.channels(); ++i) {
-      const float* data_ptr = data.channel(i);
-      float* ref_data_ptr = reference_data_->channel(i);
-      for (int j = 0; j < data.frames(); ++j, ++data_ptr, ++ref_data_ptr)
-        EXPECT_EQ(*ref_data_ptr, *data_ptr);
+    for (int ch = 0; ch < data.channels(); ++ch) {
+      EXPECT_EQ(data.channel_span(ch), reference_data_->channel_span(ch));
     }
     DoWrite(data);
   }
@@ -158,9 +154,8 @@ class AudioDebugRecordingHelperTest : public ::testing::Test {
     // CreateWavFileCallback with expected stream type and id.
     EXPECT_EQ(stream_type_, stream_type);
     EXPECT_EQ(id_, id);
-    base::ScopedTempDir temp_dir;
-    ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
-    base::FilePath path(temp_dir.GetPath().Append(base::FilePath(kFileName)));
+    base::FilePath path(base::CreateUniqueTempDirectoryScopedToTest().Append(
+        base::FilePath(kFileName)));
     base::File debug_file(
         path, base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
     // Run |reply_callback| with a valid file for expected
@@ -251,11 +246,12 @@ TEST_F(AudioDebugRecordingHelperTest, OnData) {
   // Setup some data.
   const int number_of_samples = number_of_frames * params.channels();
   const float step = std::numeric_limits<int16_t>::max() / number_of_frames;
-  std::unique_ptr<float[]> source_data(new float[number_of_samples]);
-  for (float i = 0; i < number_of_samples; ++i)
+  auto source_data = base::HeapArray<float>::Uninit(number_of_samples);
+  for (float i = 0; i < number_of_samples; ++i) {
     source_data[i] = i * step;
+  }
   std::unique_ptr<AudioBus> audio_bus = AudioBus::Create(params);
-  audio_bus->FromInterleaved<Float32SampleTypeTraits>(source_data.get(),
+  audio_bus->FromInterleaved<Float32SampleTypeTraits>(source_data.data(),
                                                       number_of_frames);
 
   std::unique_ptr<AudioDebugRecordingHelper> recording_helper =

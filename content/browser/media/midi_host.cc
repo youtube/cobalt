@@ -15,11 +15,11 @@
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/render_process_host.h"
-#include "content/public/common/content_features.h"
 #include "media/midi/message_util.h"
 #include "media/midi/midi_message_queue.h"
 #include "media/midi/midi_service.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace content {
 namespace {
@@ -46,18 +46,20 @@ using midi::mojom::Result;
 
 MidiHost::MidiHost(int renderer_process_id, midi::MidiService* midi_service)
     : renderer_process_id_(renderer_process_id),
-      has_sys_ex_permission_(false),
+      has_midi_permission_(false),
+      has_midi_sysex_permission_(false),
       midi_service_(midi_service),
       sent_bytes_in_flight_(0),
       bytes_sent_since_last_acknowledgement_(0),
       output_port_count_(0) {
-  DCHECK(midi_service_);
+  CHECK(midi_service_);
 }
 
 MidiHost::~MidiHost() {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  if (midi_client_ && midi_service_)
+  if (midi_client_ && midi_service_) {
     EndSession();
+  }
 }
 
 // static
@@ -73,9 +75,10 @@ void MidiHost::BindReceiver(
 
 void MidiHost::CompleteStartSession(Result result) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  DCHECK(midi_client_);
-  if (result == Result::OK)
+  CHECK(midi_client_);
+  if (result == Result::OK) {
     midi_session_.Bind(std::move(pending_session_receiver_));
+  }
   midi_client_->SessionStarted(result);
 }
 
@@ -109,33 +112,52 @@ void MidiHost::ReceiveMidiData(uint32_t port,
   TRACE_EVENT0("midi", "MidiHost::ReceiveMidiData");
 
   base::AutoLock auto_lock(messages_queues_lock_);
-  if (received_messages_queues_.size() <= port)
+  if (received_messages_queues_.size() <= port) {
     return;
+  }
 
   // Lazy initialization
-  if (received_messages_queues_[port] == nullptr)
+  if (received_messages_queues_[port] == nullptr) {
     received_messages_queues_[port] =
         std::make_unique<midi::MidiMessageQueue>(true);
+  }
 
   received_messages_queues_[port]->Add(data, length);
   std::vector<uint8_t> message;
   while (true) {
     received_messages_queues_[port]->Get(&message);
-    if (message.empty())
+    if (message.empty()) {
       break;
+    }
+
+    if (base::FeatureList::IsEnabled(blink::features::kBlockMidiByDefault)) {
+      // MIDI devices may send messages even if the renderer doesn't have
+      // permission to receive them. Don't kill the renderer as SendData() does.
+      if (!has_midi_permission_) {
+        // TODO(crbug.com/40637524): This should check permission with the Frame
+        // and not the Process.
+        has_midi_permission_ =
+            ChildProcessSecurityPolicyImpl::GetInstance()->CanSendMidiMessage(
+                renderer_process_id_);
+        if (!has_midi_permission_) {
+          continue;
+        }
+      }
+    }
 
     // MIDI devices may send a system exclusive messages even if the renderer
     // doesn't have a permission to receive it. Don't kill the renderer as
     // SendData() does.
     if (message[0] == kSysExByte) {
-      if (!has_sys_ex_permission_) {
-        // TODO(987505): This should check permission with the Frame and not the
-        // Process.
-        has_sys_ex_permission_ =
+      if (!has_midi_sysex_permission_) {
+        // TODO(crbug.com/40637524): This should check permission with the Frame
+        // and not the Process.
+        has_midi_sysex_permission_ =
             ChildProcessSecurityPolicyImpl::GetInstance()
                 ->CanSendMidiSysExMessage(renderer_process_id_);
-        if (!has_sys_ex_permission_)
+        if (!has_midi_sysex_permission_) {
           continue;
+        }
       }
     }
 
@@ -148,13 +170,15 @@ void MidiHost::ReceiveMidiData(uint32_t port,
 void MidiHost::AccumulateMidiBytesSent(size_t n) {
   {
     base::AutoLock auto_lock(in_flight_lock_);
-    if (n <= sent_bytes_in_flight_)
+    if (n <= sent_bytes_in_flight_) {
       sent_bytes_in_flight_ -= n;
+    }
   }
 
   if (bytes_sent_since_last_acknowledgement_ + n >=
-      bytes_sent_since_last_acknowledgement_)
+      bytes_sent_since_last_acknowledgement_) {
     bytes_sent_since_last_acknowledgement_ += n;
+  }
 
   if (bytes_sent_since_last_acknowledgement_ >=
       kAcknowledgementThresholdBytes) {
@@ -170,30 +194,23 @@ void MidiHost::Detach() {
 
 void MidiHost::StartSession(
     mojo::PendingReceiver<midi::mojom::MidiSession> session_receiver,
-    mojo::PendingRemote<midi::mojom::MidiSessionClient> pending_client) {
+    mojo::PendingRemote<midi::mojom::MidiSessionClient> client) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-
-  // When the feature is disabled return early and use a temporary remote to
-  // send a "not supported" response before closing the pipes.
-  if (!base::FeatureList::IsEnabled(features::kWebMidi)) {
-    mojo::Remote<midi::mojom::MidiSessionClient> client(
-        std::move(pending_client));
-    client->SessionStarted(Result::NOT_SUPPORTED);
+  // Ensure that this `midi_session_` isn't already bound to another
+  // MidiSessionRequest.
+  if (pending_session_receiver_ || midi_client_) {
+    bad_message::ReceivedBadMessage(renderer_process_id_,
+                                    bad_message::MH_MULTIPLE_MIDI_SESSIONS);
     return;
   }
-
-  DCHECK(!pending_session_receiver_);
-  // Checks to see if |midi_session_| isn't already bound to another
-  // MidiSessionRequest.
   pending_session_receiver_ = std::move(session_receiver);
-
-  DCHECK(!midi_client_);
-  midi_client_.Bind(std::move(pending_client));
+  midi_client_.Bind(std::move(client));
   midi_client_.set_disconnect_handler(
       base::BindOnce(&MidiHost::EndSession, base::Unretained(this)));
 
-  if (midi_service_)
+  if (midi_service_) {
     midi_service_->StartSession(this);
+  }
 }
 
 void MidiHost::SendData(uint32_t port,
@@ -209,39 +226,56 @@ void MidiHost::SendData(uint32_t port,
     }
   }
 
-  if (data.empty())
+  if (data.empty()) {
     return;
+  }
 
   // Blink running in a renderer checks permission to raise a SecurityError
   // in JavaScript. The actual permission check for security purposes
   // happens here in the browser process.
-  // Check |has_sys_ex_permission_| first to avoid searching kSysExByte in large
-  // bulk data transfers for correct uses.
-  if (!has_sys_ex_permission_ && base::Contains(data, kSysExByte)) {
-    has_sys_ex_permission_ =
+  if (base::FeatureList::IsEnabled(blink::features::kBlockMidiByDefault)) {
+    if (!has_midi_permission_ && !base::Contains(data, kSysExByte)) {
+      has_midi_permission_ =
+          ChildProcessSecurityPolicyImpl::GetInstance()->CanSendMidiMessage(
+              renderer_process_id_);
+      if (!has_midi_permission_) {
+        bad_message::ReceivedBadMessage(renderer_process_id_,
+                                        bad_message::MH_MIDI_PERMISSION);
+        return;
+      }
+    }
+  }
+
+  // Check `has_midi_sysex_permission_` here to avoid searching kSysExByte in
+  // large bulk data transfers for correct uses.
+  if (!has_midi_sysex_permission_ && base::Contains(data, kSysExByte)) {
+    has_midi_sysex_permission_ =
         ChildProcessSecurityPolicyImpl::GetInstance()->CanSendMidiSysExMessage(
             renderer_process_id_);
-    if (!has_sys_ex_permission_) {
+    if (!has_midi_sysex_permission_) {
       bad_message::ReceivedBadMessage(renderer_process_id_,
-                                      bad_message::MH_SYS_EX_PERMISSION);
+                                      bad_message::MH_MIDI_SYSEX_PERMISSION);
       return;
     }
   }
 
-  if (!IsValidWebMIDIData(data))
+  if (!IsValidWebMIDIData(data)) {
     return;
+  }
 
   {
     base::AutoLock auto_lock(in_flight_lock_);
     // Sanity check that we won't send too much data.
     // TODO(yukawa): Consider to send an error event back to the renderer
     // after some future discussion in W3C.
-    if (data.size() + sent_bytes_in_flight_ > kMaxInFlightBytes)
+    if (data.size() + sent_bytes_in_flight_ > kMaxInFlightBytes) {
       return;
+    }
     sent_bytes_in_flight_ += data.size();
   }
-  if (midi_service_)
+  if (midi_service_) {
     midi_service_->DispatchSendMidiData(this, port, data, timestamp);
+  }
 }
 
 template <typename Method, typename... Params>
@@ -249,15 +283,17 @@ void MidiHost::CallClient(Method method, Params... params) {
   if (!BrowserThread::CurrentlyOn(BrowserThread::IO)) {
     GetIOThreadTaskRunner({})->PostTask(
         FROM_HERE, base::BindOnce(&MidiHost::CallClient<Method, Params...>,
-                                  AsWeakPtr(), method, std::move(params)...));
+                                  weak_ptr_factory_.GetWeakPtr(), method,
+                                  std::move(params)...));
     return;
   }
   (midi_client_.get()->*method)(std::move(params)...);
 }
 
 void MidiHost::EndSession() {
-  if (midi_service_)
+  if (midi_service_) {
     midi_service_->EndSession(this);
+  }
   midi_client_.reset();
   midi_session_.reset();
 }

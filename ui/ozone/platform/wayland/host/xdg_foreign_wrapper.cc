@@ -7,19 +7,15 @@
 #include <xdg-foreign-unstable-v1-client-protocol.h>
 #include <xdg-foreign-unstable-v2-client-protocol.h>
 
+#include <algorithm>
+
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "ui/ozone/platform/wayland/host/wayland_connection.h"
 #include "ui/ozone/platform/wayland/host/wayland_window.h"
 #include "ui/platform_window/platform_window_init_properties.h"
 
 namespace ui {
-
-// static
-constexpr char XdgForeignWrapper::kInterfaceNameV1[];
-// static
-constexpr char XdgForeignWrapper::kInterfaceNameV2[];
 
 constexpr uint32_t kMinVersion = 1;
 
@@ -110,9 +106,9 @@ class XdgForeignWrapperImpl
   void ExportSurfaceInternal(wl_surface* surface, OnHandleExported cb);
 
   void OnWindowRemoved(WaylandWindow* window) override {
-    auto it = base::ranges::find(
-        exported_surfaces_, window->root_surface()->surface(),
-        &ExportedSurface<ExportedType>::surface_for_export);
+    auto it =
+        std::ranges::find(exported_surfaces_, window->root_surface()->surface(),
+                          &ExportedSurface<ExportedType>::surface_for_export);
     if (it != exported_surfaces_.end())
       exported_surfaces_.erase(it);
   }
@@ -126,22 +122,21 @@ class XdgForeignWrapperImpl
   }
 
  private:
-  // static
-  static void OnExported(void* data,
-                         ExportedType* exported,
-                         const char* handle) {
+  // zxdg_exported_{v1,v2}_listener callbacks:
+  static void OnHandle(void* data, ExportedType* exported, const char* handle) {
     auto* self =
         static_cast<XdgForeignWrapperImpl<ExporterType, ExportedType>*>(data);
     DCHECK(self);
 
-    auto exported_surface_it = base::ranges::find(
-        self->exported_surfaces_, exported,
-        [](const auto& item) { return item.exported.get(); });
-    DCHECK(exported_surface_it != self->exported_surfaces_.end());
+    auto exported_surface_it =
+        std::ranges::find(self->exported_surfaces_, exported,
+                          [](const auto& item) { return item.exported.get(); });
+    CHECK(exported_surface_it != self->exported_surfaces_.end());
     exported_surface_it->exported_handle = handle;
 
-    for (auto& cb : exported_surface_it->callbacks)
+    for (auto& cb : exported_surface_it->callbacks) {
       std::move(cb).Run(exported_surface_it->exported_handle);
+    }
 
     exported_surface_it->callbacks.clear();
   }
@@ -154,13 +149,15 @@ class XdgForeignWrapperImpl
 template <>
 void XdgForeignWrapperImpl<zxdg_exporter_v1, zxdg_exported_v1>::
     ExportSurfaceInternal(wl_surface* surface, OnHandleExported cb) {
-  static constexpr zxdg_exported_v1_listener kExportedListener = {&OnExported};
-
   ExportedSurface<zxdg_exported_v1> exported_surface(surface, std::move(cb));
   exported_surface.exported.reset(
       zxdg_exporter_v1_export(exporter_.get(), surface));
+
+  static constexpr zxdg_exported_v1_listener kXdgExportedListener = {
+      .handle = &OnHandle};
   zxdg_exported_v1_add_listener(exported_surface.exported.get(),
-                                &kExportedListener, this);
+                                &kXdgExportedListener, this);
+
   exported_surfaces_.emplace_back(std::move(exported_surface));
   connection_->Flush();
 }
@@ -168,13 +165,15 @@ void XdgForeignWrapperImpl<zxdg_exporter_v1, zxdg_exported_v1>::
 template <>
 void XdgForeignWrapperImpl<zxdg_exporter_v2, zxdg_exported_v2>::
     ExportSurfaceInternal(wl_surface* surface, OnHandleExported cb) {
-  static constexpr zxdg_exported_v2_listener kExportedListener = {&OnExported};
-
   ExportedSurface<zxdg_exported_v2> exported_surface(surface, std::move(cb));
   exported_surface.exported.reset(
       zxdg_exporter_v2_export_toplevel(exporter_.get(), surface));
+
+  static constexpr zxdg_exported_v2_listener kXdgExportedListener = {
+      .handle = &OnHandle};
   zxdg_exported_v2_add_listener(exported_surface.exported.get(),
-                                &kExportedListener, this);
+                                &kXdgExportedListener, this);
+
   exported_surfaces_.emplace_back(std::move(exported_surface));
   connection_->Flush();
 }
@@ -202,17 +201,24 @@ void XdgForeignWrapper::Instantiate(WaylandConnection* connection,
 }
 
 XdgForeignWrapper::XdgForeignWrapper(WaylandConnection* connection,
-                                     wl::Object<zxdg_exporter_v1> exporter_v1) {
+                                     wl::Object<zxdg_exporter_v1> exporter_v1)
+    : XdgForeignWrapper(connection) {
   impl_ = std::make_unique<
       XdgForeignWrapperImpl<zxdg_exporter_v1, zxdg_exported_v1>>(
       connection, std::move(exporter_v1));
 }
 
 XdgForeignWrapper::XdgForeignWrapper(WaylandConnection* connection,
-                                     wl::Object<zxdg_exporter_v2> exporter_v2) {
+                                     wl::Object<zxdg_exporter_v2> exporter_v2)
+    : XdgForeignWrapper(connection) {
   impl_ = std::make_unique<
       XdgForeignWrapperImpl<zxdg_exporter_v2, zxdg_exported_v2>>(
       connection, std::move(exporter_v2));
+}
+
+XdgForeignWrapper::XdgForeignWrapper(WaylandConnection* connection) {
+  CHECK(connection);
+  window_removal_observer_.Observe(connection->window_manager());
 }
 
 XdgForeignWrapper::~XdgForeignWrapper() = default;

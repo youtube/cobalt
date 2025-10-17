@@ -6,17 +6,18 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/install_warning.h"
+#include "extensions/common/manifest_handler_registry.h"
 #include "extensions/common/scoped_testing_manifest_handler_registry.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -49,14 +50,14 @@ class ManifestHandlerTest : public testing::Test {
       size_t i_before = parsed_names_.size();
       size_t i_after = 0;
       for (size_t i = 0; i < parsed_names_.size(); ++i) {
-        if (parsed_names_[i] == name_before)
+        if (parsed_names_[i] == name_before) {
           i_before = i;
-        if (parsed_names_[i] == name_after)
+        }
+        if (parsed_names_[i] == name_after) {
           i_after = i;
+        }
       }
-      if (i_before < i_after)
-        return true;
-      return false;
+      return i_before < i_after;
     }
 
    private:
@@ -72,7 +73,7 @@ class ManifestHandlerTest : public testing::Test {
                         ParsingWatcher* watcher)
         : name_(name), keys_(keys), prereqs_(prereqs), watcher_(watcher) {
       keys_ptrs_.resize(keys_.size());
-      base::ranges::transform(keys_, keys_ptrs_.begin(), &std::string::c_str);
+      std::ranges::transform(keys_, keys_ptrs_.begin(), &std::string::c_str);
     }
 
     bool Parse(Extension* extension, std::u16string* error) override {
@@ -129,7 +130,7 @@ class ManifestHandlerTest : public testing::Test {
           always_validate_(always_validate),
           keys_(keys) {
       keys_ptrs_.resize(keys_.size());
-      base::ranges::transform(keys_, keys_ptrs_.begin(), &std::string::c_str);
+      std::ranges::transform(keys_, keys_ptrs_.begin(), &std::string::c_str);
     }
 
     bool Parse(Extension* extension, std::u16string* error) override {

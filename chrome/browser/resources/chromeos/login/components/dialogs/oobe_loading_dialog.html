@@ -19,19 +19,26 @@ found in the LICENSE file.
       </template>
     </slot>
   </h1>
-  <template is="dom-if" if="[[subtitleKey]]">
-    <div slot="subtitle">[[i18nDynamic(locale, subtitleKey)]]</div>
-  </template>
+  <div slot="subtitle">
+    <slot name="subtitle">
+      <template is="dom-if" if="[[subtitleKey]]">
+        <div>[[i18nDynamic(locale, subtitleKey)]]</div>
+      </template>
+    </slot>
+  </div>
   <div slot="content" class="flex layout vertical center center-justified">
-    <oobe-cr-lottie id="spinner" animation-url="../../animations/spinner.json">
+    <oobe-cr-lottie id="spinner" hide-play-pause-icon
+        animation-url="../../animations/spinner.json">
     </oobe-cr-lottie>
   </div>
   <!-- Cancel button -->
-  <div slot="bottom-buttons" hidden="[[!canCancel]]"
-      class="flex layout horizontal">
-    <oobe-text-button id="cancelButton" on-click="cancel"
-        text-key="cancelButton">
-    </oobe-text-button>
+  <div slot="bottom-buttons"
+      class="flex layout horizontal end-justified">
+    <!-- Optional custom cancel button, otherwise the default below is used. -->
+    <slot name="cancel-button">
+      <oobe-text-button id="cancelButton" on-click="cancel"
+          text-key="cancelButton" hidden="[[!canCancel]]">
+      </oobe-text-button>
+    </slot>
   </div>
 </oobe-adaptive-dialog>
-

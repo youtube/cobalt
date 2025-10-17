@@ -12,21 +12,20 @@ import android.view.autofill.AutofillId;
 import android.view.contentcapture.ContentCaptureSession;
 
 import androidx.annotation.RequiresApi;
-import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Log;
 import org.chromium.base.task.AsyncTask;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.content_capture.PlatformSession.PlatformSessionData;
 
-/**
- * The background task to talk to the ContentCapture Service.
- */
+/** The background task to talk to the ContentCapture Service. */
 @RequiresApi(Build.VERSION_CODES.Q)
+@NullMarked
 abstract class NotificationTask extends AsyncTask<Boolean> {
     private static final String TAG = "ContentCapture";
-    private static Boolean sDump;
 
-    protected final FrameSession mSession;
+    protected final @Nullable FrameSession mSession;
     protected final PlatformSession mPlatformSession;
 
     private boolean mHasPlatformExceptionForTesting;
@@ -49,15 +48,14 @@ abstract class NotificationTask extends AsyncTask<Boolean> {
         return false;
     }
 
-    public NotificationTask(FrameSession session, PlatformSession platformSession) {
+    public NotificationTask(@Nullable FrameSession session, PlatformSession platformSession) {
         mSession = session;
         mPlatformSession = platformSession;
-        if (sDump == null) sDump = ContentCaptureFeatures.isDumpForTestingEnabled();
     }
 
     // Build up FrameIdToPlatformSessionData map of mSession, and return the current
     // session the task should run against.
-    public PlatformSessionData buildCurrentSession() {
+    public @Nullable PlatformSessionData buildCurrentSession() {
         if (mSession == null || mSession.isEmpty()) {
             return mPlatformSession.getRootPlatformSessionData();
         }
@@ -72,46 +70,52 @@ abstract class NotificationTask extends AsyncTask<Boolean> {
 
     protected AutofillId notifyViewAppeared(
             PlatformSessionData parentPlatformSessionData, ContentCaptureDataBase data) {
-        ViewStructure viewStructure = PlatformAPIWrapper.getInstance().newVirtualViewStructure(
-                parentPlatformSessionData.contentCaptureSession,
-                parentPlatformSessionData.autofillId, data.getId());
+        ViewStructure viewStructure =
+                PlatformAPIWrapper.getInstance()
+                        .newVirtualViewStructure(
+                                parentPlatformSessionData.contentCaptureSession,
+                                parentPlatformSessionData.autofillId,
+                                data.getId());
 
         viewStructure.setText(data.getText());
         Rect rect = data.getBounds();
         // Always set scroll as (0, 0).
         viewStructure.setDimens(rect.left, rect.top, 0, 0, rect.width(), rect.height());
-        PlatformAPIWrapper.getInstance().notifyViewAppeared(
-                parentPlatformSessionData.contentCaptureSession, viewStructure);
-        return viewStructure.getAutofillId();
+        PlatformAPIWrapper.getInstance()
+                .notifyViewAppeared(parentPlatformSessionData.contentCaptureSession, viewStructure);
+        AutofillId ret = viewStructure.getAutofillId();
+        assert ret != null;
+        return ret;
     }
 
-    public PlatformSessionData createOrGetSession(
+    public @Nullable PlatformSessionData createOrGetSession(
             PlatformSessionData parentPlatformSessionData, ContentCaptureFrame frame) {
         PlatformSessionData platformSessionData =
                 mPlatformSession.getFrameIdToPlatformSessionData().get(frame.getId());
         if (platformSessionData == null && !TextUtils.isEmpty(frame.getUrl())) {
             ContentCaptureSession session =
-                    PlatformAPIWrapper.getInstance().createContentCaptureSession(
-                            parentPlatformSessionData.contentCaptureSession, frame.getUrl(),
-                            frame.getFavicon());
-            AutofillId autofillId = PlatformAPIWrapper.getInstance().newAutofillId(
-                    parentPlatformSessionData.contentCaptureSession,
-                    mPlatformSession.getRootPlatformSessionData().autofillId, frame.getId());
-            autofillId = notifyViewAppeared(parentPlatformSessionData, frame);
+                    PlatformAPIWrapper.getInstance()
+                            .createContentCaptureSession(
+                                    parentPlatformSessionData.contentCaptureSession,
+                                    frame.getUrl(),
+                                    frame.getFavicon());
+            AutofillId autofillId = notifyViewAppeared(parentPlatformSessionData, frame);
             platformSessionData = new PlatformSessionData(session, autofillId);
-            mPlatformSession.getFrameIdToPlatformSessionData().put(
-                    frame.getId(), platformSessionData);
+            mPlatformSession
+                    .getFrameIdToPlatformSessionData()
+                    .put(frame.getId(), platformSessionData);
         }
         return platformSessionData;
     }
 
-    @VisibleForTesting
     public boolean hasPlatformExceptionForTesting() {
         return mHasPlatformExceptionForTesting;
     }
 
     protected void log(String message) {
-        if (sDump.booleanValue()) Log.i(TAG, message);
+        if (ContentCaptureFeatures.isDumpForTestingEnabled()) {
+            Log.i(TAG, message);
+        }
     }
 
     @Override

@@ -6,21 +6,20 @@
 #define QUICHE_QUIC_CORE_HTTP_QUIC_SERVER_INITIATED_SPDY_STREAM_H_
 
 #include "quiche/quic/core/http/quic_spdy_stream.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 
 // QuicServerInitiatedSpdyStream is a subclass of QuicSpdyStream meant to handle
 // WebTransport traffic on server-initiated bidirectional streams.  Receiving or
 // sending any other traffic on this stream will result in a CONNECTION_CLOSE.
-class QUIC_EXPORT_PRIVATE QuicServerInitiatedSpdyStream
-    : public QuicSpdyStream {
+class QUICHE_EXPORT QuicServerInitiatedSpdyStream : public QuicSpdyStream {
  public:
   using QuicSpdyStream::QuicSpdyStream;
 
   void OnBodyAvailable() override;
   size_t WriteHeaders(
-      spdy::Http2HeaderBlock header_block, bool fin,
+      quiche::HttpHeaderBlock header_block, bool fin,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener) override;
   void OnInitialHeadersComplete(bool fin, size_t frame_len,

@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/check.h"
 #include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
@@ -50,7 +51,7 @@ RenderFrameHost* CreateFrameImpl(const content::ToRenderFrameHost& adapter,
 
     // TODO(bokan): Fenced frames don't expose a load event so this approach
     // won't work inside a prerender.
-    DCHECK(!is_fenced_frame);
+    CHECK(!is_fenced_frame);
 
     std::string script = base::StringPrintf(
         R"JS(
@@ -137,13 +138,15 @@ testing::AssertionResult EvidenceForFrameComprises(
     blink::mojom::FrameCreationStackEvidence created_by_ad_script) {
   auto* throttle_manager =
       ContentSubresourceFilterThrottleManager::FromPage(frame_host->GetPage());
-  absl::optional<blink::FrameAdEvidence> ad_evidence =
+  std::optional<blink::FrameAdEvidence> ad_evidence =
       throttle_manager->GetAdEvidenceForFrame(frame_host);
 
-  if (!ad_evidence.has_value())
+  if (!ad_evidence.has_value()) {
     return testing::AssertionFailure() << "Expected ad evidence to exist.";
-  if (!ad_evidence->is_complete())
+  }
+  if (!ad_evidence->is_complete()) {
     return testing::AssertionFailure() << "Expect ad evidence to be complete.";
+  }
   if (ad_evidence->parent_is_ad() != parent_is_ad) {
     return testing::AssertionFailure()
            << "Expected: " << parent_is_ad

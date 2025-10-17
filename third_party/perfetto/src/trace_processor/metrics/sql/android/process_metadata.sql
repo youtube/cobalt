@@ -14,53 +14,43 @@
 -- limitations under the License.
 --
 
-SELECT IMPORT('android.process_metadata');
+INCLUDE PERFETTO MODULE android.process_metadata;
 
+-- Alias the process_metadata_table since unfortunately there are places
+-- depending on it (which we will clean up)
 DROP VIEW IF EXISTS process_metadata_table;
-CREATE VIEW process_metadata_table AS
+CREATE PERFETTO VIEW process_metadata_table AS
 SELECT * FROM android_process_metadata;
 
-DROP VIEW IF EXISTS uid_package_count;
-CREATE VIEW uid_package_count AS
-SELECT * FROM internal_uid_package_count;
-
-DROP VIEW IF EXISTS process_metadata;
-CREATE VIEW process_metadata AS
-WITH upid_packages AS (
-  SELECT
-    upid,
-    RepeatedField(AndroidProcessMetadata_Package(
-      'package_name', package_list.package_name,
-      'apk_version_code', package_list.version_code,
-      'debuggable', package_list.debuggable
-    )) AS packages_for_uid
-  FROM process
-  JOIN package_list ON process.android_appid = package_list.uid
-  GROUP BY upid
-)
-SELECT
-  upid,
-  NULL_IF_EMPTY(AndroidProcessMetadata(
+CREATE OR REPLACE PERFETTO FUNCTION process_metadata_proto(upid INT)
+RETURNS PROTO
+AS
+SELECT NULL_IF_EMPTY(AndroidProcessMetadata(
     'name', process_name,
     'uid', uid,
+    'android_user_id', user_id,
+    'pid', pid,
+    'is_kernel_task', is_kernel_task,
     'package', NULL_IF_EMPTY(AndroidProcessMetadata_Package(
       'package_name', package_name,
       'apk_version_code', version_code,
       'debuggable', debuggable
-    )),
-    'packages_for_uid', packages_for_uid
-  )) AS metadata
-FROM process_metadata_table
-LEFT JOIN upid_packages USING (upid);
+    ))
+  ))
+FROM android_process_metadata
+WHERE upid = $upid;
+
+DROP VIEW IF EXISTS process_metadata;
+CREATE PERFETTO VIEW process_metadata AS
+SELECT
+  upid,
+  process_metadata_proto(upid) AS metadata
+FROM android_process_metadata;
 
 -- Given a process name, return if it is debuggable.
-SELECT CREATE_FUNCTION(
-  'IS_PROCESS_DEBUGGABLE(process_name STRING)',
-  'BOOL',
-  '
-    SELECT p.debuggable
-    FROM process_metadata_table p
-    WHERE p.process_name = $process_name
-    LIMIT 1
-  '
-);
+CREATE OR REPLACE PERFETTO FUNCTION is_process_debuggable(process_name STRING)
+RETURNS BOOL AS
+SELECT p.debuggable
+FROM android_process_metadata p
+WHERE p.process_name = $process_name
+LIMIT 1;

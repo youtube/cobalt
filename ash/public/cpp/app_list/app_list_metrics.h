@@ -7,6 +7,8 @@
 
 #include "ash/public/cpp/ash_public_export.h"
 
+#include <string>
+
 namespace ash {
 enum class AppListLaunchedFrom;
 enum class AppListOrderUpdateEvent;
@@ -53,7 +55,8 @@ enum class AppListShowSource {
   kAssistantEntryPoint = 6,
   kScrollFromShelf = 7,
   kBrowser = 8,
-  kMaxValue = kBrowser,
+  kWelcomeTour = 9,
+  kMaxValue = kWelcomeTour,
 };
 
 // Tracks the conclusion of each search session starting from the search box.
@@ -110,7 +113,7 @@ enum SearchResultType {
   // An app result which is an app that was installed on another device.
   PLAY_STORE_REINSTALL_APP,
   // An app result which is an internal app (files, settings, etc).
-  INTERNAL_APP,
+  INTERNAL_APP_DEPRECATED,
   // An app result which is an extension.
   EXTENSION_APP,
   // A Crostini App Result.
@@ -140,14 +143,14 @@ enum SearchResultType {
   OS_SETTINGS,
   // A Plugin VM App Result.
   PLUGIN_VM_APP,
-  // LaCrOS binary.
-  LACROS,
+  // LaCrOS binary. (Deprecated).
+  LACROS_DEPRECATED,
   // A Remote App Result.
   REMOTE_APP,
   // A Borealis App Result.
   BOREALIS_APP,
-  // A Help App (aka Explore) Result. For default or help results. There are
-  // different search result types for Updates and Discover.
+  // A Help App (aka Explore) Result. For default or help results. There is a
+  // different search result type for Updates.
   HELP_APP_DEFAULT,
   // A result from omnibox for query suggestion.
   OMNIBOX_SEARCH_SUGGEST_ENTITY,
@@ -163,8 +166,8 @@ enum SearchResultType {
   DRIVE_SEARCH,
   // A Help App result about the "What's new" (Updates) page.
   HELP_APP_UPDATES,
-  // A Help App result about the "Discover" page.
-  HELP_APP_DISCOVER,
+  // A Help App result about the "Discover" page. (Deprecated).
+  HELP_APP_DISCOVER_DEPRECATED,
   // A keyboard shortcut result from the Keyboard Shortcut provider.
   KEYBOARD_SHORTCUT,
   // A keyboard shortcut result from the Keyboard Shortcut provider.
@@ -184,9 +187,43 @@ enum SearchResultType {
   IMAGE_SEARCH,
   // A zero-state result representing a admin template.
   DESKS_ADMIN_TEMPLATE,
+  // New app shortcuts.
+  APP_SHORTCUTS_V2,
   // Boundary is always last.
   SEARCH_RESULT_TYPE_BOUNDARY
 };
+
+// Sub-types defined for zero state file/drive suggestions that indicate
+// the reason the file result was suggested.
+// Used for metrics - assigned values should not change.
+enum class ContinueFileSuggestionType {
+  // For zero state drive suggestions - file suggested because the user
+  // viewed it recently.
+  kViewedDrive = 0,
+  // For zero state drive suggestions - file suggested because it was
+  // recently modified (usually by another user).
+  kModifiedDrive = 1,
+  // For zero state drive suggestions - file suggested because the user
+  // modified it recently.
+  kModifiedByCurrentUserDrive = 2,
+  // For zero state drive suggestions - file suggested because it was recently
+  // shared with the user.
+  kSharedWithUserDrive = 3,
+  // For zero state local file suggestions - file suggested because the user
+  // viewed it recently.
+  kViewedFile = 4,
+  // For zero state local file suggestions - file suggested because the user
+  // modified it recently.
+  kModifiedByCurrentUserFile = 5,
+  kMaxValue = kModifiedByCurrentUserFile,
+};
+
+ASH_PUBLIC_EXPORT std::string SearchSessionConclusionToString(
+    SearchSessionConclusion conclusion);
+
+// Returns true if the `show_source` is one that a user directly triggers.
+ASH_PUBLIC_EXPORT bool IsAppListShowSourceUserTriggered(
+    AppListShowSource show_source);
 
 ASH_PUBLIC_EXPORT void RecordSearchResultOpenTypeHistogram(
     AppListLaunchedFrom launch_location,

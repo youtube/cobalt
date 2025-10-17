@@ -5,13 +5,16 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_CHROME_URL_REQUEST_UTIL_H_
 #define CHROME_BROWSER_EXTENSIONS_CHROME_URL_REQUEST_UTIL_H_
 
-#include <string>
-
+#include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "services/network/public/mojom/url_loader.mojom-forward.h"
 #include "ui/base/page_transition_types.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
+class GURL;
 
 namespace base {
 class FilePath;
@@ -46,12 +49,13 @@ bool AllowCrossRendererResourceLoad(
     const Extension* extension,
     const ExtensionSet& extensions,
     const ProcessMap& process_map,
+    const GURL& upstream_url,
     bool* allowed);
 
-// Return the |request|'s resource path relative to the Chromium resources path
+// Return the `request`'s resource path relative to the Chromium resources path
 // (chrome::DIR_RESOURCES) *if* the request refers to a resource within the
 // Chrome resource bundle. If not then the returned file path will be empty.
-// |resource_id| is used to check whether the requested resource is registered
+// `resource_id` is used to check whether the requested resource is registered
 // as a component extensions resource, via
 // ChromeComponentExtensionResourceManager::IsComponentExtensionResource()
 base::FilePath GetBundleResourcePath(

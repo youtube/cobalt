@@ -70,7 +70,7 @@ class Int64LoweringTest : public GraphTest {
     sig_builder.AddReturn(rep);
 
     Int64Lowering lowering(graph(), machine(), common(), simplified(), zone(),
-                           sig_builder.Build());
+                           sig_builder.Get());
     lowering.LowerGraph();
   }
 
@@ -83,7 +83,7 @@ class Int64LoweringTest : public GraphTest {
     for (int i = 0; i < num_params; i++) {
       sig_builder.AddParam(rep);
     }
-    LowerGraph(node, sig_builder.Build());
+    LowerGraph(node, sig_builder.Get());
   }
 
   void CompareCallDescriptors(const CallDescriptor* lhs,
@@ -287,7 +287,7 @@ TEST_F(Int64LoweringTest, Int64LoadImmutable) {
   NodeProperties::MergeControlToEnd(graph(), common(), ret);                 \
                                                                              \
   Int64Lowering lowering(graph(), machine(), common(), simplified(), zone(), \
-                         sig_builder.Build());                               \
+                         sig_builder.Get());                                 \
   lowering.LowerGraph();                                                     \
                                                                              \
   STORE_VERIFY(kStore, kRep32)
@@ -321,7 +321,7 @@ TEST_F(Int64LoweringTest, Int32Store) {
   NodeProperties::MergeControlToEnd(graph(), common(), ret);
 
   Int64Lowering lowering(graph(), machine(), common(), simplified(), zone(),
-                         sig_builder.Build());
+                         sig_builder.Get());
   lowering.LowerGraph();
 
   EXPECT_THAT(
@@ -383,7 +383,7 @@ TEST_F(Int64LoweringTest, Parameter2) {
   sig_builder.AddParam(MachineRepresentation::kWord32);
 
   int start_parameter = start()->op()->ValueOutputCount();
-  LowerGraph(Parameter(5), sig_builder.Build());
+  LowerGraph(Parameter(5), sig_builder.Get());
 
   EXPECT_THAT(graph()->end()->InputAt(1),
               IsReturn(IsParameter(7), start(), start()));
@@ -397,7 +397,7 @@ TEST_F(Int64LoweringTest, ParameterWithJSContextParam) {
   sig_builder.AddParam(MachineRepresentation::kWord64);
   sig_builder.AddParam(MachineRepresentation::kWord64);
 
-  auto sig = sig_builder.Build();
+  auto sig = sig_builder.Get();
 
   Node* js_context = graph()->NewNode(
       common()->Parameter(Linkage::GetJSCallContextParamIndex(
@@ -415,7 +415,7 @@ TEST_F(Int64LoweringTest, ParameterWithJSClosureParam) {
   sig_builder.AddParam(MachineRepresentation::kWord64);
   sig_builder.AddParam(MachineRepresentation::kWord64);
 
-  auto sig = sig_builder.Build();
+  auto sig = sig_builder.Get();
 
   Node* js_closure = graph()->NewNode(
       common()->Parameter(Linkage::kJSCallClosureParamIndex, "%closure"),
@@ -438,7 +438,7 @@ TEST_F(Int64LoweringTest, CallI64Return) {
   sig_builder.AddReturn(wasm::kWasmI64);
 
   auto call_descriptor =
-      compiler::GetWasmCallDescriptor(zone(), sig_builder.Build());
+      compiler::GetWasmCallDescriptor(zone(), sig_builder.Get());
 
   LowerGraph(
       graph()->NewNode(common()->Call(call_descriptor), Int32Constant(function),
@@ -471,7 +471,7 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
   sig_builder.AddParam(wasm::kWasmI64);
 
   auto call_descriptor =
-      compiler::GetWasmCallDescriptor(zone(), sig_builder.Build());
+      compiler::GetWasmCallDescriptor(zone(), sig_builder.Get());
 
   LowerGraph(
       graph()->NewNode(common()->Call(call_descriptor), Int32Constant(function),
@@ -1026,60 +1026,6 @@ TEST_F(Int64LoweringTest, LoopExitValue) {
                         IsLoopExitValue(MachineRepresentation::kWord32,
                                         IsInt32Constant(high_word_value(2))),
                         start(), start()));
-}
-
-TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseBigIntToI64) {
-  Node* target = Int32Constant(1);
-  Node* context = Int32Constant(2);
-  Node* bigint = Int32Constant(4);
-  WasmCallDescriptors* descriptors = wasm::GetWasmEngine()->call_descriptors();
-
-  CallDescriptor* bigint_to_i64_call_descriptor =
-      descriptors->GetBigIntToI64Descriptor(StubCallMode::kCallBuiltinPointer,
-                                            false);
-
-  CallDescriptor* bigint_to_i32_pair_call_descriptor =
-      descriptors->GetLoweredCallDescriptor(bigint_to_i64_call_descriptor);
-
-  Node* call_node =
-      graph()->NewNode(common()->Call(bigint_to_i64_call_descriptor), target,
-                       bigint, context, start(), start());
-
-  LowerGraphWithSpecialCase(call_node, MachineRepresentation::kWord64);
-
-  Capture<Node*> call;
-  Matcher<Node*> call_matcher =
-      IsCall(bigint_to_i32_pair_call_descriptor, target, bigint, context,
-             start(), start());
-
-  EXPECT_THAT(graph()->end()->InputAt(1),
-              IsReturn2(IsProjection(0, AllOf(CaptureEq(&call), call_matcher)),
-                        IsProjection(1, AllOf(CaptureEq(&call), call_matcher)),
-                        start(), start()));
-}
-
-TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseI64ToBigInt) {
-  Node* target = Int32Constant(1);
-  Node* i64 = Int64Constant(value(0));
-  WasmCallDescriptors* descriptors = wasm::GetWasmEngine()->call_descriptors();
-
-  CallDescriptor* i64_to_bigint_call_descriptor =
-      descriptors->GetI64ToBigIntDescriptor(StubCallMode::kCallBuiltinPointer);
-
-  CallDescriptor* i32_pair_to_bigint_call_descriptor =
-      descriptors->GetLoweredCallDescriptor(i64_to_bigint_call_descriptor);
-
-  Node* call = graph()->NewNode(common()->Call(i64_to_bigint_call_descriptor),
-                                target, i64, start(), start());
-
-  LowerGraphWithSpecialCase(call, MachineRepresentation::kTaggedPointer);
-
-  EXPECT_THAT(
-      graph()->end()->InputAt(1),
-      IsReturn(IsCall(i32_pair_to_bigint_call_descriptor, target,
-                      IsInt32Constant(low_word_value(0)),
-                      IsInt32Constant(high_word_value(0)), start(), start()),
-               start(), start()));
 }
 
 }  // namespace compiler

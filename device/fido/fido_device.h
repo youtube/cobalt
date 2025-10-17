@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -16,9 +17,12 @@
 #include "device/fido/authenticator_get_info_response.h"
 #include "device/fido/fido_constants.h"
 #include "device/fido/fido_transport_protocol.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace device {
+
+namespace cablev2 {
+class FidoTunnelDevice;
+}
 
 // Device abstraction for an individual CTAP1.0/CTAP2.0 device.
 //
@@ -36,7 +40,7 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoDevice {
   static constexpr CancelToken kInvalidCancelToken = 0;
 
   using DeviceCallback =
-      base::OnceCallback<void(absl::optional<std::vector<uint8_t>>)>;
+      base::OnceCallback<void(std::optional<std::vector<uint8_t>>)>;
 
   // Internal state machine states.
   enum class State {
@@ -90,6 +94,7 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoDevice {
   // same VID:PID. It defaults to returning the value of |GetId|.
   virtual std::string GetDisplayName() const;
   virtual FidoTransportProtocol DeviceTransport() const = 0;
+  virtual cablev2::FidoTunnelDevice* GetTunnelDevice();
 
   // NoSilentRequests returns true if this device does not support up=false
   // requests.
@@ -111,7 +116,7 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoDevice {
   }
 
   ProtocolVersion supported_protocol() const { return supported_protocol_; }
-  const absl::optional<AuthenticatorGetInfoResponse>& device_info() const {
+  const std::optional<AuthenticatorGetInfoResponse>& device_info() const {
     return device_info_;
   }
   bool is_in_error_state() const {
@@ -129,12 +134,12 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FidoDevice {
 
  protected:
   void OnDeviceInfoReceived(base::OnceClosure done,
-                            absl::optional<std::vector<uint8_t>> response);
+                            std::optional<std::vector<uint8_t>> response);
   void SetDeviceInfo(AuthenticatorGetInfoResponse device_info);
 
   State state_ = State::kInit;
   ProtocolVersion supported_protocol_ = ProtocolVersion::kUnknown;
-  absl::optional<AuthenticatorGetInfoResponse> device_info_;
+  std::optional<AuthenticatorGetInfoResponse> device_info_;
   // If `true`, the device needs to be sent a specific wink command to flash
   // when user presence is required.
   bool needs_explicit_wink_ = false;

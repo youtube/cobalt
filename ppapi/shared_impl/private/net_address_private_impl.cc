@@ -2,14 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ppapi/shared_impl/private/net_address_private_impl.h"
 
 #include <stddef.h>
 #include <string.h>
 
+#include <algorithm>
 #include <string>
 
 #include "base/check.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 #include "components/nacl/common/buildflags.h"
@@ -90,14 +98,15 @@ static_assert(sizeof(reinterpret_cast<PP_NetAddress_Private*>(0)->data) >=
               sizeof(NetAddress),
               "PP_NetAddress_Private data too small");
 
-size_t GetAddressSize(const NetAddress* net_addr) {
-  return net_addr->is_ipv6 ? kIPv6AddressSize : kIPv4AddressSize;
+base::span<const uint8_t> GetAddressBytes(const NetAddress* net_addr) {
+  size_t address_size = net_addr->is_ipv6 ? kIPv6AddressSize : kIPv4AddressSize;
+  return base::span(net_addr->address).first(address_size);
 }
 
 // Convert to embedded struct if it has been initialized.
 NetAddress* ToNetAddress(PP_NetAddress_Private* addr) {
   if (!addr || addr->size != sizeof(NetAddress))
-    return NULL;
+    return nullptr;
   return reinterpret_cast<NetAddress*>(addr->data);
 }
 
@@ -134,17 +143,23 @@ uint16_t GetPort(const PP_NetAddress_Private* addr) {
   return net_addr->port;
 }
 
+// TODO(tsepez): should be declared UNSAFE_BUFFER_USAGE.
 PP_Bool GetAddress(const PP_NetAddress_Private* addr,
                    void* address,
                    uint16_t address_size) {
   const NetAddress* net_addr = ToNetAddress(addr);
   if (!IsValid(net_addr))
     return PP_FALSE;
-  size_t net_addr_size = GetAddressSize(net_addr);
+  // SAFETY: The caller of this PPAPI interface is required to pass a valid,
+  // writable span in `address` and `address_size`.
+  auto dest =
+      UNSAFE_BUFFERS(base::span(static_cast<uint8_t*>(address), address_size));
+  base::span<const uint8_t> src = GetAddressBytes(net_addr);
   // address_size must be big enough.
-  if (net_addr_size > address_size)
+  if (src.size() > dest.size()) {
     return PP_FALSE;
-  memcpy(address, net_addr->address, net_addr_size);
+  }
+  dest.copy_prefix_from(src);
   return PP_TRUE;
 }
 
@@ -164,13 +179,10 @@ PP_Bool AreHostsEqual(const PP_NetAddress_Private* addr1,
 
   if ((net_addr1->is_ipv6 != net_addr2->is_ipv6) ||
       (net_addr1->flow_info != net_addr2->flow_info) ||
-      (net_addr1->scope_id != net_addr2->scope_id))
+      (net_addr1->scope_id != net_addr2->scope_id) ||
+      !std::ranges::equal(GetAddressBytes(net_addr1),
+                          GetAddressBytes(net_addr2))) {
     return PP_FALSE;
-
-  size_t net_addr_size = GetAddressSize(net_addr1);
-  for (size_t i = 0; i < net_addr_size; i++) {
-    if (net_addr1->address[i] != net_addr2->address[i])
-      return PP_FALSE;
   }
 
   return PP_TRUE;
@@ -222,15 +234,12 @@ std::string ConvertIPv6AddressToString(const NetAddress* net_addr,
       address16[2] == 0 && address16[3] == 0 &&
       address16[4] == 0 &&
       (address16[5] == 0 || address16[5] == 0xffff)) {
-    base::StringAppendF(
-        &description,
-        address16[5] == 0 ? "::%u.%u.%u.%u" : "::ffff:%u.%u.%u.%u",
-        net_addr->address[12],
-        net_addr->address[13],
-        net_addr->address[14],
-        net_addr->address[15]);
+    base::StringAppendF(&description, "::%s%u.%u.%u.%u",
+                        address16[5] == 0 ? "" : "ffff:", net_addr->address[12],
+                        net_addr->address[13], net_addr->address[14],
+                        net_addr->address[15]);
 
-  // "Real" IPv6 addresses.
+    // "Real" IPv6 addresses.
   } else {
     // Find the first longest run of 0s (of length > 1), to collapse to "::".
     int longest_start = 0;
@@ -259,7 +268,7 @@ std::string ConvertIPv6AddressToString(const NetAddress* net_addr,
         i += longest_length;
       } else {
         uint16_t v = ConvertFromNetEndian16(address16[i]);
-        base::StringAppendF(&description, need_sep ? ":%x" : "%x", v);
+        base::StringAppendF(&description, "%s%x", need_sep ? ":" : "", v);
         need_sep = true;
         i++;
       }
@@ -482,8 +491,7 @@ bool NetAddressPrivateImpl::NetAddressToIPEndPoint(
     return false;
 
   *port = net_addr->port;
-  size_t address_size = GetAddressSize(net_addr);
-  address->Assign(net_addr->address, address_size);
+  address->Assign(GetAddressBytes(net_addr));
   return true;
 }
 #endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_MINIMAL_TOOLCHAIN)

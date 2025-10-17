@@ -2,9 +2,12 @@ Name: Alsa
 URL: https://github.com/alsa-project/alsa-lib
 Version: 1.2.7.2
 Revision: 27cfa707e3e5597241e6137df4cc15fc5454caf9
-License: LGPLv2+
-License File: NOT_SHIPPED
+License: LGPL-2.1
+License File: LICENSE
 Security Critical: no
+Shipped: no
+CPEPrefix: cpe:/a:alsa-project:alsa
+
 
 Description:
 The alsa-lib is a library to interface with ALSA in the Linux kernel and virtual devices using a plugin system.

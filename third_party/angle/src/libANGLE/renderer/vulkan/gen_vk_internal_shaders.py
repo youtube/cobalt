@@ -59,19 +59,20 @@ struct CompressedShaderBlob
 
 {shader_tables_cpp}
 
-angle::Result GetShader(Context *context,
-                        RefCounted<ShaderModule> *shaders,
+angle::Result GetShader(ErrorContext *context,
+                        ShaderModulePtr shaders[],
                         const CompressedShaderBlob *compressedShaderBlobs,
                         size_t shadersCount,
                         uint32_t shaderFlags,
-                        RefCounted<ShaderModule> **shaderOut)
+                        ShaderModulePtr *shaderOut)
 {{
     ASSERT(shaderFlags < shadersCount);
-    RefCounted<ShaderModule> &shader = shaders[shaderFlags];
-    *shaderOut                          = &shader;
+    ShaderModulePtr &shader = shaders[shaderFlags];
 
-    if (shader.get().valid())
+    if (shader)
     {{
+        ASSERT(shader->valid());
+        *shaderOut = shader;
         return angle::Result::Continue;
     }}
 
@@ -93,7 +94,12 @@ angle::Result GetShader(Context *context,
         return angle::Result::Stop;
     }}
 
-    return InitShaderModule(context, &shader.get(), shaderCode.data(), shaderCode.size() * 4);
+    ANGLE_TRY(InitShaderModule(context, &shader, shaderCode.data(), shaderCode.size() * 4));
+
+    ASSERT(shader);
+    ASSERT(shader->valid());
+    *shaderOut = shader;
+    return angle::Result::Continue;
 }}
 }}  // anonymous namespace
 
@@ -108,7 +114,6 @@ ShaderLibrary::~ShaderLibrary()
 
 void ShaderLibrary::destroy(VkDevice device)
 {{
-    {shader_destroy_calls}
 }}
 
 {shader_get_functions_cpp}
@@ -594,7 +599,7 @@ def get_shader_table_h(shader_and_variation):
 
     table_name = get_variation_table_name(shader_file, 'm')
 
-    table = 'RefCounted<ShaderModule> %s[' % table_name
+    table = 'ShaderModulePtr %s[' % table_name
 
     namespace_name = "InternalShader::" + get_namespace_name(shader_file)
 
@@ -645,7 +650,7 @@ def get_get_function_h(shader_and_variation):
     function_name = get_var_name(os.path.basename(shader_file), 'get')
 
     definition = 'angle::Result %s' % function_name
-    definition += '(Context *context, uint32_t shaderFlags, RefCounted<ShaderModule> **shaderOut);'
+    definition += '(ErrorContext *context, uint32_t shaderFlags, ShaderModulePtr *shaderOut);'
 
     return definition
 
@@ -660,21 +665,11 @@ def get_get_function_cpp(shader_and_variation):
     constant_table_name = get_variation_table_name(shader_file)
 
     definition = 'angle::Result ShaderLibrary::%s' % function_name
-    definition += '(Context *context, uint32_t shaderFlags, RefCounted<ShaderModule> **shaderOut)\n{\n'
+    definition += '(ErrorContext *context, uint32_t shaderFlags, ShaderModulePtr *shaderOut)\n{\n'
     definition += 'return GetShader(context, %s, %s, ArraySize(%s), shaderFlags, shaderOut);\n}\n' % (
         member_table_name, constant_table_name, constant_table_name)
 
     return definition
-
-
-def get_destroy_call(shader_and_variation):
-    shader_file = shader_and_variation.shader_file
-
-    table_name = get_variation_table_name(shader_file, 'm')
-
-    destroy = 'for (RefCounted<ShaderModule> &shader : %s)\n' % table_name
-    destroy += '{\nshader.get().destroy(device);\n}'
-    return destroy
 
 
 def shader_path(shader):
@@ -701,6 +696,11 @@ def main():
         for shader in os.listdir(shaders_dir)
         if any([os.path.splitext(shader)[1] == ext for ext in valid_extensions])
     ])
+    shader_headers = sorted([
+        os.path.join(shaders_dir, shader)
+        for shader in os.listdir(shaders_dir)
+        if os.path.splitext(shader)[1] == '.inc'
+    ])
     if print_inputs:
         glslang_binaries = [get_linux_glslang_exe_path(), get_win_glslang_exe_path()]
         glslang_binary_hashes = [path + '.sha1' for path in glslang_binaries]
@@ -708,7 +708,8 @@ def main():
         input_shaders_variations = [
             variations for variations in input_shaders_variations if variations is not None
         ]
-        print(",".join(input_shaders + input_shaders_variations + glslang_binary_hashes))
+        print(",".join(input_shaders + shader_headers + input_shaders_variations +
+                       glslang_binary_hashes))
         return 0
 
     # STEP 1: Call glslang to generate the internal shaders into small .inc files.
@@ -765,8 +766,6 @@ def main():
         includes = "\n".join([gen_shader_include(shader) for shader in output_shaders])
         shader_tables_cpp = '\n'.join(
             [get_shader_table_cpp(s) for s in input_shaders_and_variations])
-        shader_destroy_calls = '\n'.join(
-            [get_destroy_call(s) for s in input_shaders_and_variations])
         shader_get_functions_cpp = '\n'.join(
             [get_get_function_cpp(s) for s in input_shaders_and_variations])
 
@@ -776,7 +775,6 @@ def main():
             input_file_name='shaders/src/*',
             internal_shader_includes=includes,
             shader_tables_cpp=shader_tables_cpp,
-            shader_destroy_calls=shader_destroy_calls,
             shader_get_functions_cpp=shader_get_functions_cpp)
         outfile.write(outcode)
         outfile.close()

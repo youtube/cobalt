@@ -16,7 +16,7 @@ import {microTask, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer
 
 import {getTemplate} from './media_picker.html.js';
 import {SiteSettingsMixin} from './site_settings_mixin.js';
-import {MediaPickerEntry} from './site_settings_prefs_browser_proxy.js';
+import type {MediaPickerEntry} from './site_settings_prefs_browser_proxy.js';
 
 interface MediaPickerElement {
   $: {
@@ -54,18 +54,18 @@ class MediaPickerElement extends MediaPickerElementBase {
     };
   }
 
-  type: string;
-  label: string;
-  devices: MediaPickerEntry[];
+  declare type: string;
+  declare label: string;
+  declare devices: MediaPickerEntry[];
 
   override ready() {
     super.ready();
 
     this.addWebUiListener(
         'updateDevicesMenu',
-        (type: string, devices: MediaPickerEntry[], defaultDevice: string) =>
-            this.updateDevicesMenu_(type, devices, defaultDevice));
-    this.browserProxy.getDefaultCaptureDevices(this.type);
+        (type: string, devices: MediaPickerEntry[], selectedDevice: string) =>
+            this.updateDevicesMenu_(type, devices, selectedDevice));
+    this.browserProxy.initializeCaptureDevices(this.type);
   }
 
   /**
@@ -75,7 +75,7 @@ class MediaPickerElement extends MediaPickerElementBase {
    * @param defaultDevice The unique id of the current default device.
    */
   private updateDevicesMenu_(
-      type: string, devices: MediaPickerEntry[], defaultDevice: string) {
+      type: string, devices: MediaPickerEntry[], selectedDevice: string) {
     if (type !== this.type) {
       return;
     }
@@ -86,7 +86,7 @@ class MediaPickerElement extends MediaPickerElementBase {
 
       // Wait for <select> to be populated.
       microTask.run(() => {
-        this.$.mediaPicker.value = defaultDevice;
+        this.$.mediaPicker.value = selectedDevice;
       });
     }
   }
@@ -95,7 +95,7 @@ class MediaPickerElement extends MediaPickerElementBase {
    * A handler for when an item is selected in the media picker.
    */
   private onChange_() {
-    this.browserProxy.setDefaultCaptureDevice(
+    this.browserProxy.setPreferredCaptureDevice(
         this.type, this.$.mediaPicker.value);
   }
 }

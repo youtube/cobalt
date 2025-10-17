@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace gfx {
 class Rect;
@@ -23,6 +24,10 @@ class SurfaceObserver {
   // chance to remove themselves.
   virtual void OnSurfaceDestroying(Surface* surface) = 0;
 
+  virtual void OnScaleFactorChanged(Surface* surface,
+                                    float old_scale_factor,
+                                    float new_scale_factor) {}
+
   // Called when the occlusion of the aura window corresponding to |surface|
   // changes.
   virtual void OnWindowOcclusionChanged(Surface* surface) {}
@@ -33,9 +38,6 @@ class SurfaceObserver {
 
   // Called on each commit.
   virtual void OnCommit(Surface* surface) {}
-
-  // Called when the content size changes.
-  virtual void OnContentSizeChanged(Surface* surface) {}
 
   // Called when desk state of the window changes.
   // |state| is the index of the desk which the window moved to,
@@ -54,7 +56,7 @@ class SurfaceObserver {
   // Called when tooltip is shown.
   // `bounds` is relative to `surface`.
   virtual void OnTooltipShown(Surface* surface,
-                              const std::u16string& text,
+                              std::u16string_view text,
                               const gfx::Rect& bounds) {}
 
   // Called when tooltip is hidden.
@@ -66,7 +68,7 @@ class SurfaceObserver {
       OverlayPriority overlay_priority_hint) {}
 
  protected:
-  virtual ~SurfaceObserver() {}
+  virtual ~SurfaceObserver() = default;
 };
 
 }  // namespace exo

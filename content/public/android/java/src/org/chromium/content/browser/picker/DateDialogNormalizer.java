@@ -7,14 +7,15 @@ package org.chromium.content.browser.picker;
 import android.widget.DatePicker;
 import android.widget.DatePicker.OnDateChangedListener;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
-/**
- * Sets the current, min, and max values on the given DatePicker.
- */
+/** Sets the current, min, and max values on the given DatePicker. */
+@NullMarked
 public class DateDialogNormalizer {
 
     /**
@@ -31,7 +32,7 @@ public class DateDialogNormalizer {
         public final long millisForPicker;
 
         public final int year;
-        public final int month;  // 0-based
+        public final int month; // 0-based
         public final int day;
 
         DateAndMillis(long millisForPicker, int year, int month, int day) {
@@ -62,8 +63,8 @@ public class DateDialogNormalizer {
         }
     }
 
-    private static void setLimits(DatePicker picker, long currentMillisForPicker,
-            long minMillisForPicker, long maxMillisForPicker) {
+    private static void setLimits(
+            DatePicker picker, long minMillisForPicker, long maxMillisForPicker) {
         // On KitKat and earlier, DatePicker requires the minDate is always less than maxDate, even
         // during the process of setting those values (eek), so set them in an order that preserves
         // this invariant throughout.
@@ -88,8 +89,14 @@ public class DateDialogNormalizer {
      * @param maxMillisUtc The maximum allowed date, in milliseconds from the epoch according to a
      *                     proleptic Gregorian calendar (no Julian switch).
      */
-    public static void normalize(DatePicker picker, final OnDateChangedListener listener,
-            int year, int month, int day, long minMillisUtc, long maxMillisUtc) {
+    public static void normalize(
+            DatePicker picker,
+            final OnDateChangedListener listener,
+            int year,
+            int month,
+            int day,
+            long minMillisUtc,
+            long maxMillisUtc) {
         DateAndMillis currentDate = DateAndMillis.create(year, month, day);
         DateAndMillis minDate = DateAndMillis.create(minMillisUtc);
         DateAndMillis maxDate = DateAndMillis.create(maxMillisUtc);
@@ -104,8 +111,7 @@ public class DateDialogNormalizer {
             currentDate = maxDate;
         }
 
-        setLimits(picker, currentDate.millisForPicker, minDate.millisForPicker,
-                maxDate.millisForPicker);
+        setLimits(picker, minDate.millisForPicker, maxDate.millisForPicker);
         picker.init(currentDate.year, currentDate.month, currentDate.day, listener);
     }
 }

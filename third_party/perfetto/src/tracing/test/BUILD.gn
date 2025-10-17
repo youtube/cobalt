@@ -33,8 +33,8 @@ perfetto_unittest_source_set("test_support") {
     "../../base",
     "../../base:test_support",
     "../core",
-    "../core:service",
     "../core:test_support",
+    "../service",
   ]
   sources = [
     "aligned_buffer_test.cc",
@@ -55,6 +55,8 @@ perfetto_unittest_source_set("test_support") {
       "mock_producer.cc",
       "mock_producer.h",
       "mock_producer_endpoint.h",
+      "proxy_producer_endpoint.cc",
+      "proxy_producer_endpoint.h",
     ]
   }
 }
@@ -64,29 +66,21 @@ if (enable_perfetto_ipc && enable_perfetto_system_consumer) {
     testonly = true
     deps = [
       ":test_support",
+      "..:client_api_without_backends",
       "../../../gn:default_deps",
       "../../../gn:gtest_and_gmock",
       "../../base",
       "../../base:test_support",
-      "../core:service",
       "../ipc/consumer",
       "../ipc/producer",
       "../ipc/service",
+      "../service",
     ]
     sources = [ "tracing_integration_test.cc" ]
 
-    # TODO(primiano): remove the build_with_chromium conditional once the root
-    # //BUILD.gn:libperfetto (in chromium) stops adding tracing:platform_fake.
-    # The problem is the following: in chrome builds we end up with duplicate
-    # symbol definitions in the test because both platorm (impl and fake) are
-    # present: impl added here and fake coming from chromium's base (full path:
-    # perfetto_unittests -> //(chromium)base:test_support -> //(chromium)base
-    # -> libperfetto -> platform_fake.
+    # TODO(lalitm): this tests appear to be failing on Chromium for unknown
+    # reasons. Figure out why and reenable them.
     if (!build_with_chromium) {
-      deps += [
-        "..:client_api_without_backends",
-        "..:platform_impl",
-      ]
       sources += [ "platform_unittest.cc" ]
     }
   }
@@ -98,7 +92,6 @@ if (enable_perfetto_integration_tests) {
     deps = [
       ":api_test_support",
       "../:client_api",
-      "../:platform_impl",
       "../../../:libperfetto_client_experimental",
       "../../../gn:default_deps",
       "../../../gn:gtest_and_gmock",
@@ -114,11 +107,11 @@ if (enable_perfetto_integration_tests) {
       "../../../protos/perfetto/trace/interned_data:zero",
       "../../../protos/perfetto/trace/profiling:cpp",
       "../../../protos/perfetto/trace/track_event:cpp",
+      "../../../test:integrationtest_initializer",
       "../../base",
     ]
     sources = [
       "api_integrationtest.cc",
-      "api_integrationtest_main.cc",
       "tracing_module.cc",
       "tracing_module.h",
       "tracing_module2.cc",

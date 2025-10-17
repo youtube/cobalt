@@ -28,25 +28,27 @@ import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
 import org.chromium.base.MathUtils;
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
+import org.chromium.base.test.util.TestAnimations.EnableAnimations;
 import org.chromium.base.test.util.UrlUtils;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.RecyclerViewTestUtils;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate.SelectionObserver;
 import org.chromium.content_public.browser.test.NativeLibraryTestUtils;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.content_public.browser.test.util.TouchCommon;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.PhotoPickerListener;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.test.util.BlankUiTestActivityTestCase;
-import org.chromium.ui.test.util.DisableAnimationsTestRule;
+import org.chromium.ui.test.util.BlankUiTestActivity;
 import org.chromium.ui.test.util.RenderTestRule;
 
 import java.io.File;
@@ -55,20 +57,21 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Tests for the PhotoPickerDialog class.
- */
+/** Tests for the PhotoPickerDialog class. */
 @RunWith(BaseJUnit4ClassRunner.class)
-public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
-        implements PhotoPickerListener, SelectionObserver<PickerBitmap>,
-                   DecoderServiceHost.DecoderStatusCallback,
-                   PickerVideoPlayer.VideoPlaybackStatusCallback, AnimationListener {
-    @Rule
-    public DisableAnimationsTestRule mDisableAnimationsTestRule = new DisableAnimationsTestRule();
-
+public class PhotoPickerDialogTest
+        implements PhotoPickerListener,
+                SelectionObserver<PickerBitmap>,
+                DecoderServiceHost.DecoderStatusCallback,
+                PickerVideoPlayer.VideoPlaybackStatusCallback,
+                AnimationListener {
     // The timeout (in seconds) to wait for the decoder service to be ready.
     private static final long WAIT_TIMEOUT_SECONDS = 30L;
     private static final long VIDEO_TIMEOUT_SECONDS = 10L;
+
+    @Rule
+    public BaseActivityTestRule<BlankUiTestActivity> mActivityTestRule =
+            new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
     @Rule
     public RenderTestRule mRenderTestRule =
@@ -96,11 +99,11 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
     private Uri[] mLastSelectedPhotos;
 
     // A list of view IDs we receive from an animating event in the order the events occurred.
-    private List<Long> mLastViewAnimatingIds = new ArrayList();
+    private final List<Long> mLastViewAnimatingIds = new ArrayList();
 
     // A list of view alpha values we receive from an animating event in the order the events
     // occurred.
-    private List<Float> mLastViewAnimatingAlphas = new ArrayList();
+    private final List<Float> mLastViewAnimatingAlphas = new ArrayList();
 
     // The list of currently selected photos (built piecemeal).
     private List<PickerBitmap> mCurrentPhotoSelection;
@@ -135,14 +138,27 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
     @Before
     public void setUp() throws Exception {
         NativeLibraryTestUtils.loadNativeLibraryNoBrowserProcess();
-        mWindowAndroid = TestThreadUtils.runOnUiThreadBlocking(() -> {
-            return new ActivityWindowAndroid(getActivity(), /* listenToActivityState= */ true,
-                    IntentRequestTracker.createFromActivity(getActivity()));
-        });
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            DecoderServiceHost.setIntentSupplier(
-                    () -> { return new Intent(getActivity(), TestImageDecoderService.class); });
-        });
+        mActivityTestRule.launchActivity(null);
+        mWindowAndroid =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return new ActivityWindowAndroid(
+                                    mActivityTestRule.getActivity(),
+                                    /* listenToActivityState= */ true,
+                                    IntentRequestTracker.createFromActivity(
+                                            mActivityTestRule.getActivity()),
+                                    /* insetObserver= */ null,
+                                    /* trackOcclusion= */ true);
+                        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    DecoderServiceHost.setIntentSupplier(
+                            () -> {
+                                return new Intent(
+                                        mActivityTestRule.getActivity(),
+                                        TestImageDecoderService.class);
+                            });
+                });
         PickerVideoPlayer.setProgressCallback(this);
         PickerBitmapView.setAnimationListenerForTest(this);
         DecoderServiceHost.setStatusCallback(this);
@@ -150,7 +166,10 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
 
     @After
     public void tearDown() throws Exception {
-        TestThreadUtils.runOnUiThreadBlocking(() -> { mWindowAndroid.destroy(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mWindowAndroid.destroy();
+                });
     }
 
     private void setupTestFiles() {
@@ -179,14 +198,26 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
         // opposed to incrementing) the tiles will appear in same order as they are added.
         long lastModified = 1000;
         for (int i = 0; i < 50; ++i) {
-            mTestFiles.add(new PickerBitmap(Uri.fromFile(new File(filePath + green)),
-                    lastModified--, PickerBitmap.TileTypes.PICTURE));
-            mTestFiles.add(new PickerBitmap(Uri.fromFile(new File(filePath + yellow)),
-                    lastModified--, PickerBitmap.TileTypes.PICTURE));
-            mTestFiles.add(new PickerBitmap(Uri.fromFile(new File(filePath + red)), lastModified--,
-                    PickerBitmap.TileTypes.PICTURE));
-            mTestFiles.add(new PickerBitmap(Uri.fromFile(new File(filePath + blue)), lastModified--,
-                    PickerBitmap.TileTypes.PICTURE));
+            mTestFiles.add(
+                    new PickerBitmap(
+                            Uri.fromFile(new File(filePath + green)),
+                            lastModified--,
+                            PickerBitmap.TileTypes.PICTURE));
+            mTestFiles.add(
+                    new PickerBitmap(
+                            Uri.fromFile(new File(filePath + yellow)),
+                            lastModified--,
+                            PickerBitmap.TileTypes.PICTURE));
+            mTestFiles.add(
+                    new PickerBitmap(
+                            Uri.fromFile(new File(filePath + red)),
+                            lastModified--,
+                            PickerBitmap.TileTypes.PICTURE));
+            mTestFiles.add(
+                    new PickerBitmap(
+                            Uri.fromFile(new File(filePath + blue)),
+                            lastModified--,
+                            PickerBitmap.TileTypes.PICTURE));
         }
         PickerCategoryView.setTestFiles(mTestFiles);
     }
@@ -194,7 +225,7 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
     // PhotoPickerDialog.PhotoPickerListener:
 
     @Override
-    public void onPhotoPickerUserAction(@PhotoPickerAction int action, Uri[] photos) {
+    public void onPhotoPickerUserAction(@PhotoPickerAction int action, Uri @Nullable [] photos) {
         mLastActionRecorded = action;
         mLastSelectedPhotos = photos != null ? photos.clone() : null;
         if (mLastSelectedPhotos != null) Arrays.sort(mLastSelectedPhotos);
@@ -272,28 +303,38 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
     public void onAnimationRepeat(Animation animation) {}
 
     private RecyclerView getRecyclerView() {
-        return (RecyclerView) mDialog.findViewById(R.id.selectable_list_recycler_view);
+        return mDialog.findViewById(R.id.selectable_list_recycler_view);
     }
 
-    private PhotoPickerDialog createDialogWithContentResolver(final ContentResolver contentResolver,
-            final boolean multiselect, final List<String> mimeTypes) throws Exception {
-        return TestThreadUtils.runOnUiThreadBlocking(() -> {
-            final PhotoPickerDialog dialog = new PhotoPickerDialog(mWindowAndroid, contentResolver,
-                    PhotoPickerDialogTest.this, multiselect, mimeTypes);
-            dialog.show();
-            mSelectionDelegate =
-                    dialog.getCategoryViewForTesting().getSelectionDelegateForTesting();
-            if (!multiselect) mSelectionDelegate.setSingleSelectionMode();
-            mSelectionDelegate.addObserver(this);
-            mDialog = dialog;
-            return dialog;
-        });
+    private PhotoPickerDialog createDialogWithContentResolver(
+            final ContentResolver contentResolver,
+            final boolean multiselect,
+            final List<String> mimeTypes)
+            throws Exception {
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    final PhotoPickerDialog dialog =
+                            new PhotoPickerDialog(
+                                    mWindowAndroid,
+                                    contentResolver,
+                                    PhotoPickerDialogTest.this,
+                                    multiselect,
+                                    mimeTypes,
+                                    /* shouldPadForContent= */ false);
+                    dialog.show();
+                    mSelectionDelegate =
+                            dialog.getCategoryViewForTesting().getSelectionDelegateForTesting();
+                    if (!multiselect) mSelectionDelegate.setSingleSelectionMode();
+                    mSelectionDelegate.addObserver(this);
+                    mDialog = dialog;
+                    return dialog;
+                });
     }
 
     private PhotoPickerDialog createDialog(final boolean multiselect, final List<String> mimeTypes)
             throws Exception {
         return createDialogWithContentResolver(
-                getActivity().getContentResolver(), multiselect, mimeTypes);
+                mActivityTestRule.getActivity().getContentResolver(), multiselect, mimeTypes);
     }
 
     private void waitForDecoder() throws Exception {
@@ -325,46 +366,57 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
     private void clickDone() throws Exception {
         mLastActionRecorded = PhotoPickerAction.NUM_ENTRIES;
 
-        PhotoPickerToolbar toolbar = (PhotoPickerToolbar) mDialog.findViewById(R.id.action_bar);
-        Button done = (Button) toolbar.findViewById(R.id.done);
+        PhotoPickerToolbar toolbar = mDialog.findViewById(R.id.action_bar);
+        Button done = toolbar.findViewById(R.id.done);
         int callCount = mOnActionCallback.getCallCount();
         TouchCommon.singleClickView(done);
         mOnActionCallback.waitForCallback(callCount, 1);
         Assert.assertEquals(PhotoPickerAction.PHOTOS_SELECTED, mLastActionRecorded);
-        Assert.assertTrue(TestThreadUtils.runOnUiThreadBlocking(() -> { return mDismissed; }));
+        Assert.assertTrue(
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return mDismissed;
+                        }));
     }
 
     private void clickCancel() throws Exception {
         mLastActionRecorded = PhotoPickerAction.NUM_ENTRIES;
 
         PickerCategoryView categoryView = mDialog.getCategoryViewForTesting();
-        View cancel = new View(getActivity());
+        View cancel = new View(mActivityTestRule.getActivity());
         int callCount = mOnActionCallback.getCallCount();
         categoryView.onClick(cancel);
         mOnActionCallback.waitForCallback(callCount, 1);
         Assert.assertEquals(PhotoPickerAction.CANCEL, mLastActionRecorded);
-        Assert.assertTrue(TestThreadUtils.runOnUiThreadBlocking(() -> { return mDismissed; }));
+        Assert.assertTrue(
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return mDismissed;
+                        }));
     }
 
     private void playVideo(Uri uri) throws Exception {
         int callCount = mOnVideoPlayingCallback.getCallCount();
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mDialog.getCategoryViewForTesting().startVideoPlaybackAsync(uri); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mDialog.getCategoryViewForTesting().startVideoPlaybackAsync(uri);
+                });
         mOnVideoPlayingCallback.waitForCallback(
                 callCount, 1, VIDEO_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     private void dismissDialog() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mDialog.dismiss();
-            Assert.assertTrue(mDismissed);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mDialog.dismiss();
+                    Assert.assertTrue(mDismissed);
+                });
     }
 
     /**
      * Tests what happens when the ContentResolver returns a null cursor when query() is called (a
-     * regression test for https://crbug.com/1072415).
-     * Note: This test does not call setupTestFiles() so that the real FileEnumWorkerTask is used.
+     * regression test for https://crbug.com/1072415). Note: This test does not call
+     * setupTestFiles() so that the real FileEnumWorkerTask is used.
      */
     @Test
     @LargeTest
@@ -388,6 +440,7 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
 
     @Test
     @LargeTest
+    @DisableIf.Build(sdk_equals = Build.VERSION_CODES.S_V2, message = "crbug.com/1360427")
     public void testNoSelection() throws Throwable {
         setupTestFiles();
         createDialog(false, Arrays.asList("image/*")); // Multi-select = false.
@@ -404,6 +457,7 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
 
     @Test
     @LargeTest
+    @DisableIf.Build(sdk_equals = Build.VERSION_CODES.S_V2, message = "crbug.com/1360427")
     public void testSingleSelectionPhoto() throws Throwable {
         setupTestFiles();
         createDialog(false, Arrays.asList("image/*")); // Multi-select = false.
@@ -432,6 +486,7 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
 
     @Test
     @LargeTest
+    @DisableIf.Build(sdk_equals = Build.VERSION_CODES.S_V2, message = "crbug.com/1360427")
     public void testBackPressDismiss() throws Throwable {
         setupTestFiles();
         createDialog(false, Arrays.asList("image/*")); // Multi-select = false.
@@ -451,8 +506,10 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
         clickView(1, expectedSelectionCount);
         mOnAnimatedCallback.waitForCallback(callCount, 1);
 
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mDialog.getOnBackPressedDispatcher().onBackPressed(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mDialog.getOnBackPressedDispatcher().onBackPressed();
+                });
 
         Assert.assertNull(mLastSelectedPhotos);
         Assert.assertEquals(PhotoPickerAction.CANCEL, mLastActionRecorded);
@@ -461,6 +518,7 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
 
     @Test
     @LargeTest
+    @DisableIf.Build(sdk_equals = Build.VERSION_CODES.S_V2, message = "crbug.com/1360427")
     public void testMultiSelectionPhoto() throws Throwable {
         setupTestFiles();
         createDialog(true, Arrays.asList("image/*")); // Multi-select = true.
@@ -499,8 +557,11 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
     @MinAndroidSdkLevel(Build.VERSION_CODES.O) // Video is only supported on O+.
     public void testVideoPlayerPlayAndRestart() throws Throwable {
         // Requesting to play a video is not a case of an accidental disk read on the UI thread.
-        StrictMode.ThreadPolicy oldPolicy = TestThreadUtils.runOnUiThreadBlocking(
-                () -> { return StrictMode.allowThreadDiskReads(); });
+        StrictMode.ThreadPolicy oldPolicy =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return StrictMode.allowThreadDiskReads();
+                        });
 
         try {
             setupTestFiles();
@@ -524,24 +585,29 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
 
             mOnVideoEndedCallback.waitForCallback(callCount, 1);
 
-            TestThreadUtils.runOnUiThreadBlocking(() -> {
-                View mute = categoryView.findViewById(R.id.mute);
-                categoryView.getVideoPlayerForTesting().onClick(mute);
-            });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        View mute = categoryView.findViewById(R.id.mute);
+                        categoryView.getVideoPlayerForTesting().onClick(mute);
+                    });
 
             // Clicking the play button should restart playback.
             callCount = mOnVideoEndedCallback.getCallCount();
 
-            TestThreadUtils.runOnUiThreadBlocking(() -> {
-                View playbutton = categoryView.findViewById(R.id.video_player_play_button);
-                categoryView.getVideoPlayerForTesting().onClick(playbutton);
-            });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        View playbutton = categoryView.findViewById(R.id.video_player_play_button);
+                        categoryView.getVideoPlayerForTesting().onClick(playbutton);
+                    });
 
             mOnVideoEndedCallback.waitForCallback(callCount, 1);
 
             dismissDialog();
         } finally {
-            TestThreadUtils.runOnUiThreadBlocking(() -> { StrictMode.setThreadPolicy(oldPolicy); });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        StrictMode.setThreadPolicy(oldPolicy);
+                    });
         }
     }
 
@@ -550,8 +616,11 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
     @MinAndroidSdkLevel(Build.VERSION_CODES.O) // Video is only supported on O+.
     public void testVideoPlayerPlayAndBackPress() throws Throwable {
         // Requesting to play a video is not a case of an accidental disk read on the UI thread.
-        StrictMode.ThreadPolicy oldPolicy = TestThreadUtils.runOnUiThreadBlocking(
-                () -> { return StrictMode.allowThreadDiskReads(); });
+        StrictMode.ThreadPolicy oldPolicy =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return StrictMode.allowThreadDiskReads();
+                        });
 
         try {
             setupTestFiles();
@@ -575,44 +644,62 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
 
             mOnVideoEndedCallback.waitForCallback(callCount, 1);
 
-            TestThreadUtils.runOnUiThreadBlocking(
-                    () -> { mDialog.getOnBackPressedDispatcher().onBackPressed(); });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        mDialog.getOnBackPressedDispatcher().onBackPressed();
+                    });
 
             // Clicking the play button should restart playback.
             callCount = mOnVideoEndedCallback.getCallCount();
 
-            TestThreadUtils.runOnUiThreadBlocking(() -> {
-                View playbutton = categoryView.findViewById(R.id.video_player_play_button);
-                categoryView.getVideoPlayerForTesting().onClick(playbutton);
-            });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        View playbutton = categoryView.findViewById(R.id.video_player_play_button);
+                        categoryView.getVideoPlayerForTesting().onClick(playbutton);
+                    });
 
             mOnVideoEndedCallback.waitForCallback(callCount, 1);
 
-            TestThreadUtils.runOnUiThreadBlocking(
-                    () -> { mDialog.getOnBackPressedDispatcher().onBackPressed(); });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        mDialog.getOnBackPressedDispatcher().onBackPressed();
+                    });
             Assert.assertTrue(mDismissed);
         } finally {
-            TestThreadUtils.runOnUiThreadBlocking(() -> { StrictMode.setThreadPolicy(oldPolicy); });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        StrictMode.setThreadPolicy(oldPolicy);
+                    });
         }
     }
 
     private void verifyVisible(int viewId, int eventId) {
-        Assert.assertEquals("Unexpected view ID for event " + eventId, viewId,
+        Assert.assertEquals(
+                "Unexpected view ID for event " + eventId,
+                viewId,
                 (long) mLastViewAnimatingIds.get(eventId));
-        Assert.assertEquals("Unexpected alpha value for event " + eventId, 1.0f,
-                (double) mLastViewAnimatingAlphas.get(eventId), MathUtils.EPSILON);
+        Assert.assertEquals(
+                "Unexpected alpha value for event " + eventId,
+                1.0f,
+                (double) mLastViewAnimatingAlphas.get(eventId),
+                MathUtils.EPSILON);
     }
 
     private void verifyHidden(int viewId, int eventId) {
-        Assert.assertEquals("Unexpected view ID for event " + eventId, viewId,
+        Assert.assertEquals(
+                "Unexpected view ID for event " + eventId,
+                viewId,
                 (long) mLastViewAnimatingIds.get(eventId));
-        Assert.assertEquals("Unexpected alpha value for event " + eventId, 0.0f,
-                (double) mLastViewAnimatingAlphas.get(eventId), MathUtils.EPSILON);
+        Assert.assertEquals(
+                "Unexpected alpha value for event " + eventId,
+                0.0f,
+                (double) mLastViewAnimatingAlphas.get(eventId),
+                MathUtils.EPSILON);
     }
 
     @Test
     @LargeTest
-    @DisableAnimationsTestRule.EnsureAnimationsOn
+    @EnableAnimations
     @MinAndroidSdkLevel(Build.VERSION_CODES.O) // Video is only supported on O+.
     @DisableIf.Build(supported_abis_includes = "x86", message = "https://crbug.com/1092104")
     @DisableIf.Build(supported_abis_includes = "x86_64", message = "https://crbug.com/1092104")
@@ -621,8 +708,11 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
         PickerVideoPlayer.setShortAnimationTimesForTesting(true);
 
         // Requesting to play a video is not a case of an accidental disk read on the UI thread.
-        StrictMode.ThreadPolicy oldPolicy = TestThreadUtils.runOnUiThreadBlocking(
-                () -> { return StrictMode.allowThreadDiskReads(); });
+        StrictMode.ThreadPolicy oldPolicy =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return StrictMode.allowThreadDiskReads();
+                        });
 
         try {
             setupTestFiles();
@@ -658,10 +748,11 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
             verifyVisible(R.id.video_controls, i++);
             verifyHidden(R.id.video_controls, i++);
 
-            TestThreadUtils.runOnUiThreadBlocking(() -> {
-                // Single-tapping should make the controls visible again and then fade away.
-                categoryView.getVideoPlayerForTesting().singleTapForTesting();
-            });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        // Single-tapping should make the controls visible again and then fade away.
+                        categoryView.getVideoPlayerForTesting().singleTapForTesting();
+                    });
 
             // Animation-end has been called twice now, expect four more calls after single-tapping
             // because controls fade in and then fade out again.
@@ -681,11 +772,13 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
             verifyHidden(R.id.video_controls, i++);
             verifyHidden(R.id.video_player_play_button, i++);
 
-            TestThreadUtils.runOnUiThreadBlocking(() -> {
-                // Double-tapping left of screen will cause the video to roll back to the beginning
-                // and controls to be shown immediately (no fade-in) and then gradually fade out.
-                categoryView.getVideoPlayerForTesting().doubleTapForTesting(/*x=*/0f);
-            });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        // Double-tapping left of screen will cause the video to roll back to the
+                        // beginning and controls to be shown immediately (no fade-in) and then
+                        // gradually fade out.
+                        categoryView.getVideoPlayerForTesting().doubleTapForTesting(/* x= */ 0f);
+                    });
 
             callCount += 4;
             mOnVideoAnimationEndCallback.waitForCallback(callCount, 2);
@@ -698,7 +791,10 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
 
             dismissDialog();
         } finally {
-            TestThreadUtils.runOnUiThreadBlocking(() -> { StrictMode.setThreadPolicy(oldPolicy); });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        StrictMode.setThreadPolicy(oldPolicy);
+                    });
         }
     }
 
@@ -712,19 +808,23 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
         int callCount = mOnDecoderReadyCallback.getCallCount();
 
         // Simulate an early configuration change for the photo grid.
-        Configuration configuration = getActivity().getResources().getConfiguration();
+        Configuration configuration =
+                mActivityTestRule.getActivity().getResources().getConfiguration();
         PickerCategoryView categoryView = mDialog.getCategoryViewForTesting();
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { categoryView.onConfigurationChanged(configuration); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    categoryView.onConfigurationChanged(configuration);
+                });
 
         mOnDecoderReadyCallback.waitForCallback(
                 callCount, 1, WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         // Simulate an early configuration change for the video player (before showing).
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            PickerVideoPlayer videoPlayer = categoryView.getVideoPlayerForTesting();
-            videoPlayer.onConfigurationChanged(configuration);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    PickerVideoPlayer videoPlayer = categoryView.getVideoPlayerForTesting();
+                    videoPlayer.onConfigurationChanged(configuration);
+                });
 
         dismissDialog();
     }
@@ -732,6 +832,7 @@ public class PhotoPickerDialogTest extends BlankUiTestActivityTestCase
     @Test
     @LargeTest
     @Feature("RenderTest")
+    @DisableIf.Build(sdk_equals = Build.VERSION_CODES.S_V2, message = "crbug.com/1360427")
     public void testBorderPersistence() throws Exception {
         setupTestFilesWith80ColoredSquares();
         createDialog(false, Arrays.asList("image/*")); // Multi-select = false.

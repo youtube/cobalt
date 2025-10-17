@@ -1,11 +1,7 @@
-# mypy: no-warn-return-any
-
 from enum import IntEnum
 from typing import Iterator, Optional
 
-# TODO(bashi): Remove import check suppressions once aioquic dependency is
-# resolved.
-from aioquic.buffer import UINT_VAR_MAX_SIZE, Buffer, BufferReadError  # type: ignore
+from aioquic.buffer import UINT_VAR_MAX_SIZE, Buffer, BufferReadError
 
 
 class CapsuleType(IntEnum):
@@ -108,7 +104,7 @@ class H3CapsuleDecoder:
             if self._final:
                 raise e
             if not self._buffer:
-                return 0
+                return
             size = self._buffer.capacity - self._buffer.tell()
             if size >= UINT_VAR_MAX_SIZE:
                 raise e

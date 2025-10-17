@@ -9,74 +9,121 @@
 #include <vector>
 
 #include "ash/ash_export.h"
+#include "ash/wm/overview/overview_observer.h"
+#include "ash/wm/snap_group/snap_group_metrics.h"
+#include "ash/wm/wm_metrics.h"
 #include "base/containers/flat_map.h"
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
+#include "base/time/time.h"
+#include "ui/aura/window.h"
+#include "ui/display/display_observer.h"
 
-namespace aura {
-class Window;
-}  // namespace aura
+namespace display {
+enum class TabletState;
+}  // namespace display
 
 namespace ash {
 
 class SnapGroup;
+class SnapGroupObserver;
+class SplitViewDivider;
 
 // Works as the centralized place to manage the `SnapGroup`. A single instance
 // of this class will be created and owned by `Shell`. It controls the creation
 // and destruction of the `SnapGroup`.
-// TODO: It should also implement the `OverviewObserver` and `TabletObserver`.
-class ASH_EXPORT SnapGroupController {
+class ASH_EXPORT SnapGroupController : public OverviewObserver,
+                                       public display::DisplayObserver {
  public:
-  class Observer : public base::CheckedObserver {
-   public:
-    // Called to notify with the creation of snap group.
-    virtual void OnSnapGroupCreated() = 0;
-
-    // Called to notify the removal of snap group.
-    virtual void OnSnapGroupRemoved() = 0;
-  };
-
   using SnapGroups = std::vector<std::unique_ptr<SnapGroup>>;
-  using WindowToSnapGroupMap = base::flat_map<aura::Window*, SnapGroup*>;
+  using WindowToSnapGroupMap =
+      base::flat_map<aura::Window*, raw_ptr<SnapGroup, CtnExperimental>>;
 
   SnapGroupController();
   SnapGroupController(const SnapGroupController&) = delete;
   SnapGroupController& operator=(const SnapGroupController&) = delete;
-  ~SnapGroupController();
+  ~SnapGroupController() override;
+
+  // Convenience function to get the snap group controller instance, which is
+  // created and owned by Shell.
+  static SnapGroupController* Get();
 
   // Returns true if `window1` and `window2` are in the same snap group.
   bool AreWindowsInSnapGroup(aura::Window* window1,
                              aura::Window* window2) const;
 
-  // Returns true if the corresponding SnapGroup for the given `window1` and
-  // `window2` gets created, added to the `snap_groups_` and updated
-  // `window_to_snap_group_map_` successfully. False otherwise.
-  bool AddSnapGroup(aura::Window* window1, aura::Window* window2);
+  // Called by `SplitViewController` when `window` is snapped. Returns true if
+  // `window` was added to a group, either by normal group creation or snap
+  // to replace.
+  bool OnWindowSnapped(aura::Window* window,
+                       WindowSnapActionSource snap_action_source);
 
-  // Returns true if the corresponding `snap_group` has
-  // been successfully removed from the `snap_groups_` and
-  // `window_to_snap_group_map_`. False otherwise.
-  bool RemoveSnapGroup(SnapGroup* snap_group);
+  // Attempts to add `window1` and `window2` as a `SnapGroup`. Returns the
+  // `SnapGroup`, if the creation is successful. Returns nullptr, otherwise.
+  // Currently, both windows must reside within the same parent container for
+  // successful creation. If `replace` is true, the group was snapped to replace
+  // and we shouldn't record the count change. `carry_over_creation_time`
+  // indicates the creation time of a prior Snap Group from which the current
+  // one was derived using the Snap to Replace feature.
+  // TODO(b/333772909): Remove `replace` param when snap to replace updates
+  // window in SnapGroup instead of removing and re-adding a SnapGroup.
+  SnapGroup* AddSnapGroup(
+      aura::Window* window1,
+      aura::Window* window2,
+      bool replace,
+      std::optional<base::TimeTicks> carry_over_creation_time);
+
+  // Removes the specified `snap_group`, recording the `exit_point` metric.
+  // Returns true if the corresponding `snap_group` has been successfully
+  // removed from the `snap_groups_` and `window_to_snap_group_map_`. False
+  // otherwise.
+  bool RemoveSnapGroup(SnapGroup* snap_group, SnapGroupExitPoint exit_point);
 
   // Returns true if the corresponding snap group that contains the
   // given `window` has been removed successfully. Returns false otherwise.
-  bool RemoveSnapGroupContainingWindow(aura::Window* window);
+  bool RemoveSnapGroupContainingWindow(aura::Window* window,
+                                       SnapGroupExitPoint exit_point);
 
   // Returns the corresponding `SnapGroup` if the given `window` belongs to a
   // snap group or nullptr otherwise.
-  SnapGroup* GetSnapGroupForGivenWindow(aura::Window* window);
+  SnapGroup* GetSnapGroupForGivenWindow(const aura::Window* window) const;
 
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* observer);
+  // Returns the topmost fully visible non-occluded snap group on `target_root`.
+  // If `topwindow_only` is true, it return null if the top window isn't in a
+  // snap group. If false, it will search until it finds a snap group.
+  SnapGroup* GetTopmostVisibleSnapGroup(const aura::Window* target_root,
+                                        bool topwindow_only) const;
 
-  // Returns true if the feature flag `kSnapGroup` is enabled and the feature
-  // param `kAutomaticallyLockGroup` is true, i.e. a snap group will be created
-  // automatically on two windows snapped.
-  bool IsArm1AutomaticallyLockEnabled() const;
+  // Returns the topmost snap group in unminimized state.
+  SnapGroup* GetTopmostSnapGroup() const;
 
-  // Returns true if the feature flag `kSnapGroup` is enabled and the feature
-  // param `kAutomaticallyLockGroup` is false, i.e. the user has to explicitly
-  // create the snap group when the lock option shows up on two windows snapped.
-  bool IsArm2ManuallyLockEnabled() const;
+  // Returns the snap group divider the `window` belongs to.
+  SplitViewDivider* GetSnapGroupDividerForWindow(const aura::Window* window);
+
+  // Determines which windows can be used for snap-to-replace with keyboard
+  // shortcut:
+  // 1. Finds the topmost snapped window.
+  // 2. Identifies the window within a partially obscured Snap Group that isn't
+  // hidden by the topmost snapped window.
+  //  Returns the window pair for snap-to-replace: [primary snapped window,
+  //  secondary snapped window].
+  std::optional<std::pair<aura::Window*, aura::Window*>>
+  GetWindowPairForSnapToReplaceWithKeyboardShortcut();
+
+  void AddObserver(SnapGroupObserver* observer);
+  void RemoveObserver(SnapGroupObserver* observer);
+
+  // Called by `WindowState` when a float or unfloat event for `window` has
+  // completed.
+  void OnFloatUnfloatCompleted(aura::Window* window);
+
+  // OverviewObserver:
+  void OnOverviewModeStarting() override;
+  void OnOverviewModeEnding(OverviewSession* overview_session) override;
+  void OnOverviewModeEndingAnimationComplete(bool canceled) override;
+
+  // display::DisplayObserver:
+  void OnDisplayTabletStateChanged(display::TabletState state) override;
 
   const SnapGroups& snap_groups_for_testing() const { return snap_groups_; }
   const WindowToSnapGroupMap& window_to_snap_group_map_for_testing() const {
@@ -84,10 +131,32 @@ class ASH_EXPORT SnapGroupController {
   }
 
  private:
+  // Returns true if the attempt to replace the window within the snap group of
+  // `opposite_snapped_window` positioned directly below with the given
+  // `to_be_snapped_window` is successful, returns false otherwise. The
+  // `snap_action_source` determines the need for snap ratio difference
+  // calculations during 'snap to replace'.
+  bool MaybeSnapToReplace(aura::Window* to_be_snapped_window,
+                          aura::Window* opposite_snapped_window,
+                          WindowSnapActionSource snap_action_source);
+
   // Retrieves the other window that is in the same snap group if any. Returns
   // nullptr if such window can't be found i.e. the window is not in a snap
   // group.
   aura::Window* RetrieveTheOtherWindowInSnapGroup(aura::Window* window) const;
+
+  // Restores the snapped state of the `snap_groups_` upon completion of certain
+  // transitions such as overview mode or tablet mode. Disallow overview to be
+  // shown on the other side of the screen when restoring snap groups so that
+  // the restore will be instant and the recursive snapping behavior will be
+  // avoided.
+  void RestoreSnapGroups();
+
+  // Restore the snap state of the windows in the given `snap_group`.
+  void RestoreSnapState(SnapGroup* snap_group);
+
+  // Called when the display tablet state is changed.
+  void OnTabletModeStarted();
 
   // Contains all the `SnapGroup`(s), we will have one `SnapGroup` globally for
   // the first iteration but will have multiple in the future iteration.
@@ -98,7 +167,9 @@ class ASH_EXPORT SnapGroupController {
   // window is in a `SnapGroup` or not.
   WindowToSnapGroupMap window_to_snap_group_map_;
 
-  base::ObserverList<Observer> observers_;
+  base::ObserverList<SnapGroupObserver> observers_;
+
+  display::ScopedDisplayObserver display_observer_{this};
 };
 
 }  // namespace ash

@@ -10,15 +10,28 @@ option java_outer_classname = "SegmentationProto";
 package segmentation_platform.proto;
 
 // List of user segment types.
-// Any segment that needs a server provided model should have an entry in
-// OptimizationTarget. If the segment only uses default model, then the segment
-// should have a value higher than `MAX_OPTIMIZATION_TARGET`.
-// Keep in sync with SegmentationPlatformSegmentationModel in
-// //tools/metrics/histograms/enums.xml.
+// There are two types of user segments:
+//   - Server model segments: These segments support receiving updated models
+//     from a server, and its values must be less than MAX_OPTIMIZATION_TARGET.
+//   - Default model segments: These segments only support a client-side default
+//     model, its values must be greater than MAX_OPTIMIZATION_TARGET.
+//
+// All new SegmentIds should be added to the following locations:
+//   1. The list of segmentation client keys in
+//      components/segmentation_platform/public/constants.h.
+//   2. Histogram variant must be added to SegmentationModel in
+//      tools/metrics/histograms/metadata/segmentation_platform/histograms.xml.
+//
+// New server model segments must be added to the following locations:
+//   - OptimizationTargetProto in
+//     components/optimization_guide/proto/models.proto.
+//   - SegmentationPlatformSegmentationModel enum in
+//     tools/metrics/histograms/enums.xml
 enum SegmentId {
-  // Reserved fields are `OptimizationTarget`s that are not usde by segmentation
+  // Reserved fields are `OptimizationTarget`s that are not used by segmentation
   // to prevent accidental misuse.
-  reserved 1, 2, 3, 7, 8, 9, 13, 14, 15, 19, 20, 24, 25, 26, 30, 31;
+  reserved 1, 2, 3, 7, 8, 9, 13, 14, 15, 19, 20, 24, 25, 26, 30, 31, 33, 34, 35,
+      36, 39, 40, 42, 43, 44, 47, 48, 49, 51, 52, 53, 54, 55, 56, 57;
 
   OPTIMIZATION_TARGET_UNKNOWN = 0;
   // Target for segmentation: New tab page user.
@@ -53,6 +66,21 @@ enum SegmentId {
   OPTIMIZATION_TARGET_SEGMENTATION_TABLET_PRODUCTIVITY_USER = 29;
   // Target for web app install promotion.
   OPTIMIZATION_TARGET_WEB_APP_INSTALLATION_PROMO = 32;
+  // Target for ios module ranker.
+  OPTIMIZATION_TARGET_SEGMENTATION_IOS_MODULE_RANKER = 37;
+  // Target for segmentation: Determine what modules a user should see on their
+  // Desktop New Tab Page.
+  OPTIMIZATION_TARGET_SEGMENTATION_DESKTOP_NTP_MODULE = 38;
+  // Target for android home module ranker.
+  OPTIMIZATION_TARGET_SEGMENTATION_ANDROID_HOME_MODULE_RANKER = 41;
+  // Target to determine whether to show promotion for Compose.
+  OPTIMIZATION_TARGET_SEGMENTATION_COMPOSE_PROMOTION = 45;
+  // Target for ranking URL visits used in visit resumption features.
+  OPTIMIZATION_TARGET_URL_VISIT_RESUMPTION_RANKER = 46;
+  // Target for metrics based segmentation clustering.
+  OPTIMIZATION_TARGET_SEGMENTATION_METRICS_CLUSTERING = 50;
+  // Target for segmentation: FedCM user.
+  OPTIMIZATION_TARGET_SEGMENTATION_FEDCM_USER = 58;
   // Add new entries to OptimizationTarget proto.
 
   // New entries should start from a 1000 if OptimizationTarget does not
@@ -72,4 +100,20 @@ enum SegmentId {
   RESUME_HEAVY_USER_SEGMENT = 1004;
   // Determine device tiers for different user devices.
   DEVICE_TIER_SEGMENT = 1005;
+  // Determine if a tab is likely to be resumed.
+  TAB_RESUMPTION_CLASSIFIER = 1006;
+  // Segment for users who use password manager features.
+  PASSWORD_MANAGER_USER = 1007;
+  // Segment for users who use most visited tiles.
+  MOST_VISITED_TILES_USER = 1008;
+  // Default model used for tracking metrics used by DatabaseClient API.
+  DATABASE_API_CLIENTS = 1009;
+  // Test model for OPTIMIZATION_TARGET_SEGMENTATION_IOS_MODULE_RANKER
+  OPTIMIZATION_TARGET_SEGMENTATION_IOS_MODULE_RANKER_TEST = 1010;
+  // Model used for targeting and triggering ephemeral home module.
+  EPHEMERAL_HOME_MODULE_BACKEND = 1011;
+  // Test model for EPHEMERAL_HOME_MODULE_BACKEND.
+  EPHEMERAL_HOME_MODULE_BACKEND_TEST = 1012;
+  // Segment for users who use FedCM.
+  // FEDCM_USER = 1013;  // Deprecated.
 };

@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/host/native_messaging/native_messaging_reader.h"
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -15,7 +21,6 @@
 #include "build/build_config.h"
 #include "remoting/host/setup/test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace remoting {
 
@@ -47,7 +52,7 @@ class NativeMessagingReaderTest : public testing::Test {
   base::File read_file_;
   base::File write_file_;
   bool on_error_signaled_ = false;
-  absl::optional<base::Value> message_;
+  std::optional<base::Value> message_;
 
  private:
   // MessageLoop declared here, since the NativeMessageReader ctor requires a
@@ -114,7 +119,7 @@ TEST_F(NativeMessagingReaderTest, ReaderDestroyedByClosingPipe) {
 #if BUILDFLAG(IS_WIN)
 // This scenario is only a problem on Windows as closing the write pipe there
 // does not trigger the parent process to close the read pipe.
-// TODO(crbug.com/1313610) Disabled because it's flaky.
+// TODO(crbug.com/40221037) Disabled because it's flaky.
 TEST_F(NativeMessagingReaderTest, DISABLED_ReaderDestroyedByOwner) {
   WriteMessage("{\"foo\": 42}");
   RunAndWaitForOperationComplete();
@@ -133,7 +138,7 @@ TEST_F(NativeMessagingReaderTest, SingleGoodMessage) {
   ASSERT_TRUE(message_);
 
   ASSERT_TRUE(message_->is_dict());
-  absl::optional<int> result = message_->GetDict().FindInt("foo");
+  std::optional<int> result = message_->GetDict().FindInt("foo");
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(42, result);
 }
@@ -154,7 +159,7 @@ TEST_F(NativeMessagingReaderTest, MultipleGoodMessages) {
     ASSERT_FALSE(on_error_signaled_);
     ASSERT_TRUE(message_);
     ASSERT_TRUE(message_->is_dict());
-    absl::optional<int> result = message_->GetDict().FindInt("foo");
+    std::optional<int> result = message_->GetDict().FindInt("foo");
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(42, result);
   }
@@ -165,7 +170,7 @@ TEST_F(NativeMessagingReaderTest, MultipleGoodMessages) {
     ASSERT_FALSE(on_error_signaled_);
     ASSERT_TRUE(message_);
     ASSERT_TRUE(message_->is_dict());
-    absl::optional<int> result = message_->GetDict().FindInt("bar");
+    std::optional<int> result = message_->GetDict().FindInt("bar");
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(43, result);
   }
@@ -176,7 +181,7 @@ TEST_F(NativeMessagingReaderTest, MultipleGoodMessages) {
     ASSERT_FALSE(on_error_signaled_);
     ASSERT_TRUE(message_);
     ASSERT_TRUE(message_->is_dict());
-    absl::optional<int> result = message_->GetDict().FindInt("baz");
+    std::optional<int> result = message_->GetDict().FindInt("baz");
     ASSERT_TRUE(result.has_value());
     ASSERT_EQ(44, result);
   }

@@ -13,7 +13,6 @@
 #include "ui/base/models/dialog_model.h"
 #include "ui/base/models/dialog_model_field.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
-#include "ui/views/views_features.h"
 
 void ExtensionsRequestAccessHoverCardCoordinator::ShowBubble(
     content::WebContents* web_contents,
@@ -34,7 +33,7 @@ void ExtensionsRequestAccessHoverCardCoordinator::ShowBubble(
           &ExtensionsRequestAccessHoverCardCoordinator::HideBubble,
           base::Unretained(this)));
 
-  // TODO(crbug.com/1325171): Use extensions::IconImage instead of getting the
+  // TODO(crbug.com/40839674): Use extensions::IconImage instead of getting the
   // action's image. This requires the coordinator class to implement
   // extensions::IconImage::Observer.
 
@@ -51,7 +50,7 @@ void ExtensionsRequestAccessHoverCardCoordinator::ShowBubble(
     dialog_builder.AddParagraph(ui::DialogModelLabel::CreateWithReplacement(
         IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_TOOLTIP_MULTIPLE_EXTENSIONS,
         ui::DialogModelLabel::CreateEmphasizedText(url)));
-    for (auto extension_id : extension_ids) {
+    for (const auto& extension_id : extension_ids) {
       ToolbarActionViewController* action =
           extensions_container->GetActionForId(extension_id);
       dialog_builder.AddMenuItem(
@@ -70,13 +69,9 @@ void ExtensionsRequestAccessHoverCardCoordinator::ShowBubble(
   bubble_tracker_.SetView(bubble->GetContentsView());
 
   auto* widget = views::BubbleDialogDelegate::CreateBubble(std::move(bubble));
-  // Ensure the hover card Widget assumes the highest z-order to avoid occlusion
+  // Ensure the hover card Widget assumes a higher z-order to avoid occlusion
   // by other secondary UI Widgets
-  if (base::FeatureList::IsEnabled(views::features::kWidgetLayering)) {
-    widget->SetZOrderSublevel(ChromeWidgetSublevel::kSublevelHoverable);
-  } else {
-    widget->StackAtTop();
-  }
+  widget->SetZOrderSublevel(ChromeWidgetSublevel::kSublevelHoverable);
 
   widget->Show();
 }

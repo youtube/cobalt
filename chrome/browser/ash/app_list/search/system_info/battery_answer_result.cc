@@ -5,9 +5,9 @@
 #include "chrome/browser/ash/app_list/search/system_info/battery_answer_result.h"
 
 #include "ash/public/cpp/app_list/app_list_types.h"
-#include "ash/public/cpp/power_utils.h"
 #include "chrome/browser/ash/app_list/search/system_info/system_info_answer_result.h"
-#include "chrome/browser/ash/app_list/search/system_info/system_info_util.h"
+#include "chromeos/ash/components/launcher_search/system_info/launcher_util.h"
+#include "chromeos/ash/components/system_info/battery_health.h"
 
 namespace app_list {
 namespace {
@@ -24,7 +24,9 @@ BatteryAnswerResult::BatteryAnswerResult(
     double relevance_score,
     const std::u16string& title,
     const std::u16string& description,
+    const std::u16string& accessibility_label,
     SystemInfoCategory system_info_category,
+    SystemInfoCardType system_info_card_type,
     const AnswerCardInfo& answer_card_info)
     : SystemInfoAnswerResult(profile,
                              query,
@@ -33,7 +35,9 @@ BatteryAnswerResult::BatteryAnswerResult(
                              relevance_score,
                              title,
                              description,
+                             accessibility_label,
                              system_info_category,
+                             system_info_card_type,
                              answer_card_info) {
   chromeos::PowerManagerClient::Get()->AddObserver(this);
 }
@@ -51,11 +55,13 @@ void BatteryAnswerResult::PowerChanged(
   if (calculating) {
     return;
   }
-  std::u16string power_time = CalculatePowerTime(power_supply_properties);
-  int percent = ash::power_utils::GetRoundedBatteryPercent(
-      power_supply_properties.battery_percent());
-  AnswerCardInfo answer_card_info(percent);
-  UpdateTitle(power_time);
-  SetSystemInfoAnswerCardData(answer_card_info);
+  std::unique_ptr<system_info::BatteryHealth> new_battery_health =
+      std::make_unique<system_info::BatteryHealth>();
+  launcher_search::PopulatePowerStatus(power_supply_properties,
+                                       *new_battery_health.get());
+  UpdateTitleAndDetails(/*title=*/std::u16string(),
+                        new_battery_health->GetPowerTime(),
+                        new_battery_health->GetAccessibilityLabel());
+  UpdateBarChartPercentage(new_battery_health->GetBatteryPercentage());
 }
 }  // namespace app_list

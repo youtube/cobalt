@@ -11,7 +11,7 @@
 #include <iterator>
 #include <vector>
 
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "components/zucchini/image_index.h"
 #include "components/zucchini/image_utils.h"
@@ -100,8 +100,6 @@ class EncodedView {
 
     friend bool operator==(Iterator a, Iterator b) { return a.pos_ == b.pos_; }
 
-    friend bool operator!=(Iterator a, Iterator b) { return !(a == b); }
-
     friend bool operator<(Iterator a, Iterator b) { return a.pos_ < b.pos_; }
 
     friend bool operator>(Iterator a, Iterator b) { return b < a; }
@@ -125,9 +123,7 @@ class EncodedView {
     }
 
    private:
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #constexpr-ctor-field-initializer
-    RAW_PTR_EXCLUSION const EncodedView* encoded_view_;
+    raw_ptr<const EncodedView> encoded_view_;
     difference_type pos_;
   };
 

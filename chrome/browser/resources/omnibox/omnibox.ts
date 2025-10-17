@@ -2,17 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import './strings.m.js';
+import '/strings.m.js';
 import './omnibox_input.js';
 import './omnibox_output.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {sendWithPromise} from 'chrome://resources/js/cr.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
-import {OmniboxPageCallbackRouter, OmniboxPageHandler, OmniboxPageHandlerRemote, OmniboxResponse} from './omnibox.mojom-webui.js';
-import {DisplayInputs, OmniboxInput, QueryInputs} from './omnibox_input.js';
-import {OmniboxOutput} from './omnibox_output.js';
+import type {DisplayInputs, OmniboxInput, QueryInputs} from './omnibox_input.js';
+import type {OmniboxPageHandlerRemote, OmniboxResponse} from './omnibox_internals.mojom-webui.js';
+import {AutocompleteControllerType, OmniboxPageCallbackRouter, OmniboxPageHandler} from './omnibox_internals.mojom-webui.js';
+import type {OmniboxOutput} from './omnibox_output.js';
 
 /**
  * Javascript for omnibox.html, served from chrome://omnibox/
@@ -80,8 +81,8 @@ class BrowserProxy {
         this.handleNewAutocompleteResponse.bind(this));
     this.callbackRouter_.handleNewAutocompleteQuery.addListener(
         this.handleNewAutocompleteQuery.bind(this));
-    this.callbackRouter_.handleAnswerImageData.addListener(
-        omniboxOutput.updateAnswerImage.bind(omniboxOutput));
+    this.callbackRouter_.handleAnswerIconImageData.addListener(
+        omniboxOutput.updateAnswerIconImage.bind(omniboxOutput));
 
     this.handler_ = OmniboxPageHandler.getRemote();
     this.handler_.setClientPage(
@@ -89,9 +90,15 @@ class BrowserProxy {
   }
 
   private handleNewAutocompleteResponse(
-      response: OmniboxResponse, isPageController: boolean) {
+      controllerType: AutocompleteControllerType, response: OmniboxResponse) {
+    if (controllerType === AutocompleteControllerType.kMlDisabledDebug) {
+      return;
+    }
+    const isDebugController =
+        controllerType === AutocompleteControllerType.kDebug;
+
     const isForLastPageRequest =
-        this.isForLastPageRequest(response.inputText, isPageController);
+        this.isForLastPageRequest(response.inputText, isDebugController);
 
     // When unfocusing the browser omnibox, the autocomplete controller
     // sends a response with no combined results. This response is ignored
@@ -99,8 +106,8 @@ class BrowserProxy {
     // hidden and because these results wouldn't normally be displayed by
     // the browser window omnibox.
     if (isForLastPageRequest && this.lastRequest!.display ||
-        omniboxInput.connectWindowOmnibox && !isPageController &&
-        response.combinedResults.length) {
+        omniboxInput.connectWindowOmnibox && !isDebugController &&
+            response.combinedResults.length) {
       omniboxOutput.addAutocompleteResponse(response);
     }
 
@@ -115,12 +122,17 @@ class BrowserProxy {
   }
 
   private handleNewAutocompleteQuery(
-      isPageController: boolean, inputText: string) {
+      controllerType: AutocompleteControllerType, inputText: string) {
+    if (controllerType === AutocompleteControllerType.kMlDisabledDebug) {
+      return;
+    }
+    const isDebugController =
+        controllerType === AutocompleteControllerType.kDebug;
     // If the request originated from the debug page and is not for display,
     // then we don't want to clear the omniboxOutput.
-    if (this.isForLastPageRequest(inputText, isPageController) &&
-        this.lastRequest!.display ||
-        omniboxInput.connectWindowOmnibox && !isPageController) {
+    if (this.isForLastPageRequest(inputText, isDebugController) &&
+            this.lastRequest!.display ||
+        omniboxInput.connectWindowOmnibox && !isDebugController) {
       omniboxOutput.prepareNewQuery();
     }
   }
@@ -140,14 +152,14 @@ class BrowserProxy {
     });
   }
 
-  isForLastPageRequest(inputText: string, isPageController: boolean): boolean {
+  isForLastPageRequest(inputText: string, isDebugController: boolean): boolean {
     // Note: Using inputText is a sufficient fix for the way this is used today,
     // but in principle it would be better to associate requests with responses
     // using a unique session identifier, for example by rolling an integer each
     // time a request is made. Doing so would require extra bookkeeping on the
     // host side, so for now we keep it simple.
-    return isPageController && !!this.lastRequest &&
-        this.lastRequest!.inputText.trimStart() === inputText;
+    return isDebugController && !!this.lastRequest &&
+        this.lastRequest.inputText.trimStart() === inputText;
   }
 }
 
@@ -290,7 +302,7 @@ class ExportDelegate {
   }
 
   exportClipboard() {
-    navigator.clipboard.writeText(JSON.stringify(this.exportData, null, 2))
+    navigator.clipboard.writeText(ExportDelegate.jsonStringify(this.exportData))
         .catch(error => console.error('unable to export to clipboard:', error));
   }
 
@@ -307,18 +319,25 @@ class ExportDelegate {
       versionDetails: ExportDelegate.getVersionDetails(),
       queryInputs: this.omniboxInput_.queryInputs,
       displayInputs: this.omniboxInput_.displayInputs,
-      responsesHistory: this.omniboxOutput_.responsesHistory,
+      // 20 entries will be about 7mb and 180k lines. That's small enough to
+      // attach to bugs.chromium.org which has a 10mb limit.
+      responsesHistory: this.omniboxOutput_.responsesHistory.slice(-20),
     };
   }
 
   private static download(object: Object, fileName: string) {
-    const content = JSON.stringify(object, null, 2);
+    const content = ExportDelegate.jsonStringify(object);
     const blob = new Blob([content], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = fileName;
     a.click();
+  }
+
+  private static jsonStringify(data: Object): string {
+    return JSON.stringify(data, (_, value) =>
+        typeof value === 'bigint' ? value.toString() : value, 2);
   }
 
   /**

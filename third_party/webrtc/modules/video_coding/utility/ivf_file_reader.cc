@@ -10,13 +10,25 @@
 
 #include "modules/video_coding/utility/ivf_file_reader.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "api/scoped_refptr.h"
+#include "api/video/encoded_image.h"
+#include "api/video/video_codec_type.h"
+#include "api/video/video_frame_type.h"
 #include "api/video_codecs/video_codec.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
 #include "modules/video_coding/utility/ivf_defines.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/system/file_wrapper.h"
 
 namespace webrtc {
 namespace {
@@ -29,6 +41,7 @@ constexpr uint8_t kVp8Header[kCodecTypeBytesCount] = {'V', 'P', '8', '0'};
 constexpr uint8_t kVp9Header[kCodecTypeBytesCount] = {'V', 'P', '9', '0'};
 constexpr uint8_t kAv1Header[kCodecTypeBytesCount] = {'A', 'V', '0', '1'};
 constexpr uint8_t kH264Header[kCodecTypeBytesCount] = {'H', '2', '6', '4'};
+constexpr uint8_t kH265Header[kCodecTypeBytesCount] = {'H', '2', '6', '5'};
 
 // RTP standard required 90kHz clock rate.
 constexpr int32_t kRtpClockRateHz = 90000;
@@ -67,7 +80,7 @@ bool IvfFileReader::Reset() {
     return false;
   }
 
-  absl::optional<VideoCodecType> codec_type = ParseCodecType(ivf_header, 8);
+  std::optional<VideoCodecType> codec_type = ParseCodecType(ivf_header, 8);
   if (!codec_type) {
     return false;
   }
@@ -110,12 +123,12 @@ bool IvfFileReader::Reset() {
   return true;
 }
 
-absl::optional<EncodedImage> IvfFileReader::NextFrame() {
+std::optional<EncodedImage> IvfFileReader::NextFrame() {
   if (has_error_ || !HasMoreFrames()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  rtc::scoped_refptr<EncodedImageBuffer> payload = EncodedImageBuffer::Create();
+  scoped_refptr<EncodedImageBuffer> payload = EncodedImageBuffer::Create();
   std::vector<size_t> layer_sizes;
   // next_frame_header_ have to be presented by the way how it was loaded. If it
   // is missing it means there is a bug in error handling.
@@ -138,7 +151,7 @@ absl::optional<EncodedImage> IvfFileReader::NextFrame() {
       RTC_LOG(LS_ERROR) << "Frame #" << num_read_frames_
                         << ": failed to read frame payload";
       has_error_ = true;
-      return absl::nullopt;
+      return std::nullopt;
     }
     num_read_frames_++;
 
@@ -150,13 +163,13 @@ absl::optional<EncodedImage> IvfFileReader::NextFrame() {
     if (!has_error_ && num_read_frames_ != num_frames_) {
       RTC_LOG(LS_ERROR) << "Unexpected EOF";
       has_error_ = true;
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 
   EncodedImage image;
   image.capture_time_ms_ = current_timestamp;
-  image.SetTimestamp(
+  image.SetRtpTimestamp(
       static_cast<uint32_t>(current_timestamp * kRtpClockRateHz / time_scale_));
   image.SetEncodedData(payload);
   image.SetSpatialIndex(static_cast<int>(layer_sizes.size()) - 1);
@@ -178,8 +191,8 @@ bool IvfFileReader::Close() {
   return true;
 }
 
-absl::optional<VideoCodecType> IvfFileReader::ParseCodecType(uint8_t* buffer,
-                                                             size_t start_pos) {
+std::optional<VideoCodecType> IvfFileReader::ParseCodecType(uint8_t* buffer,
+                                                            size_t start_pos) {
   if (memcmp(&buffer[start_pos], kVp8Header, kCodecTypeBytesCount) == 0) {
     return VideoCodecType::kVideoCodecVP8;
   }
@@ -192,16 +205,18 @@ absl::optional<VideoCodecType> IvfFileReader::ParseCodecType(uint8_t* buffer,
   if (memcmp(&buffer[start_pos], kH264Header, kCodecTypeBytesCount) == 0) {
     return VideoCodecType::kVideoCodecH264;
   }
+  if (memcmp(&buffer[start_pos], kH265Header, kCodecTypeBytesCount) == 0) {
+    return VideoCodecType::kVideoCodecH265;
+  }
   has_error_ = true;
   RTC_LOG(LS_ERROR) << "Unknown codec type: "
                     << std::string(
                            reinterpret_cast<char const*>(&buffer[start_pos]),
                            kCodecTypeBytesCount);
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<IvfFileReader::FrameHeader>
-IvfFileReader::ReadNextFrameHeader() {
+std::optional<IvfFileReader::FrameHeader> IvfFileReader::ReadNextFrameHeader() {
   uint8_t ivf_frame_header[kIvfFrameHeaderSize] = {0};
   size_t read = file_.Read(&ivf_frame_header, kIvfFrameHeaderSize);
   if (read != kIvfFrameHeaderSize) {
@@ -210,7 +225,7 @@ IvfFileReader::ReadNextFrameHeader() {
       RTC_LOG(LS_ERROR) << "Frame #" << num_read_frames_
                         << ": failed to read IVF frame header";
     }
-    return absl::nullopt;
+    return std::nullopt;
   }
   FrameHeader header;
   header.frame_size = static_cast<size_t>(
@@ -222,14 +237,14 @@ IvfFileReader::ReadNextFrameHeader() {
     has_error_ = true;
     RTC_LOG(LS_ERROR) << "Frame #" << num_read_frames_
                       << ": invalid frame size";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (header.timestamp < 0) {
     has_error_ = true;
     RTC_LOG(LS_ERROR) << "Frame #" << num_read_frames_
                       << ": negative timestamp";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return header;

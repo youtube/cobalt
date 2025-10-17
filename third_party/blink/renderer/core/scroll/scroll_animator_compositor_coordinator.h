@@ -109,9 +109,14 @@ class CORE_EXPORT ScrollAnimatorCompositorCoordinator
   virtual void TickAnimation(base::TimeTicks monotonic_time) = 0;
   virtual void NotifyCompositorAnimationFinished(int group_id) = 0;
   virtual void NotifyCompositorAnimationAborted(int group_id) = 0;
-  virtual void MainThreadScrollingDidChange() = 0;
 
   RunState RunStateForTesting() { return run_state_; }
+
+  bool HasRunningAnimation() const {
+    return run_state_ != RunState::kPostAnimationCleanup &&
+           (animation_curve_ ||
+            run_state_ == RunState::kWaitingToSendToCompositor);
+  }
 
   virtual void Trace(Visitor* visitor) const {}
 
@@ -195,6 +200,8 @@ class CORE_EXPORT ScrollAnimatorCompositorCoordinator
   // abort the impl-only scroll offset animation and continue it on main
   // thread.
   bool impl_only_animation_takeover_;
+
+  std::unique_ptr<cc::ScrollOffsetAnimationCurve> animation_curve_;
 
  private:
   bool element_detached_ = false;

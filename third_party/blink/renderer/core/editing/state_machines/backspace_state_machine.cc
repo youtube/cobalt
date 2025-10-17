@@ -4,7 +4,9 @@
 
 #include "third_party/blink/renderer/core/editing/state_machines/backspace_state_machine.h"
 
-#include <ostream>  // NOLINT
+#include <array>
+#include <ostream>
+
 #include "third_party/blink/renderer/platform/text/character.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
@@ -48,15 +50,14 @@ enum class BackspaceStateMachine::BackspaceState {
 
 std::ostream& operator<<(std::ostream& os,
                          BackspaceStateMachine::BackspaceState state) {
-  static const char* const kTexts[] = {
+  static const auto kTexts = std::to_array<const char*>({
 #define V(name) #name,
       FOR_EACH_BACKSPACE_STATE_MACHINE_STATE(V)
 #undef V
-  };
-  auto* const* const it = std::begin(kTexts) + static_cast<size_t>(state);
-  DCHECK_GE(it, std::begin(kTexts)) << "Unknown backspace value";
-  DCHECK_LT(it, std::end(kTexts)) << "Unknown backspace value";
-  return os << *it;
+  });
+  DCHECK_LT(static_cast<size_t>(state), kTexts.size())
+      << "Unknown backspace value";
+  return os << kTexts[static_cast<size_t>(state)];
 }
 
 BackspaceStateMachine::BackspaceStateMachine()
@@ -195,12 +196,9 @@ TextSegmentationMachineState BackspaceStateMachine::FeedPrecedingCodeUnit(
       return MoveToNextState(BackspaceState::kOddNumberedRIS);
     case BackspaceState::kFinished:
       NOTREACHED() << "Do not call feedPrecedingCodeUnit() once it finishes.";
-      break;
     default:
       NOTREACHED() << "Unhandled state: " << state_;
   }
-  NOTREACHED() << "Unhandled state: " << state_;
-  return TextSegmentationMachineState::kInvalid;
 }
 
 TextSegmentationMachineState BackspaceStateMachine::TellEndOfPrecedingText() {
@@ -215,7 +213,6 @@ TextSegmentationMachineState BackspaceStateMachine::TellEndOfPrecedingText() {
 TextSegmentationMachineState BackspaceStateMachine::FeedFollowingCodeUnit(
     UChar code_unit) {
   NOTREACHED();
-  return TextSegmentationMachineState::kInvalid;
 }
 
 int BackspaceStateMachine::FinalizeAndGetBoundaryOffset() {

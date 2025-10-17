@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/core/input/event_handling_util.h"
 
+#include "base/feature_list.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -11,9 +13,6 @@
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
-#include "third_party/blink/renderer/core/paint/paint_layer.h"
-#include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
-#include "third_party/blink/renderer/core/scroll/scrollable_area.h"
 
 namespace blink {
 namespace event_handling_util {
@@ -69,36 +68,11 @@ WebInputEventResult ToWebInputEventResult(DispatchEventResult result) {
       return WebInputEventResult::kHandledSuppressed;
     default:
       NOTREACHED();
-      return WebInputEventResult::kHandledSystem;
   }
-}
-
-PaintLayer* LayerForNode(Node* node) {
-  if (!node)
-    return nullptr;
-
-  LayoutObject* layout_object = node->GetLayoutObject();
-  if (!layout_object)
-    return nullptr;
-
-  PaintLayer* layer = layout_object->EnclosingLayer();
-  if (!layer)
-    return nullptr;
-
-  return layer;
 }
 
 bool IsInDocument(EventTarget* n) {
   return n && n->ToNode() && n->ToNode()->isConnected();
-}
-
-ScrollableArea* AssociatedScrollableArea(const PaintLayer* layer) {
-  if (PaintLayerScrollableArea* scrollable_area = layer->GetScrollableArea()) {
-    if (scrollable_area->ScrollsOverflow())
-      return scrollable_area;
-  }
-
-  return nullptr;
 }
 
 ContainerNode* ParentForClickEvent(const Node& node) {
@@ -130,18 +104,39 @@ MouseEventWithHitTestResults PerformMouseEventHitTest(
 
 bool ShouldDiscardEventTargetingFrame(const WebInputEvent& event,
                                       const LocalFrame& frame) {
+  // Under certain circumstances, we discard input events to a recently moved
+  // cross-origin iframe:
+  //
+  // - If javascript in the frame's context is using
+  //   IntersectionObserver V2 to track the visibility of an element, we
+  //   interpret that as a strong signal that the frame is interested in
+  //   preventing mis-clicks. This behavior was added by:
+  //   https://chromium-review.googlesource.com/c/chromium/src/+/1686824
+  //
+  // - The feature flag kDiscardEventsToRecentlyMovedFrames expands this
+  //   behavior to all cross-origin iframes, regardless of whether they are
+  //   using IntersectionObserver V2.
+  //
   // There are two different mechanisms for tracking whether an iframe has moved
   // recently, for OOPIF and in-process iframes. For OOPIF's, frame movement is
   // tracked in the browser process using hit test data, and it's propagated in
   // event.GetModifiers(). For in-process iframes, frame movement is tracked
   // during lifecycle updates, in FrameView::UpdateViewportIntersection, and
   // propagated via FrameView::RectInParentIsStable.
+
   bool should_discard = false;
-  if (frame.NeedsOcclusionTracking() &&
-      frame.IsCrossOriginToOutermostMainFrame()) {
-    should_discard =
-        (event.GetModifiers() & WebInputEvent::kTargetFrameMovedRecently) ||
-        !frame.View()->RectInParentIsStable(event.TimeStamp());
+  if (frame.IsCrossOriginToOutermostMainFrame()) {
+    if (frame.NeedsOcclusionTracking()) {
+      should_discard =
+          (event.GetModifiers() &
+           WebInputEvent::kTargetFrameMovedRecentlyForIOv2) ||
+          !frame.View()->RectInParentIsStableForIOv2(event.TimeStamp());
+    } else if (base::FeatureList::IsEnabled(
+                   features::kDiscardInputEventsToRecentlyMovedFrames)) {
+      should_discard =
+          (event.GetModifiers() & WebInputEvent::kTargetFrameMovedRecently) ||
+          !frame.View()->RectInParentIsStable(event.TimeStamp());
+    }
   }
   if (should_discard) {
     UseCounter::Count(frame.GetDocument(),
@@ -173,7 +168,6 @@ LocalFrame* SubframeForTargetNode(Node* node, bool* is_remote_frame) {
 
 LocalFrame* GetTargetSubframe(
     const MouseEventWithHitTestResults& hit_test_result,
-    Node* capturing_node,
     bool* is_remote_frame) {
   if (!hit_test_result.IsOverEmbeddedContentView())
     return nullptr;

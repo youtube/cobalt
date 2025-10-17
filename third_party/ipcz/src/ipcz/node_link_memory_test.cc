@@ -9,6 +9,7 @@
 
 #include "ipcz/driver_memory.h"
 #include "ipcz/driver_transport.h"
+#include "ipcz/features.h"
 #include "ipcz/ipcz.h"
 #include "ipcz/link_side.h"
 #include "ipcz/node.h"
@@ -38,20 +39,23 @@ class NodeLinkMemoryTest : public testing::Test {
   // Connects a broker to a non-broker and returns their respective NodeLinks.
   static std::pair<Ref<NodeLink>, Ref<NodeLink>> ConnectNodes(
       Ref<Node> broker,
-      Ref<Node> non_broker) {
+      Ref<Node> non_broker,
+      const NodeName& non_broker_name) {
     std::pair<Ref<NodeLink>, Ref<NodeLink>> links;
     auto transports = DriverTransport::CreatePair(kTestDriver);
     DriverMemoryWithMapping buffer =
         NodeLinkMemory::AllocateMemory(kTestDriver);
     links.first = NodeLink::CreateInactive(
-        broker, LinkSide::kA, broker->GetAssignedName(),
-        non_broker->GetAssignedName(), Node::Type::kNormal, 0, transports.first,
-        NodeLinkMemory::Create(broker, std::move(buffer.mapping)));
+        broker, LinkSide::kA, broker->GetAssignedName(), non_broker_name,
+        Node::Type::kNormal, 0, Features{}, transports.first,
+        NodeLinkMemory::Create(broker, LinkSide::kA, Features{},
+                               std::move(buffer.mapping)));
     links.second = NodeLink::CreateInactive(
-        non_broker, LinkSide::kB, non_broker->GetAssignedName(),
-        broker->GetAssignedName(), Node::Type::kBroker, 0, transports.second,
-        NodeLinkMemory::Create(non_broker, buffer.memory.Map()));
-    broker->AddConnection(non_broker->GetAssignedName(), {.link = links.first});
+        non_broker, LinkSide::kB, non_broker_name, broker->GetAssignedName(),
+        Node::Type::kBroker, 0, Features{}, transports.second,
+        NodeLinkMemory::Create(non_broker, LinkSide::kB, Features{},
+                               buffer.memory.Map()));
+    broker->AddConnection(non_broker_name, {.link = links.first});
     non_broker->AddConnection(broker->GetAssignedName(),
                               {.link = links.second, .broker = links.first});
     links.first->Activate();
@@ -73,8 +77,7 @@ class NodeLinkMemoryTest : public testing::Test {
 
   void SetUp() override {
     // Brokers assign their own names, no need to assign one to `node_a_`.
-    node_b_->SetAssignedName(kTestNonBrokerName);
-    auto links = ConnectNodes(node_a_, node_b_);
+    auto links = ConnectNodes(node_a_, node_b_, kTestNonBrokerName);
     link_a_ = std::move(links.first);
     link_b_ = std::move(links.second);
   }
@@ -85,12 +88,10 @@ class NodeLinkMemoryTest : public testing::Test {
   }
 
  private:
-  const Ref<Node> node_a_{MakeRefCounted<Node>(Node::Type::kBroker,
-                                               kTestDriver,
-                                               IPCZ_INVALID_DRIVER_HANDLE)};
-  const Ref<Node> node_b_{MakeRefCounted<Node>(Node::Type::kNormal,
-                                               kTestDriver,
-                                               IPCZ_INVALID_DRIVER_HANDLE)};
+  const Ref<Node> node_a_{
+      MakeRefCounted<Node>(Node::Type::kBroker, kTestDriver)};
+  const Ref<Node> node_b_{
+      MakeRefCounted<Node>(Node::Type::kNormal, kTestDriver)};
   Ref<NodeLink> link_a_;
   Ref<NodeLink> link_b_;
 };
@@ -273,10 +274,9 @@ TEST_F(NodeLinkMemoryTest, ParcelDataAllocation) {
       .size = sizeof(options),
       .memory_flags = IPCZ_MEMORY_FIXED_PARCEL_CAPACITY,
   };
-  const Ref<Node> node_c{MakeRefCounted<Node>(
-      Node::Type::kNormal, kTestDriver, IPCZ_INVALID_DRIVER_HANDLE, &options)};
-  node_c->SetAssignedName(kOtherTestNonBrokerName);
-  auto links = ConnectNodes(node_a(), node_c);
+  const Ref<Node> node_c{
+      MakeRefCounted<Node>(Node::Type::kNormal, kTestDriver, &options)};
+  auto links = ConnectNodes(node_a(), node_c, kOtherTestNonBrokerName);
 
   // We use a small enough size that this is guaranteed to allocate within
   // NodeLinkMemory. But we allocate them from node C's side of the link, where
@@ -285,25 +285,74 @@ TEST_F(NodeLinkMemoryTest, ParcelDataAllocation) {
   // going to expand its capacity at all, it would do so synchronously within
   // AllocateData.
   constexpr size_t kParcelSize = 32;
-  std::vector<Parcel> parcels;
+  std::vector<std::unique_ptr<Parcel>> parcels;
   for (;;) {
-    Parcel parcel;
-    parcel.AllocateData(kParcelSize, /*allow_partial=*/false,
-                        &links.second->memory());
-    if (!parcel.has_data_fragment()) {
+    auto parcel = std::make_unique<Parcel>();
+    parcel->AllocateData(kParcelSize, /*allow_partial=*/false,
+                         &links.second->memory());
+    if (!parcel->has_data_fragment()) {
       break;
     }
 
     // Every fragment allocated must be of sufficient size and must be in the
     // link memory's primary buffer ONLY.
-    EXPECT_GE(parcel.data_fragment().size(), kParcelSize);
+    EXPECT_GE(parcel->data_fragment().size(), kParcelSize);
     EXPECT_EQ(NodeLinkMemory::kPrimaryBufferId,
-              parcel.data_fragment().buffer_id());
+              parcel->data_fragment().buffer_id());
     parcels.push_back(std::move(parcel));
   }
 
   EXPECT_FALSE(parcels.empty());
   node_c->Close();
+}
+
+struct TestObject : public RefCountedFragment {
+ public:
+  int x;
+  int y;
+};
+
+TEST_F(NodeLinkMemoryTest, AdoptFragmentRefIfValid) {
+  auto object = memory_a().AdoptFragmentRef<TestObject>(
+      memory_a().AllocateFragment(sizeof(TestObject)));
+  object->x = 5;
+  object->y = 42;
+
+  const FragmentDescriptor valid_descriptor(object.fragment().buffer_id(),
+                                            object.fragment().offset(),
+                                            sizeof(TestObject));
+
+  const FragmentDescriptor null_descriptor(
+      kInvalidBufferId, valid_descriptor.offset(), valid_descriptor.size());
+  EXPECT_TRUE(memory_a()
+                  .AdoptFragmentRefIfValid<TestObject>(null_descriptor)
+                  .is_null());
+
+  const FragmentDescriptor empty_descriptor(
+      valid_descriptor.buffer_id(), valid_descriptor.offset(), /*size=*/0);
+  EXPECT_TRUE(memory_a()
+                  .AdoptFragmentRefIfValid<TestObject>(empty_descriptor)
+                  .is_null());
+
+  const FragmentDescriptor short_descriptor(valid_descriptor.buffer_id(),
+                                            valid_descriptor.offset(),
+                                            sizeof(TestObject) - 4);
+  EXPECT_TRUE(memory_a()
+                  .AdoptFragmentRefIfValid<TestObject>(short_descriptor)
+                  .is_null());
+
+  const FragmentDescriptor unaligned_descriptor(valid_descriptor.buffer_id(),
+                                                valid_descriptor.offset() + 2,
+                                                valid_descriptor.size() - 2);
+  EXPECT_TRUE(memory_a()
+                  .AdoptFragmentRefIfValid<TestObject>(unaligned_descriptor)
+                  .is_null());
+
+  const auto adopted_object =
+      memory_a().AdoptFragmentRefIfValid<TestObject>(valid_descriptor);
+  ASSERT_TRUE(adopted_object.is_addressable());
+  EXPECT_EQ(5, adopted_object->x);
+  EXPECT_EQ(42, adopted_object->y);
 }
 
 }  // namespace

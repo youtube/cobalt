@@ -4,18 +4,26 @@
 
 package org.chromium.device.battery;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.BatteryManager;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.task.AsyncTask;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskRunner;
+import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.device.DeviceFeatureList;
+import org.chromium.device.DeviceFeatureMap;
 import org.chromium.device.mojom.BatteryStatus;
 
 /**
@@ -23,8 +31,11 @@ import org.chromium.device.mojom.BatteryStatus;
  * from the system and calls the callback passed on construction whenever a notification is
  * received.
  */
+@NullMarked
 class BatteryStatusManager {
     private static final String TAG = "BatteryStatusManager";
+    private static final TaskRunner sSequencedTaskRunner =
+            PostTask.createSequencedTaskRunner(TaskTraits.BEST_EFFORT_MAY_BLOCK);
 
     interface BatteryStatusCallback {
         void onBatteryStatusChanged(BatteryStatus batteryStatus);
@@ -32,13 +43,15 @@ class BatteryStatusManager {
 
     private final BatteryStatusCallback mCallback;
     private final IntentFilter mFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            BatteryStatusManager.this.onReceive(intent);
-        }
-    };
-    private AndroidBatteryManagerWrapper mAndroidBatteryManager;
+    private final BroadcastReceiver mReceiver =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    BatteryStatusManager.this.onReceive(intent);
+                }
+            };
+
+    private final @Nullable AndroidBatteryManagerWrapper mAndroidBatteryManager;
     private boolean mEnabled;
 
     @VisibleForTesting
@@ -61,10 +74,12 @@ class BatteryStatusManager {
     }
 
     BatteryStatusManager(BatteryStatusCallback callback) {
-        this(callback,
+        this(
+                callback,
                 new AndroidBatteryManagerWrapper(
-                        (BatteryManager) ContextUtils.getApplicationContext().getSystemService(
-                                Context.BATTERY_SERVICE)));
+                        (BatteryManager)
+                                ContextUtils.getApplicationContext()
+                                        .getSystemService(Context.BATTERY_SERVICE)));
     }
 
     /**
@@ -76,34 +91,59 @@ class BatteryStatusManager {
         return new BatteryStatusManager(callback, batteryManager);
     }
 
-    /**
-     * Starts listening for intents.
-     * @return True on success.
-     */
-    boolean start() {
-        if (!mEnabled
-                && ContextUtils.registerProtectedBroadcastReceiver(
-                           ContextUtils.getApplicationContext(), mReceiver, mFilter)
-                        != null) {
-            // success
+    /** Starts listening for intents. */
+    void start() {
+        if (DeviceFeatureMap.isEnabled(
+                DeviceFeatureList.BATTERY_STATUS_MANAGER_BROADCAST_RECEIVER_IN_BACKGROUND)) {
+            startAsync();
+            return;
+        }
+
+        if (mEnabled) return;
+        if (ContextUtils.registerProtectedBroadcastReceiver(
+                        ContextUtils.getApplicationContext(), mReceiver, mFilter)
+                != null) {
             mEnabled = true;
         }
-        return mEnabled;
     }
 
-    /**
-     * Stops listening to intents.
-     */
+    void startAsync() {
+        if (mEnabled) return;
+
+        sSequencedTaskRunner.execute(
+                () -> {
+                    ContextUtils.registerProtectedBroadcastReceiver(
+                            ContextUtils.getApplicationContext(), mReceiver, mFilter);
+                });
+        mEnabled = true;
+    }
+
+    void stopAsync() {
+        if (!mEnabled) return;
+
+        sSequencedTaskRunner.execute(
+                () -> {
+                    ContextUtils.getApplicationContext().unregisterReceiver(mReceiver);
+                });
+        mEnabled = false;
+    }
+
+    /** Stops listening to intents. */
     void stop() {
-        if (mEnabled) {
-            ContextUtils.getApplicationContext().unregisterReceiver(mReceiver);
-            mEnabled = false;
+        if (DeviceFeatureMap.isEnabled(
+                DeviceFeatureList.BATTERY_STATUS_MANAGER_BROADCAST_RECEIVER_IN_BACKGROUND)) {
+            stopAsync();
+            return;
         }
+        if (!mEnabled) return;
+
+        ContextUtils.getApplicationContext().unregisterReceiver(mReceiver);
+        mEnabled = false;
     }
 
     @VisibleForTesting
     void onReceive(Intent intent) {
-        if (!intent.getAction().equals(Intent.ACTION_BATTERY_CHANGED)) {
+        if (!Intent.ACTION_BATTERY_CHANGED.equals(intent.getAction())) {
             Log.e(TAG, "Unexpected intent.");
             return;
         }
@@ -150,6 +190,7 @@ class BatteryStatusManager {
                     updateBatteryStatus(batteryStatus);
                     return batteryStatus;
                 }
+
                 @Override
                 protected void onPostExecute(BatteryStatus batteryStatus) {
                     mCallback.onBatteryStatusChanged(batteryStatus);
@@ -161,13 +202,13 @@ class BatteryStatusManager {
     }
 
     private void updateBatteryStatus(BatteryStatus batteryStatus) {
+        AndroidBatteryManagerWrapper batteryManager = assumeNonNull(mAndroidBatteryManager);
         double remainingCapacityRatio =
-                mAndroidBatteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-                / 100.0;
-        double batteryCapacityMicroAh = mAndroidBatteryManager.getIntProperty(
-                BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER);
-        double averageCurrentMicroA = mAndroidBatteryManager.getIntProperty(
-                BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE);
+                batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) / 100.0;
+        double batteryCapacityMicroAh =
+                batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER);
+        double averageCurrentMicroA =
+                batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE);
 
         if (batteryStatus.charging) {
             if (batteryStatus.chargingTime == Double.POSITIVE_INFINITY

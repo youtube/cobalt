@@ -7,10 +7,9 @@ package org.chromium.chrome.browser.customtabs.content;
 import androidx.annotation.NonNull;
 
 import org.chromium.base.ObserverList;
-import org.chromium.chrome.browser.dependency_injection.ActivityScope;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.DestroyObserver;
-import org.chromium.chrome.browser.metrics.PageLoadMetrics;
+import org.chromium.chrome.browser.page_load_metrics.PageLoadMetrics;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
@@ -21,21 +20,17 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import javax.inject.Inject;
-
 /**
- * <p>Adds and removes the given {@link PageLoadMetrics.Observer}s and {@link TabObserver}s to Tabs
- * as they enter/leave the TabModel. These managed TabObservers will listen to Tab lifecycle events
- * for *all* tabs in the tab model. </p></br>
+ * Adds and removes the given {@link PageLoadMetrics.Observer}s and {@link TabObserver}s to Tabs as
+ * they enter/leave the TabModel. These managed TabObservers will listen to Tab lifecycle events for
+ * *all* tabs in the tab model. </br>
  *
  * <p>This class also provides a different type of TabObserver, {@link CustomTabTabObserver}.
  * Different than the regular managed {@link TabObserver}, this new type of observer will only
- * attach to the current active tab.</p>
+ * attach to the current active tab.
  */
-@ActivityScope
 public class TabObserverRegistrar implements TabModelObserver, DestroyObserver {
     private CustomTabActivityTabProvider mTabProvider;
-    private final CustomTabCountObserver mTabCountObserver;
     private final Set<PageLoadMetrics.Observer> mPageLoadMetricsObservers = new HashSet<>();
     private final Set<TabObserver> mTabObservers = new HashSet<>();
 
@@ -75,9 +70,9 @@ public class TabObserverRegistrar implements TabModelObserver, DestroyObserver {
                 }
             };
 
-    /**
-     * Registers a {@link PageLoadMetrics.Observer} to be managed by this Registrar.
-     */
+    public TabObserverRegistrar() {}
+
+    /** Registers a {@link PageLoadMetrics.Observer} to be managed by this Registrar. */
     public void registerPageLoadMetricsObserver(PageLoadMetrics.Observer observer) {
         mPageLoadMetricsObservers.add(observer);
     }
@@ -122,11 +117,10 @@ public class TabObserverRegistrar implements TabModelObserver, DestroyObserver {
         }
     }
 
-    @Inject
-    public TabObserverRegistrar(ActivityLifecycleDispatcher lifecycleDispatcher,
-            CustomTabActivityTabProvider tabProvider, CustomTabCountObserver tabCountObserver) {
+    public void associateWithActivity(
+            ActivityLifecycleDispatcher lifecycleDispatcher,
+            CustomTabActivityTabProvider tabProvider) {
         mTabProvider = tabProvider;
-        mTabCountObserver = tabCountObserver;
         mTabProvider.addObserver(mActivityTabProviderObserver);
 
         lifecycleDispatcher.register(this);
@@ -172,9 +166,7 @@ public class TabObserverRegistrar implements TabModelObserver, DestroyObserver {
         }
     }
 
-    /**
-     * Called when the {@link CustomTabActivityTabProvider}'s active tab has changed.
-     */
+    /** Called when the {@link CustomTabActivityTabProvider}'s active tab has changed. */
     private void onTabProviderTabUpdated() {
         if (mTabProviderTab != null) {
             removeTabObservers(mTabProviderTab, mActivityTabObservers.iterator());

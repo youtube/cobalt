@@ -4,12 +4,18 @@
 
 #include "third_party/blink/renderer/core/url_pattern/url_pattern_component.h"
 
+#include <algorithm>
+#include <string_view>
+
+#include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
+#include "components/url_pattern/url_pattern_util.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_url_pattern_options.h"
 #include "third_party/blink/renderer/core/url_pattern/url_pattern_canon.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
 #include "url/url_util.h"
 
@@ -41,46 +47,28 @@ StringView TypeToString(Component::Type type) {
   NOTREACHED();
 }
 
-// Utility method to determine if a particular hostname pattern should be
-// treated as an IPv6 hostname.  This implements a simple and fast heuristic
-// looking for a leading `[`.  It is intended to catch the most common cases
-// with minimum overhead.
-bool TreatAsIPv6Hostname(base::StringPiece pattern_utf8) {
-  // The `[` string cannot be a valid IPv6 hostname.  We need at least two
-  // characters to represent `[*`.
-  if (pattern_utf8.size() < 2)
-    return false;
-
-  if (pattern_utf8[0] == '[')
-    return true;
-
-  // We do a bit of extra work to detect brackets behind an escape and
-  // within a grouping.
-  if ((pattern_utf8[0] == '\\' || pattern_utf8[0] == '{') &&
-      pattern_utf8[1] == '[')
-    return true;
-
-  return false;
-}
-
 // Utility method to get the correct encoding callback for a given type.
-liburlpattern::EncodeCallback GetEncodeCallback(base::StringPiece pattern_utf8,
-                                                Component::Type type,
-                                                Component* protocol_component) {
+// `should_treat_as_standard_url` is used if and only if `type` equals
+// `kPathname`.
+liburlpattern::EncodeCallback GetEncodeCallback(
+    std::string_view pattern_utf8,
+    Component::Type type,
+    std::optional<bool> should_treat_as_standard_url) {
   switch (type) {
     case Component::Type::kProtocol:
-      return ProtocolEncodeCallback;
+      return ::url_pattern::ProtocolEncodeCallback;
     case Component::Type::kUsername:
-      return UsernameEncodeCallback;
+      return ::url_pattern::UsernameEncodeCallback;
     case Component::Type::kPassword:
-      return PasswordEncodeCallback;
+      return ::url_pattern::PasswordEncodeCallback;
     case Component::Type::kHostname:
-      if (TreatAsIPv6Hostname(pattern_utf8))
-        return IPv6HostnameEncodeCallback;
-      else
-        return HostnameEncodeCallback;
+      if (::url_pattern::TreatAsIPv6Hostname(pattern_utf8)) {
+        return ::url_pattern::IPv6HostnameEncodeCallback;
+      } else {
+        return ::url_pattern::HostnameEncodeCallback;
+      }
     case Component::Type::kPort:
-      return PortEncodeCallback;
+      return ::url_pattern::PortEncodeCallback;
     case Component::Type::kPathname:
       // Different types of URLs use different canonicalization for pathname.
       // A "standard" URL flattens `.`/`..` and performs full percent encoding.
@@ -89,39 +77,30 @@ liburlpattern::EncodeCallback GetEncodeCallback(base::StringPiece pattern_utf8,
       //
       //  https://url.spec.whatwg.org/#cannot-be-a-base-url-path-state
       //
-      // We prefer "standard" URL here by checking to see if the protocol
-      // pattern matches any of the known standard protocol strings.  So
-      // an exact pattern of `http` will match, but so will `http{s}?` and
-      // `*`.
-      //
-      // If the protocol pattern does not match any of the known standard URL
-      // protocols then we fall back to the "path" URL behavior.  This will
-      // normally be triggered by `data`, `javascript`, `about`, etc.  It
-      // will also be triggered for custom protocol strings.  We favor "path"
-      // behavior here because its better to under canonicalize since the
-      // developer can always manually canonicalize the pathname for a custom
-      // protocol.
-      //
-      // ShouldTreatAsStandardURL can by a bit expensive, so only do it if we
-      // actually have a pathname pattern to compile.
-      CHECK(protocol_component);
-      if (protocol_component->ShouldTreatAsStandardURL())
-        return StandardURLPathnameEncodeCallback;
-      else
-        return PathURLPathnameEncodeCallback;
+      // In "path" URL cases, we fall back to the opaque pathname behavior.  We
+      // favor this behavior here because it is better to canonicalize less
+      // since developers can always manually canonicalize inputs for, e.g.,
+      // their custom protocols.
+      CHECK(should_treat_as_standard_url.has_value());
+      if (*should_treat_as_standard_url) {
+        return ::url_pattern::StandardURLPathnameEncodeCallback;
+      } else {
+        return ::url_pattern::PathURLPathnameEncodeCallback;
+      }
     case Component::Type::kSearch:
-      return SearchEncodeCallback;
+      return ::url_pattern::SearchEncodeCallback;
     case Component::Type::kHash:
-      return HashEncodeCallback;
+      return ::url_pattern::HashEncodeCallback;
   }
   NOTREACHED();
 }
 
 // Utility method to get the correct liburlpattern parse options for a given
-// type.
+// type.  `should_treat_as_standard_url` is used if and only if `type` equals
+// `kPathname`.
 const liburlpattern::Options GetOptions(
     Component::Type type,
-    Component* protocol_component,
+    std::optional<bool> should_treat_as_standard_url,
     const URLPatternOptions& external_options) {
   using liburlpattern::Options;
 
@@ -142,10 +121,10 @@ const liburlpattern::Options GetOptions(
     // Just like how we select a different encoding callback based on
     // whether we are treating the pattern string as a standard or
     // cannot-be-a-base URL, we must also choose the right liburlppatern
-    // options as well.  We should only use use the options that treat
-    // `/` specially if we are treating this a standard URL.
-    DCHECK(protocol_component);
-    if (protocol_component->ShouldTreatAsStandardURL()) {
+    // options as well.  We should only use the options that treat "/" specially
+    // if we are treating this a standard URL.
+    CHECK(should_treat_as_standard_url.has_value());
+    if (*should_treat_as_standard_url) {
       // Pathname patterns for "standard" URLs use a "/" delimiter controlling
       // how far a named group like ":bar" will match.  They also use "/" as an
       // automatic prefix before groups.
@@ -198,28 +177,34 @@ int ComparePart(const liburlpattern::Part& lh, const liburlpattern::Part& rh) {
 }  // anonymous namespace
 
 // static
-Component* Component::Compile(StringView pattern,
+Component* Component::Compile(v8::Isolate* isolate,
+                              StringView pattern,
                               Type type,
                               Component* protocol_component,
                               const URLPatternOptions& external_options,
                               ExceptionState& exception_state) {
-  StringView final_pattern = pattern.IsNull() ? "*" : pattern;
+  std::optional<bool> should_treat_as_standard_url =
+      protocol_component
+          ? std::optional(protocol_component->ShouldTreatAsStandardURL())
+          : std::nullopt;
   const liburlpattern::Options& options =
-      GetOptions(type, protocol_component, external_options);
+      GetOptions(type, should_treat_as_standard_url, external_options);
 
+  StringView final_pattern = pattern.IsNull() ? "*" : pattern;
   // Parse the pattern.
   // Lossy UTF8 conversion is fine given the input has come through a
   // USVString webidl argument.
   StringUTF8Adaptor utf8(final_pattern);
-  auto parse_result = liburlpattern::Parse(
-      absl::string_view(utf8.data(), utf8.size()),
-      GetEncodeCallback(utf8.AsStringPiece(), type, protocol_component),
-      options);
-  if (!parse_result.ok()) {
+
+  auto parse_result =
+      liburlpattern::Parse(utf8.AsStringView(),
+                           GetEncodeCallback(utf8.AsStringView(), type,
+                                             should_treat_as_standard_url),
+                           options);
+  if (!parse_result.has_value()) {
     exception_state.ThrowTypeError(
         "Invalid " + TypeToString(type) + " pattern '" + final_pattern + "'. " +
-        String::FromUTF8(parse_result.status().message().data(),
-                         parse_result.status().message().size()));
+        String::FromUTF8(parse_result.error().message()));
     return nullptr;
   }
 
@@ -237,8 +222,9 @@ Component* Component::Compile(StringView pattern,
                                             : WTF::kTextCaseASCIIInsensitive;
     DCHECK(base::IsStringASCII(regexp_string));
     regexp = MakeGarbageCollected<ScriptRegexp>(
-        String(regexp_string.data(), regexp_string.size()), case_sensitive,
-        MultilineMode::kMultilineDisabled, UnicodeMode::kUnicode);
+        isolate, String(regexp_string), case_sensitive,
+        MultilineMode::kMultilineDisabled, UnicodeMode::kUnicodeSets);
+
     if (!regexp->IsValid()) {
       // The regular expression failed to compile.  This means that some
       // custom regexp group within the pattern is illegal.  Attempt to
@@ -248,10 +234,10 @@ Component* Component::Compile(StringView pattern,
         if (part.type != liburlpattern::PartType::kRegex)
           continue;
         DCHECK(base::IsStringASCII(part.value));
-        String group_value(part.value.data(), part.value.size());
+        String group_value(part.value);
         regexp = MakeGarbageCollected<ScriptRegexp>(
-            group_value, case_sensitive, MultilineMode::kMultilineDisabled,
-            UnicodeMode::kUnicode);
+            isolate, group_value, case_sensitive,
+            MultilineMode::kMultilineDisabled, UnicodeMode::kUnicodeSets);
         if (regexp->IsValid())
           continue;
         exception_state.ThrowTypeError("Invalid " + TypeToString(type) +
@@ -271,7 +257,7 @@ Component* Component::Compile(StringView pattern,
     wtf_name_list.ReserveInitialCapacity(
         static_cast<wtf_size_t>(name_list.size()));
     for (const auto& name : name_list) {
-      wtf_name_list.push_back(String::FromUTF8(name.data(), name.size()));
+      wtf_name_list.push_back(String::FromUTF8(name));
     }
   }
 
@@ -346,14 +332,13 @@ bool Component::Match(StringView input,
   }
 
   // There is no regexp, so directly match against the pattern.
-  std::vector<std::pair<absl::string_view, absl::optional<absl::string_view>>>
+  std::vector<std::pair<std::string_view, std::optional<std::string_view>>>
       pattern_group_list;
   // Lossy UTF8 conversion is fine given the input has come through a
   // USVString webidl argument.
   StringUTF8Adaptor utf8(input);
-  bool result =
-      pattern_.DirectMatch(absl::string_view(utf8.data(), utf8.size()),
-                           group_list ? &pattern_group_list : nullptr);
+  bool result = pattern_.DirectMatch(
+      utf8.AsStringView(), group_list ? &pattern_group_list : nullptr);
   if (group_list) {
     group_list->ReserveInitialCapacity(
         base::checked_cast<wtf_size_t>(pattern_group_list.size()));
@@ -368,12 +353,10 @@ bool Component::Match(StringView input,
         if (pair.second->empty()) {
           value = g_empty_string;
         } else {
-          value = String::FromUTF8(pair.second->data(), pair.second->length());
+          value = String::FromUTF8(*pair.second);
         }
       }
-      group_list->emplace_back(
-          String::FromUTF8(pair.first.data(), pair.first.length()),
-          std::move(value));
+      group_list->emplace_back(String::FromUTF8(pair.first), std::move(value));
     }
   }
   return result;
@@ -391,13 +374,16 @@ bool Component::ShouldTreatAsStandardURL() const {
 
   const auto protocol_matches = [&](const std::string& scheme) {
     DCHECK(base::IsStringASCII(scheme));
-    return Match(String(scheme.data(), static_cast<unsigned>(scheme.size())),
-                 /*group_list=*/nullptr);
+    return Match(String(scheme), /*group_list=*/nullptr);
   };
 
   should_treat_as_standard_url_ =
-      base::ranges::any_of(url::GetStandardSchemes(), protocol_matches);
+      std::ranges::any_of(url::GetStandardSchemes(), protocol_matches);
   return *should_treat_as_standard_url_;
+}
+
+const std::vector<liburlpattern::Part>& Component::PartList() const {
+  return pattern_.PartList();
 }
 
 void Component::Trace(Visitor* visitor) const {

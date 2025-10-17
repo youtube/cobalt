@@ -7,6 +7,10 @@
 
 namespace ash {
 
+// This file contains catalogs with entries for every notifier in CrOS,
+// including notifications, toasts, and nudges. By having your notifier here
+// you'll automatically get metrics for it ---> go/notifier-framework-metrics.
+
 // A living catalog that registers notifications.
 // Current values should not be renumbered or removed. Please keep in sync with
 // "NotificationCatalogName" in tools/metrics/histograms/enums.xml.
@@ -15,14 +19,14 @@ enum class NotificationCatalogName {
   kNone = 0,
   kTestCatalogName = 1,
   kManagementTransition = 2,
-  kAuthpolicyCredentialsError = 3,
-  kUnauthorizedBattery = 4,
-  kNonWilcoCharger = 5,
-  kIncompatibleDock = 6,
-  kDockError = 7,
-  KDockDisplayError = 8,
-  kDockThunderboltError = 9,
-  kWilcoLowPowerCharger = 10,
+  // [Deprecated] kAuthpolicyCredentialsError = 3,
+  // [Deprecated] kUnauthorizedBattery = 4,
+  // [Deprecated] kNonWilcoCharger = 5,
+  // [Deprecated] kIncompatibleDock = 6,
+  // [Deprecated] kDockError = 7,
+  // [Deprecated] KDockDisplayError = 8,
+  // [Deprecated] kDockThunderboltError = 9,
+  // [Deprecated] kWilcoLowPowerCharger = 10,
   kDeprecatedAccelerator = 11,
   // [Deprecated] kShortcutsChanged = 12,
   kDockedMagnifierEnabled = 13,
@@ -79,7 +83,7 @@ enum class NotificationCatalogName {
   kBluetoothPairingRequest = 64,
   // [Deprecated] kBluetoothPairedDevice = 65,
   kCellularSetup = 66,
-  kScreenSecurity = 67,
+  // [Deprecated] kScreenSecurity = 67,
   kWifiToggle = 68,
   kUSBPeripheralInvalidDpCable = 69,
   kUSBPeripheralInvalidUSB4ValidTBTCable = 70,
@@ -127,12 +131,12 @@ enum class NotificationCatalogName {
   kVMCameraMic = 112,
   kSecurityToken = 113,
   kCrostiniExportImport = 114,
-  kLacrosCannotLaunch = 115,
+  // [Deprecated] kLacrosCannotLaunch = 115,
   kRequestFileSystem = 116,
   kNetworkPortalDetector = 117,
   kCrostiniPackage = 118,
   kCrostiniUpgradeAvailable = 119,
-  kFullRestore = 120,
+  // [Deprecated] kFullRestore = 120,
   kAdbSideloadingDisallowed = 121,
   kAdbSideloadingPowerwashPlanned = 122,
   kAdbSideloadingPowerwashOnReboot = 123,
@@ -167,7 +171,7 @@ enum class NotificationCatalogName {
   kArcLowDiskSpacePostStop = 152,
   kMultiCapture = 153,
   kPrivacyHubCamera = 154,
-  kPrivacyHubHWCameraSwitchOffSWCameraSwitchOn = 155,
+  // [Deprecated] kPrivacyHubHWCameraSwitchOffSWCameraSwitchOn = 155,
   kEcheAppNetworkSetting = 156,
   kPrivacyHubMicAndCamera = 157,
   kArcVmDataMigration = 158,
@@ -184,32 +188,91 @@ enum class NotificationCatalogName {
   kHotspot = 169,
   kGeolocationSwitch = 170,
   kMultiCaptureOnLogin = 171,
-  kMaxValue = kMultiCaptureOnLogin
+  kFloatingWorkspace = 172,
+  kScalableIphNotification = 173,
+  // [Deprecated] kUpdateNotification = 174,
+  kSubAppsUninstall = 175,
+  kNetworkCarrierUnlock = 176,
+  kCoralFeature = 177,
+  kInputDeviceSettings = 178,
+  kDocumentScanning = 179,
+  kGrowthFramework = 180,
+  kAudioSelection = 181,
+  kExtendedUpdatesAvailable = 182,
+  kOnDeviceAppControls = 183,
+  kFaceGazeAssetsDownloaded = 184,
+  kFaceGazeAssetsFailed = 185,
+  kDeviceRestrictionScheduleUpcomingLogout = 186,
+  kDeviceRestrictionSchedulePostLogout = 187,
+  kTouchpadDisabled = 188,
+  kOnTaskEnterLockedMode = 189,
+  kOnTaskSessionEnd = 190,
+  kOnTaskAddContentToBundle = 191,
+  kOnTaskRemoveContentFromBundle = 192,
+  kScannerAction = 193,
+  kChromeAppDeprecation = 194,
+  kDownloadImageFromLobster = 195,
+  kBocaSpotlightStarted = 196,
+  kFaceGazeActive = 197,
+  kUsbPeripheralDeviceOrEndpointLimit = 198,
+  kMaxValue = kUsbPeripheralDeviceOrEndpointLimit
 };
 
 // A living catalog that registers system nudges.
 // Current values should not be renumbered or removed. Please keep in sync with
-// "NudgeCatalogName" in tools/metrics/histograms/enums.xml.
+// "NudgeCatalogName" in tools/metrics/histograms/metadata/ash/enums.xml.
 // To deprecate comment out the entry.
-// Please call `SystemNudgeController::RecordNudgeAction` when the nudge's
-// suggested action is performed by the user, if applicable.
+// Use `AnchoredNudgeManager::Get()->MaybeRecordNudgeAction()` with the proper
+// catalog name when the nudge's suggested action is performed by the user, if
+// applicable, to record a `TimeToAction` metric.
 enum class NudgeCatalogName {
   kTestCatalogName = 0,
   kDictation = 1,
   // [Deprecated] kMultipaste = 2,
-  kDarkLightMode = 3,
+  // [Deprecated] kDarkLightMode = 3,
   kAutozoom = 4,
-  kAdaptiveCharging = 5,
+  // [Deprecated] kAdaptiveCharging = 5,
   kPhoneHub = 6,
   kClipboardHistoryZeroState = 7,
   kClipboardHistoryOnboarding = 8,
   kDisableDiacritics = 9,
-  kMaxValue = kDisableDiacritics,
+  kClipboardHistoryDuplicateCopy = 10,
+  kVideoConferenceTraySpeakOnMuteDetected = 11,
+  kVideoConferenceTrayMicrophoneUseWhileHWDisabled = 12,
+  kVideoConferenceTrayMicrophoneUseWhileSWDisabled = 13,
+  kVideoConferenceTrayCameraUseWhileHWDisabled = 14,
+  kVideoConferenceTrayCameraUseWhileSWDisabled = 15,
+  kVideoConferenceTraySpeakOnMuteOptIn = 16,
+  // [Deprecated] kVideoConferenceTraySpeakOnMuteOptInConfirmation = 17,
+  kScalableIphBubble = 18,
+  kVideoConferenceTrayCameraMicrophoneUseWhileDisabled = 19,
+  kMultitaskMenuClamshell = 20,
+  kMultitaskMenuTablet = 21,
+  kCaptureModeEducationShortcutNudge = 22,
+  kCaptureModeEducationShortcutTutorial = 23,
+  kCaptureModeEducationQuickSettingsNudge = 24,
+  kGameDashboardControlsNudge = 25,
+  // [Deprecated] kWebsiteTelemetryReportingNudge = 26,
+  // [Deprecated] kStandaloneWindowMigrationUx = 27,
+  kFocusModeEndingMomentNudge = 28,
+  kInformedRestoreEducationNudge = 29,
+  kGrowthCampaignNudge = 30,
+  kSearchTopRowKeyPressed = 31,
+  kSixPackRemappingPressed = 32,
+  kCapsLockShortcutPressed = 33,
+  kMahi = 34,
+  kBirchPrivacy = 35,
+  kVideoConferenceTraySidetoneNotSupported = 36,
+  kVideoConferenceTraySidetoneEnabled = 37,
+  kGraduationAppEnabled = 38,
+  kSunfishLauncherNudge = 39,
+  kSunfishIncognitoNudge = 40,
+  kMaxValue = kSunfishIncognitoNudge
 };
 
 // A living catalog that registers toasts.
 // Current values should not be renumbered or removed. Please keep in sync with
-// "ToastCatalogName" in tools/metrics/histograms/enums.xml.
+// "ToastCatalogName" in tools/metrics/histograms/metadata/ash/enums.xml
 // To deprecate comment out the entry.
 enum class ToastCatalogName {
   kVirtualDesksLimitMax = 0,
@@ -227,12 +290,12 @@ enum class ToastCatalogName {
   kEncourageUnlock = 12,
   kNetworkAutoConnect = 13,
   kAssistantLoading = 14,
-  kToastManagerUnittest = 15,
+  kTestCatalogName = 15,
   kMaximumDeskLaunchTemplate = 16,
-  kEnterOverviewGesture = 17,
-  kExitOverviewGesture = 18,
-  kNextDeskGesture = 19,
-  kPreviousDeskGesture = 20,
+  // [Deprecated] kEnterOverviewGesture = 17,
+  // [Deprecated] kExitOverviewGesture = 18,
+  // [Deprecated] kNextDeskGesture = 19,
+  // [Deprecated] kPreviousDeskGesture = 20,
   kMoveVisibleOnAllDesksWindow = 21,
   kAppCannotSnap = 22,
   kCrostiniUnsupportedVirtualKeyboard = 23,
@@ -249,14 +312,34 @@ enum class ToastCatalogName {
   kUndoCloseAll = 34,
   kEcheAppToast = 35,
   // [Deprecated] kDeprecateAssistantStylus = 36,
-  kEcheTrayCopyPasteNotImplemented = 37,
+  // [Deprecated] kEcheTrayCopyPasteNotImplemented = 37,
   kEcheTrayTabletModeNotSupported = 38,
   kNotificationCenterTrayNoNotifications = 39,
-  kCopyToClipboardAction = 40,
-  kVideoConferenceTraySpeakOnMuteDetected = 41,
+  // [Deprecated] kCopyToClipboardAction = 40,
+  // [Deprecated] kVideoConferenceTraySpeakOnMuteDetected = 41,
   kCopyGifToClipboardAction = 42,
-  kVideoConferenceTrayUseWhileDisabled = 43,
-  kMaxValue = kVideoConferenceTrayUseWhileDisabled,
+  // [Deprecated] kVideoConferenceTrayUseWhileDisabled = 43,
+  kBatterySaverDisabled = 44,
+  kDictationNoFocusedTextField = 45,
+  kBatterySaverEnabled = 46,
+  kDictationMicMuted = 47,
+  kVideoConferenceTraySpeakOnMuteOptInConfirmation = 48,
+  kAppNotClosable = 49,
+  kGameDashboardEnterTablet = 50,
+  kInformedRestoreOnboarding = 51,
+  kTouchpadDisabled = 52,
+  // [Deprecated] kOnTaskEnterLockedMode = 53,
+  // [Deprecated] kOnTaskSessionEnd = 54,
+  kOnTaskUrlBlocked = 55,
+  kCopyImageToClipboardAction = 56,
+  kCaptureModeTextCopied = 57,
+  kCoralSavedGroupLimitMax = 58,
+  kScannerActionSuccess = 59,
+  kScannerActionFailure = 60,
+  kCameraNowAllowed = 61,
+  kCameraNowDisallowed = 62,
+  kCameraForceDisabled = 63,
+  kMaxValue = kCameraForceDisabled
 };
 
 }  // namespace ash

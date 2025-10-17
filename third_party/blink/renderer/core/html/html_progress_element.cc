@@ -38,6 +38,7 @@ const double HTMLProgressElement::kInvalidPosition = -2;
 HTMLProgressElement::HTMLProgressElement(Document& document)
     : HTMLElement(html_names::kProgressTag, document), value_(nullptr) {
   UseCounter::Count(document, WebFeature::kProgressElement);
+  SetHasCustomStyleCallbacks();
   EnsureUserAgentShadowRoot();
 }
 
@@ -45,6 +46,9 @@ HTMLProgressElement::~HTMLProgressElement() = default;
 
 LayoutObject* HTMLProgressElement::CreateLayoutObject(
     const ComputedStyle& style) {
+  if (style.IsVerticalWritingMode()) {
+    UseCounter::Count(GetDocument(), WebFeature::kVerticalFormControls);
+  }
   if (!style.HasEffectiveAppearance()) {
     UseCounter::Count(GetDocument(),
                       WebFeature::kProgressElementWithNoneAppearance);
@@ -57,6 +61,26 @@ LayoutObject* HTMLProgressElement::CreateLayoutObject(
 
 LayoutProgress* HTMLProgressElement::GetLayoutProgress() const {
   return DynamicTo<LayoutProgress>(GetLayoutObject());
+}
+
+void HTMLProgressElement::DidRecalcStyle(const StyleRecalcChange change) {
+  HTMLElement::DidRecalcStyle(change);
+  const ComputedStyle* style = GetComputedStyle();
+  if (style) {
+    bool is_horizontal = style->IsHorizontalWritingMode();
+    bool is_ltr = style->IsLeftToRightDirection();
+    if (is_horizontal && is_ltr) {
+      UseCounter::Count(GetDocument(),
+                        WebFeature::kProgressElementHorizontalLtr);
+    } else if (is_horizontal && !is_ltr) {
+      UseCounter::Count(GetDocument(),
+                        WebFeature::kProgressElementHorizontalRtl);
+    } else if (is_ltr) {
+      UseCounter::Count(GetDocument(), WebFeature::kProgressElementVerticalLtr);
+    } else {
+      UseCounter::Count(GetDocument(), WebFeature::kProgressElementVerticalRtl);
+    }
+  }
 }
 
 void HTMLProgressElement::ParseAttribute(

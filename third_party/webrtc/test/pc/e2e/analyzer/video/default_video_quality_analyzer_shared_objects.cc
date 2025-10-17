@@ -26,7 +26,7 @@ constexpr int kMicrosPerSecond = 1000000;
 }  // namespace
 
 std::string StreamCodecInfo::ToString() const {
-  rtc::StringBuilder out;
+  StringBuilder out;
   out << "{codec_name=" << codec_name << "; first_frame_id=" << first_frame_id
       << "; last_frame_id=" << last_frame_id
       << "; switched_on_at=" << webrtc::ToString(switched_on_at)
@@ -38,8 +38,7 @@ std::ostream& operator<<(std::ostream& os, const StreamCodecInfo& state) {
   return os << state.ToString();
 }
 
-rtc::StringBuilder& operator<<(rtc::StringBuilder& sb,
-                               const StreamCodecInfo& state) {
+StringBuilder& operator<<(StringBuilder& sb, const StreamCodecInfo& state) {
   return sb << state.ToString();
 }
 
@@ -70,7 +69,7 @@ std::string ToString(FrameDropPhase phase) {
 std::ostream& operator<<(std::ostream& os, FrameDropPhase phase) {
   return os << ToString(phase);
 }
-rtc::StringBuilder& operator<<(rtc::StringBuilder& sb, FrameDropPhase phase) {
+StringBuilder& operator<<(StringBuilder& sb, FrameDropPhase phase) {
   return sb << ToString(phase);
 }
 
@@ -100,7 +99,7 @@ StreamStats::StreamStats(Timestamp stream_started_time)
 }
 
 std::string StatsKey::ToString() const {
-  rtc::StringBuilder out;
+  StringBuilder out;
   out << stream_label << "_" << receiver;
   return out.str();
 }
@@ -151,11 +150,11 @@ std::set<std::string> VideoStreamsInfo::GetStreams(
   return it->second;
 }
 
-absl::optional<std::string> VideoStreamsInfo::GetSender(
+std::optional<std::string> VideoStreamsInfo::GetSender(
     absl::string_view stream_label) const {
   auto it = stream_to_sender_.find(std::string(stream_label));
   if (it == stream_to_sender_.end()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return it->second;
 }

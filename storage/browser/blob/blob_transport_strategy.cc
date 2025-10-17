@@ -33,7 +33,7 @@ class NoneNeededTransportStrategy : public BlobTransportStrategy {
       const mojo::Remote<blink::mojom::BytesProvider>& data) override {
     DCHECK(bytes->embedded_data);
     DCHECK_EQ(bytes->length, bytes->embedded_data->size());
-    builder_->AppendData(base::make_span(*bytes->embedded_data));
+    builder_->AppendData(base::span(*bytes->embedded_data));
   }
 
   void BeginTransport(
@@ -85,7 +85,7 @@ class ReplyTransportStrategy : public BlobTransportStrategy {
           .Run(BlobStatus::ERR_INVALID_CONSTRUCTION_ARGUMENTS);
       return;
     }
-    bool populate_result = future_data.Populate(base::make_span(data), 0);
+    bool populate_result = future_data.Populate(base::span(data), 0);
     DCHECK(populate_result);
 
     if (++num_resolved_requests_ == requests_.size())
@@ -189,10 +189,9 @@ class DataPipeTransportStrategy : public BlobTransportStrategy {
         relative_element_index * limits_.max_bytes_data_item_size;
 
     while (true) {
-      uint32_t num_bytes = 0;
-      const void* source_buffer;
+      base::span<const uint8_t> source_buffer;
       MojoResult read_result = consumer_handle_->BeginReadData(
-          &source_buffer, &num_bytes, MOJO_READ_DATA_FLAG_NONE);
+          MOJO_READ_DATA_FLAG_NONE, source_buffer);
       if (read_result == MOJO_RESULT_SHOULD_WAIT)
         return;
       if (read_result != MOJO_RESULT_OK) {
@@ -201,7 +200,8 @@ class DataPipeTransportStrategy : public BlobTransportStrategy {
         return;
       }
 
-      if (current_source_offset_ + num_bytes > expected_full_source_size) {
+      if (current_source_offset_ + source_buffer.size() >
+          expected_full_source_size) {
         // Received more bytes then expected.
         std::move(result_callback_)
             .Run(BlobStatus::ERR_INVALID_CONSTRUCTION_ARGUMENTS);
@@ -210,15 +210,15 @@ class DataPipeTransportStrategy : public BlobTransportStrategy {
 
       // Only read as many bytes as can fit in current data element. Any
       // remaining bytes will be read on the next iteration of this loop.
-      num_bytes =
-          std::min<uint32_t>(num_bytes, limits_.max_bytes_data_item_size -
-                                            offset_in_builder_element);
+      size_t num_bytes =
+          std::min(source_buffer.size(), limits_.max_bytes_data_item_size -
+                                             offset_in_builder_element);
       base::span<uint8_t> output_buffer =
           future_data[relative_element_index].GetDataToPopulate(
               offset_in_builder_element, num_bytes);
       DCHECK(output_buffer.data());
 
-      std::memcpy(output_buffer.data(), source_buffer, num_bytes);
+      output_buffer.copy_prefix_from(source_buffer.first(num_bytes));
       read_result = consumer_handle_->EndReadData(num_bytes);
       DCHECK_EQ(read_result, MOJO_RESULT_OK);
 
@@ -323,7 +323,7 @@ class FileTransportStrategy : public BlobTransportStrategy {
  private:
   void OnReply(BlobDataBuilder::FutureFile future_file,
                scoped_refptr<ShareableFileReference> file_reference,
-               absl::optional<base::Time> time_file_modified) {
+               std::optional<base::Time> time_file_modified) {
     if (!time_file_modified) {
       // Writing to the file failed in the renderer.
       std::move(result_callback_).Run(BlobStatus::ERR_FILE_WRITE_FAILED);
@@ -387,7 +387,6 @@ std::unique_ptr<BlobTransportStrategy> BlobTransportStrategy::Create(
       NOTREACHED();
   }
   NOTREACHED();
-  return nullptr;
 }
 
 BlobTransportStrategy::~BlobTransportStrategy() = default;

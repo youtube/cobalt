@@ -13,7 +13,6 @@
 #include "base/command_line.h"
 #include "base/metrics/field_trial_params.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "net/base/features.h"
 #include "net/nqe/network_quality_estimator.h"
 #include "net/nqe/network_quality_estimator_params.h"
@@ -22,7 +21,13 @@
 namespace {
 
 // Returns true if |past_value| is significantly different from |current_value|.
-bool MetricChangedMeaningfully(int32_t past_value, int32_t current_value) {
+// Metric changed meaningfully only if (i) the difference between the two
+// values exceed the threshold |min_difference_in_metrics|; and,
+// (ii) the ratio of the values also exceeds the threshold |min_ratio|.
+bool MetricChangedMeaningfully(int32_t past_value,
+                               int32_t current_value,
+                               int min_difference_in_metrics,
+                               float min_ratio) {
   // A negative value indicates that the value of the corresponding metric is
   // unavailable. A difference in signature between the |past_value| and
   // |current_value| indicates change in the availability of the value of that
@@ -36,19 +41,13 @@ bool MetricChangedMeaningfully(int32_t past_value, int32_t current_value) {
   if (past_value < 0 && current_value < 0)
     return false;
 
-  // Metric changed meaningfully only if (i) the difference between the two
-  // values exceed the threshold; and, (ii) the ratio of the values also exceeds
-  // the threshold.
-  static const int kMinDifferenceInMetrics = 100;
-  static const float kMinRatio = 1.2f;
-
-  if (std::abs(past_value - current_value) < kMinDifferenceInMetrics) {
+  if (std::abs(past_value - current_value) < min_difference_in_metrics) {
     // The absolute change in the value is not sufficient enough.
     return false;
   }
 
-  if (past_value < (kMinRatio * current_value) &&
-      current_value < (kMinRatio * past_value)) {
+  if (past_value < (min_ratio * current_value) &&
+      current_value < (min_ratio * past_value)) {
     // The relative change in the value is not sufficient enough.
     return false;
   }
@@ -56,6 +55,19 @@ bool MetricChangedMeaningfully(int32_t past_value, int32_t current_value) {
   return true;
 }
 
+bool LatencyMetricChangedMeaningfully(int32_t past_value,
+                                      int32_t current_value) {
+  return MetricChangedMeaningfully(past_value, current_value,
+                                   /*min_difference_in_metrics=*/20,
+                                   /*min_ratio=*/1.2f);
+}
+
+bool BandwidthMetricChangedMeaningfully(int32_t past_value,
+                                        int32_t current_value) {
+  return MetricChangedMeaningfully(past_value, current_value,
+                                   /*min_difference_in_metrics=*/100,
+                                   /*min_ratio=*/1.2f);
+}
 }  // namespace
 
 namespace network {
@@ -85,10 +97,10 @@ NetworkQualityEstimatorManager::NetworkQualityEstimatorManager(
           network_quality_estimator_params),
       net_log);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Get network id asynchronously to workaround https://crbug.com/821607 where
   // AddressTrackerLinux stucks with a recv() call and blocks IO thread.
-  // TODO(https://crbug.com/821607): Remove after the bug is resolved.
+  // TODO(crbug.com/41376341): Remove after the bug is resolved.
   network_quality_estimator_->EnableGetNetworkIdAsynchronously();
 #endif
 
@@ -151,11 +163,11 @@ void NetworkQualityEstimatorManager::OnRTTOrThroughputEstimatesComputed(
     int32_t downstream_throughput_kbps) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  bool http_rtt_changed_meaningfully = MetricChangedMeaningfully(
+  bool http_rtt_changed_meaningfully = LatencyMetricChangedMeaningfully(
       http_rtt.InMilliseconds(), http_rtt_.InMilliseconds());
-  bool transport_rtt_changed_meaningfully = MetricChangedMeaningfully(
+  bool transport_rtt_changed_meaningfully = LatencyMetricChangedMeaningfully(
       transport_rtt.InMilliseconds(), transport_rtt_.InMilliseconds());
-  bool downlink_changed_meaningfully = MetricChangedMeaningfully(
+  bool downlink_changed_meaningfully = BandwidthMetricChangedMeaningfully(
       downstream_throughput_kbps, downstream_throughput_kbps_);
 
   if (!http_rtt_changed_meaningfully && !transport_rtt_changed_meaningfully &&

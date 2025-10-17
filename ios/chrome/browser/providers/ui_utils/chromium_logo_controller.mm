@@ -6,14 +6,11 @@
 
 #import <UIKit/UIKit.h>
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation ChromiumLogoController
 
 @synthesize doodleObserver = _doodleObserver;
 @synthesize showingLogo = _showingLogo;
+@synthesize usesMonochromeLogo = _usesMonochromeLogo;
 @synthesize view = _view;
 
 - (instancetype)init {

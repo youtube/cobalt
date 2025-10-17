@@ -10,6 +10,7 @@
 
 #include "objc_audio_device_module.h"
 
+#include "api/environment/environment.h"
 #include "api/make_ref_counted.h"
 #include "rtc_base/logging.h"
 
@@ -17,10 +18,10 @@
 
 namespace webrtc {
 
-rtc::scoped_refptr<AudioDeviceModule> CreateAudioDeviceModule(
-    id<RTC_OBJC_TYPE(RTCAudioDevice)> audio_device) {
+scoped_refptr<AudioDeviceModule> CreateAudioDeviceModule(
+    const Environment& env, id<RTC_OBJC_TYPE(RTCAudioDevice)> audio_device) {
   RTC_DLOG(LS_INFO) << __FUNCTION__;
-  return rtc::make_ref_counted<objc_adm::ObjCAudioDeviceModule>(audio_device);
+  return make_ref_counted<objc_adm::ObjCAudioDeviceModule>(env, audio_device);
 }
 
 }  // namespace webrtc

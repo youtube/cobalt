@@ -5,6 +5,7 @@
 #include "ui/accessibility/platform/ax_platform_node_base.h"
 #include "base/strings/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/accessibility/platform/ax_platform_for_test.h"
 #include "ui/accessibility/platform/ax_platform_node_unittest.h"
 #include "ui/accessibility/platform/test_ax_node_wrapper.h"
 #include "ui/accessibility/test_ax_tree_update.h"
@@ -557,10 +558,10 @@ TEST_F(AXPlatformNodeTest, CompareTo) {
   // Test for two nodes that do not share the same root. They should not be
   // comparable.
   AXPlatformNodeDelegate detached_delegate;
-  AXPlatformNodeBase* detached_node = static_cast<AXPlatformNodeBase*>(
-      AXPlatformNode::Create(&detached_delegate));
-  EXPECT_EQ(absl::nullopt, n1->CompareTo(*detached_node));
-  detached_node->Destroy();
+  AXPlatformNode::Pointer detached_node =
+      AXPlatformNode::Create(detached_delegate);
+  EXPECT_EQ(std::nullopt,
+            n1->CompareTo(static_cast<AXPlatformNodeBase&>(*detached_node)));
   detached_node = nullptr;
 
   // Create a test vector of all the tree nodes arranged in a pre-order
@@ -578,7 +579,7 @@ TEST_F(AXPlatformNodeTest, CompareTo) {
       else if (lhs->GetData().id > rhs->GetData().id)
         expected_result = 1;
 
-      EXPECT_NE(absl::nullopt, lhs->CompareTo(*rhs));
+      EXPECT_NE(std::nullopt, lhs->CompareTo(*rhs));
       int actual_result = 0;
       if (lhs->CompareTo(*rhs) < 0)
         actual_result = -1;

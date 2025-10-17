@@ -4,20 +4,19 @@
 
 #include "fuchsia_web/webengine/renderer/web_engine_content_renderer_client.h"
 
+#include <optional>
 #include <tuple>
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
-#include "base/functional/bind.h"
-#include "base/sequence_checker.h"
-#include "base/threading/scoped_blocking_call.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/synchronization/lock.h"
 #include "build/chromecast_buildflags.h"
 #include "components/media_control/renderer/media_playback_options.h"
 #include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
 #include "components/on_load_script_injector/renderer/on_load_script_injector.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/renderer/render_frame.h"
-#include "content/public/renderer/render_thread.h"
 #include "fuchsia_web/webengine/features.h"
 #include "fuchsia_web/webengine/renderer/web_engine_media_renderer_factory.h"
 #include "fuchsia_web/webengine/renderer/web_engine_url_loader_throttle_provider.h"
@@ -25,13 +24,13 @@
 #include "media/base/content_decryption_module.h"
 #include "media/base/eme_constants.h"
 #include "media/base/media_switches.h"
-#include "media/base/supported_video_decoder_config.h"
 #include "media/base/video_codecs.h"
 #include "services/network/public/cpp/features.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/url_loader_throttle_provider.h"
+#include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "third_party/widevine/cdm/buildflags.h"
 
@@ -47,6 +46,26 @@
 #endif
 
 namespace {
+
+// Returns true if the specified video format can be decoded on hardware.
+bool IsSupportedHardwareVideoCodec(const media::VideoType& type) {
+#if BUILDFLAG(USE_PROPRIETARY_CODECS)
+  // TODO(crbug.com/42050020): Replace these hardcoded checks with a query to
+  // the fuchsia.mediacodec FIDL service.
+  if (type.codec == media::VideoCodec::kH264 && type.level <= 41)
+    return true;
+#endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
+
+  // Only SD profiles are supported for VP9. HDR profiles (2 and 3) are not
+  // supported.
+  if (type.codec == media::VideoCodec::kVP9 &&
+      (type.profile == media::VP9PROFILE_PROFILE0 ||
+       type.profile == media::VP9PROFILE_PROFILE1)) {
+    return true;
+  }
+
+  return false;
+}
 
 #if BUILDFLAG(ENABLE_WIDEVINE) && BUILDFLAG(ENABLE_CAST_RECEIVER)
 class PlayreadyKeySystemInfo : public ::media::KeySystemInfo {
@@ -77,7 +96,7 @@ class PlayreadyKeySystemInfo : public ::media::KeySystemInfo {
       const std::string& requested_robustness,
       const bool* /*hw_secure_requirement*/) const override {
     // Only empty robustness string is currently supported.
-    // TODO(crbug.com/1205716): Add support for robustness strings.
+    // TODO(crbug.com/40180587): Add support for robustness strings.
     if (requested_robustness.empty()) {
       return media::EmeConfig{.hw_secure_codecs =
                                   media::EmeConfigRuleState::kRequired};
@@ -117,64 +136,27 @@ class PlayreadyKeySystemInfo : public ::media::KeySystemInfo {
 
 WebEngineContentRendererClient::WebEngineContentRendererClient() = default;
 
-WebEngineContentRendererClient::~WebEngineContentRendererClient() = default;
-
-WebEngineRenderFrameObserver*
-WebEngineContentRendererClient::GetWebEngineRenderFrameObserverForRenderFrameId(
-    int render_frame_id) const {
-  auto iter = render_frame_id_to_observer_map_.find(render_frame_id);
-  DCHECK(iter != render_frame_id_to_observer_map_.end());
-  return iter->second.get();
+WebEngineContentRendererClient::~WebEngineContentRendererClient() {
+  base::AutoLock lock(observer_map_lock_);
+  frame_token_to_observer_map_.clear();
 }
 
-void WebEngineContentRendererClient::OnRenderFrameDeleted(int render_frame_id) {
-  size_t count = render_frame_id_to_observer_map_.erase(render_frame_id);
+scoped_refptr<url_rewrite::UrlRequestRewriteRules>
+WebEngineContentRendererClient::GetRewriteRulesForFrameToken(
+    const blink::LocalFrameToken& frame_token) const {
+  base::AutoLock lock(observer_map_lock_);
+  auto iter = frame_token_to_observer_map_.find(frame_token);
+  if (iter == frame_token_to_observer_map_.end()) {
+    return nullptr;
+  }
+  return iter->second->url_request_rules_receiver()->GetCachedRules();
+}
+
+void WebEngineContentRendererClient::OnRenderFrameDeleted(
+    const blink::LocalFrameToken& frame_token) {
+  base::AutoLock lock(observer_map_lock_);
+  size_t count = frame_token_to_observer_map_.erase(frame_token);
   DCHECK_EQ(count, 1u);
-}
-
-void WebEngineContentRendererClient::EnsureMediaCodecProvider() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (media_codec_provider_.is_bound()
-      // The mojo Remote is disconnected intentionally after the
-      // `supported_decoder_configs_` is cached. No need to connect again.
-      || supported_decoder_configs_) {
-    return;
-  }
-
-  content::RenderThread::Get()->BindHostReceiver(
-      media_codec_provider_.BindNewPipeAndPassReceiver());
-  media_codec_provider_.set_disconnect_handler(base::BindOnce(
-      &WebEngineContentRendererClient::OnGetSupportedVideoDecoderConfigs,
-      base::Unretained(this), media::SupportedVideoDecoderConfigs()));
-  media_codec_provider_->GetSupportedVideoDecoderConfigs(base::BindOnce(
-      &WebEngineContentRendererClient::OnGetSupportedVideoDecoderConfigs,
-      base::Unretained(this)));
-}
-
-void WebEngineContentRendererClient::OnGetSupportedVideoDecoderConfigs(
-    const media::SupportedVideoDecoderConfigs& configs) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // `decoder_configs_event_` and `supported_decoder_configs_` should only be
-  // signaled or updated once.
-  CHECK(!decoder_configs_event_.IsSignaled());
-  CHECK(!supported_decoder_configs_);
-
-  supported_decoder_configs_.emplace(configs);
-  decoder_configs_event_.Signal();
-
-  media_codec_provider_.reset();
-}
-
-bool WebEngineContentRendererClient::IsHardwareSupportedVideoType(
-    const media::VideoType& type) {
-  if (!decoder_configs_event_.IsSignaled()) {
-    base::ScopedBlockingCall scoped_blocking_call(
-        FROM_HERE, base::BlockingType::WILL_BLOCK);
-    decoder_configs_event_.Wait();
-  }
-
-  CHECK(supported_decoder_configs_) << "No cached decoder configs.";
-  return media::IsVideoTypeSupported(*supported_decoder_configs_, type);
 }
 
 void WebEngineContentRendererClient::RenderThreadStarted() {
@@ -187,10 +169,6 @@ void WebEngineContentRendererClient::RenderThreadStarted() {
         std::make_unique<memory_pressure::MultiSourceMemoryPressureMonitor>();
     memory_pressure_monitor_->MaybeStartPlatformVoter();
   }
-
-  if (!base::FeatureList::IsEnabled(features::kEnableSoftwareOnlyVideoCodecs)) {
-    EnsureMediaCodecProvider();
-  }
 }
 
 void WebEngineContentRendererClient::RenderFrameCreated(
@@ -199,15 +177,18 @@ void WebEngineContentRendererClient::RenderFrameCreated(
   // The objects' lifetimes are bound to the RenderFrame's lifetime.
   new on_load_script_injector::OnLoadScriptInjector(render_frame);
 
-  int render_frame_id = render_frame->GetRoutingID();
+  auto frame_token = render_frame->GetWebFrame()->GetLocalFrameToken();
 
   auto render_frame_observer = std::make_unique<WebEngineRenderFrameObserver>(
       render_frame,
       base::BindOnce(&WebEngineContentRendererClient::OnRenderFrameDeleted,
                      base::Unretained(this)));
-  auto render_frame_observer_iter = render_frame_id_to_observer_map_.emplace(
-      render_frame_id, std::move(render_frame_observer));
-  DCHECK(render_frame_observer_iter.second);
+  {
+    base::AutoLock lock(observer_map_lock_);
+    auto render_frame_observer_iter = frame_token_to_observer_map_.emplace(
+        frame_token, std::move(render_frame_observer));
+    DCHECK(render_frame_observer_iter.second);
+  }
 
   // Lifetime is tied to |render_frame| via content::RenderFrameObserver.
   new media_control::MediaPlaybackOptions(render_frame);
@@ -216,34 +197,30 @@ void WebEngineContentRendererClient::RenderFrameCreated(
 std::unique_ptr<blink::URLLoaderThrottleProvider>
 WebEngineContentRendererClient::CreateURLLoaderThrottleProvider(
     blink::URLLoaderThrottleProviderType type) {
-  // TODO(crbug.com/1378791): Add support for workers.
-  if (type == blink::URLLoaderThrottleProviderType::kWorker)
-    return nullptr;
-
   return std::make_unique<WebEngineURLLoaderThrottleProvider>(this);
 }
 
-void WebEngineContentRendererClient::GetSupportedKeySystems(
+std::unique_ptr<media::KeySystemSupportRegistration>
+WebEngineContentRendererClient::GetSupportedKeySystems(
+    content::RenderFrame* render_frame,
     media::GetSupportedKeySystemsCB cb) {
-  EnsureMediaCodecProvider();
-
   media::KeySystemInfos key_systems;
   media::SupportedCodecs supported_video_codecs = 0;
   constexpr uint8_t kUnknownCodecLevel = 0;
-  if (IsHardwareSupportedVideoType(media::VideoType{
+  if (IsSupportedHardwareVideoCodec(media::VideoType{
           media::VideoCodec::kVP9, media::VP9PROFILE_PROFILE0,
           kUnknownCodecLevel, media::VideoColorSpace::REC709()})) {
     supported_video_codecs |= media::EME_CODEC_VP9_PROFILE0;
   }
 
-  if (IsHardwareSupportedVideoType(media::VideoType{
+  if (IsSupportedHardwareVideoCodec(media::VideoType{
           media::VideoCodec::kVP9, media::VP9PROFILE_PROFILE2,
           kUnknownCodecLevel, media::VideoColorSpace::REC709()})) {
     supported_video_codecs |= media::EME_CODEC_VP9_PROFILE2;
   }
 
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
-  if (IsHardwareSupportedVideoType(media::VideoType{
+  if (IsSupportedHardwareVideoCodec(media::VideoType{
           media::VideoCodec::kH264, media::H264PROFILE_MAIN, kUnknownCodecLevel,
           media::VideoColorSpace::REC709()})) {
     supported_video_codecs |= media::EME_CODEC_AVC1;
@@ -267,8 +244,8 @@ void WebEngineContentRendererClient::GetSupportedKeySystems(
     // Fuchsia always decrypts audio into clear buffers and return them back to
     // Chromium. Hardware secured decoders are only available for supported
     // video codecs.
-    // TODO(crbug.com/1434419): Replace these hardcoded values with a query to
-    // the fuchsia.media.drm.Widevine FIDL service.
+    // TODO(crbug.com/42050020): Replace these hardcoded values with a query to
+    // the fuchsia.mediacodec FIDL service.
     key_systems.push_back(std::make_unique<cdm::WidevineKeySystemInfo>(
         supported_codecs,             // codecs
         kSupportedEncryptionSchemes,  // encryption schemes
@@ -298,20 +275,21 @@ void WebEngineContentRendererClient::GetSupportedKeySystems(
 #endif  // BUILDFLAG(ENABLE_WIDEVINE)
 
   std::move(cb).Run(std::move(key_systems));
+  return nullptr;
 }
 
-bool WebEngineContentRendererClient::IsSupportedVideoType(
+bool WebEngineContentRendererClient::IsDecoderSupportedVideoType(
     const media::VideoType& type) {
   // Fall back to default codec querying logic if software-only codecs are
   // enabled.
   if (base::FeatureList::IsEnabled(features::kEnableSoftwareOnlyVideoCodecs)) {
-    return ContentRendererClient::IsSupportedVideoType(type);
+    return ContentRendererClient::IsDecoderSupportedVideoType(type);
   }
 
-  return IsHardwareSupportedVideoType(type);
+  return IsSupportedHardwareVideoCodec(type);
 }
 
-// TODO(crbug.com/1067435): Look into the ChromiumContentRendererClient version
+// TODO(crbug.com/40682958): Look into the ChromiumContentRendererClient version
 // of this method and how it may apply here.
 bool WebEngineContentRendererClient::DeferMediaLoad(
     content::RenderFrame* render_frame,
@@ -328,10 +306,8 @@ WebEngineContentRendererClient::GetBaseRendererFactory(
     base::RepeatingCallback<media::GpuVideoAcceleratorFactories*()>
         get_gpu_factories_cb,
     int element_id) {
-  auto* interface_broker = render_frame->GetBrowserInterfaceBroker();
-
   mojo::Remote<mojom::WebEngineMediaResourceProvider> media_resource_provider;
-  interface_broker->GetInterface(
+  render_frame->GetBrowserInterfaceBroker().GetInterface(
       media_resource_provider.BindNewPipeAndPassReceiver());
 
   bool use_audio_consumer = false;

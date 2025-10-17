@@ -13,17 +13,23 @@
 #define MEDIA_ENGINE_SIMULCAST_ENCODER_ADAPTER_H_
 
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <list>
 #include <memory>
-#include <stack>
-#include <string>
-#include <utility>
+#include <optional>
 #include <vector>
 
-#include "absl/types/optional.h"
+#include "absl/base/nullability.h"
+#include "api/environment/environment.h"
 #include "api/fec_controller_override.h"
 #include "api/sequence_checker.h"
+#include "api/units/timestamp.h"
+#include "api/video/encoded_image.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_type.h"
 #include "api/video_codecs/sdp_video_format.h"
+#include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
 #include "api/video_codecs/video_encoder_factory.h"
 #include "common_video/framerate_controller.h"
@@ -40,15 +46,14 @@ namespace webrtc {
 // interfaces should be called from the encoder task queue.
 class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
  public:
-  // TODO(bugs.webrtc.org/11000): Remove when downstream usage is gone.
-  SimulcastEncoderAdapter(VideoEncoderFactory* primarty_factory,
-                          const SdpVideoFormat& format);
   // `primary_factory` produces the first-choice encoders to use.
   // `fallback_factory`, if non-null, is used to create fallback encoder that
   // will be used if InitEncode() fails for the primary encoder.
-  SimulcastEncoderAdapter(VideoEncoderFactory* primary_factory,
-                          VideoEncoderFactory* fallback_factory,
+  SimulcastEncoderAdapter(const Environment& env,
+                          VideoEncoderFactory* absl_nonnull primary_factory,
+                          VideoEncoderFactory* absl_nullable fallback_factory,
                           const SdpVideoFormat& format);
+
   ~SimulcastEncoderAdapter() override;
 
   // Implements VideoEncoder.
@@ -66,6 +71,9 @@ class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
   void OnLossNotification(const LossNotification& loss_notification) override;
 
   EncoderInfo GetEncoderInfo() const override;
+
+ protected:
+  void DestroyStoredEncoders();
 
  private:
   class EncoderContext {
@@ -120,10 +128,10 @@ class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
     void set_is_keyframe_needed() { is_keyframe_needed_ = true; }
     bool is_paused() const { return is_paused_; }
     void set_is_paused(bool is_paused) { is_paused_ = is_paused; }
-    absl::optional<double> target_fps() const {
+    std::optional<double> target_fps() const {
       return framerate_controller_ == nullptr
-                 ? absl::nullopt
-                 : absl::optional<double>(
+                 ? std::nullopt
+                 : std::optional<double>(
                        framerate_controller_->GetMaxFramerate());
     }
 
@@ -143,8 +151,6 @@ class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
   };
 
   bool Initialized() const;
-
-  void DestroyStoredEncoders();
 
   // This method creates encoder. May reuse previously created encoders from
   // `cached_encoder_contexts_`. It's const because it's used from
@@ -167,6 +173,7 @@ class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
 
   void OverrideFromFieldTrial(VideoEncoder::EncoderInfo* info) const;
 
+  const Environment env_;
   std::atomic<int> inited_;
   VideoEncoderFactory* const primary_encoder_factory_;
   VideoEncoderFactory* const fallback_encoder_factory_;
@@ -186,9 +193,10 @@ class RTC_EXPORT SimulcastEncoderAdapter : public VideoEncoder {
   // GetEncoderInfo(), which is const.
   mutable std::list<std::unique_ptr<EncoderContext>> cached_encoder_contexts_;
 
-  const absl::optional<unsigned int> experimental_boosted_screenshare_qp_;
   const bool boost_base_layer_quality_;
   const bool prefer_temporal_support_on_base_layer_;
+  const bool per_layer_pli_;
+  const bool drop_unaligned_resolution_;
 
   const SimulcastEncoderAdapterEncoderInfoSettings encoder_info_override_;
 };

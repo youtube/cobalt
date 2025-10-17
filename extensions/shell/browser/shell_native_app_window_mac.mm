@@ -6,16 +6,24 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/notreached.h"
 #include "base/strings/sys_string_conversions.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/size.h"
 #import "ui/gfx/mac/coordinate_conversion.h"
+#include "ui/gfx/native_widget_types.h"
 
-@implementation ShellNativeAppWindowController
+@implementation ShellNativeAppWindowController {
+  // This field is not a raw_ptr<> because it is a pointer to Objective-C
+  // object.
+  RAW_PTR_EXCLUSION extensions::ShellNativeAppWindowMac*
+      _appWindow;  // Owns us.
+}
 
 @synthesize appWindow = _appWindow;
 
@@ -32,49 +40,46 @@ ShellNativeAppWindowMac::ShellNativeAppWindowMac(
     AppWindow* app_window,
     const AppWindow::CreateParams& params)
     : ShellNativeAppWindow(app_window, params) {
-  base::scoped_nsobject<NSWindow> shell_window;
-  NSUInteger style_mask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable;
-
   NSRect cocoa_bounds = gfx::ScreenRectToNSRect(
-      params.GetInitialWindowBounds(gfx::Insets()));
+      params.GetInitialWindowBounds(gfx::Insets(), gfx::RoundedCornersF()));
 
   // TODO(yoz): Do we need to handle commands (keyboard shortcuts)?
   // Do we need need ChromeEventProcessingWindow?
-  shell_window.reset([[NSWindow alloc]
+  NSWindow* shell_window = [[NSWindow alloc]
       initWithContentRect:cocoa_bounds
-                styleMask:style_mask
+                styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
                   backing:NSBackingStoreBuffered
-                    defer:NO]);
-  [shell_window setReleasedWhenClosed:NO];
-  [shell_window setTitleVisibility:NSWindowTitleHidden];
+                    defer:NO];
+  shell_window.releasedWhenClosed = NO;
+  shell_window.titleVisibility = NSWindowTitleHidden;
 
-  window_controller_.reset([[ShellNativeAppWindowController alloc]
-                            initWithWindow:shell_window]);
+  window_controller_ =
+      [[ShellNativeAppWindowController alloc] initWithWindow:shell_window];
 
-  [window() setDelegate:window_controller_];
-  [window_controller_ setAppWindow:this];
+  window().delegate = window_controller_;
+  window_controller_.appWindow = this;
 
   NSView* view = app_window->web_contents()->GetNativeView().GetNativeNSView();
-  NSView* frameView = [window() contentView];
-  [view setFrame:[frameView bounds]];
+  NSView* frameView = window().contentView;
+  view.frame = frameView.bounds;
   [frameView addSubview:view];
 }
 
 ShellNativeAppWindowMac::~ShellNativeAppWindowMac() {
-  [window() setDelegate:nil];
+  window().delegate = nil;
   [window() close];
 }
 
 bool ShellNativeAppWindowMac::IsActive() const {
-  return [window() isKeyWindow];
+  return window().keyWindow;
 }
 
 gfx::NativeWindow ShellNativeAppWindowMac::GetNativeWindow() const {
-  return window();
+  return gfx::NativeWindow(window());
 }
 
 gfx::Rect ShellNativeAppWindowMac::GetBounds() const {
-  return gfx::ScreenRectFromNSRect([window() frame]);
+  return gfx::ScreenRectFromNSRect(window().frame);
 }
 
 void ShellNativeAppWindowMac::Show() {
@@ -86,7 +91,7 @@ void ShellNativeAppWindowMac::Hide() {
 }
 
 bool ShellNativeAppWindowMac::IsVisible() const {
-  return [window() isVisible];
+  return window().visible;
 }
 
 void ShellNativeAppWindowMac::Activate() {
@@ -114,13 +119,13 @@ gfx::Size ShellNativeAppWindowMac::GetContentMaximumSize() const {
 }
 
 void ShellNativeAppWindowMac::WindowWillClose() {
-  [window_controller_ setAppWindow:nullptr];
+  window_controller_.appWindow = nullptr;
   app_window()->OnNativeWindowChanged();
   app_window()->OnNativeClose();
 }
 
 NSWindow* ShellNativeAppWindowMac::window() const {
-  return [window_controller_ window];
+  return window_controller_.window;
 }
 
 }  // namespace extensions

@@ -4,12 +4,12 @@
 
 #include "chrome/browser/ash/net/network_diagnostics/https_firewall_routine.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "chrome/browser/ash/net/network_diagnostics/network_diagnostics_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/storage_partition.h"
@@ -50,8 +50,9 @@ constexpr int kRetryResponseCodes[] = {net::ERR_TIMED_OUT,
 
 const int kTotalNumRetries = 3;
 
-HttpsFirewallRoutine::HttpsFirewallRoutine()
-    : num_retries_(kTotalNumRetries),
+HttpsFirewallRoutine::HttpsFirewallRoutine(mojom::RoutineCallSource source)
+    : NetworkDiagnosticsRoutine(source),
+      num_retries_(kTotalNumRetries),
       tls_prober_getter_callback_(base::BindRepeating(
           &HttpsFirewallRoutine::CreateAndExecuteTlsProber)) {
   std::vector<std::string> url_strings =
@@ -75,29 +76,37 @@ void HttpsFirewallRoutine::Run() {
 }
 
 void HttpsFirewallRoutine::AnalyzeResultsAndExecuteCallback() {
+  // There should at least `kTotalAdditionalHostsToQuery` (=3) URLs to query.
+  DCHECK(num_urls_to_query_);
   double dns_resolution_failure_rate =
       static_cast<double>(dns_resolution_failures_) /
       static_cast<double>(num_urls_to_query_);
-  double tls_probe_failure_rate =
-      static_cast<double>(tls_probe_failures_) /
-      static_cast<double>(num_no_dns_failure_tls_probes_attempted_);
 
   if (dns_resolution_failure_rate > kDnsResolutionFailureRateThreshold) {
     set_verdict(mojom::RoutineVerdict::kProblem);
     problems_.push_back(
         mojom::HttpsFirewallProblem::kHighDnsResolutionFailureRate);
-  } else if (tls_probe_failure_rate <= kTlsProbeFailureRateThreshold) {
-    set_verdict(mojom::RoutineVerdict::kNoProblem);
-  } else if (tls_probe_failures_ == num_no_dns_failure_tls_probes_attempted_) {
-    set_verdict(mojom::RoutineVerdict::kProblem);
-    problems_.push_back(mojom::HttpsFirewallProblem::kFirewallDetected);
   } else {
-    // It cannot be conclusively determined whether a firewall exists; however,
-    // since reaching this case means tls_probe_failure_rate >
-    // kTlsProbeFailureRateThreshold, a firewall could potentially
-    // exist.
-    set_verdict(mojom::RoutineVerdict::kProblem);
-    problems_.push_back(mojom::HttpsFirewallProblem::kPotentialFirewall);
+    // When `dns_resolution_failure_rate` is below the threshold, there must be
+    // probes that is not "DNS failure".
+    DCHECK(num_no_dns_failure_tls_probes_attempted_);
+    double tls_probe_failure_rate =
+        static_cast<double>(tls_probe_failures_) /
+        static_cast<double>(num_no_dns_failure_tls_probes_attempted_);
+    if (tls_probe_failure_rate <= kTlsProbeFailureRateThreshold) {
+      set_verdict(mojom::RoutineVerdict::kNoProblem);
+    } else if (tls_probe_failures_ ==
+               num_no_dns_failure_tls_probes_attempted_) {
+      set_verdict(mojom::RoutineVerdict::kProblem);
+      problems_.push_back(mojom::HttpsFirewallProblem::kFirewallDetected);
+    } else {
+      // It cannot be conclusively determined whether a firewall exists;
+      // however, since reaching this case means tls_probe_failure_rate >
+      // kTlsProbeFailureRateThreshold, a firewall could potentially
+      // exist.
+      set_verdict(mojom::RoutineVerdict::kProblem);
+      problems_.push_back(mojom::HttpsFirewallProblem::kPotentialFirewall);
+    }
   }
   set_problems(mojom::RoutineProblems::NewHttpsFirewallProblems(problems_));
   ExecuteCallback();
@@ -127,7 +136,7 @@ void HttpsFirewallRoutine::OnProbeComplete(
   if (probe_exit_enum == TlsProber::ProbeExitEnum::kDnsFailure) {
     dns_resolution_failures_++;
   } else {
-    const auto* iter = base::ranges::find(kRetryResponseCodes, result);
+    const auto* iter = std::ranges::find(kRetryResponseCodes, result);
     if (iter != std::end(kRetryResponseCodes) && num_retries_ > 0) {
       num_retries_--;
       AttemptProbe(url);
@@ -153,7 +162,7 @@ network::mojom::NetworkContext* HttpsFirewallRoutine::GetNetworkContext() {
 }
 
 std::unique_ptr<TlsProber> HttpsFirewallRoutine::CreateAndExecuteTlsProber(
-    TlsProber::NetworkContextGetter network_context_getter,
+    network::NetworkContextGetter network_context_getter,
     net::HostPortPair host_port_pair,
     bool negotiate_tls,
     TlsProber::TlsProbeCompleteCallback callback) {

@@ -5,6 +5,7 @@
 #include "chrome/browser/metrics/power/process_metrics_recorder_util.h"
 
 #include <cmath>
+#include <optional>
 
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
@@ -18,13 +19,13 @@ namespace {
 // reported with a 1/10000 granularity to make analyzing the data easier
 // (otherwise almost all samples end up in the same [0, 1[ bucket).
 constexpr int kCPUUsageFactor = 100;
-// We scale up to the equivalent of 2 CPU cores fully loaded. More than this
-// doesn't really matter, as we're already in a terrible place. This used to
-// be capped at 64 cores but the data showed that this was way too much, the
-// per process CPU usage really rarely exceeds 100% of one core.
+// Scale up to the equivalent of 16 CPU cores fully loaded. As of 2025-05-06,
+// this was capped at 2 cores but the 99th percentile of the data fell in the
+// overflow bucket. To analyze rare but heavy workloads, we'd like the 99.999th
+// percentile of samples to fall outside the overflow.
 constexpr int kCPUUsageHistogramMin = 1;
-constexpr int kCPUUsageHistogramMax = 200 * kCPUUsageFactor;
-constexpr int kCPUUsageHistogramBucketCount = 50;
+constexpr int kCPUUsageHistogramMax = 1600 * kCPUUsageFactor;
+constexpr int kCPUUsageHistogramBucketCount = 100;
 
 #if BUILDFLAG(IS_WIN)
 bool HasConstantRateTSC() {
@@ -38,7 +39,8 @@ bool HasConstantRateTSC() {
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-void RecordAverageCPUUsage(const char* histogram_suffix, double cpu_usage) {
+void RecordAverageCPUUsage(const char* histogram_suffix,
+                           const std::optional<double>& cpu_usage) {
 #if BUILDFLAG(IS_WIN)
   // Skip recording the average CPU usage if the CPU doesn't support constant
   // rate TSC, since Windows does not offer a way to get a precise measurement
@@ -47,10 +49,14 @@ void RecordAverageCPUUsage(const char* histogram_suffix, double cpu_usage) {
     return;
 #endif
 
+  // The metric definition in
+  // tools/metrics/histograms/metadata/power/histograms.xml says, "If no process
+  // of type {ProcessName} existed during the interval, a sample of zero is
+  // still emitted."
   base::UmaHistogramCustomCounts(
-      base::StrCat({"PerformanceMonitor.AverageCPU8.", histogram_suffix}),
-      cpu_usage * kCPUUsageFactor, kCPUUsageHistogramMin, kCPUUsageHistogramMax,
-      kCPUUsageHistogramBucketCount);
+      base::StrCat({"PerformanceMonitor.AverageCPU9.", histogram_suffix}),
+      cpu_usage.value_or(0.0) * kCPUUsageFactor, kCPUUsageHistogramMin,
+      kCPUUsageHistogramMax, kCPUUsageHistogramBucketCount);
 }
 
 }  // namespace
@@ -69,8 +75,5 @@ void RecordProcessHistograms(const char* histogram_suffix,
       base::StrCat(
           {"PerformanceMonitor.PackageExitIdleWakeups2.", histogram_suffix}),
       metrics.package_idle_wakeups);
-  base::UmaHistogramCounts100000(
-      base::StrCat({"PerformanceMonitor.EnergyImpact2.", histogram_suffix}),
-      metrics.energy_impact);
 #endif
 }

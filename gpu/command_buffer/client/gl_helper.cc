@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/client/gl_helper.h"
 
 #include <stddef.h>
@@ -11,8 +16,10 @@
 #include <string>
 #include <utility>
 
+#include "base/atomicops.h"
 #include "base/bits.h"
 #include "base/check_op.h"
+#include "base/containers/contains.h"
 #include "base/containers/queue.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -125,19 +132,18 @@ class I420ConverterImpl : public I420Converter {
   const std::unique_ptr<GLHelper::ScalerInterface> v_planerizer_;
 
   // Intermediate texture, holding the scaler's output.
-  absl::optional<TextureHolder> intermediate_;
+  std::optional<TextureHolder> intermediate_;
 
   // Intermediate texture, holding the UV interim output (if the MRT shader
   // is being used).
-  absl::optional<ScopedTexture> uv_;
+  std::optional<ScopedTexture> uv_;
 };
 
 }  // namespace
 
 // Implements texture consumption/readback and encapsulates
 // the data needed for it.
-class GLHelper::CopyTextureToImpl
-    : public base::SupportsWeakPtr<GLHelper::CopyTextureToImpl> {
+class GLHelper::CopyTextureToImpl final {
  public:
   CopyTextureToImpl(GLES2Interface* gl,
                     ContextSupport* context_support,
@@ -203,9 +209,9 @@ class GLHelper::CopyTextureToImpl
           bytes_per_pixel(bytes_per_pixel_),
           bytes_per_row(bytes_per_row_),
           row_stride_bytes(row_stride_bytes_),
-          pixels(pixels_),
           flip_y(flip_y_),
-          callback(std::move(callback_)) {}
+          callback(std::move(callback_)),
+          pixels(pixels_) {}
 
     bool done = false;
     bool result = false;
@@ -213,9 +219,9 @@ class GLHelper::CopyTextureToImpl
     size_t bytes_per_pixel;
     size_t bytes_per_row;
     size_t row_stride_bytes;
-    raw_ptr<unsigned char> pixels;
     bool flip_y;
     base::OnceCallback<void(bool)> callback;
+    raw_ptr<unsigned char> pixels;
     GLuint buffer = 0;
     GLuint query = 0;
   };
@@ -242,7 +248,7 @@ class GLHelper::CopyTextureToImpl
     void Add(Request* r) { requests_.push(r); }
 
    private:
-    base::queue<Request*> requests_;
+    base::queue<raw_ptr<Request, CtnExperimental>> requests_;
   };
 
   // A readback pipeline that also converts the data to YUV before
@@ -317,7 +323,7 @@ class GLHelper::CopyTextureToImpl
   // this object is destroyed. Must be declared before other Scoped* fields.
   ScopedFlush flush_;
 
-  base::queue<Request*> request_queue_;
+  base::queue<raw_ptr<Request, CtnExperimental>> request_queue_;
 
   // Lazily set by IsBGRAReadbackSupported().
   enum {
@@ -333,6 +339,8 @@ class GLHelper::CopyTextureToImpl
     BGRA_PREFERRED,
     BGRA_NOT_PREFERRED
   } bgra_preference_ = BGRA_PREFERENCE_UNKNOWN;
+
+  base::WeakPtrFactory<CopyTextureToImpl> weak_ptr_factory_{this};
 };
 
 std::unique_ptr<GLHelper::ScalerInterface> GLHelper::CreateScaler(
@@ -379,8 +387,8 @@ void GLHelper::CopyTextureToImpl::ReadbackAsync(
   gl_->EndQueryEXT(GL_ASYNC_PIXEL_PACK_COMPLETED_CHROMIUM);
   gl_->BindBuffer(GL_PIXEL_PACK_TRANSFER_BUFFER_CHROMIUM, 0);
   context_support_->SignalQuery(
-      request->query,
-      base::BindOnce(&CopyTextureToImpl::ReadbackDone, AsWeakPtr(), request));
+      request->query, base::BindOnce(&CopyTextureToImpl::ReadbackDone,
+                                     weak_ptr_factory_.GetWeakPtr(), request));
 }
 
 void GLHelper::CopyTextureToImpl::ReadbackTextureAsync(
@@ -450,8 +458,11 @@ void GLHelper::CopyTextureToImpl::ReadbackDone(Request* finished_request) {
           dst += dst_stride * (request->size.height() - 1);
           dst_stride = -dst_stride;
         }
+        // We need to use `RelaxedAtomicWriteMemcpy` because we might be writing
+        // into memory observed by JS at the same time.
         for (int y = 0; y < request->size.height(); y++) {
-          memcpy(dst, src, bytes_to_copy);
+          base::subtle::RelaxedAtomicWriteMemcpy(
+              base::span(dst, bytes_to_copy), base::span(src, bytes_to_copy));
           dst += dst_stride;
           src += src_stride;
         }
@@ -497,8 +508,7 @@ bool GLHelper::CopyTextureToImpl::IsBGRAReadbackSupported() {
     if (auto* extensions = gl_->GetString(GL_EXTENSIONS)) {
       const std::string extensions_string =
           " " + std::string(reinterpret_cast<const char*>(extensions)) + " ";
-      if (extensions_string.find(" GL_EXT_read_format_bgra ") !=
-          std::string::npos) {
+      if (base::Contains(extensions_string, " GL_EXT_read_format_bgra ")) {
         bgra_support_ = BGRA_SUPPORTED;
       }
     }
@@ -547,8 +557,7 @@ GLint GLHelper::MaxDrawBuffers() {
     if (extensions) {
       const std::string extensions_string =
           " " + std::string(reinterpret_cast<const char*>(extensions)) + " ";
-      if (extensions_string.find(" GL_EXT_draw_buffers ") !=
-          std::string::npos) {
+      if (base::Contains(extensions_string, " GL_EXT_draw_buffers ")) {
         gl_->GetIntegerv(GL_MAX_DRAW_BUFFERS_EXT, &max_draw_buffers_);
         DCHECK_GE(max_draw_buffers_, 0);
       }
@@ -697,7 +706,7 @@ void I420ConverterImpl::EnsureTexturesSizedFor(
     if (!intermediate_ || intermediate_->size() != scaler_output_size)
       intermediate_.emplace(gl_, scaler_output_size);
   } else {
-    intermediate_ = absl::nullopt;
+    intermediate_ = std::nullopt;
   }
 
   // Size the interim UV plane and the three output planes.

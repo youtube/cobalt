@@ -5,6 +5,7 @@
 #include "components/metrics/net/net_metrics_log_uploader.h"
 
 #include <sstream>
+#include <string_view>
 
 #include "base/base64.h"
 #include "base/feature_list.h"
@@ -15,6 +16,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "components/encrypted_messages/encrypted_message.pb.h"
 #include "components/encrypted_messages/message_encrypter.h"
+#include "components/metrics/metrics_log.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "net/base/load_flags.h"
 #include "net/base/url_util.h"
@@ -22,7 +24,6 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
-#include "services/network/public/cpp/simple_url_loader_throttle.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
@@ -46,15 +47,18 @@ constexpr char kNoUploadUrlsReasonMsg[] =
     "No server upload URLs specified. Will not attempt to retransmit.";
 
 net::NetworkTrafficAnnotationTag GetNetworkTrafficAnnotation(
-    const metrics::MetricsLogUploader::MetricServiceType& service_type) {
+    const metrics::MetricsLogUploader::MetricServiceType& service_type,
+    const metrics::LogMetadata& log_metadata) {
   // The code in this function should remain so that we won't need a default
   // case that does not have meaningful annotation.
-  if (service_type == metrics::MetricsLogUploader::UMA) {
+  // Structured Metrics is an UMA consented metric service.
+  if (service_type == metrics::MetricsLogUploader::UMA ||
+      service_type == metrics::MetricsLogUploader::STRUCTURED_METRICS) {
     return net::DefineNetworkTrafficAnnotation("metrics_report_uma", R"(
         semantics {
           sender: "Metrics UMA Log Uploader"
           description:
-            "Report of usage statistics and crash-related data about Chromium. "
+            "Report of usage statistics and crash-related data about Chrome. "
             "Usage statistics contain information such as preferences, button "
             "clicks, and memory usage and do not include web page URLs or "
             "personal information. See more at "
@@ -63,18 +67,31 @@ net::NetworkTrafficAnnotationTag GetNetworkTrafficAnnotation(
             "pseudonymous machine identifier and not to your email address."
           trigger:
             "Reports are automatically generated on startup and at intervals "
-            "while Chromium is running."
+            "while Chrome is running."
           data:
             "A protocol buffer with usage statistics and crash related data."
           destination: GOOGLE_OWNED_SERVICE
+          last_reviewed: "2024-02-15"
+          user_data {
+            type: BIRTH_DATE
+            type: GENDER
+            type: HW_OS_INFO
+            type: USAGE_AND_PERFORMANCE_METRICS
+            type: OTHER
+          }
+          internal {
+            contacts {
+              owners: "//components/metrics/OWNERS"
+            }
+          }
         }
         policy {
           cookies_allowed: NO
           setting:
-            "Users can enable or disable this feature by disabling "
-            "'Automatically send usage statistics and crash reports to Google' "
-            "in Chromium's settings under Advanced Settings, Privacy. The "
-            "feature is enabled by default."
+            "Users can enable or disable this feature via "
+            "\"Help improve Chrome's features and performance\" in Chrome "
+            "settings under Sync and Google services > Other Google services. "
+            "The feature is enabled by default."
           chrome_policy {
             MetricsReportingEnabled {
               policy_options {mode: MANDATORY}
@@ -83,26 +100,228 @@ net::NetworkTrafficAnnotationTag GetNetworkTrafficAnnotation(
           }
         })");
   }
-  DCHECK_EQ(service_type, metrics::MetricsLogUploader::UKM);
-  return net::DefineNetworkTrafficAnnotation("metrics_report_ukm", R"(
+
+  if (service_type == metrics::MetricsLogUploader::DWA) {
+    return net::DefineNetworkTrafficAnnotation("metrics_report_dwa", R"(
       semantics {
-        sender: "Metrics UKM Log Uploader"
+        sender: "Metrics DWA Log Uploader"
         description:
-          "Report of usage statistics that are keyed by URLs to Chromium. This "
-          "includes information about the web pages you visit and your usage "
-          "of them, such as page load speed. This will also include URLs and "
-          "statistics related to downloaded files. These statistics may also "
-          "include information about the extensions that have been installed "
-          "from Chrome Web Store. Google only stores usage statistics "
-          "associated with published extensions, and URLs that are known by "
-          "Google’s search index. Usage statistics are tied to a "
-          "pseudonymous machine identifier and not to your email address."
+          "Report of usage statistics that are keyed by a third-party domain "
+          "to Google. These reports contains only DWA data. This includes "
+          "information about the web pages you visit and your usage of them, "
+          "such as API usage. The third-party domain used as a key could be, "
+          "for instance, an inline frame or script owner. Usage statistics "
+          "are sent with an ephemeral pseudonymous identifier."
         trigger:
           "Reports are automatically generated on startup and at intervals "
-          "while Chromium is running with Sync enabled."
+          "while Chrome is running with usage statistics and 'Make searches "
+          "and browsing better' settings enabled."
+        data:
+          "Usage statistics and associated third-party domains are collected."
+        destination: GOOGLE_OWNED_SERVICE
+        last_reviewed: "2025-02-10"
+        user_data {
+          type: HW_OS_INFO
+          type: SENSITIVE_URL
+          type: USAGE_AND_PERFORMANCE_METRICS
+          type: OTHER
+        }
+        internal {
+          contacts {
+            owners: "//components/metrics/OWNERS"
+          }
+        }
+      }
+      policy {
+        cookies_allowed: NO
+        setting:
+          "Users can enable or disable this feature by disabling 'Make "
+          "searches and browsing better' in Chrome's settings under Advanced "
+          "Settings, Privacy. This has to be enabled for all active profiles. "
+          "This is only enabled if the user has 'Help improve Chrome's "
+          "features and performance enabled in the same settings menu."
+        chrome_policy {
+          MetricsReportingEnabled {
+            policy_options {mode: MANDATORY}
+            MetricsReportingEnabled: false
+          }
+          UrlKeyedAnonymizedDataCollectionEnabled {
+            policy_options {mode: MANDATORY}
+            UrlKeyedAnonymizedDataCollectionEnabled: false
+          }
+        }
+      })");
+  }
+
+  DCHECK_EQ(service_type, metrics::MetricsLogUploader::UKM);
+
+  if (log_metadata.log_source_type.has_value() &&
+      log_metadata.log_source_type.value() ==
+          metrics::UkmLogSourceType::APPKM_ONLY) {
+    return net::DefineNetworkTrafficAnnotation("metrics_report_appkm", R"(
+      semantics {
+        sender: "Metrics AppKM Log Uploader"
+        description:
+          "Report of usage statistics that are keyed by App Identifiers to "
+          "Google. These reports only contain App-Keyed Metrics (AppKMs) "
+          "records, which are the metrics related to the user interaction with "
+          "various Apps on ChromeOS devices only. The apps platform includes, "
+          "but is not limited to, progressive web apps (PWA), Chrome apps, and "
+          "apps from the various VMs / GuestOS's: Android (ARC++), Linux "
+          "(Crostini), Windows (Parallels), and Steam (Borealis). Usage "
+          "statistics are tied to a pseudonymous machine identifier and not to "
+          "your email address."
+        trigger:
+          "Reports are automatically generated on startup and at intervals "
+          "while Chrome is running with usage statistics and App Sync settings "
+          "enabled."
+        data:
+          "A protocol buffer with usage statistics and associated App Identifiers."
+        destination: GOOGLE_OWNED_SERVICE
+        last_reviewed: "2024-02-15"
+        user_data {
+          type: BIRTH_DATE
+          type: GENDER
+          type: HW_OS_INFO
+          type: SENSITIVE_URL
+          type: USAGE_AND_PERFORMANCE_METRICS
+          type: OTHER
+        }
+        internal {
+          contacts {
+            owners: "//components/metrics/OWNERS"
+          }
+        }
+      }
+      policy {
+        cookies_allowed: NO
+        setting:
+          "Users can enable or disable this feature using App Sync or usage "
+          "statistics checkbox from the settings. Both are on by default, but "
+          "can be turned-off by the user."
+        chrome_policy {
+          SyncDisabled {
+            policy_options {mode: MANDATORY}
+            SyncDisabled: true
+          }
+          MetricsReportingEnabled{
+            policy_options {mode: MANDATORY}
+            MetricsReportingEnabled: true
+          }
+          SyncTypesListDisabled {
+            SyncTypesListDisabled: {
+              entries: "apps"
+            }
+          }
+        }
+      })");
+  } else if (log_metadata.log_source_type.has_value() &&
+             log_metadata.log_source_type.value() ==
+                 metrics::UkmLogSourceType::BOTH_UKM_AND_APPKM) {
+    return net::DefineNetworkTrafficAnnotation("metrics_report_ukm_and_appkm",
+                                               R"(
+      semantics {
+        sender: "Metrics UKM and AppKM Log Uploader"
+        description:
+          "Report of usage statistics that are keyed by URLs to Google. These "
+          "reports contains both AppKM and UKM data. This includes information "
+          "about the web pages you visit and your usage of them, such as page "
+          "load speed. This will also include URLs and statistics related to "
+          "downloaded files. These statistics may also include information "
+          "about the extensions that have been installed from Chrome Web "
+          "Store. Google only stores usage statistics associated with published "
+          "extensions, and URLs that are known by Google’s search index. Usage "
+          "statistics are tied to a pseudonymous machine identifier and not to "
+          "your email address. Note: Reports containing only AppKM data will be "
+          "reported under 'Metrics AppKM Log Uploader' and only UKM data will "
+          "be reported under 'Metrics UKM Log Uploader' instead."
+        trigger:
+          "Reports are automatically generated on startup and at intervals "
+          "while Chrome is running with usage statistics, 'Make searches and "
+          "browsing better' and App Sync settings enabled."
         data:
           "A protocol buffer with usage statistics and associated URLs."
         destination: GOOGLE_OWNED_SERVICE
+        last_reviewed: "2024-02-15"
+        user_data {
+          type: BIRTH_DATE
+          type: GENDER
+          type: HW_OS_INFO
+          type: SENSITIVE_URL
+          type: USAGE_AND_PERFORMANCE_METRICS
+          type: OTHER
+        }
+        internal {
+          contacts {
+            owners: "//components/metrics/OWNERS"
+          }
+        }
+      }
+      policy {
+        cookies_allowed: NO
+        setting:
+          "Users can disble this feature by disabling 'Make searches and "
+          "browsing better' in Chrome's settings under Advanced Settings or "
+          "disabling App Sync. This is only enabled if the user has 'Help "
+          "improve Chrome's features and performance' enabled in the same "
+          "settings menu. Information about the installed extensions is sent "
+          "only if Extension Sync is enabled."
+        chrome_policy {
+          SyncDisabled {
+            policy_options {mode: MANDATORY}
+            SyncDisabled: true
+          }
+          MetricsReportingEnabled{
+            policy_options {mode: MANDATORY}
+            MetricsReportingEnabled: true
+          }
+          SyncTypesListDisabled {
+            SyncTypesListDisabled: {
+              entries: "apps"
+            }
+          }
+          UrlKeyedAnonymizedDataCollectionEnabled {
+            policy_options {mode: MANDATORY}
+            UrlKeyedAnonymizedDataCollectionEnabled: false
+          }
+        }
+      })");
+  } else {
+    return net::DefineNetworkTrafficAnnotation("metrics_report_ukm", R"(
+      semantics {
+        sender: "Metrics UKM Log Uploader"
+        description:
+          "Report of usage statistics that are keyed by URLs to Google. These "
+          "reports contains only UKM data. This includes information about the "
+          "web pages you visit and your usage of them, such as page load speed. "
+          "This will also include URLs and statistics related to downloaded "
+          "files. These statistics may also include information about the "
+          "extensions that have been installed from Chrome Web Store. Google "
+          "only stores usage statistics associated with published extensions, "
+          "and URLs that are known by Google’s search index. Usage statistics "
+          "are tied to a pseudonymous machine identifier and not to your email "
+          "address."
+        trigger:
+          "Reports are automatically generated on startup and at intervals "
+          "while Chrome is running with usage statistics and 'Make searches "
+          "and browsing better' settings enabled."
+        data:
+          "A protocol buffer with usage statistics and associated URLs."
+        destination: GOOGLE_OWNED_SERVICE
+        last_reviewed: "2024-02-15"
+        user_data {
+          type: BIRTH_DATE
+          type: GENDER
+          type: HW_OS_INFO
+          type: SENSITIVE_URL
+          type: USAGE_AND_PERFORMANCE_METRICS
+          type: OTHER
+        }
+        internal {
+          contacts {
+            owners: "//components/metrics/OWNERS"
+          }
+        }
       }
       policy {
         cookies_allowed: NO
@@ -119,18 +338,21 @@ net::NetworkTrafficAnnotationTag GetNetworkTrafficAnnotation(
             policy_options {mode: MANDATORY}
             MetricsReportingEnabled: false
           }
+          UrlKeyedAnonymizedDataCollectionEnabled {
+            policy_options {mode: MANDATORY}
+            UrlKeyedAnonymizedDataCollectionEnabled: false
+          }
         }
       })");
+  }
 }
 
 std::string SerializeReportingInfo(
     const metrics::ReportingInfo& reporting_info) {
-  std::string result;
   std::string bytes;
   bool success = reporting_info.SerializeToString(&bytes);
   DCHECK(success);
-  base::Base64Encode(bytes, &result);
-  return result;
+  return base::Base64Encode(bytes);
 }
 
 // Encrypts a |plaintext| string, using the encrypted_messages component,
@@ -138,16 +360,11 @@ std::string SerializeReportingInfo(
 // false if there was a problem encrypting.
 bool EncryptString(const std::string& plaintext, std::string* encrypted) {
   encrypted_messages::EncryptedMessage encrypted_message;
-  if (!encrypted_messages::EncryptSerializedMessage(
+  CHECK(encrypted_messages::EncryptSerializedMessage(
           kServerPublicKey, kServerPublicKeyVersion, kEncryptedMessageLabel,
-          plaintext, &encrypted_message)) {
-    NOTREACHED() << "Error encrypting string.";
-    return false;
-  }
-  if (!encrypted_message.SerializeToString(encrypted)) {
-    NOTREACHED() << "Error serializing encrypted string.";
-    return false;
-  }
+          plaintext, &encrypted_message)) << "Error encrypting string.";
+  CHECK(encrypted_message.SerializeToString(encrypted))
+    << "Error serializing encrypted string.";
   return true;
 }
 
@@ -157,17 +374,19 @@ bool EncryptString(const std::string& plaintext, std::string* encrypted) {
 bool EncryptAndBase64EncodeString(const std::string& plaintext,
                                   std::string* encoded) {
   std::string encrypted_text;
-  if (!EncryptString(plaintext, &encrypted_text))
+  if (!EncryptString(plaintext, &encrypted_text)) {
     return false;
+  }
 
-  base::Base64Encode(encrypted_text, encoded);
+  *encoded = base::Base64Encode(encrypted_text);
   return true;
 }
 
 #ifndef NDEBUG
 void LogUploadingHistograms(const std::string& compressed_log_data) {
-  if (!VLOG_IS_ON(2))
+  if (!VLOG_IS_ON(2)) {
     return;
+  }
 
   std::string uncompressed;
   if (!compression::GzipUncompress(compressed_log_data, &uncompressed)) {
@@ -185,8 +404,9 @@ void LogUploadingHistograms(const std::string& compressed_log_data) {
       base::StatisticsRecorder::GetHistograms();
   auto get_histogram_name = [&](uint64_t name_hash) -> std::string {
     for (base::HistogramBase* histogram : histograms) {
-      if (histogram->name_hash() == name_hash)
-        return histogram->histogram_name();
+      if (histogram->name_hash() == name_hash) {
+        return std::string(histogram->histogram_name());
+      }
     }
     return base::StrCat({"unnamed ", base::NumberToString(name_hash)});
   };
@@ -217,7 +437,7 @@ namespace metrics {
 NetMetricsLogUploader::NetMetricsLogUploader(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     const GURL& server_url,
-    base::StringPiece mime_type,
+    std::string_view mime_type,
     MetricsLogUploader::MetricServiceType service_type,
     const MetricsLogUploader::UploadCallback& on_upload_complete)
     : NetMetricsLogUploader(url_loader_factory,
@@ -231,7 +451,7 @@ NetMetricsLogUploader::NetMetricsLogUploader(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     const GURL& server_url,
     const GURL& insecure_server_url,
-    base::StringPiece mime_type,
+    std::string_view mime_type,
     MetricsLogUploader::MetricServiceType service_type,
     const MetricsLogUploader::UploadCallback& on_upload_complete)
     : url_loader_factory_(std::move(url_loader_factory)),
@@ -244,6 +464,7 @@ NetMetricsLogUploader::NetMetricsLogUploader(
 NetMetricsLogUploader::~NetMetricsLogUploader() = default;
 
 void NetMetricsLogUploader::UploadLog(const std::string& compressed_log_data,
+                                      const LogMetadata& log_metadata,
                                       const std::string& log_hash,
                                       const std::string& log_signature,
                                       const ReportingInfo& reporting_info) {
@@ -254,16 +475,17 @@ void NetMetricsLogUploader::UploadLog(const std::string& compressed_log_data,
       reporting_info.last_error_code() != 0 &&
       reporting_info.last_attempt_was_https() &&
       !insecure_server_url_.is_empty()) {
-    UploadLogToURL(compressed_log_data, log_hash, log_signature, reporting_info,
-                   insecure_server_url_);
+    UploadLogToURL(compressed_log_data, log_metadata, log_hash, log_signature,
+                   reporting_info, insecure_server_url_);
     return;
   }
-  UploadLogToURL(compressed_log_data, log_hash, log_signature, reporting_info,
-                 server_url_);
+  UploadLogToURL(compressed_log_data, log_metadata, log_hash, log_signature,
+                 reporting_info, server_url_);
 }
 
 void NetMetricsLogUploader::UploadLogToURL(
     const std::string& compressed_log_data,
+    const LogMetadata& log_metadata,
     const std::string& log_hash,
     const std::string& log_signature,
     const ReportingInfo& reporting_info,
@@ -328,12 +550,9 @@ void NetMetricsLogUploader::UploadLogToURL(
   }
 
   net::NetworkTrafficAnnotationTag traffic_annotation =
-      GetNetworkTrafficAnnotation(service_type_);
+      GetNetworkTrafficAnnotation(service_type_, log_metadata);
   url_loader_ = network::SimpleURLLoader::Create(std::move(resource_request),
                                                  traffic_annotation);
-
-  if (network::SimpleURLLoaderThrottle::IsBatchingEnabled(traffic_annotation))
-    url_loader_->SetAllowBatching();
 
   if (should_encrypt) {
     std::string encrypted_message;
@@ -363,7 +582,7 @@ void NetMetricsLogUploader::HTTPFallbackAborted() {
   // attempt retransmission.
   bool force_discard =
       server_url_.is_empty() && insecure_server_url_.is_empty();
-  base::StringPiece force_discard_reason =
+  std::string_view force_discard_reason =
       force_discard ? kNoUploadUrlsReasonMsg : "";
   on_upload_complete_.Run(/*response_code=*/0, net::ERR_FAILED,
                           /*was_https=*/false, force_discard,
@@ -374,8 +593,9 @@ void NetMetricsLogUploader::HTTPFallbackAborted() {
 void NetMetricsLogUploader::OnURLLoadComplete(
     std::unique_ptr<std::string> response_body) {
   int response_code = -1;
-  if (url_loader_->ResponseInfo() && url_loader_->ResponseInfo()->headers)
+  if (url_loader_->ResponseInfo() && url_loader_->ResponseInfo()->headers) {
     response_code = url_loader_->ResponseInfo()->headers->response_code();
+  }
 
   int error_code = url_loader_->NetError();
 
@@ -386,7 +606,7 @@ void NetMetricsLogUploader::OnURLLoadComplete(
   // retransmission.
   bool force_discard =
       server_url_.is_empty() && insecure_server_url_.is_empty();
-  base::StringPiece force_discard_reason =
+  std::string_view force_discard_reason =
       force_discard ? kNoUploadUrlsReasonMsg : "";
   on_upload_complete_.Run(response_code, error_code, was_https, force_discard,
                           force_discard_reason);

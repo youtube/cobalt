@@ -6,9 +6,10 @@
 #define GPU_CONFIG_DEVICE_PERF_INFO_H_
 
 #include <cstdint>
+#include <optional>
+
 #include "build/build_config.h"
 #include "gpu/gpu_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <d3dcommon.h>
@@ -19,7 +20,7 @@ namespace gpu {
 // These values are persistent to logs. Entries should not be renumbered and
 // numeric values should never be reused.
 // This should match enum IntelGpuGeneration in
-//  \tools\metrics\histograms\enums.xml
+//  \tools\metrics\histograms\metadata\gpu\enums.xml
 enum class IntelGpuGeneration {
   kNonIntel = 0,
   kUnknownIntel = 1,  // Intel GPU, but not one of the following generations.
@@ -31,8 +32,10 @@ enum class IntelGpuGeneration {
   kGen9 = 9,
   kGen10 = 10,
   kGen11 = 11,
-  kGen12 = 12,
-  kMaxValue = kGen12,
+  kXe = 12,
+  kXe2 = 13,
+  kXe3 = 14,
+  kMaxValue = kXe3,
 };
 
 enum class HasDiscreteGpu {
@@ -61,7 +64,7 @@ struct GPU_EXPORT DevicePerfInfo {
 };
 
 // Thread-safe getter and setter of global instance of DevicePerfInfo.
-GPU_EXPORT absl::optional<DevicePerfInfo> GetDevicePerfInfo();
+GPU_EXPORT std::optional<DevicePerfInfo> GetDevicePerfInfo();
 GPU_EXPORT void SetDevicePerfInfo(const DevicePerfInfo& device_perf_info);
 
 }  // namespace gpu

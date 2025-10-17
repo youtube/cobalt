@@ -37,10 +37,9 @@ namespace blink {
 class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
-class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccMetrics final
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ExecutionContextLifecycleObserver,
       public h5vcc_metrics::mojom::blink::MetricsListener {
   DEFINE_WRAPPERTYPEINFO();
@@ -54,12 +53,12 @@ class MODULES_EXPORT H5vccMetrics final
 
   // Web-exposed interface:
   DEFINE_ATTRIBUTE_EVENT_LISTENER(metrics, kMetrics)
-  ScriptPromise enable(ScriptState*, ExceptionState&);
-  ScriptPromise disable(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> enable(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> disable(ScriptState*, ExceptionState&);
   bool isEnabled();
-  ScriptPromise setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
+  ScriptPromise<IDLUndefined> setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
 
-  // EventTargetWithInlineData impl.
+  // EventTarget impl.
   ExecutionContext* GetExecutionContext() const override {
     return ExecutionContextLifecycleObserver::GetExecutionContext();
   }
@@ -82,9 +81,9 @@ class MODULES_EXPORT H5vccMetrics final
       const RegisteredEventListener& registered_listener) override;
 
  private:
-  void OnEnable(ScriptPromiseResolver* resolver);
-  void OnDisable(ScriptPromiseResolver* resolver);
-  void OnSetMetricEventInterval(ScriptPromiseResolver* resolver);
+  void OnEnable(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver);
 
   void EnsureRemoteIsBound();
   void OnCloseConnection();
@@ -92,7 +91,7 @@ class MODULES_EXPORT H5vccMetrics final
   void MaybeRegisterMojoListener();
   void MaybeUnregisterMojoListener();
 
-  void CleanupPromise(ScriptPromiseResolver* resolver);
+  void CleanupPromise(ScriptPromiseResolverBase* resolver);
 
   bool HasValidExecutionContext();
 
@@ -102,7 +101,7 @@ class MODULES_EXPORT H5vccMetrics final
       receiver_;
 
   // If the Mojo connection closes/errors all promises are rejected.
-  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_metrics_promises_;
+  HeapHashSet<Member<ScriptPromiseResolverBase>> h5vcc_metrics_promises_;
 
   bool is_reporting_enabled_ = false;
 };

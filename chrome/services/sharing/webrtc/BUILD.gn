@@ -4,7 +4,7 @@
 
 import("//build/config/chromeos/ui_mode.gni")
 
-assert(is_chromeos_ash)
+assert(is_chromeos)
 
 source_set("webrtc") {
   sources = [
@@ -22,6 +22,8 @@ source_set("webrtc") {
     "p2p_socket_client.h",
     "p2p_socket_client_delegate.h",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   deps = [
     "//components/webrtc:net_address_utils",

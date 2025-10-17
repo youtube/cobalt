@@ -16,9 +16,9 @@
         "SrcIsSint",
         "SrcIsUint"
     ],
-    "DestFormat": [
-        "DestIsFloat",
-        "DestIsSint",
-        "DestIsUint"
+    "DstFormat": [
+        "DstIsFloat",
+        "DstIsSint",
+        "DstIsUint"
     ]
 }

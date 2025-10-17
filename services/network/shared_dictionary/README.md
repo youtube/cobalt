@@ -36,11 +36,13 @@ When `SharedDictionaryWriter` finishes writing the body,
 memory. `SharedDictionaryStorageOnDisk` will stores the dictionary information
 to the storage database (Note: Not implemented yet).
 
-## Using dictionaries
+### Limitations
 
-TODO(crbug.com/1413922): Update this section when we implement this logic.
+We currently set a size limit of 100 MiB per dictionary. This is intended to
+protect the network services from out-of-memory denial-of-service attacks.
 
 ## Flags
+
 The feature of Compression dictionary transport with Shared Brotli is currently
 controlled by two flags.
 
@@ -63,13 +65,16 @@ controlled by two flags.
         "use-as-dictionary" response header to the dictionary storage.
         (Note: Not implemented yet.)
       - Blink will fetch the dictionary after detecting
-        `<link rel=dictionary>` in the document HTML or
-        "`Link: rel=dictionary`" in the HTTP response header.
+        `<link rel=compression-dictionary>` in the document HTML or
+        "`Link: rel=compression-dictionary`" in the HTTP response header.
         (Note: Not implemented yet.)
       - HTMLLinkElement.relList.supports('dictionary') will return true.
         (Note: Not implemented yet.)
+    - Note: Until M126, `rel=dictionary` was used instead of
+      `rel=compression-dictionary`.
 
-# Links
+## Links
+
 - [Explainer](https://github.com/WICG/compression-dictionary-transport)
 - [Crbug](httpe://crbug.com/1413922)
 - [Chrome Status](https://chromestatus.com/feature/5124977788977152)

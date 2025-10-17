@@ -8,24 +8,29 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
 #include "chrome/browser/ui/autofill/payments/iban_bubble_controller.h"
-#include "chrome/browser/ui/views/controls/obscurable_label_with_toggle_button.h"
-#include "chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.h"
-#include "ui/views/controls/button/image_button.h"
-#include "ui/views/controls/textfield/textfield.h"
+#include "chrome/browser/ui/views/autofill/autofill_location_bar_bubble.h"
+#include "chrome/browser/ui/views/autofill/payments/payments_view_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
 
 namespace content {
 class WebContents;
 }
 
+namespace views {
+class Label;
+class Textfield;
+class Throbber;
+}  // namespace views
+
 namespace autofill {
 
 // This class serves as a base view to any of the bubble views that are part of
 // the flow for when the user submits a form with an IBAN (International Bank
 // Account Number) value that Autofill has not previously saved.
-class SaveIbanBubbleView : public AutofillBubbleBase,
-                           public LocationBarBubbleDelegateView,
+class SaveIbanBubbleView : public AutofillLocationBarBubble,
                            public views::TextfieldController {
+  METADATA_HEADER(SaveIbanBubbleView, AutofillLocationBarBubble)
  public:
   // Bubble will be anchored to `anchor_view`.
   SaveIbanBubbleView(views::View* anchor_view,
@@ -34,6 +39,7 @@ class SaveIbanBubbleView : public AutofillBubbleBase,
 
   SaveIbanBubbleView(const SaveIbanBubbleView&) = delete;
   SaveIbanBubbleView& operator=(const SaveIbanBubbleView&) = delete;
+  ~SaveIbanBubbleView() override;
 
   void Show(DisplayReason reason);
 
@@ -50,8 +56,6 @@ class SaveIbanBubbleView : public AutofillBubbleBase,
                        const std::u16string& new_contents) override;
 
  protected:
-  ~SaveIbanBubbleView() override;
-
   virtual void CreateMainContentView();
 
   IbanBubbleController* controller() const { return controller_; }
@@ -61,14 +65,19 @@ class SaveIbanBubbleView : public AutofillBubbleBase,
   // by ID and clicks on it.
   void AssignIdsToDialogButtonsForTesting();
 
-  void OnDialogAccepted();
-  void OnDialogCancelled();
+  void LinkClicked(const GURL& url);
 
   // LocationBarBubbleDelegateView:
   void Init() override;
+  bool Accept() override;
 
  private:
   friend class SaveIbanBubbleViewFullFormBrowserTest;
+
+  std::unique_ptr<views::View> CreateLegalMessageView();
+  std::unique_ptr<views::View> CreateLoadingRow();
+
+  void ShowThrobber();
 
   // Helper function to update value of `nickname_length_label_`;
   void UpdateNicknameLengthLabel();
@@ -76,9 +85,10 @@ class SaveIbanBubbleView : public AutofillBubbleBase,
   raw_ptr<views::Textfield> nickname_textfield_ = nullptr;
   raw_ptr<views::Label> nickname_length_label_ = nullptr;
 
-  // The view that toggles the masking/unmasking of the IBAN value displayed in
-  // the bubble.
-  raw_ptr<ObscurableLabelWithToggleButton> iban_value_and_toggle_;
+  // `loading_row_` is only set for upload IBAN saves.
+  raw_ptr<views::View> loading_row_ = nullptr;
+  // `loading_throbber_` is only used after upload save acceptance.
+  raw_ptr<views::Throbber> loading_throbber_ = nullptr;
 
   raw_ptr<IbanBubbleController> controller_;
 };

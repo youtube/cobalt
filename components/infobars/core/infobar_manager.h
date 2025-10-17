@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "components/infobars/core/infobar_delegate.h"
 
@@ -31,8 +32,7 @@ class InfoBarManager {
 
     virtual void OnInfoBarAdded(InfoBar* infobar);
     virtual void OnInfoBarRemoved(InfoBar* infobar, bool animate);
-    virtual void OnInfoBarReplaced(InfoBar* old_infobar,
-                                   InfoBar* new_infobar);
+    virtual void OnInfoBarReplaced(InfoBar* old_infobar, InfoBar* new_infobar);
     virtual void OnManagerShuttingDown(InfoBarManager* manager);
   };
 
@@ -83,14 +83,10 @@ class InfoBarManager {
   InfoBar* ReplaceInfoBar(InfoBar* old_infobar,
                           std::unique_ptr<InfoBar> new_infobar);
 
-  // Returns the number of infobars for this tab.
-  size_t infobar_count() const { return infobars_.size(); }
-
-  // Returns the infobar at the given |index|.  The InfoBarManager retains
-  // ownership.
-  //
-  // Warning: Does not sanity check |index|.
-  InfoBar* infobar_at(size_t index) { return infobars_[index]; }
+  // Returns managed infobars.
+  const std::vector<raw_ptr<InfoBar, VectorExperimental>>& infobars() const {
+    return infobars_;
+  }
 
   // Must be called when a navigation happens.
   void OnNavigation(const InfoBarDelegate::NavigationDetails& details);
@@ -106,25 +102,30 @@ class InfoBarManager {
   // Opens a URL according to the specified |disposition|.
   virtual void OpenURL(const GURL& url, WindowOpenDisposition disposition) = 0;
 
+  bool ShouldHideInFullscreen() const;
+
  protected:
   void set_animations_enabled(bool animations_enabled) {
     animations_enabled_ = animations_enabled;
   }
 
+  bool ShouldShowInfoBar(const InfoBar* infobar) const;
+
  private:
   friend class ::TestInfoBar;
 
-  // InfoBars associated with this InfoBarManager.  We own these pointers.
+  // InfoBars associated with this InfoBarManager. We own these pointers.
   // However, this is not a vector of unique_ptr, because we don't delete the
   // infobars directly once they've been added to this; instead, when we're
   // done with an infobar, we instruct it to delete itself and then orphan it.
   // See RemoveInfoBarInternal().
-  typedef std::vector<InfoBar*> InfoBars;
+  using InfoBars = std::vector<raw_ptr<InfoBar, VectorExperimental>>;
 
   void RemoveInfoBarInternal(InfoBar* infobar, bool animate);
 
   InfoBars infobars_;
   bool animations_enabled_ = true;
+  const bool infobars_enabled_ = true;
 
   base::ObserverList<Observer, true>::Unchecked observer_list_;
 };

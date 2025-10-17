@@ -3,18 +3,19 @@
 // found in the LICENSE file.
 
 import 'chrome://personalization/strings.m.js';
-import 'chrome://webui-test/mojo_webui_test_support.js';
 
-import {GooglePhotosAlbum, GooglePhotosEnablementState, GooglePhotosPhoto, Paths, PersonalizationRouter} from 'chrome://personalization/js/personalization_app.js';
+import type {GooglePhotosAlbum, GooglePhotosPhoto} from 'chrome://personalization/js/personalization_app.js';
+import {GooglePhotosEnablementState, Paths, PersonalizationRouterElement, setTransitionsEnabled} from 'chrome://personalization/js/personalization_app.js';
+import {SeaPenTemplateId} from 'chrome://resources/ash/common/sea_pen/sea_pen_generated.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 
 import {baseSetup, initElement} from './personalization_app_test_utils.js';
-import {TestPersonalizationStore} from './test_personalization_store.js';
-import {TestWallpaperProvider} from './test_wallpaper_interface_provider.js';
+import type {TestPersonalizationStore} from './test_personalization_store.js';
+import type {TestWallpaperProvider} from './test_wallpaper_interface_provider.js';
 
-suite('PersonalizationRouterTest', function() {
+suite('PersonalizationRouterElementTest', function() {
   let personalizationStore: TestPersonalizationStore;
   let wallpaperProvider: TestWallpaperProvider;
 
@@ -22,12 +23,15 @@ suite('PersonalizationRouterTest', function() {
     const mocks = baseSetup();
     personalizationStore = mocks.personalizationStore;
     wallpaperProvider = mocks.wallpaperProvider;
+
+    // Disables page transition by default.
+    setTransitionsEnabled(false);
   });
 
   test('will show ambient subpage if allowed', async () => {
     loadTimeData.overrideValues({'isAmbientModeAllowed': true});
-    const routerElement = initElement(PersonalizationRouter);
-    PersonalizationRouter.instance().goToRoute(Paths.AMBIENT);
+    const routerElement = initElement(PersonalizationRouterElement);
+    PersonalizationRouterElement.instance().goToRoute(Paths.AMBIENT);
     await waitAfterNextRender(routerElement);
 
     const mainElement =
@@ -43,8 +47,8 @@ suite('PersonalizationRouterTest', function() {
 
   test('will not show ambient subpage if disallowed', async () => {
     loadTimeData.overrideValues({'isAmbientModeAllowed': false});
-    const routerElement = initElement(PersonalizationRouter);
-    PersonalizationRouter.instance().goToRoute(Paths.AMBIENT);
+    const routerElement = initElement(PersonalizationRouterElement);
+    PersonalizationRouterElement.instance().goToRoute(Paths.AMBIENT);
     await waitAfterNextRender(routerElement);
 
     const mainElement =
@@ -59,8 +63,8 @@ suite('PersonalizationRouterTest', function() {
 
   test('returns to root page when wrong path is keyed in', async () => {
     loadTimeData.overrideValues({'isAmbientModeAllowed': true});
-    const routerElement = initElement(
-        PersonalizationRouter, {path: '/wrongpath', queryParams: {}});
+    const routerElement = initElement(PersonalizationRouterElement);
+    routerElement.goToRoute('/wrongpath' as Paths, {});
     await waitAfterNextRender(routerElement);
 
     // Due to the wrong path, only shows root page.
@@ -118,7 +122,7 @@ suite('PersonalizationRouterTest', function() {
     personalizationStore.setReducersEnabled(true);
 
     // Start at root page.
-    const routerElement = initElement(PersonalizationRouter);
+    const routerElement = initElement(PersonalizationRouterElement);
     await waitAfterNextRender(routerElement);
 
     // Navigate to wallpaper collections list.
@@ -147,5 +151,132 @@ suite('PersonalizationRouterTest', function() {
     params = new URLSearchParams(location.search);
     assertFalse(params.has(isSharedParam), 'param no longer exists');
     assertEquals(null, params.get(isSharedParam), 'does not exist so null');
+  });
+
+  test('hides SeaPen from ineligible users', async () => {
+    loadTimeData.overrideValues({isSeaPenEnabled: false});
+
+    const routerElement = initElement(PersonalizationRouterElement, {});
+
+    for (const path of [Paths.SEA_PEN_COLLECTION, Paths.SEA_PEN_RESULTS]) {
+      PersonalizationRouterElement.instance().goToRoute(path);
+      await waitAfterNextRender(routerElement);
+
+      // Due to the forbidden path, only shows root page.
+      const mainElement =
+          routerElement.shadowRoot!.querySelector('personalization-main');
+      assertTrue(!!mainElement, 'main element exists');
+      assertNotEquals(
+          getComputedStyle(mainElement).display, 'none',
+          'main element is shown');
+
+      const seaPenRouterElement =
+          routerElement.shadowRoot!.querySelector('sea-pen-router');
+      assertFalse(!!seaPenRouterElement, 'sea-pen-router does not exist');
+    }
+  });
+
+  test('shows SeaPen for eligible users', async () => {
+    loadTimeData.overrideValues({isSeaPenEnabled: true});
+
+    const routerElement = initElement(PersonalizationRouterElement);
+    await waitAfterNextRender(routerElement);
+
+    let seaPenRouterElement =
+        routerElement.shadowRoot!.querySelector('sea-pen-router');
+    assertFalse(!!seaPenRouterElement, 'sea-pen-router does not exist');
+
+    routerElement.goToRoute(Paths.SEA_PEN_COLLECTION);
+    await waitAfterNextRender(routerElement);
+
+    const mainElement =
+        routerElement.shadowRoot!.querySelector('personalization-main');
+    assertTrue(!!mainElement);
+    assertEquals(
+        getComputedStyle(mainElement).display, 'none',
+        'main element is hidden');
+
+    seaPenRouterElement =
+        routerElement.shadowRoot!.querySelector('sea-pen-router');
+    assertTrue(!!seaPenRouterElement, 'sea-pen-router now exists');
+    assertNotEquals(
+        getComputedStyle(seaPenRouterElement).display, 'none',
+        'sea-pen-router is shown');
+  });
+
+  test('shows wallpaper selected in SeaPen', async () => {
+    loadTimeData.overrideValues({isSeaPenEnabled: true});
+
+    const routerElement = initElement(PersonalizationRouterElement);
+    await waitAfterNextRender(routerElement);
+
+    routerElement.goToRoute(Paths.SEA_PEN_COLLECTION);
+    await waitAfterNextRender(routerElement);
+
+    const seaPenRouterElement =
+        routerElement.shadowRoot!.querySelector('sea-pen-router');
+    assertTrue(!!seaPenRouterElement, 'sea-pen-router now exists');
+    assertNotEquals(
+        getComputedStyle(seaPenRouterElement).display, 'none',
+        'sea-pen-router is shown');
+
+    const wallpaperSelected =
+        routerElement.shadowRoot!.getElementById('wallpaperSelected');
+    assertTrue(!!wallpaperSelected);
+    assertNotEquals(
+        getComputedStyle(wallpaperSelected).display, 'none',
+        'sea-pen-router shows wallpaper-selected');
+    assertFalse(
+        !!routerElement.shadowRoot!.getElementById('wallpaperSelected')!
+              .classList.contains('wallpaperSelectedHidden'),
+        'wallpaper-selected should be displayed on template home page');
+  });
+
+  test('hides wallpaper selected on non root path sea pen', async () => {
+    loadTimeData.overrideValues(
+        {isSeaPenEnabled: true, isSeaPenTextInputEnabled: true});
+
+    const routerElement = initElement(PersonalizationRouterElement);
+    await waitAfterNextRender(routerElement);
+
+    routerElement.goToRoute(Paths.SEA_PEN_RESULTS, {
+      seaPenTemplateId: SeaPenTemplateId.kFlower.toString(),
+    });
+    await waitAfterNextRender(routerElement);
+
+    const seaPenRouterElement =
+        routerElement.shadowRoot!.querySelector('sea-pen-router');
+    assertTrue(!!seaPenRouterElement, 'sea-pen-router now exists');
+    assertNotEquals(
+        getComputedStyle(seaPenRouterElement).display, 'none',
+        'sea-pen-router is shown');
+
+    // No wallpaper-selected in Template results page.
+    assertTrue(
+        !!routerElement.shadowRoot!.getElementById('wallpaperSelected')!
+              .classList.contains('wallpaperSelectedHidden'),
+        'wallpaper-selected should not be displayed in template results page');
+
+    // No wallpaper-selected in Freeform subpage.
+    routerElement.goToRoute(Paths.SEA_PEN_FREEFORM);
+    await waitAfterNextRender(routerElement);
+    assertTrue(
+        !!routerElement.shadowRoot!.getElementById('wallpaperSelected')!
+              .classList.contains('wallpaperSelectedHidden'),
+        'wallpaper-selected should not be displayed in freeform subpage');
+  });
+
+  test('supports transition animation', async () => {
+    const routerElement = initElement(PersonalizationRouterElement);
+    setTransitionsEnabled(true);
+    await waitAfterNextRender(routerElement);
+
+    // Forces transition to execute.
+    await routerElement.goToRoute(Paths.COLLECTIONS);
+    await waitAfterNextRender(routerElement);
+
+    const wallpaperSubpage =
+        routerElement.shadowRoot!.querySelector('wallpaper-subpage');
+    assertTrue(!!wallpaperSubpage, 'wallpaper-subpage now exists');
   });
 });

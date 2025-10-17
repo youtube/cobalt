@@ -14,9 +14,11 @@
 
 namespace google_brand {
 
+extern const char* g_brand_for_testing;
+
 // Returns in |brand| the brand code or distribution tag that has been
 // assigned to a partner. Returns false if the information is not available.
-// TODO(asvitkine): These APIs should return absl::optional<std::string>.
+// TODO(asvitkine): These APIs should return std::optional<std::string>.
 bool GetBrand(std::string* brand);
 
 // Returns in |brand| the reactivation brand code or distribution tag
@@ -26,7 +28,8 @@ bool GetReactivationBrand(std::string* brand);
 
 // The same as GetBrand() on non-ChromeOS platforms. On ChromeOS, returns a
 // variation of the brand code based on enrollment type.
-// TODO(crbug.com/888725): Rename this to GetBrand and replace the current one.
+// TODO(crbug.com/40595214): Rename this to GetBrand and replace the current
+// one.
 bool GetRlzBrand(std::string* brand);
 
 // True if a build is strictly organic, according to its brand code.

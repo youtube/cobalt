@@ -13,19 +13,28 @@ import android.transition.Visibility;
 import android.view.View;
 import android.view.ViewGroup;
 
+import org.chromium.build.annotations.NullMarked;
+
 /**
  * A transition that changes a view's scale when it's appearing or disappearing, it animates both
  * scaleX and scaleY towards 0 when disappearing and towards 1 when appearing.
  */
+@NullMarked
 public class ShrinkTransition extends Visibility {
     @Override
-    public Animator onAppear(ViewGroup sceneRoot, View view, TransitionValues startValues,
+    public Animator onAppear(
+            ViewGroup sceneRoot,
+            View view,
+            TransitionValues startValues,
             TransitionValues endValues) {
         return createAnimation(view, view.getScaleX(), 1);
     }
 
     @Override
-    public Animator onDisappear(ViewGroup sceneRoot, View view, TransitionValues startValues,
+    public Animator onDisappear(
+            ViewGroup sceneRoot,
+            View view,
+            TransitionValues startValues,
             TransitionValues endValues) {
         return createAnimation(view, view.getScaleX(), 0);
     }
@@ -39,18 +48,19 @@ public class ShrinkTransition extends Visibility {
                 ObjectAnimator.ofFloat(view, "ScaleX", "ScaleY", animationPath);
 
         if (endScale == 0) {
-            animator.addListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    // We reset the scale to 1 when disappearing because the next time this view is
-                    // visible this transition may not be involved, so it'll be visible but with a
-                    // scale of 0.
-                    view.setScaleX(1);
-                    view.setScaleY(1);
+            animator.addListener(
+                    new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            // We reset the scale to 1 when disappearing because the next time this
+                            // view is visible this transition may not be involved, so it'll be
+                            // visible but with a scale of 0.
+                            view.setScaleX(1);
+                            view.setScaleY(1);
 
-                    super.onAnimationEnd(animation);
-                }
-            });
+                            super.onAnimationEnd(animation);
+                        }
+                    });
         }
 
         return animator;

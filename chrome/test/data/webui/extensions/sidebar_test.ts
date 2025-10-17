@@ -3,24 +3,14 @@
 // found in the LICENSE file.
 
 /** @fileoverview Suite of tests for extension-sidebar. */
-import {ExtensionsSidebarElement, navigation, Page} from 'chrome://extensions/extensions.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {assertDeepEquals, assertEquals, assertFalse} from 'chrome://webui-test/chai_assert.js';
-import {eventToPromise} from 'chrome://webui-test/test_util.js';
+import type {ExtensionsSidebarElement} from 'chrome://extensions/extensions.js';
+import {navigation, Page} from 'chrome://extensions/extensions.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {testVisible} from './test_util.js';
 
-const extension_sidebar_tests = {
-  suiteName: 'ExtensionSidebarTest',
-  TestNames: {
-    LayoutAndClickHandlers: 'layout and click handlers',
-    SetSelected: 'set selected',
-  },
-};
-
-Object.assign(window, {extension_sidebar_tests});
-
-suite(extension_sidebar_tests.suiteName, function() {
+suite('ExtensionSidebarTest', function() {
   let sidebar: ExtensionsSidebarElement;
 
   setup(function() {
@@ -30,20 +20,19 @@ suite(extension_sidebar_tests.suiteName, function() {
     document.body.appendChild(sidebar);
   });
 
-  test(extension_sidebar_tests.TestNames.SetSelected, function() {
-    const selector = '.section-item.iron-selected';
-    assertFalse(!!sidebar.shadowRoot!.querySelector(selector));
+  test('SetSelected', function() {
+    const selector = '.cr-nav-menu-item.selected';
+    assertFalse(!!sidebar.shadowRoot.querySelector(selector));
 
     window.history.replaceState(undefined, '', '/shortcuts');
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     sidebar = document.createElement('extensions-sidebar');
     document.body.appendChild(sidebar);
     const whenSelected = eventToPromise('iron-select', sidebar.$.sectionMenu);
-    flush();
     return whenSelected
         .then(function() {
           assertEquals(
-              sidebar.shadowRoot!.querySelector(selector)!.id,
+              sidebar.shadowRoot.querySelector(selector)!.id,
               'sectionsShortcuts');
 
           window.history.replaceState(undefined, '', '/');
@@ -52,30 +41,29 @@ suite(extension_sidebar_tests.suiteName, function() {
           document.body.appendChild(sidebar);
           const whenSelected =
               eventToPromise('iron-select', sidebar.$.sectionMenu);
-          flush();
           return whenSelected;
         })
         .then(function() {
           assertEquals(
-              sidebar.shadowRoot!.querySelector(selector)!.id,
+              sidebar.shadowRoot.querySelector(selector)!.id,
               'sectionsExtensions');
         });
   });
 
   test(
-      extension_sidebar_tests.TestNames.LayoutAndClickHandlers, function(done) {
+      'LayoutAndClickHandlers', async () => {
         const boundTestVisible = testVisible.bind(null, sidebar);
         boundTestVisible('#sectionsExtensions', true);
 
         // The site permissions link should not be visible if
         // enableEnhancedSiteControls is set to false.
-        boundTestVisible('#sections-site-permissions', false);
+        boundTestVisible('#sectionsSitePermissions', false);
         boundTestVisible('#sectionsShortcuts', true);
-        boundTestVisible('#more-extensions', true);
+        boundTestVisible('#moreExtensions', true);
 
         sidebar.enableEnhancedSiteControls = true;
-        flush();
-        boundTestVisible('#sections-site-permissions', true);
+        await microtasksFinished();
+        boundTestVisible('#sectionsSitePermissions', true);
 
         let currentPage;
         navigation.addListener(newPage => {
@@ -83,17 +71,34 @@ suite(extension_sidebar_tests.suiteName, function() {
         });
 
         sidebar.$.sectionsShortcuts.click();
+        await microtasksFinished();
         assertDeepEquals(currentPage, {page: Page.SHORTCUTS});
 
         sidebar.$.sectionsExtensions.click();
+        await microtasksFinished();
         assertDeepEquals(currentPage, {page: Page.LIST});
 
-        sidebar.shadowRoot!
-            .querySelector<HTMLElement>('#sections-site-permissions')!.click();
+        sidebar.$.sectionsSitePermissions.click();
+        await microtasksFinished();
         assertDeepEquals(currentPage, {page: Page.SITE_PERMISSIONS});
 
         // Clicking on the link for the current page should close the dialog.
-        sidebar.addEventListener('close-drawer', () => done());
+        const drawerClosed = eventToPromise('close-drawer', sidebar);
         sidebar.$.sectionsExtensions.click();
+        await drawerClosed;
       });
+
+
+  test('HrefVerification', async () => {
+    sidebar.enableEnhancedSiteControls = true;
+    await microtasksFinished();
+    assertEquals('/', sidebar.$.sectionsExtensions.getAttribute('href'));
+    assertEquals(
+        '/sitePermissions',
+        sidebar.$.sectionsSitePermissions.getAttribute('href'));
+    assertEquals(
+        '/shortcuts', sidebar.$.sectionsShortcuts.getAttribute('href'));
+    assertTrue(sidebar.$.moreExtensions.querySelector('a')!
+                   .getAttribute('href')!.includes('utm_source=ext_sidebar'));
+  });
 });

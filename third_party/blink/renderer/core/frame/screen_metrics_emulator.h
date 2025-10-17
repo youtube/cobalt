@@ -32,7 +32,7 @@ class ScreenMetricsEmulator : public GarbageCollected<ScreenMetricsEmulator> {
  public:
   ScreenMetricsEmulator(WebFrameWidgetImpl* frame_widget,
                         const display::ScreenInfos& screen_infos,
-                        const gfx::Size& widget_size,
+                        const gfx::Size& widget_size_dips,
                         const gfx::Size& visible_viewport_size,
                         const gfx::Rect& view_screen_rect,
                         const gfx::Rect& window_screen_rect);
@@ -93,12 +93,13 @@ class ScreenMetricsEmulator : public GarbageCollected<ScreenMetricsEmulator> {
 
   // Original values to restore back after emulation ends.
   display::ScreenInfos original_screen_infos_;
-  gfx::Size original_widget_size_;
+  gfx::Size original_widget_size_dips_;
   gfx::Size original_visible_viewport_size_;
   gfx::Rect original_view_screen_rect_;
   gfx::Rect original_window_screen_rect_;
-  std::vector<gfx::Rect> original_root_window_segments_ ALLOW_DISCOURAGED_TYPE(
-      "WebFrameWidgetImpl::SetWindowSegments() uses STL");
+  std::vector<gfx::Rect> original_root_viewport_segments_
+      ALLOW_DISCOURAGED_TYPE(
+          "WebFrameWidgetImpl::SetViewportSegments() uses STL");
 };
 
 }  // namespace blink

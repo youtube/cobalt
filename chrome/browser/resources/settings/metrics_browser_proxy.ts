@@ -11,64 +11,57 @@
  * numeric values should never be reused.
  *
  * Must be kept in sync with the SettingsPrivacyElementInteractions enum in
- * histograms/enums.xml
+ * histograms/metadata/settings/enums.xml
  */
+// LINT.IfChange(PrivacyElementInteractions)
 export enum PrivacyElementInteractions {
-  SYNC_AND_GOOGLE_SERVICES = 0,
-  CHROME_SIGN_IN = 1,
+  // SYNC_AND_GOOGLE_SERVICES = 0,
+  // CHROME_SIGN_IN = 1,
   DO_NOT_TRACK = 2,
   PAYMENT_METHOD = 3,
-  NETWORK_PREDICTION = 4,
+  // NETWORK_PREDICTION = 4,
   MANAGE_CERTIFICATES = 5,
-  SAFE_BROWSING = 6,
-  PASSWORD_CHECK = 7,
+  // SAFE_BROWSING = 6,
+  // PASSWORD_CHECK = 7,
   IMPROVE_SECURITY = 8,
-  COOKIES_ALL = 9,
-  COOKIES_INCOGNITO = 10,
-  COOKIES_THIRD = 11,
-  COOKIES_BLOCK = 12,
-  COOKIES_SESSION = 13,
-  SITE_DATA_REMOVE_ALL = 14,
-  SITE_DATA_REMOVE_FILTERED = 15,
-  SITE_DATA_REMOVE_SITE = 16,
-  COOKIE_DETAILS_REMOVE_ALL = 17,
-  COOKIE_DETAILS_REMOVE_ITEM = 18,
+  // COOKIES_ALL = 9,
+  // COOKIES_INCOGNITO = 10,
+  // COOKIES_THIRD = 11,
+  // COOKIES_BLOCK = 12,
+  // COOKIES_SESSION = 13,
+  // SITE_DATA_REMOVE_ALL = 14,
+  // SITE_DATA_REMOVE_FILTERED = 15,
+  // SITE_DATA_REMOVE_SITE = 16,
+  // COOKIE_DETAILS_REMOVE_ALL = 17,
+  // COOKIE_DETAILS_REMOVE_ITEM = 18,
   SITE_DETAILS_CLEAR_DATA = 19,
   THIRD_PARTY_COOKIES_ALLOW = 20,
   THIRD_PARTY_COOKIES_BLOCK_IN_INCOGNITO = 21,
   THIRD_PARTY_COOKIES_BLOCK = 22,
+  BLOCK_ALL_THIRD_PARTY_COOKIES = 23,
+  IP_PROTECTION = 24,
+  FINGERPRINTING_PROTECTION = 25,
   // Max value should be updated whenever new entries are added.
-  MAX_VALUE = 23,
+  MAX_VALUE = 26,
 }
+// LINT.ThenChange(/tools/metrics/histograms/metadata/settings/enums.xml:SettingsPrivacyElementInteractions)
 
 /**
- * Contains all safety check interactions.
+ * Contains all Safety Hub card states.
  *
  * These values are persisted to logs. Entries should not be renumbered and
  * numeric values should never be reused.
  *
- * Must be kept in sync with the SafetyCheckInteractions enum in
- * histograms/enums.xml
+ * Must be kept in sync with SafetyHubCardState in
+ * histograms/enums.xml and CardState in safety_hub/safety_hub_browser_proxy.ts.
  */
-export enum SafetyCheckInteractions {
-  RUN_SAFETY_CHECK = 0,
-  UPDATES_RELAUNCH = 1,
-  PASSWORDS_MANAGE_COMPROMISED_PASSWORDS = 2,
-  SAFE_BROWSING_MANAGE = 3,
-  EXTENSIONS_REVIEW = 4,
-  // Deprecated in https://crbug.com/1407233.
-  CHROME_CLEANER_REBOOT = 5,
-  // Deprecated in https://crbug.com/1407233.
-  CHROME_CLEANER_REVIEW_INFECTED_STATE = 6,
-  PASSWORDS_CARET_NAVIGATION = 7,
-  SAFE_BROWSING_CARET_NAVIGATION = 8,
-  EXTENSIONS_CARET_NAVIGATION = 9,
-  // Deprecated in https://crbug.com/1407233.
-  CHROME_CLEANER_CARET_NAVIGATION = 10,
-  PASSWORDS_MANAGE_WEAK_PASSWORDS = 11,
-  UNUSED_SITE_PERMISSIONS_REVIEW = 12,
+export enum SafetyHubCardState {
+  WARNING = 0,
+  WEAK = 1,
+  INFO = 2,
+  SAFE = 3,
   // Max value should be updated whenever new entries are added.
-  MAX_VALUE = 13,
+  MAX_VALUE = 4,
 }
 
 /**
@@ -90,8 +83,10 @@ export enum SafetyCheckNotificationsModuleInteractions {
   UNDO_IGNORE = 6,
   UNDO_RESET = 7,
   OPEN_REVIEW_UI = 8,
+  UNDO_BLOCK_ALL = 9,
+  GO_TO_SETTINGS = 10,
   // Max value should be updated whenever new entries are added.
-  MAX_VALUE = 9,
+  MAX_VALUE = 11,
 }
 
 /**
@@ -101,7 +96,7 @@ export enum SafetyCheckNotificationsModuleInteractions {
  * numeric values should never be reused.
  *
  * Must be kept in sync with the
- * SafetyChecUnusedSitePermissionsModuleInteractions enum in
+ * SafetyCheckUnusedSitePermissionsModuleInteractions enum in
  * histograms/enums.xml
  */
 export enum SafetyCheckUnusedSitePermissionsModuleInteractions {
@@ -111,6 +106,46 @@ export enum SafetyCheckUnusedSitePermissionsModuleInteractions {
   UNDO_ALLOW_AGAIN = 3,
   UNDO_ACKNOWLEDGE_ALL = 4,
   MINIMIZE = 5,
+  GO_TO_SETTINGS = 6,
+  // Max value should be updated whenever new entries are added.
+  MAX_VALUE = 7,
+}
+
+/**
+ * Contains all entry points for Safety Hub page.
+ *
+ * These values are persisted to logs. Entries should not be renumbered and
+ * numeric values should never be reused.
+ *
+ * Must be kept in sync with the SafetyHubEntryPoint enum in
+ * histograms/enums.xml and safety_hub/safety_hub_constants.h.
+ */
+export enum SafetyHubEntryPoint {
+  PRIVACY_SAFE = 0,
+  PRIVACY_WARNING = 1,
+  SITE_SETTINGS = 2,
+  THREE_DOT_MENU = 3,
+  NOTIFICATIONS = 4,
+  // Max value should be updated whenever new entries are added.
+  MAX_VALUE = 5,
+}
+
+/**
+ * Contains all Safety Hub modules.
+ *
+ * These values are persisted to logs. Entries should not be renumbered and
+ * numeric values should never be reused.
+ *
+ * Must be kept in sync with the SafetyHubModuleType enum in
+ * histograms/enums.xml and safety_hub/safety_hub_constants.h.
+ */
+export enum SafetyHubModuleType {
+  PERMISSIONS = 0,
+  NOTIFICATIONS = 1,
+  SAFE_BROWSING = 2,
+  EXTENSIONS = 3,
+  PASSWORDS = 4,
+  VERSION = 5,
   // Max value should be updated whenever new entries are added.
   MAX_VALUE = 6,
 }
@@ -156,8 +191,12 @@ export enum PrivacyGuideInteractions {
   PROMO_ENTRY = 7,
   SWAA_COMPLETION_LINK = 8,
   PRIVACY_SANDBOX_COMPLETION_LINK = 9,
+  SEARCH_SUGGESTIONS_NEXT_BUTTON = 10,
+  TRACKING_PROTECTION_COMPLETION_LINK = 11,
+  AD_TOPICS_NEXT_BUTTON = 12,
+  AI_SETTINGS_COMPLETION_LINK = 13,
   // Max value should be updated whenever new entries are added.
-  MAX_VALUE = 10,
+  MAX_VALUE = 14,
 }
 
 /**
@@ -189,8 +228,16 @@ export enum PrivacyGuideSettingsStates {
   SAFE_BROWSING_ENHANCED_TO_STANDARD = 13,
   SAFE_BROWSING_STANDARD_TO_ENHANCED = 14,
   SAFE_BROWSING_STANDARD_TO_STANDARD = 15,
+  SEARCH_SUGGESTIONS_ON_TO_ON = 16,
+  SEARCH_SUGGESTIONS_ON_TO_OFF = 17,
+  SEARCH_SUGGESTIONS_OFF_TO_ON = 18,
+  SEARCH_SUGGESTIONS_OFF_TO_OFF = 19,
+  AD_TOPICS_ON_TO_ON = 20,
+  AD_TOPICS_ON_TO_OFF = 21,
+  AD_TOPICS_OFF_TO_ON = 22,
+  AD_TOPICS_OFF_TO_OFF = 23,
   // Max value should be updated whenever new entries are added.
-  MAX_VALUE = 16,
+  MAX_VALUE = 24,
 }
 
 /**
@@ -201,7 +248,7 @@ export enum PrivacyGuideSettingsStates {
  * numeric values should never be reused.
  *
  * Must be kept in sync with SettingsPrivacyGuideStepsEligibleAndReached in
- * emus.xml and PrivacyGuideStepsEligibleAndReached in
+ * enums.xml and PrivacyGuideStepsEligibleAndReached in
  * privacy_guide/privacy_guide.h.
  */
 export enum PrivacyGuideStepsEligibleAndReached {
@@ -215,9 +262,154 @@ export enum PrivacyGuideStepsEligibleAndReached {
   COOKIES_REACHED = 7,
   COMPLETION_ELIGIBLE = 8,
   COMPLETION_REACHED = 9,
+  SEARCH_SUGGESTIONS_ELIGIBLE = 10,
+  SEARCH_SUGGESTIONS_REACHED = 11,
+  AD_TOPICS_ELIGIBLE = 12,
+  AD_TOPICS_REACHED = 13,
   // Leave this at the end.
-  COUNT = 10,
+  COUNT = 14,
 }
+
+/**
+ * Contains the possible delete browsing data action types.
+ * This should be kept in sync with the `DeleteBrowsingDataAction` enum in
+ * components/browsing_data/core/browsing_data_utils.h
+ */
+export enum DeleteBrowsingDataAction {
+  CLEAR_BROWSING_DATA_DIALOG = 0,
+  CLEAR_BROWSING_DATA_ON_EXIT = 1,
+  INCOGNITO_CLOSE_TABS = 2,
+  COOKIES_IN_USE_DIALOG = 3,
+  SITES_SETTINGS_PAGE = 4,
+  HISTORY_PAGE_ENTRIES = 5,
+  QUICK_DELETE = 6,
+  PAGE_INFO_RESET_PERMISSIONS = 7,
+  MAX_VALUE = 8,
+}
+
+/**
+ * This enum contains the different surfaces of Safety Hub that users can
+ * interact with, or on which they can observe a Safety Hub feature.
+ *
+ * Must be kept in sync with the `safety_hub::SafetyHubSurfaces` enum in
+ * chrome/browser/ui/safety_hub/safety_hub_constants.h and `SafetyHubSurfaces`
+ * in enums.xml
+ */
+export enum SafetyHubSurfaces {
+  THREE_DOT_MENU = 0,
+  SAFETY_HUB_PAGE = 1,
+  MAX_VALUE = 2,
+}
+
+/**
+ * This enum contains the possible user actions for the bulk CVC deletion
+ * operation on the payments settings page.
+ */
+export enum CvcDeletionUserAction {
+  HYPERLINK_CLICKED = 'BulkCvcDeletionHyperlinkClicked',
+  DIALOG_ACCEPTED = 'BulkCvcDeletionConfirmationDialogAccepted',
+  DIALOG_CANCELLED = 'BulkCvcDeletionConfirmationDialogCancelled',
+}
+
+/**
+ * This enum contains relevant UserAction log names for card benefits-related
+ * functionality on the payment methods settings page.
+ */
+export enum CardBenefitsUserAction {
+  CARD_BENEFITS_TERMS_LINK_CLICKED = 'CardBenefits_TermsLinkClicked',
+}
+
+/**
+ * Contains all recorded interactions across AI settings page.
+ *
+ * These values are persisted to logs. Entries should not be renumbered and
+ * numeric values should never be reused.
+ *
+ * Must be kept in sync with the SettingsAiPageInteractions enum in
+ * histograms/metadata/settings/enums.xml
+ */
+// LINT.IfChange(AiPageInteractions)
+export enum AiPageInteractions {
+  HISTORY_SEARCH_CLICK = 0,
+  COMPARE_CLICK = 1,
+  COMPOSE_CLICK = 2,
+  TAB_ORGANIZATION_CLICK = 3,
+  // WALLPAPER_SEARCH_CLICK = 4, // DEPRECATED
+  AUTOFILL_AI_CLICK = 5,
+  PASSWORD_CHANGE_CLICK = 6,
+  MAX_VALUE = 7,
+}
+// LINT.ThenChange(/tools/metrics/histograms/metadata/settings/enums.xml:SettingsAiPageInteractions)
+
+/**
+ * Contains all recorded interactions in the AI History Search settings page.
+ *
+ * These values are persisted to logs. Entries should not be renumbered and
+ * numeric values should never be reused.
+ *
+ * Must be kept in sync with the SettingsAiPageHistorySearchInteractions enum in
+ * histograms/metadata/settings/enums.xml
+ */
+// LINT.IfChange(AiPageHistorySearchInteractions)
+export enum AiPageHistorySearchInteractions {
+  HISTORY_SEARCH_ENABLED = 0,
+  HISTORY_SEARCH_DISABLED = 1,
+  FEATURE_LINK_CLICKED = 2,
+  LEARN_MORE_LINK_CLICKED = 3,
+  MAX_VALUE = 4,
+}
+// LINT.ThenChange(/tools/metrics/histograms/metadata/settings/enums.xml:SettingsAiPageHistorySearchInteractions)
+
+/**
+ * Contains all recorded interactions in the AI Compare settings page.
+ *
+ * These values are persisted to logs. Entries should not be renumbered and
+ * numeric values should never be reused.
+ *
+ * Must be kept in sync with the SettingsAiPageCompareInteractions enum in
+ * histograms/metadata/settings/enums.xml
+ */
+// LINT.IfChange(AiPageCompareInteractions)
+export enum AiPageCompareInteractions {
+  FEATURE_LINK_CLICKED = 0,
+  LEARN_MORE_LINK_CLICKED = 1,
+  MAX_VALUE = 2,
+}
+// LINT.ThenChange(/tools/metrics/histograms/metadata/settings/enums.xml:SettingsAiPageCompareInteractions)
+
+/**
+ * Contains all recorded interactions in the AI Compose settings page.
+ *
+ * These values are persisted to logs. Entries should not be renumbered and
+ * numeric values should never be reused.
+ *
+ * Must be kept in sync with the SettingsAiPageComposeInteractions enum in
+ * histograms/metadata/settings/enums.xml
+ */
+// LINT.IfChange(AiPageComposeInteractions)
+export enum AiPageComposeInteractions {
+  LEARN_MORE_LINK_CLICKED = 0,
+  COMPOSE_PROACTIVE_NUDGE_ENABLED = 1,
+  COMPOSE_PROACTIVE_NUDGE_DISABLED = 2,
+  MAX_VALUE = 3,
+}
+// LINT.ThenChange(/tools/metrics/histograms/metadata/settings/enums.xml:SettingsAiPageComposeInteractions)
+
+/**
+ * Contains all recorded interactions in the AI Tab Organization settings page.
+ *
+ * These values are persisted to logs. Entries should not be renumbered and
+ * numeric values should never be reused.
+ *
+ * Must be kept in sync with the SettingsAiPageTabOrganizationInteractions enum
+ * in histograms/metadata/settings/enums.xml
+ */
+// LINT.IfChange(AiPageTabOrganizationInteractions)
+export enum AiPageTabOrganizationInteractions {
+  LEARN_MORE_LINK_CLICKED = 0,
+  MAX_VALUE = 1,
+}
+// LINT.ThenChange(/tools/metrics/histograms/metadata/settings/enums.xml:SettingsAiPageTabOrganizationInteractions)
 
 export interface MetricsBrowserProxy {
   /**
@@ -227,51 +419,76 @@ export interface MetricsBrowserProxy {
   recordAction(action: string): void;
 
   /**
-   * Helper function that calls recordHistogram for the
-   * Settings.SafetyCheck.Interactions histogram
+   * Helper function that calls recordBooleanHistogram with the histogramName.
    */
-  recordSafetyCheckInteractionHistogram(interaction: SafetyCheckInteractions):
-      void;
-
-  /**
-   * Helper function that calls recordHistogram for
-   * Settings.SafetyCheck.NotificationsListCount histogram.
-   */
-  recordSafetyCheckNotificationsListCountHistogram(suggestions: number): void;
+  recordBooleanHistogram(histogramName: string, visible: boolean): void;
 
   /**
    * Helper function that calls recordHistogram for the
-   * Settings.SafetyCheck.NotificationsModuleInteractions histogram
+   * Settings.SafetyHub.EntryPointShown histogram
    */
-  recordSafetyCheckNotificationsModuleInteractionsHistogram(
+  recordSafetyHubEntryPointShown(page: SafetyHubEntryPoint): void;
+
+  /**
+   * Helper function that calls recordHistogram for the
+   *Settings.SafetyHub.EntryPointClicked histogram
+   */
+  recordSafetyHubEntryPointClicked(page: SafetyHubEntryPoint): void;
+
+  /**
+   * Helper function that calls recordHistogram for the
+   * Settings.SafetyHub.DashboardWarning histogram
+   */
+  recordSafetyHubModuleWarningImpression(module: SafetyHubModuleType): void;
+
+  /**
+   * Helper function that calls recordHistogram for the
+   * Settings.SafetyHub.HasDashboardShowAnyWarning histogram
+   */
+  recordSafetyHubDashboardAnyWarning(visible: boolean): void;
+
+  /**
+   * Helper function that calls recordHistogram for the
+   * Settings.SafetyHub.[card_name].StatusOnClick histogram
+   */
+  recordSafetyHubCardStateClicked(
+      histogramName: string, state: SafetyHubCardState): void;
+
+  /**
+   * Helper function that calls recordHistogram for the
+   * Settings.SafetyHub.NotificationPermissionsModule.Interactions histogram
+   */
+  recordSafetyHubNotificationPermissionsModuleInteractionsHistogram(
       interaction: SafetyCheckNotificationsModuleInteractions): void;
 
   /**
-   * Helper function that calls recordBooleanHistogram for the
-   * Settings.SafetyCheck.NotificationsModuleEntryPointShown histogram
-   */
-  recordSafetyCheckNotificationsModuleEntryPointShown(visible: boolean): void;
-
-  /**
    * Helper function that calls recordHistogram for
-   * Settings.SafetyCheck.UnusedSitePermissionsListCount histogram.
+   * Settings.SafetyHub.NotificationPermissionsModule.ListCount histogram
    */
-  recordSafetyCheckUnusedSitePermissionsListCountHistogram(suggestions: number):
-      void;
+  recordSafetyHubNotificationPermissionsModuleListCountHistogram(
+      suggestions: number): void;
 
   /**
    * Helper function that calls recordHistogram for the
-   * Settings.SafetyCheck.UnusedSitePermissionsModuleInteractions histogram
+   * Settings.SafetyHub.UnusedSitePermissionsModule.Interactions histogram
    */
-  recordSafetyCheckUnusedSitePermissionsModuleInteractionsHistogram(
+  recordSafetyHubUnusedSitePermissionsModuleInteractionsHistogram(
       interaction: SafetyCheckUnusedSitePermissionsModuleInteractions): void;
 
   /**
-   * Helper function that calls recordBooleanHistogram for the
-   * Settings.SafetyCheck.UnusedSitePermissionsModuleEntryPointShown histogram
+   * Helper function that calls recordHistogram for the
+   * Settings.SafetyHub.AbusiveNotificationPermissionRevocation.Interactions
+   * histogram
    */
-  recordSafetyCheckUnusedSitePermissionsModuleEntryPointShown(visible: boolean):
-      void;
+  recordSafetyHubAbusiveNotificationPermissionRevocationInteractionsHistogram(
+      interaction: SafetyCheckUnusedSitePermissionsModuleInteractions): void;
+
+  /**
+   * Helper function that calls recordHistogram for
+   * Settings.SafetyHub.UnusedSitePermissionsModule.ListCount histogram
+   */
+  recordSafetyHubUnusedSitePermissionsModuleListCountHistogram(
+      suggestions: number): void;
 
   /**
    * Helper function that calls recordHistogram for the
@@ -319,6 +536,67 @@ export interface MetricsBrowserProxy {
    */
   recordPrivacyGuideStepsEligibleAndReachedHistogram(
       status: PrivacyGuideStepsEligibleAndReached): void;
+
+  /**
+   * Helper function that delegates the metric recording to the
+   * recordDeleteBrowsingDataAction backend function.
+   */
+  recordDeleteBrowsingDataAction(action: DeleteBrowsingDataAction): void;
+
+  /**
+   * Helper function that calls records an impression of the provided Safety Hub
+   * surface.
+   */
+  recordSafetyHubImpression(surface: SafetyHubSurfaces): void;
+
+  /**
+   * Helper function that calls records an interaction of the provided Safety
+   * Hub surface.
+   */
+  recordSafetyHubInteraction(surface: SafetyHubSurfaces): void;
+
+  // <if expr="_google_chrome and is_win">
+  /**
+   * Notifies Chrome that the `feature_notifications.enabled` Local State pref
+   * was changed via the System settings page.
+   *
+   * @param enabled True if the toggle was changed to on (enabled), false if it
+   * was changed to off (disabled).
+   */
+  recordFeatureNotificationsChange(enabled: boolean): void;
+  // </if>
+
+  /**
+   * Helper function that calls recordHistogram for the
+   * Settings.AiPage.Interactions histogram
+   */
+  recordAiPageInteractions(interaction: AiPageInteractions): void;
+
+  /**
+   * Helper function that calls recordHistogram for the
+   * Settings.AiPage.HistorySearch.Interactions histogram
+   */
+  recordAiPageHistorySearchInteractions(
+      interaction: AiPageHistorySearchInteractions): void;
+
+  /**
+   * Helper function that calls recordHistogram for the
+   * Settings.AiPage.Compare.Interactions histogram
+   */
+  recordAiPageCompareInteractions(interaction: AiPageCompareInteractions): void;
+
+  /**
+   * Helper function that calls recordHistogram for the
+   * Settings.AiPage.Compose.Interactions histogram
+   */
+  recordAiPageComposeInteractions(interaction: AiPageComposeInteractions): void;
+
+  /**
+   * Helper function that calls recordHistogram for the
+   * Settings.AiPage.TabOrganization.Interactions histogram
+   */
+  recordAiPageTabOrganizationInteractions(
+      interaction: AiPageTabOrganizationInteractions): void;
 }
 
 export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
@@ -326,60 +604,93 @@ export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
     chrome.send('metricsHandler:recordAction', [action]);
   }
 
-  recordSafetyCheckInteractionHistogram(interaction: SafetyCheckInteractions) {
-    chrome.send('metricsHandler:recordInHistogram', [
-      'Settings.SafetyCheck.Interactions',
-      interaction,
-      SafetyCheckInteractions.MAX_VALUE,
+  recordBooleanHistogram(histogramName: string, visible: boolean): void {
+    chrome.send('metricsHandler:recordBooleanHistogram', [
+      histogramName,
+      visible,
     ]);
   }
 
-  recordSafetyCheckNotificationsListCountHistogram(suggestions: number) {
+  recordSafetyHubCardStateClicked(
+      histogramName: string, state: SafetyHubCardState) {
+    chrome.send(
+        'metricsHandler:recordInHistogram',
+        [histogramName, state, SafetyHubCardState.MAX_VALUE]);
+  }
+
+  recordSafetyHubEntryPointShown(page: SafetyHubEntryPoint) {
     chrome.send('metricsHandler:recordInHistogram', [
-      'Settings.SafetyCheck.NotificationsListCount',
-      suggestions, 99 /*max value for Notification suggestions*/,
+      'Settings.SafetyHub.EntryPointImpression',
+      page,
+      SafetyHubEntryPoint.MAX_VALUE,
     ]);
   }
 
-  recordSafetyCheckNotificationsModuleInteractionsHistogram(
+  recordSafetyHubEntryPointClicked(page: SafetyHubEntryPoint) {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Settings.SafetyHub.EntryPointInteraction',
+      page,
+      SafetyHubEntryPoint.MAX_VALUE,
+    ]);
+  }
+
+  recordSafetyHubModuleWarningImpression(module: SafetyHubModuleType) {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Settings.SafetyHub.DashboardWarning',
+      module,
+      SafetyHubModuleType.MAX_VALUE,
+    ]);
+  }
+
+  recordSafetyHubDashboardAnyWarning(visible: boolean) {
+    chrome.send('metricsHandler:recordBooleanHistogram', [
+      'Settings.SafetyHub.HasDashboardShowAnyWarning',
+      visible,
+    ]);
+  }
+
+  recordSafetyHubNotificationPermissionsModuleInteractionsHistogram(
       interaction: SafetyCheckNotificationsModuleInteractions) {
     chrome.send('metricsHandler:recordInHistogram', [
-      'Settings.SafetyCheck.NotificationsModuleInteractions',
+      'Settings.SafetyHub.NotificationPermissionsModule.Interactions',
       interaction,
       SafetyCheckNotificationsModuleInteractions.MAX_VALUE,
     ]);
   }
 
-  recordSafetyCheckNotificationsModuleEntryPointShown(visible: boolean) {
-    chrome.send('metricsHandler:recordBooleanHistogram', [
-      'Settings.SafetyCheck.NotificationsModuleEntryPointShown',
-      visible,
-    ]);
-  }
-
-  recordSafetyCheckUnusedSitePermissionsListCountHistogram(suggestions:
-                                                               number) {
+  recordSafetyHubNotificationPermissionsModuleListCountHistogram(suggestions:
+                                                                     number) {
     chrome.send('metricsHandler:recordInHistogram', [
-      'Settings.SafetyCheck.UnusedSitePermissionsListCount',
+      'Settings.SafetyHub.NotificationPermissionsModule.ListCount',
       suggestions,
-      99 /*max value for length of revoked permissions list*/,
+      99 /*max value for Notification Permissions suggestions*/,
     ]);
   }
 
-  recordSafetyCheckUnusedSitePermissionsModuleInteractionsHistogram(
+  recordSafetyHubUnusedSitePermissionsModuleInteractionsHistogram(
       interaction: SafetyCheckUnusedSitePermissionsModuleInteractions) {
     chrome.send('metricsHandler:recordInHistogram', [
-      'Settings.SafetyCheck.UnusedSitePermissionsModuleInteractions',
+      'Settings.SafetyHub.UnusedSitePermissionsModule.Interactions',
       interaction,
       SafetyCheckUnusedSitePermissionsModuleInteractions.MAX_VALUE,
     ]);
   }
 
-  recordSafetyCheckUnusedSitePermissionsModuleEntryPointShown(visible:
-                                                                  boolean) {
-    chrome.send('metricsHandler:recordBooleanHistogram', [
-      'Settings.SafetyCheck.UnusedSitePermissionsModuleEntryPointShown',
-      visible,
+  recordSafetyHubAbusiveNotificationPermissionRevocationInteractionsHistogram(
+      interaction: SafetyCheckUnusedSitePermissionsModuleInteractions) {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Settings.SafetyHub.AbusiveNotificationPermissionRevocation.Interactions',
+      interaction,
+      SafetyCheckUnusedSitePermissionsModuleInteractions.MAX_VALUE,
+    ]);
+  }
+
+  recordSafetyHubUnusedSitePermissionsModuleListCountHistogram(suggestions:
+                                                                   number) {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Settings.SafetyHub.UnusedSitePermissionsModule.ListCount',
+      suggestions,
+      99 /*max value for Unused Site Permissions suggestions*/,
     ]);
   }
 
@@ -393,7 +704,7 @@ export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
 
   recordSafeBrowsingInteractionHistogram(interaction:
                                              SafeBrowsingInteractions) {
-    // TODO(crbug.com/1124491): Set the correct suffix for
+    // TODO(crbug.com/40717279): Set the correct suffix for
     // SafeBrowsing.Settings.UserAction. Use the .Default suffix for now.
     chrome.send('metricsHandler:recordInHistogram', [
       'SafeBrowsing.Settings.UserAction.Default',
@@ -440,6 +751,81 @@ export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
       'Settings.PrivacyGuide.StepsEligibleAndReached',
       status,
       PrivacyGuideStepsEligibleAndReached.COUNT,
+    ]);
+  }
+
+  recordDeleteBrowsingDataAction(action: DeleteBrowsingDataAction): void {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Privacy.DeleteBrowsingData.Action',
+      action,
+      DeleteBrowsingDataAction.MAX_VALUE,
+    ]);
+  }
+
+  recordSafetyHubImpression(surface: SafetyHubSurfaces): void {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Settings.SafetyHub.Impression',
+      surface,
+      SafetyHubSurfaces.MAX_VALUE,
+    ]);
+  }
+
+  recordSafetyHubInteraction(surface: SafetyHubSurfaces): void {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Settings.SafetyHub.Interaction',
+      surface,
+      SafetyHubSurfaces.MAX_VALUE,
+    ]);
+  }
+
+  // <if expr="_google_chrome and is_win">
+  recordFeatureNotificationsChange(enabled: boolean): void {
+    chrome.metricsPrivate.recordBoolean(
+        'Windows.FeatureNotificationsSettingChange', enabled);
+  }
+  // </if>
+
+  recordAiPageInteractions(interaction: AiPageInteractions): void {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Settings.AiPage.Interactions',
+      interaction,
+      AiPageInteractions.MAX_VALUE,
+    ]);
+  }
+
+  recordAiPageHistorySearchInteractions(
+      interaction: AiPageHistorySearchInteractions): void {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Settings.AiPage.HistorySearch.Interactions',
+      interaction,
+      AiPageHistorySearchInteractions.MAX_VALUE,
+    ]);
+  }
+
+  recordAiPageCompareInteractions(interaction: AiPageCompareInteractions):
+      void {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Settings.AiPage.Compare.Interactions',
+      interaction,
+      AiPageCompareInteractions.MAX_VALUE,
+    ]);
+  }
+
+  recordAiPageComposeInteractions(interaction: AiPageComposeInteractions):
+      void {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Settings.AiPage.Compose.Interactions',
+      interaction,
+      AiPageComposeInteractions.MAX_VALUE,
+    ]);
+  }
+
+  recordAiPageTabOrganizationInteractions(
+      interaction: AiPageTabOrganizationInteractions): void {
+    chrome.send('metricsHandler:recordInHistogram', [
+      'Settings.AiPage.TabOrganization.Interactions',
+      interaction,
+      AiPageTabOrganizationInteractions.MAX_VALUE,
     ]);
   }
 

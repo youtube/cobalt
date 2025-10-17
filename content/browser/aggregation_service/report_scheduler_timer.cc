@@ -5,6 +5,7 @@
 #include "content/browser/aggregation_service/report_scheduler_timer.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/check.h"
@@ -16,13 +17,12 @@
 #include "base/timer/wall_clock_timer.h"
 #include "content/public/browser/network_service_instance.h"
 #include "services/network/public/mojom/network_change_manager.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
 ReportSchedulerTimer::ReportSchedulerTimer(std::unique_ptr<Delegate> delegate)
     : delegate_(std::move(delegate)) {
-  DCHECK(delegate_);
+  CHECK(delegate_);
 
   network::NetworkConnectionTracker* tracker = GetNetworkConnectionTracker();
   obs_.Observe(tracker);
@@ -46,7 +46,7 @@ network::mojom::ConnectionType ReportSchedulerTimer::connection_type() const {
   return connection_type_;
 }
 
-void ReportSchedulerTimer::MaybeSet(absl::optional<base::Time> reporting_time) {
+void ReportSchedulerTimer::MaybeSet(std::optional<base::Time> reporting_time) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (!reporting_time.has_value() || IsOffline()) {
@@ -73,7 +73,8 @@ void ReportSchedulerTimer::OnTimerFired() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   base::Time now = base::Time::Now();
-  delegate_->OnReportingTimeReached(now);
+  delegate_->OnReportingTimeReached(
+      now, reporting_time_reached_timer_.desired_run_time());
   Refresh(now);
 }
 
@@ -86,10 +87,6 @@ void ReportSchedulerTimer::OnConnectionChanged(
 
   if (IsOffline()) {
     reporting_time_reached_timer_.Stop();
-    if (!was_offline) {
-      delegate_->OnReportingPaused();
-    }
-
   } else if (was_offline) {
     // Add delay to all reports that should have been sent while the browser was
     // offline so they are not temporally joinable. We only need to do this if

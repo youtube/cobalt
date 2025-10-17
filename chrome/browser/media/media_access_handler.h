@@ -23,11 +23,11 @@ class Extension;
 // MediaCaptureDevicesDispatcher.
 class MediaAccessHandler {
  public:
-  MediaAccessHandler() {}
-  virtual ~MediaAccessHandler() {}
+  MediaAccessHandler() = default;
+  virtual ~MediaAccessHandler() = default;
 
   // Check if the media stream type is supported by MediaAccessHandler.
-  virtual bool SupportsStreamType(content::WebContents* web_contents,
+  virtual bool SupportsStreamType(content::RenderFrameHost* render_frame_host,
                                   const blink::mojom::MediaStreamType type,
                                   const extensions::Extension* extension) = 0;
 
@@ -35,7 +35,7 @@ class MediaAccessHandler {
   // made from a drive-by page.
   virtual bool CheckMediaAccessPermission(
       content::RenderFrameHost* render_frame_host,
-      const GURL& security_origin,
+      const url::Origin& security_origin,
       blink::mojom::MediaStreamType type,
       const extensions::Extension* extension) = 0;
 

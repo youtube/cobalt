@@ -481,6 +481,12 @@ EXPORTS
     glMultiDrawArraysInstancedBaseInstanceANGLE
     glMultiDrawElementsInstancedBaseVertexBaseInstanceANGLE
 
+    ; GL_ANGLE_blob_cache
+    glBlobCacheCallbacksANGLE
+    glGetPointervANGLE
+
+    ; GL_ANGLE_client_arrays
+
     ; GL_ANGLE_clip_cull_distance
 
     ; GL_ANGLE_copy_texture_3d
@@ -500,6 +506,8 @@ EXPORTS
     glGetRenderbufferImageANGLE
     glGetTexImageANGLE
 
+    ; GL_ANGLE_get_serialized_context_string
+
     ; GL_ANGLE_get_tex_level_parameter
     glGetTexLevelParameterfvANGLE
     glGetTexLevelParameterivANGLE
@@ -512,6 +520,8 @@ EXPORTS
     ; GL_ANGLE_logic_op
     glLogicOpANGLE
 
+    ; GL_ANGLE_lossy_etc_decode
+
     ; GL_ANGLE_memory_object_flags
     glTexStorageMemFlags2DANGLE
     glTexStorageMemFlags2DMultisampleANGLE
@@ -521,6 +531,8 @@ EXPORTS
     ; GL_ANGLE_memory_object_fuchsia
     glImportMemoryZirconHandleANGLE
 
+    ; GL_ANGLE_memory_size
+
     ; GL_ANGLE_multi_draw
     glMultiDrawArraysANGLE
     glMultiDrawArraysInstancedANGLE
@@ -529,14 +541,25 @@ EXPORTS
 
     ; GL_ANGLE_pack_reverse_row_order
 
+    ; GL_ANGLE_polygon_mode
+    glPolygonModeANGLE
+
     ; GL_ANGLE_program_binary
+
+    ; GL_ANGLE_program_binary_readiness_query
+
+    ; GL_ANGLE_program_cache_control
 
     ; GL_ANGLE_provoking_vertex
     glProvokingVertexANGLE
 
+    ; GL_ANGLE_renderability_validation
+
     ; GL_ANGLE_request_extension
     glDisableExtensionANGLE
     glRequestExtensionANGLE
+
+    ; GL_ANGLE_rgbx_internal_format
 
     ; GL_ANGLE_robust_client_memory
     glCompressedTexImage2DRobustANGLE
@@ -552,6 +575,8 @@ EXPORTS
     glGetFloatvRobustANGLE
     glGetFramebufferAttachmentParameterivRobustANGLE
     glGetFramebufferParameterivRobustANGLE
+    glGetFramebufferPixelLocalStorageParameterfvRobustANGLE
+    glGetFramebufferPixelLocalStorageParameterivRobustANGLE
     glGetInteger64i_vRobustANGLE
     glGetInteger64vRobustANGLE
     glGetIntegeri_vRobustANGLE
@@ -604,10 +629,14 @@ EXPORTS
     glTexSubImage2DRobustANGLE
     glTexSubImage3DRobustANGLE
 
+    ; GL_ANGLE_robust_fragment_shader_output
+
     ; GL_ANGLE_robust_resource_initialization
 
     ; GL_ANGLE_semaphore_fuchsia
     glImportSemaphoreZirconHandleANGLE
+
+    ; GL_ANGLE_shader_binary
 
     ; GL_ANGLE_shader_pixel_local_storage
     glBeginPixelLocalStorageANGLE
@@ -620,9 +649,7 @@ EXPORTS
     glFramebufferPixelLocalStorageRestoreANGLE
     glFramebufferTexturePixelLocalStorageANGLE
     glGetFramebufferPixelLocalStorageParameterfvANGLE
-    glGetFramebufferPixelLocalStorageParameterfvRobustANGLE
     glGetFramebufferPixelLocalStorageParameterivANGLE
-    glGetFramebufferPixelLocalStorageParameterivRobustANGLE
     glPixelLocalStorageBarrierANGLE
 
     ; GL_ANGLE_stencil_texturing
@@ -649,11 +676,15 @@ EXPORTS
     glAcquireTexturesANGLE
     glReleaseTexturesANGLE
 
+    ; GL_ANGLE_yuv_internal_format
+
     ; GL_APPLE_clip_distance
 
-    ; GL_ARB_sync
+    ; GL_ARM_rgba8
 
     ; GL_ARM_shader_framebuffer_fetch
+
+    ; GL_ARM_shader_framebuffer_fetch_depth_stencil
 
     ; GL_CHROMIUM_bind_uniform_location
     glBindUniformLocationCHROMIUM
@@ -675,7 +706,8 @@ EXPORTS
 
     ; GL_EXT_EGL_image_storage
     glEGLImageTargetTexStorageEXT
-    glEGLImageTargetTextureStorageEXT
+
+    ; GL_EXT_EGL_image_storage_compression
 
     ; GL_EXT_YUV_target
 
@@ -694,6 +726,10 @@ EXPORTS
 
     ; GL_EXT_buffer_storage
     glBufferStorageEXT
+
+    ; GL_EXT_clear_texture
+    glClearTexImageEXT
+    glClearTexSubImageEXT
 
     ; GL_EXT_clip_control
     glClipControlEXT
@@ -756,9 +792,12 @@ EXPORTS
     glDrawRangeElementsBaseVertexEXT
     glMultiDrawElementsBaseVertexEXT
 
+    ; GL_EXT_draw_instanced
+    glDrawArraysInstancedEXT
+    glDrawElementsInstancedEXT
+
     ; GL_EXT_external_buffer
     glBufferStorageExternalEXT
-    glNamedBufferStorageExternalEXT
 
     ; GL_EXT_float_blend
 
@@ -768,8 +807,6 @@ EXPORTS
     ; GL_EXT_gpu_shader5
 
     ; GL_EXT_instanced_arrays
-    glDrawArraysInstancedEXT
-    glDrawElementsInstancedEXT
     glVertexAttribDivisorEXT
 
     ; GL_EXT_map_buffer_range
@@ -792,6 +829,10 @@ EXPORTS
 
     ; GL_EXT_memory_object_fd
     glImportMemoryFdEXT
+
+    ; GL_EXT_multi_draw_arrays
+    glMultiDrawArraysEXT
+    glMultiDrawElementsEXT
 
     ; GL_EXT_multi_draw_indirect
     glMultiDrawArraysIndirectEXT
@@ -840,6 +881,8 @@ EXPORTS
 
     ; GL_EXT_semaphore_fd
     glImportSemaphoreFdEXT
+
+    ; GL_EXT_separate_depth_stencil
 
     ; GL_EXT_separate_shader_objects
     glActiveShaderProgramEXT
@@ -917,6 +960,8 @@ EXPORTS
     glTexBufferEXT
     glTexBufferRangeEXT
 
+    ; GL_EXT_texture_compression_astc_decode_mode
+
     ; GL_EXT_texture_compression_bptc
 
     ; GL_EXT_texture_compression_dxt1
@@ -941,6 +986,8 @@ EXPORTS
 
     ; GL_EXT_texture_norm16
 
+    ; GL_EXT_texture_query_lod
+
     ; GL_EXT_texture_rg
 
     ; GL_EXT_texture_sRGB_R8
@@ -949,10 +996,15 @@ EXPORTS
 
     ; GL_EXT_texture_sRGB_decode
 
+    ; GL_EXT_texture_shadow_lod
+
     ; GL_EXT_texture_storage
-    glTexStorage1DEXT
     glTexStorage2DEXT
     glTexStorage3DEXT
+
+    ; GL_EXT_texture_storage_compression
+    glTexStorageAttribs2DEXT
+    glTexStorageAttribs3DEXT
 
     ; GL_EXT_texture_type_2_10_10_10_REV
 
@@ -964,6 +1016,8 @@ EXPORTS
 
     ; GL_KHR_blend_equation_advanced
     glBlendBarrierKHR
+
+    ; GL_KHR_blend_equation_advanced_coherent
 
     ; GL_KHR_debug
     glDebugMessageCallbackKHR
@@ -984,6 +1038,13 @@ EXPORTS
     glMaxShaderCompilerThreadsKHR
 
     ; GL_KHR_robust_buffer_access_behavior
+
+    ; GL_KHR_robustness
+    glGetGraphicsResetStatusKHR
+    glGetnUniformfvKHR
+    glGetnUniformivKHR
+    glGetnUniformuivKHR
+    glReadnPixelsKHR
 
     ; GL_KHR_texture_compression_astc_hdr
 
@@ -1009,6 +1070,9 @@ EXPORTS
 
     ; GL_NV_pixel_buffer_object
 
+    ; GL_NV_polygon_mode
+    glPolygonModeNV
+
     ; GL_NV_read_depth
 
     ; GL_NV_read_depth_stencil
@@ -1026,6 +1090,9 @@ EXPORTS
     ; GL_OES_EGL_image_external
 
     ; GL_OES_EGL_image_external_essl3
+
+    ; GL_OES_blend_subtract
+    glBlendEquationOES
 
     ; GL_OES_compressed_ETC1_RGB8_texture
 
@@ -1093,6 +1160,8 @@ EXPORTS
     glGetProgramBinaryOES
     glProgramBinaryOES
 
+    ; GL_OES_gpu_shader5
+
     ; GL_OES_mapbuffer
     glGetBufferPointervOES
     glMapBufferOES
@@ -1117,6 +1186,8 @@ EXPORTS
     ; GL_OES_query_matrix
     glQueryMatrixxOES
 
+    ; GL_OES_required_internalformat
+
     ; GL_OES_rgb8_rgba8
 
     ; GL_OES_sample_shading
@@ -1133,6 +1204,9 @@ EXPORTS
     ; GL_OES_standard_derivatives
 
     ; GL_OES_surfaceless_context
+
+    ; GL_OES_tessellation_shader
+    glPatchParameteriOES
 
     ; GL_OES_texture_3D
     glCompressedTexImage3DOES
@@ -1179,6 +1253,8 @@ EXPORTS
 
     ; GL_OES_texture_half_float_linear
 
+    ; GL_OES_texture_mirrored_repeat
+
     ; GL_OES_texture_npot
 
     ; GL_OES_texture_stencil8
@@ -1201,10 +1277,21 @@ EXPORTS
 
     ; GL_OVR_multiview2
 
+    ; GL_QCOM_framebuffer_foveated
+    glFramebufferFoveationConfigQCOM
+    glFramebufferFoveationParametersQCOM
+
     ; GL_QCOM_render_shared_exponent
 
     ; GL_QCOM_shading_rate
     glShadingRateQCOM
+
+    ; GL_QCOM_texture_foveated
+    glTextureFoveationParametersQCOM
+
+    ; GL_QCOM_tiled_rendering
+    glEndTilingQCOM
+    glStartTilingQCOM
 
     ; EGL 1.0
     EGL_ChooseConfig
@@ -1286,12 +1373,23 @@ EXPORTS
     EGL_CreateDeviceANGLE
     EGL_ReleaseDeviceANGLE
 
+    ; EGL_ANGLE_device_vulkan
+    EGL_LockVulkanQueueANGLE
+    EGL_UnlockVulkanQueueANGLE
+
+    ; EGL_ANGLE_external_context_and_surface
+    EGL_AcquireExternalContextANGLE
+    EGL_ReleaseExternalContextANGLE
+
     ; EGL_ANGLE_feature_control
     EGL_QueryDisplayAttribANGLE
     EGL_QueryStringiANGLE
 
     ; EGL_ANGLE_metal_shared_event_sync
     EGL_CopyMetalSharedEventANGLE
+
+    ; EGL_ANGLE_no_error
+    EGL_SetValidationEnabledANGLE
 
     ; EGL_ANGLE_power_preference
     EGL_ForceGPUSwitchANGLE
@@ -1314,9 +1412,6 @@ EXPORTS
     ; EGL_ANGLE_stream_producer_d3d_texture
     EGL_CreateStreamProducerD3DTextureANGLE
     EGL_StreamPostD3DTextureANGLE
-
-    ; EGL_ANGLE_swap_with_frame_token
-    EGL_SwapBuffersWithFrameTokenANGLE
 
     ; EGL_ANGLE_sync_control_rate
     EGL_GetMscRateANGLE
@@ -1343,6 +1438,9 @@ EXPORTS
     EGL_CreatePlatformPixmapSurfaceEXT
     EGL_CreatePlatformWindowSurfaceEXT
     EGL_GetPlatformDisplayEXT
+
+    ; EGL_EXT_surface_compression
+    EGL_QuerySupportedCompressionRatesEXT
 
     ; EGL_KHR_debug
     EGL_DebugMessageControlKHR

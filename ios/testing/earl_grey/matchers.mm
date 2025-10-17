@@ -6,10 +6,6 @@
 
 #import "ios/testing/earl_grey/earl_grey_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace testing {
 
 id<GREYMatcher> ButtonWithAccessibilityLabel(NSString* label) {
@@ -46,6 +42,10 @@ id<GREYMatcher> ElementWithAccessibilityLabelSubstring(NSString* substring) {
       [[GREYElementMatcherBlock alloc] initWithMatchesBlock:matches
                                            descriptionBlock:describe],
       nil);
+}
+
+id<GREYMatcher> NavigationBarBackButton() {
+  return grey_accessibilityID(@"BackButton");
 }
 
 }  // namespace testing

@@ -7,6 +7,9 @@
 
 #include <cstdint>
 
+#include "build/build_config.h"
+#include "ui/gfx/ca_layer_result.h"
+
 namespace gfx {
 
 // Contains per frame data, and is passed along with SwapBuffer, PostSubbuffer,
@@ -20,6 +23,26 @@ struct FrameData {
   // point). This may happen for some cases, like the ozone demo, tests, or
   // users of GLSurface other than SkiaRenderer.
   int64_t seq = -1;
+
+  // Used to track swap of this frame swap with tracing. The value is taken from
+  // |viz::Display::swapped_trace_id|.
+  int64_t swap_trace_id = -1;
+
+  // The HDR headroom of the display that this frame is being swapped to. This
+  // is used if tone mapping needs to be baked into overlays.
+  float display_hdr_headroom = 1.f;
+
+#if BUILDFLAG(IS_APPLE)
+  // The result of CoreAnimation delegated compositing. Value originates from
+  // the overlay processor and is used by integration tests to ensure we don't
+  // fall out of delegated mode.
+  gfx::CALayerResult ca_layer_error_code = gfx::kCALayerSuccess;
+#endif
+
+#if BUILDFLAG(IS_MAC)
+  bool is_handling_interaction = false;
+  bool is_handling_animation = false;
+#endif
 };
 
 }  // namespace gfx

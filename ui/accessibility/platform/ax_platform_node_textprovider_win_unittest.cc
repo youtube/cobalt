@@ -2,21 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr.h"
-#include "ui/accessibility/platform/ax_platform_node_win_unittest.h"
-
-#include <UIAutomationClient.h>
-#include <UIAutomationCoreApi.h>
+#include "ui/accessibility/platform/ax_platform_node_textprovider_win.h"
 
 #include <vector>
 
+#include "base/compiler_specific.h"
+#include "base/memory/raw_ptr.h"
 #include "base/win/scoped_bstr.h"
 #include "base/win/scoped_safearray.h"
 #include "ui/accessibility/ax_action_data.h"
 #include "ui/accessibility/platform/ax_fragment_root_win.h"
-#include "ui/accessibility/platform/ax_platform_node_textprovider_win.h"
 #include "ui/accessibility/platform/ax_platform_node_textrangeprovider_win.h"
+#include "ui/accessibility/platform/ax_platform_node_win_unittest.h"
 #include "ui/accessibility/platform/test_ax_node_wrapper.h"
+
+#include <UIAutomationClient.h>
+#include <UIAutomationCoreApi.h>
 
 using Microsoft::WRL::ComPtr;
 
@@ -96,14 +97,14 @@ TEST_F(AXPlatformNodeTextProviderTest, CreateDegenerateRangeFromStart) {
 
   // Degenerate range created on root node should be:
   // <>some-textmore-text
-  ComPtr<ITextRangeProvider> text_range_provider =
-      AXPlatformNodeTextProviderWin::CreateDegenerateRangeAtStart(
-          root_platform_node.Get());
+  ComPtr<ITextRangeProvider> text_range_provider;
+  AXPlatformNodeTextProviderWin::CreateDegenerateRangeAtStart(
+      root_platform_node.Get(), &text_range_provider);
   SetOwner(owner, text_range_provider.Get());
   base::win::ScopedBstr text_content;
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(text_content.Get(), L""));
+  EXPECT_EQ(0, UNSAFE_TODO(wcscmp(text_content.Get(), L"")));
 
   ComPtr<AXPlatformNodeTextRangeProviderWin> actual_range;
   text_range_provider->QueryInterface(IID_PPV_ARGS(&actual_range));
@@ -116,13 +117,12 @@ TEST_F(AXPlatformNodeTextProviderTest, CreateDegenerateRangeFromStart) {
 
   // Degenerate range created on link node should be:
   // <>some textmore text
-  text_range_provider =
-      AXPlatformNodeTextProviderWin::CreateDegenerateRangeAtStart(
-          link_platform_node.Get());
+  AXPlatformNodeTextProviderWin::CreateDegenerateRangeAtStart(
+      link_platform_node.Get(), &text_range_provider);
   SetOwner(owner, text_range_provider.Get());
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(text_content.Get(), L""));
+  EXPECT_EQ(0, UNSAFE_TODO(wcscmp(text_content.Get(), L"")));
   text_range_provider->QueryInterface(IID_PPV_ARGS(&actual_range));
   EXPECT_EQ(*GetStart(actual_range.Get()), *expected_start);
   EXPECT_EQ(*GetEnd(actual_range.Get()), *expected_end);
@@ -130,13 +130,12 @@ TEST_F(AXPlatformNodeTextProviderTest, CreateDegenerateRangeFromStart) {
 
   // Degenerate range created on more text node should be:
   // some text<>more text
-  text_range_provider =
-      AXPlatformNodeTextProviderWin::CreateDegenerateRangeAtStart(
-          text2_platform_node.Get());
+  AXPlatformNodeTextProviderWin::CreateDegenerateRangeAtStart(
+      text2_platform_node.Get(), &text_range_provider);
   SetOwner(owner, text_range_provider.Get());
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(text_content.Get(), L""));
+  EXPECT_EQ(0, UNSAFE_TODO(wcscmp(text_content.Get(), L"")));
   text_range_provider->QueryInterface(IID_PPV_ARGS(&actual_range));
   expected_start = text2_platform_node->GetDelegate()->CreateTextPositionAt(0);
   expected_end = expected_start->Clone();
@@ -181,7 +180,7 @@ TEST_F(AXPlatformNodeTextProviderTest, ITextProviderRangeFromChild) {
   base::win::ScopedBstr text_content;
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(text_content.Get(), L"some-text"));
+  EXPECT_EQ(0, UNSAFE_TODO(wcscmp(text_content.Get(), L"some-text")));
 
   // Now test that the reverse relation doesn't return a valid
   // ITextRangeProvider, and instead returns E_INVALIDARG.
@@ -202,7 +201,7 @@ TEST_F(AXPlatformNodeTextProviderTest, ITextProviderRangeFromChild) {
   base::win::ScopedBstr empty_text_content;
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, empty_text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(empty_text_content.Get(), L""));
+  EXPECT_EQ(0, UNSAFE_TODO(wcscmp(empty_text_content.Get(), L"")));
 
   // Test that passing in an object from a different instance of
   // IRawElementProviderSimple than that of the valid text provider
@@ -521,7 +520,7 @@ TEST_F(AXPlatformNodeTextProviderTest, ITextProviderGetSelection) {
   base::win::ScopedBstr text_content;
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(text_content.Get(), L"some"));
+  EXPECT_EQ(0, UNSAFE_TODO(wcscmp(text_content.Get(), L"some")));
   text_content.Reset();
   selections.Reset();
   text_range_provider.Reset();
@@ -547,7 +546,7 @@ TEST_F(AXPlatformNodeTextProviderTest, ITextProviderGetSelection) {
 
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(text_content.Get(), L"some"));
+  EXPECT_EQ(0, UNSAFE_TODO(wcscmp(text_content.Get(), L"some")));
   text_content.Reset();
   selections.Reset();
   text_range_provider.Reset();
@@ -610,7 +609,8 @@ TEST_F(AXPlatformNodeTextProviderTest, ITextProviderGetSelection) {
   SetOwner(owner, text_range_provider.Get());
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(text_content.Get(), L"some texttextbox text"));
+  EXPECT_EQ(0,
+            UNSAFE_TODO(wcscmp(text_content.Get(), L"some texttextbox text")));
   text_content.Reset();
   selections.Reset();
   text_range_provider.Reset();
@@ -635,7 +635,7 @@ TEST_F(AXPlatformNodeTextProviderTest, ITextProviderGetSelection) {
   SetOwner(owner, text_range_provider.Get());
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(text_content.Get(), L""));
+  EXPECT_EQ(0, UNSAFE_TODO(wcscmp(text_content.Get(), L"")));
   text_content.Reset();
   selections.Reset();
   text_range_provider.Reset();
@@ -659,7 +659,7 @@ TEST_F(AXPlatformNodeTextProviderTest, ITextProviderGetSelection) {
   SetOwner(owner, text_range_provider.Get());
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(text_content.Get(), L"text"));
+  EXPECT_EQ(0, UNSAFE_TODO(wcscmp(text_content.Get(), L"text")));
   text_content.Reset();
   selections.Reset();
   text_range_provider.Reset();
@@ -671,6 +671,50 @@ TEST_F(AXPlatformNodeTextProviderTest, ITextProviderGetSelection) {
 
   EXPECT_EQ(static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE),
             text_edit_provider->GetSelection(selections.Receive()));
+}
+
+TEST_F(AXPlatformNodeTextProviderTest, ITextRangeProviderGetSelectionRefCount) {
+  TestAXTreeUpdate update(std::string(R"HTML(
+    ++1 kRootWebArea name="Document"
+    ++++2 kStaticText name="hello"
+  )HTML"));
+
+  Init(update);
+
+  ComPtr<IRawElementProviderSimple> root_node =
+      GetRootIRawElementProviderSimple();
+
+  ComPtr<ITextProvider> root_text_provider;
+  EXPECT_HRESULT_SUCCEEDED(
+      root_node->GetPatternProvider(UIA_TextPatternId, &root_text_provider));
+
+  ComPtr<AXPlatformNodeTextProviderWin> root_platform_node;
+  root_text_provider->QueryInterface(IID_PPV_ARGS(&root_platform_node));
+
+  AXPlatformNodeWin* owner = GetOwner(root_platform_node.Get());
+  AXTreeData& selected_tree_data =
+      const_cast<AXTreeData&>(owner->GetDelegate()->GetTreeData());
+  selected_tree_data.sel_focus_object_id = 2;
+  selected_tree_data.sel_anchor_object_id = 2;
+  selected_tree_data.sel_anchor_offset = 0;
+  selected_tree_data.sel_focus_offset = 5;
+
+  base::win::ScopedSafearray selections;
+  root_text_provider->GetSelection(selections.Receive());
+  ASSERT_NE(nullptr, selections.Get());
+
+  LONG index = 0;
+  ComPtr<ITextRangeProvider> text_range_provider;
+  EXPECT_HRESULT_SUCCEEDED(SafeArrayGetElement(
+      selections.Get(), &index, static_cast<void**>(&text_range_provider)));
+
+  // Validate that there was only one reference to the `text_range_provider`.
+  ASSERT_EQ(1U, text_range_provider->Release());
+
+  // This is needed to avoid calling SafeArrayDestroy from SafeArray's dtor when
+  // exiting the scope, which would crash trying to release the already
+  // destroyed `text_range_provider`.
+  selections.Release();
 }
 
 TEST_F(AXPlatformNodeTextProviderTest,
@@ -714,7 +758,7 @@ TEST_F(AXPlatformNodeTextProviderTest,
   base::win::ScopedBstr text_content;
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(text_content.Get(), L"aaa"));
+  EXPECT_EQ(0, UNSAFE_TODO(wcscmp(text_content.Get(), L"aaa")));
 
   selections.Reset();
   text_range_provider.Reset();
@@ -737,7 +781,7 @@ TEST_F(AXPlatformNodeTextProviderTest,
 
   EXPECT_HRESULT_SUCCEEDED(
       text_range_provider->GetText(-1, text_content.Receive()));
-  EXPECT_EQ(0, wcscmp(text_content.Get(), L"aa"));
+  EXPECT_EQ(0, UNSAFE_TODO(wcscmp(text_content.Get(), L"aa")));
 }
 
 TEST_F(AXPlatformNodeTextProviderTest, ITextProviderGetActiveComposition) {
@@ -783,64 +827,6 @@ TEST_F(AXPlatformNodeTextProviderTest, ITextProviderGetActiveComposition) {
   text_range_provider->QueryInterface(IID_PPV_ARGS(&actual_range));
   EXPECT_EQ(*GetStart(actual_range.Get()), *expected_start);
   EXPECT_EQ(*GetEnd(actual_range.Get()), *expected_end);
-}
-
-TEST_F(AXPlatformNodeTextProviderTest,
-       ITextProviderWinGetVisibleRangesInContentEditable) {
-  TestAXTreeUpdate update(std::string(R"HTML(
-    ++1 kRootWebArea
-    ++++2 kGenericContainer states=kRichlyEditable,kEditable boolAttribute=kNonAtomicTextFieldRoot,true
-    ++++++3 kParagraph
-    ++++++++4 kStaticText name="hello"
-    ++++++++++5 kInlineTextBox name="hello"
-  )HTML"));
-
-  Init(update);
-
-  AXNode* div_node = GetRoot()->children()[0];
-
-  ComPtr<IRawElementProviderSimple> div_com =
-      QueryInterfaceFromNode<IRawElementProviderSimple>(div_node);
-
-  ComPtr<ITextProvider> text_provider;
-  EXPECT_HRESULT_SUCCEEDED(
-      div_com->GetPatternProvider(UIA_TextPatternId, &text_provider));
-
-  base::win::ScopedSafearray text_provider_ranges;
-  EXPECT_HRESULT_SUCCEEDED(
-      text_provider->GetVisibleRanges(text_provider_ranges.Receive()));
-
-  ITextRangeProvider** array_data;
-  ASSERT_HRESULT_SUCCEEDED(::SafeArrayAccessData(
-      text_provider_ranges.Get(), reinterpret_cast<void**>(&array_data)));
-
-  ComPtr<AXPlatformNodeTextProviderWin> platform_node_text_provider;
-  text_provider->QueryInterface(IID_PPV_ARGS(&platform_node_text_provider));
-
-  AXPlatformNodeWin* owner = GetOwner(platform_node_text_provider.Get());
-
-  ScopedAXEmbeddedObjectBehaviorSetter ax_embedded_object_behavior(
-      AXEmbeddedObjectBehavior::kSuppressCharacter);
-  AXNodePosition::AXPositionInstance expected_start =
-      owner->GetDelegate()->CreateTextPositionAt(0);
-  AXNodePosition::AXPositionInstance expected_end =
-      expected_start->CreatePositionAtEndOfAnchor();
-
-  ComPtr<AXPlatformNodeTextRangeProviderWin> actual_range;
-  array_data[0]->QueryInterface(IID_PPV_ARGS(&actual_range));
-
-  EXPECT_EQ(*GetStart(actual_range.Get()), *expected_start);
-  EXPECT_EQ(*GetEnd(actual_range.Get()), *expected_end);
-
-  EXPECT_EQ(expected_start->text_offset(), 0);
-  EXPECT_EQ(GetStart(actual_range.Get())->text_offset(),
-            expected_start->text_offset());
-  EXPECT_EQ(expected_end->text_offset(), 5);
-  EXPECT_EQ(GetEnd(actual_range.Get())->text_offset(),
-            expected_end->text_offset());
-
-  ASSERT_HRESULT_SUCCEEDED(::SafeArrayUnaccessData(text_provider_ranges.Get()));
-  text_provider_ranges.Reset();
 }
 
 TEST_F(AXPlatformNodeTextProviderTest, ITextProviderGetConversionTarget) {

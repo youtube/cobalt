@@ -80,16 +80,15 @@ RoundedDisplayProvider::RoundedDisplayProvider(
     : display_id_(display_id), gutter_factory_(std::move(gutter_factory)) {}
 
 RoundedDisplayProvider::~RoundedDisplayProvider() {
-#if DCHECK_IS_ON()
   if (host_) {
     aura::Window* root_window = GetRootWindow(display_id_);
     DCHECK(root_window) << "The provider needs to be destroyed first before "
                            "the root window is destroyed";
 
     // `host_window_` needs to outlive the `host_`.
-    DCHECK(root_window->Contains(host_window_));
+    DCHECK(root_window->Contains(host_window_.get()));
+    root_window->RemoveChild(host_window_.get());
   }
-#endif
 }
 
 void RoundedDisplayProvider::Init(const gfx::RoundedCornersF& panel_radii,
@@ -114,11 +113,10 @@ void RoundedDisplayProvider::InitializeHost() {
       base::BindRepeating(&RoundedDisplayProvider::GetGuttersInDrawOrder,
                           weak_ptr_factory_.GetWeakPtr()));
 
-  auto host_window = std::make_unique<aura::Window>(/*delegate=*/nullptr);
-  host_window_ = host_window.release();
-
   // TODO(zoraiznaeem): Change the default color to transparent when we fail to
   // identify surface.
+  host_window_ = std::make_unique<aura::Window>(/*delegate=*/nullptr);
+  host_window_->set_owned_by_parent(false);
   host_window_->Init(ui::LAYER_SOLID_COLOR);
   host_window_->SetName("RoundedDisplayHost");
   host_window_->SetEventTargetingPolicy(aura::EventTargetingPolicy::kNone);
@@ -126,9 +124,9 @@ void RoundedDisplayProvider::InitializeHost() {
   host_window_->Show();
 
   aura::Window* root_window = GetRootWindow(display_id_);
-  root_window->AddChild(host_window_);
+  root_window->AddChild(host_window_.get());
 
-  host_->Init(host_window_);
+  host_->Init(host_window_.get());
 }
 
 void RoundedDisplayProvider::UpdateHostParent() {
@@ -160,8 +158,8 @@ bool RoundedDisplayProvider::UpdateRoundedDisplaySurface() {
   host_window_->SetBounds(screen_util::SnapBoundsToDisplayEdge(
       gfx::Rect(display.bounds().size()), GetRootWindow(display_id_)));
 
-  gfx::Rect content_rect(host_window_->bounds());
-  gfx::Rect damage_rect;
+  const gfx::Rect content_rect(host_window_->bounds());
+  const gfx::Rect damage_rect(content_rect);
 
   // Submit a compositor frame to update the surface. Textures will be reused,
   // unless we decide to create new gutters, otherwise the positions of the

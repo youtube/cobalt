@@ -54,10 +54,10 @@ void RmsLevel::Reset() {
   sum_square_ = 0.f;
   sample_count_ = 0;
   max_sum_square_ = 0.f;
-  block_size_ = absl::nullopt;
+  block_size_ = std::nullopt;
 }
 
-void RmsLevel::Analyze(rtc::ArrayView<const int16_t> data) {
+void RmsLevel::Analyze(ArrayView<const int16_t> data) {
   if (data.empty()) {
     return;
   }
@@ -74,7 +74,7 @@ void RmsLevel::Analyze(rtc::ArrayView<const int16_t> data) {
   max_sum_square_ = std::max(max_sum_square_, sum_square);
 }
 
-void RmsLevel::Analyze(rtc::ArrayView<const float> data) {
+void RmsLevel::Analyze(ArrayView<const float> data) {
   if (data.empty()) {
     return;
   }
@@ -119,7 +119,7 @@ int RmsLevel::Average() {
 
 RmsLevel::Levels RmsLevel::AverageAndPeak() {
   // Note that block_size_ should by design always be non-empty when
-  // sample_count_ != 0. Also, the * operator of absl::optional enforces this
+  // sample_count_ != 0. Also, the * operator of std::optional enforces this
   // with a DCHECK.
   Levels levels = (sample_count_ == 0)
                       ? Levels{RmsLevel::kMinLevelDb, RmsLevel::kMinLevelDb}

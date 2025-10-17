@@ -5,14 +5,17 @@
 #include "third_party/blink/renderer/core/fetch/attribution_reporting_to_mojom.h"
 
 #include "base/strings/stringprintf.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_attribution_reporting_request_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/core/permissions_policy/permissions_policy_parser.h"
 #include "third_party/blink/renderer/core/testing/null_execution_context.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 
 namespace blink {
@@ -21,15 +24,15 @@ namespace {
 using ::network::mojom::AttributionReportingEligibility;
 
 ScopedNullExecutionContext MakeExecutionContext(bool has_permission) {
-  ParsedPermissionsPolicy parsed_policy;
+  network::ParsedPermissionsPolicy parsed_policy;
 
   if (has_permission) {
     AllowFeatureEverywhere(
-        mojom::blink::PermissionsPolicyFeature::kAttributionReporting,
+        network::mojom::PermissionsPolicyFeature::kAttributionReporting,
         parsed_policy);
   } else {
     DisallowFeature(
-        mojom::blink::PermissionsPolicyFeature::kAttributionReporting,
+        network::mojom::PermissionsPolicyFeature::kAttributionReporting,
         parsed_policy);
   }
 
@@ -39,13 +42,14 @@ ScopedNullExecutionContext MakeExecutionContext(bool has_permission) {
 
   execution_context.GetExecutionContext()
       .GetSecurityContext()
-      .SetPermissionsPolicy(PermissionsPolicy::CreateFromParsedPolicy(
-          parsed_policy, origin->ToUrlOrigin()));
+      .SetPermissionsPolicy(network::PermissionsPolicy::CreateFromParsedPolicy(
+          parsed_policy, /*base_policy=*/std::nullopt, origin->ToUrlOrigin()));
 
   return execution_context;
 }
 
 TEST(AttributionReportingToMojomTest, Convert) {
+  test::TaskEnvironment task_environment;
   const struct {
     bool event_source_eligible;
     bool trigger_eligible;
@@ -58,6 +62,7 @@ TEST(AttributionReportingToMojomTest, Convert) {
   };
 
   for (const auto& test_case : kTestCases) {
+    base::HistogramTester histograms;
     SCOPED_TRACE(base::StringPrintf(
         "event_source_eligible=%d,trigger_eligible=%d",
         test_case.event_source_eligible, test_case.trigger_eligible));
@@ -76,6 +81,8 @@ TEST(AttributionReportingToMojomTest, Convert) {
                     scope.GetExceptionState()));
 
       EXPECT_FALSE(scope.GetExceptionState().HadException());
+      histograms.ExpectBucketCount("Conversions.AllowedByPermissionPolicy", 1,
+                                   1);
     }
 
     {
@@ -88,6 +95,8 @@ TEST(AttributionReportingToMojomTest, Convert) {
                     scope.GetExceptionState()));
 
       EXPECT_TRUE(scope.GetExceptionState().HadException());
+      histograms.ExpectBucketCount("Conversions.AllowedByPermissionPolicy", 0,
+                                   1);
     }
   }
 }

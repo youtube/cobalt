@@ -8,17 +8,14 @@ android_library("subscriptions_java") {
   sources = [
     "java/src/org/chromium/chrome/browser/subscriptions/CommerceSubscriptionsService.java",
     "java/src/org/chromium/chrome/browser/subscriptions/CommerceSubscriptionsServiceConfig.java",
-    "java/src/org/chromium/chrome/browser/subscriptions/ImplicitPriceDropSubscriptionsManager.java",
   ]
 
   deps = [
     "//base:base_java",
-    "//base:jni_java",
     "//build/android:build_java",
     "//chrome/browser/android/lifecycle:java",
     "//chrome/browser/commerce/android:java",
     "//chrome/browser/commerce/price_tracking/android:java",
-    "//chrome/browser/endpoint_fetcher:java",
     "//chrome/browser/flags:java",
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
@@ -32,8 +29,7 @@ android_library("subscriptions_java") {
     "//content/public/android:content_full_java",
     "//net/android:net_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//url:gurl_java",
   ]
-
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }

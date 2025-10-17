@@ -6,9 +6,9 @@
 #define COMPONENTS_BOOKMARKS_BROWSER_TITLED_URL_NODE_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "url/gurl.h"
 
 namespace bookmarks {
@@ -25,8 +25,8 @@ class TitledUrlNode {
   virtual const GURL& GetTitledUrlNodeUrl() const = 0;
 
   // Returns the titles of this node's ancestors ordered from child to parent.
-  // If |include_self| is true, will include its own title as well.
-  virtual std::vector<base::StringPiece16> GetTitledUrlNodeAncestorTitles()
+  // If `include_self` is true, will include its own title as well.
+  virtual std::vector<std::u16string_view> GetTitledUrlNodeAncestorTitles()
       const = 0;
 
  protected:

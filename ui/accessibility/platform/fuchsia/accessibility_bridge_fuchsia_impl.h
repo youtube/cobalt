@@ -5,14 +5,16 @@
 #ifndef UI_ACCESSIBILITY_PLATFORM_FUCHSIA_ACCESSIBILITY_BRIDGE_FUCHSIA_IMPL_H_
 #define UI_ACCESSIBILITY_PLATFORM_FUCHSIA_ACCESSIBILITY_BRIDGE_FUCHSIA_IMPL_H_
 
-#include <fuchsia/accessibility/semantics/cpp/fidl.h>
+#include <fidl/fuchsia.accessibility.semantics/cpp/fidl.h>
 #include <fuchsia/ui/views/cpp/fidl.h>
 #include <lib/inspect/cpp/vmo/types.h>
+
+#include <optional>
 
 #include "base/component_export.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/accessibility/platform/fuchsia/accessibility_bridge_fuchsia.h"
 #include "ui/accessibility/platform/fuchsia/semantic_provider.h"
 #include "ui/aura/window.h"
@@ -20,8 +22,8 @@
 namespace ui {
 
 class COMPONENT_EXPORT(AX_PLATFORM) AccessibilityBridgeFuchsiaImpl final
-    : public ui::AccessibilityBridgeFuchsia,
-      public ui::AXFuchsiaSemanticProvider::Delegate {
+    : public AccessibilityBridgeFuchsia,
+      public AXFuchsiaSemanticProvider::Delegate {
  public:
   using OnConnectionClosedCallback = base::RepeatingCallback<bool(zx_status_t)>;
 
@@ -47,17 +49,17 @@ class COMPONENT_EXPORT(AX_PLATFORM) AccessibilityBridgeFuchsiaImpl final
   // do not reconnect).
   AccessibilityBridgeFuchsiaImpl(
       aura::Window* root_window,
-      fuchsia::ui::views::ViewRef view_ref,
+      fuchsia_ui_views::ViewRef view_ref,
       base::RepeatingCallback<void(bool)> on_semantics_enabled,
       OnConnectionClosedCallback on_connection_closed,
       inspect::Node inspect_node);
   ~AccessibilityBridgeFuchsiaImpl() override;
 
   // AccessibilityBridgeFuchsia overrides.
-  void UpdateNode(fuchsia::accessibility::semantics::Node node) override;
+  void UpdateNode(fuchsia_accessibility_semantics::Node node) override;
   void DeleteNode(uint32_t node_id) override;
   void OnAccessibilityHitTestResult(int hit_test_request_id,
-                                    absl::optional<uint32_t> result) override;
+                                    std::optional<uint32_t> result) override;
   float GetDeviceScaleFactor() override;
   void SetRootID(uint32_t root_node_id) override;
   inspect::Node GetInspectNode() override;
@@ -66,11 +68,8 @@ class COMPONENT_EXPORT(AX_PLATFORM) AccessibilityBridgeFuchsiaImpl final
   bool OnSemanticsManagerConnectionClosed(zx_status_t status) override;
   bool OnAccessibilityAction(
       uint32_t node_id,
-      fuchsia::accessibility::semantics::Action action) override;
-  void OnHitTest(
-      fuchsia::math::PointF point,
-      fuchsia::accessibility::semantics::SemanticListener::HitTestCallback
-          callback) override;
+      fuchsia_accessibility_semantics::Action action) override;
+  void OnHitTest(fuchsia_math::PointF point, HitTestCallback callback) override;
   void OnSemanticsEnabled(bool enabled) override;
 
   // Test-only method to set `semantic_provider_`.
@@ -87,22 +86,20 @@ class COMPONENT_EXPORT(AX_PLATFORM) AccessibilityBridgeFuchsiaImpl final
 
   // Root window for the fuchsia view for which this accessibility bridge
   // instance is responsible.
-  aura::Window* root_window_;
+  raw_ptr<aura::Window> root_window_;
 
   // Manages connections with the fuchsia semantics APIs.
-  std::unique_ptr<ui::AXFuchsiaSemanticProvider> semantic_provider_;
+  std::unique_ptr<AXFuchsiaSemanticProvider> semantic_provider_;
 
   // Fuchsia semantic trees require that the root node ID == 0. The
   // AXUniqueId of the chrome node corresponding to the fuchsia root will NOT be
   // 0, so we need to store it here in order to map between the two.
-  absl::optional<uint32_t> root_node_id_;
+  std::optional<uint32_t> root_node_id_;
 
   // Holds callbacks for hit tests that have not yet completed, keyed by a
   // request ID that this class generates.
-  base::flat_map<
-      int /* request_id */,
-      fuchsia::accessibility::semantics::SemanticListener::HitTestCallback>
-      pending_hit_test_callbacks_;
+  base::flat_map<int /* request_id */, HitTestCallback>
+      pending_hit_test_completers_;
 
   // Next hit test request ID to use.
   int next_hittest_request_id_ = 1;

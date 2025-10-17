@@ -17,6 +17,8 @@ import androidx.recyclerview.widget.RecyclerView.ItemDecoration;
 import androidx.recyclerview.widget.RecyclerView.State;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.NullUnmarked;
 import org.chromium.components.browser_ui.widget.R;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
@@ -24,15 +26,17 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 
 /**
- * The coordinator responsible for managing a list of chips.  To get the {@link View} that
- * represents this coordinator use {@link #getView()}.
+ * The coordinator responsible for managing a list of chips. To get the {@link View} that represents
+ * this coordinator use {@link #getView()}.
  */
+@NullMarked
 public class ChipsCoordinator {
     private final ModelList mModelList;
     private final RecyclerView mView;
 
     /**
      * Builds and initializes this coordinator, including all sub-components.
+     *
      * @param context The {@link Context} to use to grab all of the resources.
      * @param modelList The list of chip models to be displayed.
      */
@@ -40,6 +44,7 @@ public class ChipsCoordinator {
         this(context, modelList, R.style.SuggestionChipThemeOverlay);
     }
 
+    @NullUnmarked
     public ChipsCoordinator(Context context, ModelList modelList, @StyleRes int themeOverlay) {
         assert context != null;
         assert modelList != null;
@@ -53,20 +58,23 @@ public class ChipsCoordinator {
         mView.getItemAnimator().setChangeDuration(0);
 
         SimpleRecyclerViewAdapter adapter = new SimpleRecyclerViewAdapter(mModelList);
-        adapter.registerType(ChipProperties.BASIC_CHIP,
-                (parent) -> new ChipView(context, themeOverlay), ChipViewBinder::bind);
+        adapter.registerType(
+                ChipProperties.BASIC_CHIP,
+                (parent) -> new ChipView(context, themeOverlay),
+                ChipViewBinder::bind);
         mView.setAdapter(adapter);
     }
 
     /**
      * A utility method for more easily creating basic chip model. This model can be altered after
      * construction.
+     *
      * @param id The ID of the chip.
      * @param text The text to display in the chip. The {@link ChipProperties#CONTENT_DESCRIPTION}
-     *             also uses this value by default.
+     *     also uses this value by default.
      * @param clickHandler A handler for when the chip is selected.
      * @param iconId An icon ID to show beside the chip's text. If not specified, this will be
-     *               {@link ChipProperties#ICON}.
+     *     {@link ChipProperties#ICON}.
      * @return A list item containing a property model for a basic chip.
      */
     public static ListItem buildChipListItem(
@@ -93,8 +101,8 @@ public class ChipsCoordinator {
     }
 
     /**
-     * Destroys the coordinator.  This should be called when the coordinator is no longer in use.
-     * The coordinator should not be used after that point.
+     * Destroys the coordinator. This should be called when the coordinator is no longer in use. The
+     * coordinator should not be used after that point.
      */
     public void destroy() {}
 
@@ -105,6 +113,7 @@ public class ChipsCoordinator {
 
     /**
      * Set the spacing and padding between each chip.
+     *
      * @param chipSpacingPx The spacing between each chip.
      * @param sidePaddingPx The side padding at the start and end of the list.
      */
@@ -121,14 +130,21 @@ public class ChipsCoordinator {
             mSidePaddingPx = sidePaddingPx;
         }
 
+        @NullUnmarked
         @Override
         public void getItemOffsets(Rect outRect, View view, RecyclerView parent, State state) {
             int position = parent.getChildAdapterPosition(view);
             boolean isFirst = position == 0;
             boolean isLast = position == parent.getAdapter().getItemCount() - 1;
+            // using 'parent' not 'view' since 'view' did not layout yet, so view's
+            // #getLayoutDirection() won't return correct value.
+            boolean isRtl = (parent.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL);
 
-            outRect.left = isFirst ? mSidePaddingPx : mChipSpacingPx;
-            outRect.right = isLast ? mSidePaddingPx : mChipSpacingPx;
+            @Px int startPadding = isFirst ? mSidePaddingPx : mChipSpacingPx;
+            @Px int endPadding = isLast ? mSidePaddingPx : mChipSpacingPx;
+
+            outRect.left = isRtl ? endPadding : startPadding;
+            outRect.right = isRtl ? startPadding : endPadding;
         }
     }
 }

@@ -27,20 +27,8 @@ class GtkUiPlatform {
  public:
   virtual ~GtkUiPlatform() = default;
 
-  // Called when the GtkUi instance initialization process finished. |widget| is
-  // a dummy window passed in for context.
-  virtual void OnInitialized(GtkWidget* widget) = 0;
-
-  // Gets the GdkKeymap instance, which is used to translate KeyEvents into
-  // GdkEvents before filtering them through GtkIM API.
-  virtual GdkKeymap* GetGdkKeymap() = 0;
-
-  // Gets the GDK key event state for a KeyEvent.
-  virtual GdkModifierType GetGdkKeyEventState(
-      const ui::KeyEvent& key_event) = 0;
-
-  // Gets the GDK key event group for a KeyEvent.
-  virtual int GetGdkKeyEventGroup(const ui::KeyEvent& key_event) = 0;
+  // Called when the GtkUi instance initialization process finished.
+  virtual void OnInitialized() = 0;
 
   // Creates/Gets a GdkWindow out of a Aura window id. Caller owns the returned
   // object. This function is meant to be used in GtkIM-based IME implementation
@@ -60,6 +48,13 @@ class GtkUiPlatform {
   // Creates a new IME context or may return nullptr.
   virtual std::unique_ptr<ui::LinuxInputMethodContext> CreateInputMethodContext(
       ui::LinuxInputMethodContextDelegate* delegate) const = 0;
+
+  // If true, the device scale factor should be multiplied by the font scale. If
+  // false, the font size should be multiplied by the font scale.
+  virtual bool IncludeFontScaleInDeviceScale() const = 0;
+
+  // Returns true if the cursor size should be multiplied by the scale factor.
+  virtual bool IncludeScaleInCursorSize() const = 0;
 };
 
 }  // namespace gtk

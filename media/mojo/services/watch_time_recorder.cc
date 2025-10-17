@@ -4,15 +4,13 @@
 
 #include "media/mojo/services/watch_time_recorder.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
-#include "base/functional/callback.h"
 #include "base/hash/hash.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "media/base/limits.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_decoder.h"
@@ -28,15 +26,14 @@ constexpr base::TimeDelta kMinimumElapsedWatchTime =
     base::Seconds(limits::kMinimumElapsedWatchTimeSecs);
 
 static void RecordWatchTimeInternal(
-    base::StringPiece key,
+    std::string_view key,
     base::TimeDelta value,
     base::TimeDelta minimum = kMinimumElapsedWatchTime) {
   DCHECK(!key.empty());
-  base::UmaHistogramCustomTimes(std::string(key), value, minimum,
-                                base::Hours(10), 50);
+  base::UmaHistogramCustomTimes(key, value, minimum, base::Hours(10), 50);
 }
 
-static void RecordMeanTimeBetweenRebuffers(base::StringPiece key,
+static void RecordMeanTimeBetweenRebuffers(std::string_view key,
                                            base::TimeDelta value) {
   DCHECK(!key.empty());
 
@@ -45,16 +42,16 @@ static void RecordMeanTimeBetweenRebuffers(base::StringPiece key,
   RecordWatchTimeInternal(key, value, base::Seconds(1.4));
 }
 
-static void RecordDiscardedWatchTime(base::StringPiece key,
+static void RecordDiscardedWatchTime(std::string_view key,
                                      base::TimeDelta value) {
   DCHECK(!key.empty());
-  base::UmaHistogramCustomTimes(std::string(key), value, base::TimeDelta(),
+  base::UmaHistogramCustomTimes(key, value, base::TimeDelta(),
                                 kMinimumElapsedWatchTime, 50);
 }
 
-static void RecordRebuffersCount(base::StringPiece key, int underflow_count) {
+static void RecordRebuffersCount(std::string_view key, int underflow_count) {
   DCHECK(!key.empty());
-  base::UmaHistogramCounts100(std::string(key), underflow_count);
+  base::UmaHistogramCounts100(key, underflow_count);
 }
 
 WatchTimeRecorder::WatchTimeUkmRecord::WatchTimeUkmRecord(
@@ -67,12 +64,13 @@ WatchTimeRecorder::WatchTimeUkmRecord::WatchTimeUkmRecord(
 WatchTimeRecorder::WatchTimeUkmRecord::~WatchTimeUkmRecord() = default;
 
 WatchTimeRecorder::WatchTimeRecorder(
+    PictureInPictureEventsInfo::AutoPipReasonCallback auto_pip_reason_cb,
     mojom::PlaybackPropertiesPtr properties,
     ukm::SourceId source_id,
     bool is_top_frame,
-    uint64_t player_id,
-    RecordAggregateWatchTimeCallback record_playback_cb)
-    : properties_(std::move(properties)),
+    uint64_t player_id)
+    : auto_pip_reason_cb_(std::move(auto_pip_reason_cb)),
+      properties_(std::move(properties)),
       source_id_(source_id),
       is_top_frame_(is_top_frame),
       player_id_(player_id),
@@ -91,8 +89,7 @@ WatchTimeRecorder::WatchTimeRecorder(
             kRebuffersCountAudioVideoMse, kDiscardedWatchTimeAudioVideoMse},
            {WatchTimeKey::kAudioVideoEme,
             kMeanTimeBetweenRebuffersAudioVideoEme,
-            kRebuffersCountAudioVideoEme, kDiscardedWatchTimeAudioVideoEme}}),
-      record_playback_cb_(std::move(record_playback_cb)) {}
+            kRebuffersCountAudioVideoEme, kDiscardedWatchTimeAudioVideoEme}}) {}
 
 WatchTimeRecorder::~WatchTimeRecorder() {
   FinalizeWatchTime({});
@@ -102,6 +99,7 @@ WatchTimeRecorder::~WatchTimeRecorder() {
 void WatchTimeRecorder::RecordWatchTime(WatchTimeKey key,
                                         base::TimeDelta watch_time) {
   watch_time_info_[key] = watch_time;
+  MaybeRecordWatchTimeForAutoPipReason(key, watch_time);
 }
 
 void WatchTimeRecorder::FinalizeWatchTime(
@@ -121,13 +119,13 @@ void WatchTimeRecorder::FinalizeWatchTime(
     // Report only certain keys to UMA and only if they have at met the minimum
     // watch time requirement. Otherwise, for SRC/MSE/EME keys, log them to the
     // discard metric.
-    base::StringPiece key_str = ConvertWatchTimeKeyToStringForUma(kv.first);
+    std::string_view key_str = ConvertWatchTimeKeyToStringForUma(kv.first);
     if (ShouldRecordUma() && !key_str.empty()) {
       if (kv.second >= kMinimumElapsedWatchTime) {
         RecordWatchTimeInternal(key_str, kv.second);
       } else if (kv.second.is_positive()) {
-        auto it = base::ranges::find(extended_metrics_keys_, kv.first,
-                                     &ExtendedMetricsKeyMap::watch_time_key);
+        auto it = std::ranges::find(extended_metrics_keys_, kv.first,
+                                    &ExtendedMetricsKeyMap::watch_time_key);
         if (it != extended_metrics_keys_.end())
           RecordDiscardedWatchTime(it->discard_key, kv.second);
       }
@@ -178,6 +176,7 @@ void WatchTimeRecorder::FinalizeWatchTime(
   underflow_count_ = completed_underflow_count_ = 0;
   underflow_duration_ = base::TimeDelta();
   watch_time_info_.clear();
+  current_auto_pip_reason_ = std::nullopt;
 }
 
 void WatchTimeRecorder::OnError(const PipelineStatus& status) {
@@ -311,11 +310,6 @@ void WatchTimeRecorder::UpdateUnderflowDuration(
   underflow_duration_ = total_duration;
 }
 
-void WatchTimeRecorder::OnCurrentTimestampChanged(
-    base::TimeDelta current_timestamp) {
-  last_timestamp_ = current_timestamp;
-}
-
 void WatchTimeRecorder::RecordUkmPlaybackData() {
   // UKM may be unavailable in content_shell or other non-chrome/ builds; it
   // may also be unavailable if browser shutdown has started; so this may be a
@@ -325,7 +319,7 @@ void WatchTimeRecorder::RecordUkmPlaybackData() {
     return;
 
   // Round duration to the most significant digit in milliseconds for privacy.
-  absl::optional<uint64_t> clamped_duration_ms;
+  std::optional<uint64_t> clamped_duration_ms;
   if (duration_ != kNoTimestamp && duration_ != kInfiniteDuration) {
     clamped_duration_ms = duration_.InMilliseconds();
     if (duration_ > base::Seconds(1)) {
@@ -342,7 +336,6 @@ void WatchTimeRecorder::RecordUkmPlaybackData() {
 
   base::flat_set<AudioCodecProfile> aac_profiles;
 
-  base::TimeDelta total_foreground_audible_watch_time;
   for (auto& ukm_record : ukm_records_) {
     ukm::builders::Media_BasicPlayback builder(source_id_);
 
@@ -367,11 +360,6 @@ void WatchTimeRecorder::RecordUkmPlaybackData() {
         // Only one of these keys should be present.
         DCHECK(!recorded_all_metric);
         recorded_all_metric = true;
-
-        // We should only add to the total watchtime if we were not in the
-        // background and not muted.
-        if (!properties_->is_muted && !properties_->is_background)
-          total_foreground_audible_watch_time += kv.second;
 
         builder.SetWatchTime(kv.second.InMilliseconds());
         if (ukm_record.total_underflow_count) {
@@ -418,6 +406,9 @@ void WatchTimeRecorder::RecordUkmPlaybackData() {
                  kv.first == WatchTimeKey::kVideoDisplayPictureInPicture) {
         builder.SetWatchTime_DisplayPictureInPicture(
             kv.second.InMilliseconds());
+      } else if (kv.first == WatchTimeKey::kAudioVideoAutoPipMediaPlayback ||
+                 kv.first == WatchTimeKey::kAudioAutoPipMediaPlayback) {
+        builder.SetWatchTime_AutoPip(kv.second.InMilliseconds());
       }
     }
 
@@ -469,17 +460,46 @@ void WatchTimeRecorder::RecordUkmPlaybackData() {
       base::UmaHistogramEnumeration("Media.AudioCodecProfile.AAC", profile);
   }
 
-  if (total_foreground_audible_watch_time.is_positive()) {
-    std::move(record_playback_cb_)
-        .Run(total_foreground_audible_watch_time, last_timestamp_,
-             properties_->has_video, properties_->has_audio);
-  }
-
   ukm_records_.clear();
 }
 
 bool WatchTimeRecorder::ShouldRecordUma() const {
   return properties_->media_stream_type == mojom::MediaStreamType::kNone;
+}
+
+void WatchTimeRecorder::MaybeRecordWatchTimeForAutoPipReason(
+    WatchTimeKey key,
+    base::TimeDelta watch_time) {
+  if (key != WatchTimeKey::kAudioDisplayPictureInPicture &&
+      key != WatchTimeKey::kAudioVideoDisplayPictureInPicture) {
+    return;
+  }
+
+  if (!current_auto_pip_reason_.has_value()) {
+    // Note that the reason retrieved by `auto_pip_reason_cb_` may have changed
+    // from the time the `WatchTimeReporter` requests to record watch time and
+    // the time `this` receives the request. This can lead to sometimes
+    // under/overeporting Auto Picture in Picture watch time. For more details
+    // see the `WatchTimeRecorder::MaybeRecordWatchTimeForAutoPipReason` method
+    // description.
+    current_auto_pip_reason_ = auto_pip_reason_cb_.Run();
+  }
+
+  if (current_auto_pip_reason_ !=
+      PictureInPictureEventsInfo::AutoPipReason::kMediaPlayback) {
+    return;
+  }
+
+  if (key == WatchTimeKey::kAudioVideoDisplayPictureInPicture) {
+    watch_time_info_[WatchTimeKey::kAudioVideoAutoPipMediaPlayback] =
+        watch_time;
+    return;
+  }
+
+  if (key == WatchTimeKey::kAudioDisplayPictureInPicture) {
+    watch_time_info_[WatchTimeKey::kAudioAutoPipMediaPlayback] = watch_time;
+    return;
+  }
 }
 
 WatchTimeRecorder::ExtendedMetricsKeyMap::ExtendedMetricsKeyMap(
@@ -491,9 +511,9 @@ WatchTimeRecorder::ExtendedMetricsKeyMap::ExtendedMetricsKeyMap(
 
 WatchTimeRecorder::ExtendedMetricsKeyMap::ExtendedMetricsKeyMap(
     WatchTimeKey watch_time_key,
-    base::StringPiece mtbr_key,
-    base::StringPiece smooth_rate_key,
-    base::StringPiece discard_key)
+    std::string_view mtbr_key,
+    std::string_view smooth_rate_key,
+    std::string_view discard_key)
     : watch_time_key(watch_time_key),
       mtbr_key(mtbr_key),
       smooth_rate_key(smooth_rate_key),

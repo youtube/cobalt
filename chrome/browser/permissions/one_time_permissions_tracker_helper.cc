@@ -22,9 +22,6 @@ void OneTimePermissionsTrackerHelper::WebContentsDestroyed() {
     }
   }
 
-  resource_coordinator::TabLifecycleUnitExternal::FromWebContents(
-      web_contents())
-      ->RemoveTabLifecycleObserver(this);
   MediaCaptureDevicesDispatcher::GetInstance()
       ->GetMediaStreamCaptureIndicator()
       ->RemoveObserver(this);
@@ -65,6 +62,29 @@ void OneTimePermissionsTrackerHelper::PrimaryPageChanged(content::Page& page) {
   last_committed_origin_ = std::move(new_origin);
 }
 
+void OneTimePermissionsTrackerHelper::DidStartNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (last_committed_origin_ && was_discarded_) {
+    // If a new navigation has started, and the tab was previously discarded,
+    // the tab has reactivated.
+    auto* tracker = OneTimePermissionsTrackerFactory::GetForBrowserContext(
+        web_contents()->GetBrowserContext());
+    tracker->WebContentsLoadedOrigin(*last_committed_origin_);
+  }
+  was_discarded_ = false;
+}
+
+void OneTimePermissionsTrackerHelper::WasDiscarded() {
+  // A discard operation may not succeed if attempted on a pending navigation,
+  // emit only following a successful operation.
+  was_discarded_ = web_contents()->WasDiscarded();
+  if (last_committed_origin_ && was_discarded_) {
+    auto* tracker = OneTimePermissionsTrackerFactory::GetForBrowserContext(
+        web_contents()->GetBrowserContext());
+    tracker->WebContentsUnloadedOrigin(*last_committed_origin_);
+  }
+}
+
 void OneTimePermissionsTrackerHelper::OnIsCapturingVideoChanged(
     content::WebContents* web_contents,
     bool is_capturing_video) {
@@ -98,28 +118,9 @@ OneTimePermissionsTrackerHelper::OneTimePermissionsTrackerHelper(
     : content::WebContentsObserver(web_contents),
       content::WebContentsUserData<OneTimePermissionsTrackerHelper>(
           *web_contents) {
-  resource_coordinator::TabLifecycleUnitExternal::FromWebContents(web_contents)
-      ->AddTabLifecycleObserver(this);
   MediaCaptureDevicesDispatcher::GetInstance()
       ->GetMediaStreamCaptureIndicator()
       ->AddObserver(this);
-}
-
-void OneTimePermissionsTrackerHelper::OnDiscardedStateChange(
-    content::WebContents* contents,
-    LifecycleUnitDiscardReason reason,
-    bool is_discarded) {
-  auto* tracker = OneTimePermissionsTrackerFactory::GetForBrowserContext(
-      web_contents()->GetBrowserContext());
-
-  if (last_committed_origin_) {
-    if (is_discarded) {
-      // Discards destroy the web contents, so this case is implicitly handled
-      // by `WebContentsDestroyed()`
-    } else {
-      tracker->WebContentsLoadedOrigin(*last_committed_origin_);
-    }
-  }
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(OneTimePermissionsTrackerHelper);

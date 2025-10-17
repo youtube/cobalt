@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<grit latest_public_release="0" current_release="1" output_all_resource_defines="false">
+<grit latest_public_release="0" current_release="1">
   <outputs>
     <output filename="grit/ui_resources.h" type="rc_header" context="default_100_percent">
       <emit emit_type='prepend'></emit>
@@ -86,31 +86,6 @@
         <structure type="chrome_scaled_image" name="IDR_AURA_CURSOR_ZOOM_IN" file="common/pointers/zoom_in.png" />
         <structure type="chrome_scaled_image" name="IDR_AURA_CURSOR_ZOOM_OUT" file="common/pointers/zoom_out.png" />
       </if>
-      <if expr="is_macosx">
-        <structure type="chrome_scaled_image" name="IDR_ALIAS_CURSOR" file="alias_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_CELL_CURSOR" file="cell_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_EAST_RESIZE_CURSOR" file="east_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_EASTWEST_RESIZE_CURSOR" file="east_west_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_HELP_CURSOR" file="help_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_LINK_CURSOR" file="link_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_MOVE_CURSOR" file="move_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_NONE_CURSOR" file="none_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_NORTHEAST_RESIZE_CURSOR" file="north_east_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_NORTHEASTSOUTHWEST_RESIZE_CURSOR" file="north_east_south_west_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_NORTH_RESIZE_CURSOR" file="north_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_NORTHSOUTH_RESIZE_CURSOR" file="north_south_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_NORTHWEST_RESIZE_CURSOR" file="north_west_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_NORTHWESTSOUTHEAST_RESIZE_CURSOR" file="north_west_south_east_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_PROGRESS_CURSOR" file="progress_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_SOUTHEAST_RESIZE_CURSOR" file="south_east_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_SOUTH_RESIZE_CURSOR" file="south_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_SOUTHWEST_RESIZE_CURSOR" file="south_west_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_VERTICALTEXT_CURSOR" file="vertical_text_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_WAIT_CURSOR" file="wait_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_WEST_RESIZE_CURSOR" file="west_resize_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_ZOOMIN_CURSOR" file="zoom_in_cursor.png" />
-        <structure type="chrome_scaled_image" name="IDR_ZOOMOUT_CURSOR" file="zoom_out_cursor.png" />
-      </if>
       <if expr="not is_android">
         <structure type="chrome_scaled_image" name="IDR_CLOSE_2" file="close_2.png" />
         <structure type="chrome_scaled_image" name="IDR_CLOSE_2_H" file="close_2_hover.png" />
@@ -124,7 +99,7 @@
       </if>
       <structure type="chrome_scaled_image" name="IDR_DEFAULT_FAVICON" file="common/default_favicon.png" />
       <structure type="chrome_scaled_image" name="IDR_DEFAULT_FAVICON_DARK" file="common/default_favicon_dark.png" />
-      <if expr="not is_android">
+      <if expr="not is_android or is_desktop_android">
         <structure type="chrome_scaled_image" name="IDR_DEFAULT_FAVICON_32" file="common/default_favicon_32.png" />
         <structure type="chrome_scaled_image" name="IDR_DEFAULT_FAVICON_DARK_32" file="common/default_favicon_dark_32.png" />
         <structure type="chrome_scaled_image" name="IDR_DEFAULT_FAVICON_64" file="common/default_favicon_64.png" />
@@ -155,11 +130,6 @@
         <structure type="chrome_scaled_image" name="IDR_SIGNAL_2_BAR" file="common/signal_2_bar.png" />
         <structure type="chrome_scaled_image" name="IDR_SIGNAL_3_BAR" file="common/signal_3_bar.png" />
         <structure type="chrome_scaled_image" name="IDR_SIGNAL_4_BAR" file="common/signal_4_bar.png" />
-      </if>
-      <if expr="use_aura">
-        <structure type="chrome_scaled_image" name="IDR_TEXT_SELECTION_HANDLE_CENTER" file="common/text_selection_handle_center.png" />
-        <structure type="chrome_scaled_image" name="IDR_TEXT_SELECTION_HANDLE_LEFT" file="common/text_selection_handle_left.png" />
-        <structure type="chrome_scaled_image" name="IDR_TEXT_SELECTION_HANDLE_RIGHT" file="common/text_selection_handle_right.png" />
       </if>
       <if expr="toolkit_views">
         <structure type="chrome_scaled_image" name="IDR_TOUCH_DRAG_TIP_COPY" file="common/drag_tip_copy.png" />

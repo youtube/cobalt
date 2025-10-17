@@ -12,6 +12,10 @@
 #include "util/Timer.h"
 #include "util/test_utils.h"
 
+#include <X11/Xlib.h>
+#include <X11/Xresource.h>
+#include <X11/Xutil.h>
+
 namespace
 {
 
@@ -268,6 +272,47 @@ void setWindowSizeHints(Display *display, Window window, int width, int height)
 
 }  // namespace
 
+class ANGLE_UTIL_EXPORT X11Window : public OSWindow
+{
+  public:
+    X11Window();
+    X11Window(int visualId);
+    ~X11Window() override;
+
+    void disableErrorMessageDialog() override;
+    void destroy() override;
+
+    void resetNativeWindow() override;
+    EGLNativeWindowType getNativeWindow() const override;
+    void *getPlatformExtension() override;
+    EGLNativeDisplayType getNativeDisplay() const override;
+
+    void messageLoop() override;
+
+    void setMousePosition(int x, int y) override;
+    bool setOrientation(int width, int height) override;
+    bool setPosition(int x, int y) override;
+    bool resize(int width, int height) override;
+    void setVisible(bool isVisible) override;
+
+    void signalTestEvent() override;
+
+  private:
+    bool initializeImpl(const std::string &name, int width, int height) override;
+    void processEvent(const XEvent &event);
+
+    Atom WM_DELETE_WINDOW;
+    Atom WM_PROTOCOLS;
+    Atom TEST_EVENT;
+
+    Display *mDisplay;
+    Window mWindow;
+    int mRequestedVisualId;
+    bool mVisible;
+    bool mConfigured = false;
+    bool mDestroyed  = false;
+};
+
 X11Window::X11Window()
     : WM_DELETE_WINDOW(None),
       WM_PROTOCOLS(None),
@@ -504,19 +549,19 @@ void X11Window::setVisible(bool isVisible)
         XEvent placeholderEvent;
         XIfEvent(mDisplay, &placeholderEvent, WaitForMapNotify,
                  reinterpret_cast<XPointer>(mWindow));
+
+        // Block until we get ConfigureNotify to set up fully before returning.
+        mConfigured = false;
+        while (!mConfigured)
+        {
+            messageLoop();
+            angle::Sleep(10);
+        }
     }
     else
     {
         XUnmapWindow(mDisplay, mWindow);
         XFlush(mDisplay);
-    }
-
-    // Block until we get ConfigureNotify to set up fully before returning.
-    mConfigured = false;
-    while (!mConfigured)
-    {
-        messageLoop();
-        angle::Sleep(10);
     }
 
     mVisible = isVisible;
@@ -764,6 +809,16 @@ void X11Window::processEvent(const XEvent &xEvent)
             }
             break;
     }
+}
+
+OSWindow *CreateX11Window()
+{
+    return new X11Window();
+}
+
+OSWindow *CreateX11WindowWithVisualId(int visualId)
+{
+    return new X11Window(visualId);
 }
 
 bool IsX11WindowAvailable()

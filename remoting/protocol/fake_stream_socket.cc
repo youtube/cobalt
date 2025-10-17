@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/protocol/fake_stream_socket.h"
 
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -78,7 +84,7 @@ int FakeStreamSocket::Read(const scoped_refptr<net::IOBuffer>& buf,
     input_pos_ += result;
     return result;
   } else if (next_read_error_.has_value()) {
-    int r = next_read_error_.value();
+    int r = *next_read_error_;
     next_read_error_.reset();
     return r;
   } else {
@@ -197,7 +203,7 @@ void FakeStreamChannelFactory::NotifyChannelCreated(
     std::unique_ptr<FakeStreamSocket> owned_channel,
     const std::string& name,
     ChannelCreatedCallback callback) {
-  if (channels_.find(name) != channels_.end()) {
+  if (base::Contains(channels_, name)) {
     std::move(callback).Run(std::move(owned_channel));
   }
 }

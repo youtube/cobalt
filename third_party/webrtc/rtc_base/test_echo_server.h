@@ -21,12 +21,13 @@
 #include "absl/memory/memory.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/async_tcp_socket.h"
+#include "rtc_base/network/received_packet.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 
-namespace rtc {
+namespace webrtc {
 
 // A test echo server, echoes back any packets sent to it.
 // Useful for unit tests.
@@ -45,19 +46,18 @@ class TestEchoServer : public sigslot::has_slots<> {
     Socket* raw_socket = socket->Accept(nullptr);
     if (raw_socket) {
       AsyncTCPSocket* packet_socket = new AsyncTCPSocket(raw_socket);
-      packet_socket->SignalReadPacket.connect(this, &TestEchoServer::OnPacket);
-      packet_socket->SubscribeClose(
+      packet_socket->RegisterReceivedPacketCallback(
+          [&](AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
+            OnPacket(socket, packet);
+          });
+      packet_socket->SubscribeCloseEvent(
           this, [this](AsyncPacketSocket* s, int err) { OnClose(s, err); });
       client_sockets_.push_back(packet_socket);
     }
   }
-  void OnPacket(AsyncPacketSocket* socket,
-                const char* buf,
-                size_t size,
-                const SocketAddress& remote_addr,
-                const int64_t& /* packet_time_us */) {
-    rtc::PacketOptions options;
-    socket->Send(buf, size, options);
+  void OnPacket(AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
+    AsyncSocketPacketOptions options;
+    socket->Send(packet.payload().data(), packet.payload().size(), options);
   }
   void OnClose(AsyncPacketSocket* socket, int err) {
     ClientList::iterator it = absl::c_find(client_sockets_, socket);
@@ -72,6 +72,14 @@ class TestEchoServer : public sigslot::has_slots<> {
   ClientList client_sockets_;
 };
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace rtc {
+using ::webrtc::TestEchoServer;
 }  // namespace rtc
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_TEST_ECHO_SERVER_H_

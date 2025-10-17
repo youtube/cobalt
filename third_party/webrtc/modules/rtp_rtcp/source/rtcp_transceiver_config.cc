@@ -10,6 +10,8 @@
 
 #include "modules/rtp_rtcp/source/rtcp_transceiver_config.h"
 
+#include "api/rtp_headers.h"
+#include "api/units/time_delta.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "rtc_base/logging.h"
 
@@ -44,10 +46,6 @@ bool RtcpTransceiverConfig::Validate() const {
   }
   if (clock == nullptr) {
     RTC_LOG(LS_ERROR) << debug_id << "clock must be set";
-    return false;
-  }
-  if (!outgoing_transport) {
-    RTC_LOG(LS_ERROR) << debug_id << "outgoing transport must be set";
     return false;
   }
   if (initial_report_delay < TimeDelta::Zero()) {

@@ -19,6 +19,10 @@ enum {
   kAndroidPropertyDescriptor,
 #endif
 
+  kHistogramSharedMemoryDescriptor,
+  kTraceConfigSharedMemoryDescriptor,
+  kTraceOutputSharedMemoryDescriptor,
+
   // Reserves 100 to 199 for dynamically generated IDs.
   kContentDynamicDescriptorStart = 100,
   kContentDynamicDescriptorMax = 199,

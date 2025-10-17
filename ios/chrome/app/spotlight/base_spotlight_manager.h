@@ -1,69 +1,50 @@
-// Copyright 2015 The Chromium Authors
+// Copyright 2023 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef IOS_CHROME_APP_SPOTLIGHT_BASE_SPOTLIGHT_MANAGER_H_
 #define IOS_CHROME_APP_SPOTLIGHT_BASE_SPOTLIGHT_MANAGER_H_
 
-#import <CoreSpotlight/CoreSpotlight.h>
-#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
 
-#include "ios/chrome/app/spotlight/spotlight_util.h"
-
-class GURL;
 @class SpotlightInterface;
+@class SearchableItemFactory;
 
-namespace favicon {
-class LargeIconService;
-}
-
+// Base class for all of the spotlight managers.
+// It takes care of the cleanup at shutdown.
 @interface BaseSpotlightManager : NSObject
 
-- (instancetype)initWithLargeIconService:
-                    (favicon::LargeIconService*)largeIconService
-                                  domain:(spotlight::Domain)domain
-                      spotlightInterface:(SpotlightInterface*)spotlightInterface
-    NS_DESIGNATED_INITIALIZER;
-
 - (instancetype)init NS_UNAVAILABLE;
+
+- (instancetype)
+    initWithSpotlightInterface:(SpotlightInterface*)spotlightInterface
+         searchableItemFactory:(SearchableItemFactory*)searchableItemFactory
+    NS_DESIGNATED_INITIALIZER;
 
 /// Facade interface for the spotlight API.
 @property(nonatomic, readonly) SpotlightInterface* spotlightInterface;
 
-// Refreshes all items that point to `URLToRefresh`, using title `title`, by
-// calling spotlightItemsWithURL on given URL. The values of `title` and `URL`
-// will be passed to spotlightItemsWithURL.
-- (void)refreshItemsWithURL:(const GURL&)URLToRefresh title:(NSString*)title;
+/// A searchable item factory to create searchable items.
+@property(nonatomic, readonly) SearchableItemFactory* searchableItemFactory;
 
-// Creates a spotlight item with `itemID`, using the `attributeSet`.
-- (CSSearchableItem*)spotlightItemWithItemID:(NSString*)itemID
-                                attributeSet:
-                                    (CSSearchableItemAttributeSet*)attributeSet;
+/// Set at shutdown. Will not continue indexing when set.
+@property(nonatomic, readonly) BOOL isShuttingDown;
 
-// Creates spotlight items in the class's domain for `URL`,
-// using `favicon` and `defaultTitle`
-// Base implementation creates a single item directly using provided arguments
-// and expects a non-nil title.
-- (NSArray*)spotlightItemsWithURL:(const GURL&)URL
-                          favicon:(UIImage*)favicon
-                     defaultTitle:(NSString*)defaultTitle;
+/// Tracks the app background state.
+/// Processing data (e.g. accessing databases, like Spotlight) in background is
+/// risky and may cause background watchdog kills etc.
+@property(nonatomic, assign) BOOL isAppInBackground;
 
-// Removes all items in the current manager's domain from the Spotlight
-// index, then calls `callback` on completion
-- (void)clearAllSpotlightItems:(BlockWithError)callback;
-
-// Cancel all large icon pending tasks.
-- (void)cancelAllLargeIconPendingTasks;
-
-// Returns the spotlight ID for an item indexing `URL` and `title`.
-- (NSString*)spotlightIDForURL:(const GURL&)URL title:(NSString*)title;
-
-// Returns the number of pending large icon query tasks
-- (NSUInteger)pendingLargeIconTasksCount;
-
-// Called before the instance is deallocated. This method should be overridden
-// by the subclasses and de-activate the instance.
+/// Called before the instance is deallocated.
 - (void)shutdown NS_REQUIRES_SUPER;
+
+// Do not call this method. Can be overridden in subclasses.
+// Called on UIApplicationDidEnterBackgroundNotification.
+- (void)appDidEnterBackground NS_REQUIRES_SUPER;
+
+// Do not call this method. Can be overridden in subclasses.
+// Called on UIApplicationWillEnterForegroundNotification.
+- (void)appWillEnterForeground NS_REQUIRES_SUPER;
 
 @end
 

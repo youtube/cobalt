@@ -6,57 +6,96 @@
 
 #include <memory>
 
+#include "base/location.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
+#include "third_party/blink/public/platform/task_type.h"
+#include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_computed_effect_timing.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_optional_effect_timing.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_cssnumericvalue_string_unrestricteddouble.h"
 #include "third_party/blink/renderer/core/animation/animation.h"
 #include "third_party/blink/renderer/core/animation/animation_effect.h"
 #include "third_party/blink/renderer/core/animation/css/css_animation.h"
 #include "third_party/blink/renderer/core/animation/css/css_animations.h"
 #include "third_party/blink/renderer/core/animation/css/css_transition.h"
+#include "third_party/blink/renderer/core/animation/document_animations.h"
 #include "third_party/blink/renderer/core/animation/document_timeline.h"
 #include "third_party/blink/renderer/core/animation/effect_model.h"
 #include "third_party/blink/renderer/core/animation/element_animations.h"
-#include "third_party/blink/renderer/core/animation/keyframe_effect.h"
-#include "third_party/blink/renderer/core/animation/keyframe_effect_model.h"
+#include "third_party/blink/renderer/core/animation/scroll_snapshot_timeline.h"
 #include "third_party/blink/renderer/core/animation/string_keyframe.h"
+#include "third_party/blink/renderer/core/animation/view_timeline.h"
 #include "third_party/blink/renderer/core/css/css_keyframe_rule.h"
 #include "third_party/blink/renderer/core/css/css_keyframes_rule.h"
+#include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/css_rule_list.h"
 #include "third_party/blink/renderer/core/css/css_style_rule.h"
+#include "third_party/blink/renderer/core/css/cssom/css_unit_value.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
+#include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/inspector/identifiers_factory.h"
 #include "third_party/blink/renderer/core/inspector/inspected_frames.h"
 #include "third_party/blink/renderer/core/inspector/inspector_css_agent.h"
 #include "third_party/blink/renderer/core/inspector/inspector_style_sheet.h"
+#include "third_party/blink/renderer/core/inspector/protocol/animation.h"
 #include "third_party/blink/renderer/core/inspector/v8_inspector_string.h"
 #include "third_party/blink/renderer/platform/animation/timing_function.h"
 #include "third_party/blink/renderer/platform/crypto.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
+#include "third_party/blink/renderer/platform/wtf/hash_traits.h"
 #include "third_party/blink/renderer/platform/wtf/text/base64.h"
+#include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
 namespace blink {
 
 namespace {
+
+protocol::DOM::ScrollOrientation ToScrollOrientation(
+    ScrollSnapshotTimeline::ScrollAxis scroll_axis_enum,
+    bool is_horizontal_writing_mode) {
+  switch (scroll_axis_enum) {
+    case ScrollSnapshotTimeline::ScrollAxis::kBlock:
+      return is_horizontal_writing_mode
+                 ? protocol::DOM::ScrollOrientationEnum::Vertical
+                 : protocol::DOM::ScrollOrientationEnum::Horizontal;
+    case ScrollSnapshotTimeline::ScrollAxis::kInline:
+      return is_horizontal_writing_mode
+                 ? protocol::DOM::ScrollOrientationEnum::Horizontal
+                 : protocol::DOM::ScrollOrientationEnum::Vertical;
+    case ScrollSnapshotTimeline::ScrollAxis::kX:
+      return protocol::DOM::ScrollOrientationEnum::Horizontal;
+    case ScrollSnapshotTimeline::ScrollAxis::kY:
+      return protocol::DOM::ScrollOrientationEnum::Vertical;
+  }
+}
+
+double NormalizedDuration(
+    V8UnionCSSNumericValueOrStringOrUnrestrictedDouble* duration) {
+  if (duration->IsUnrestrictedDouble()) {
+    return duration->GetAsUnrestrictedDouble();
+  }
+
+  if (duration->IsCSSNumericValue()) {
+    CSSUnitValue* percentage_unit_value = duration->GetAsCSSNumericValue()->to(
+        CSSPrimitiveValue::UnitType::kPercentage);
+    if (percentage_unit_value) {
+      return percentage_unit_value->value();
+    }
+  }
+  return 0;
+}
 
 double AsDoubleOrZero(Timing::V8Delay* value) {
   if (!value->IsDouble())
     return 0;
 
   return value->GetAsDouble();
-}
-
-String AnimationDisplayName(const Animation& animation) {
-  if (!animation.id().empty())
-    return animation.id();
-  else if (auto* css_animation = DynamicTo<CSSAnimation>(animation))
-    return css_animation->animationName();
-  else if (auto* css_transition = DynamicTo<CSSTransition>(animation))
-    return css_transition->transitionProperty();
-  else
-    return animation.id();
 }
 
 }  // namespace
@@ -74,6 +113,19 @@ InspectorAnimationAgent::InspectorAnimationAgent(
   DCHECK(css_agent);
 }
 
+String InspectorAnimationAgent::AnimationDisplayName(
+    const Animation& animation) {
+  if (!animation.id().empty()) {
+    return animation.id();
+  } else if (auto* css_animation = DynamicTo<CSSAnimation>(animation)) {
+    return css_animation->animationName();
+  } else if (auto* css_transition = DynamicTo<CSSTransition>(animation)) {
+    return css_transition->transitionProperty();
+  } else {
+    return "";
+  }
+}
+
 void InspectorAnimationAgent::Restore() {
   if (enabled_.Get()) {
     instrumenting_agents_->AddInspectorAnimationAgent(this);
@@ -81,31 +133,112 @@ void InspectorAnimationAgent::Restore() {
   }
 }
 
+void InspectorAnimationAgent::InvalidateInternalState() {
+  id_to_animation_snapshot_.clear();
+  id_to_animation_.clear();
+  cleared_animations_.clear();
+  notify_animation_updated_tasks_.clear();
+}
+
 protocol::Response InspectorAnimationAgent::enable() {
   enabled_.Set(true);
   instrumenting_agents_->AddInspectorAnimationAgent(this);
+
+  if (inspected_frames_->Root()->IsProvisional()) {
+    // Running getAnimations on a document attached to a provisional frame can
+    // cause a crash: crbug.com/40670727
+    return protocol::Response::Success();
+  }
+
+  Document* document = inspected_frames_->Root()->GetDocument();
+  DocumentAnimations& document_animations = document->GetDocumentAnimations();
+  HeapVector<Member<Animation>> animations =
+      document_animations.getAnimations(document->GetTreeScope());
+  for (Animation* animation : animations) {
+    const String& animation_id = String::Number(animation->SequenceNumber());
+    V8AnimationPlayState::Enum play_state =
+        animation->CalculateAnimationPlayState();
+    bool is_play_state_running_or_finished =
+        play_state == V8AnimationPlayState::Enum::kRunning ||
+        play_state == V8AnimationPlayState::Enum::kFinished;
+    if (!is_play_state_running_or_finished ||
+        cleared_animations_.Contains(animation_id) ||
+        id_to_animation_.Contains(animation_id)) {
+      continue;
+    }
+
+    AnimationSnapshot* snapshot;
+    if (id_to_animation_snapshot_.Contains(animation_id)) {
+      snapshot = id_to_animation_snapshot_.at(animation_id);
+    } else {
+      snapshot = MakeGarbageCollected<AnimationSnapshot>();
+      id_to_animation_snapshot_.Set(animation_id, snapshot);
+    }
+
+    this->CompareAndUpdateInternalSnapshot(*animation, snapshot);
+    id_to_animation_.Set(animation_id, animation);
+    GetFrontend()->animationCreated(animation_id);
+    GetFrontend()->animationStarted(BuildObjectForAnimation(*animation));
+  }
+
   return protocol::Response::Success();
 }
 
 protocol::Response InspectorAnimationAgent::disable() {
   setPlaybackRate(1.0);
-  for (const auto& clone : id_to_animation_clone_.Values())
-    clone->cancel();
   enabled_.Clear();
   instrumenting_agents_->RemoveInspectorAnimationAgent(this);
-  id_to_animation_.clear();
-  id_to_animation_clone_.clear();
-  cleared_animations_.clear();
+  InvalidateInternalState();
   return protocol::Response::Success();
 }
 
 void InspectorAnimationAgent::DidCommitLoadForLocalFrame(LocalFrame* frame) {
   if (frame == inspected_frames_->Root()) {
-    id_to_animation_.clear();
-    id_to_animation_clone_.clear();
-    cleared_animations_.clear();
+    InvalidateInternalState();
   }
   setPlaybackRate(playback_rate_.Get());
+}
+
+static std::unique_ptr<protocol::Animation::ViewOrScrollTimeline>
+BuildObjectForViewOrScrollTimeline(AnimationTimeline* timeline) {
+  ScrollSnapshotTimeline* scroll_snapshot_timeline =
+      DynamicTo<ScrollSnapshotTimeline>(timeline);
+  if (scroll_snapshot_timeline) {
+    Node* resolved_source = scroll_snapshot_timeline->ResolvedSource();
+    if (!resolved_source) {
+      return nullptr;
+    }
+
+    LayoutBox* scroll_container = scroll_snapshot_timeline->ScrollContainer();
+    if (!scroll_container) {
+      return nullptr;
+    }
+
+    std::unique_ptr<protocol::Animation::ViewOrScrollTimeline> timeline_object =
+        protocol::Animation::ViewOrScrollTimeline::create()
+            .setSourceNodeId(IdentifiersFactory::IntIdForNode(resolved_source))
+            .setAxis(ToScrollOrientation(
+                scroll_snapshot_timeline->GetAxis(),
+                scroll_container->IsHorizontalWritingMode()))
+            .build();
+    std::optional<ScrollSnapshotTimeline::ScrollOffsets> scroll_offsets =
+        scroll_snapshot_timeline->GetResolvedScrollOffsets();
+    if (scroll_offsets.has_value()) {
+      timeline_object->setStartOffset(scroll_offsets->start);
+      timeline_object->setEndOffset(scroll_offsets->end);
+    }
+
+    ViewTimeline* view_timeline =
+        DynamicTo<ViewTimeline>(scroll_snapshot_timeline);
+    if (view_timeline && view_timeline->subject()) {
+      timeline_object->setSubjectNodeId(
+          IdentifiersFactory::IntIdForNode(view_timeline->subject()));
+    }
+
+    return timeline_object;
+  }
+
+  return nullptr;
 }
 
 static std::unique_ptr<protocol::Animation::AnimationEffect>
@@ -113,7 +246,6 @@ BuildObjectForAnimationEffect(KeyframeEffect* effect) {
   ComputedEffectTiming* computed_timing = effect->getComputedTiming();
   double delay = AsDoubleOrZero(computed_timing->delay());
   double end_delay = AsDoubleOrZero(computed_timing->endDelay());
-  double duration = computed_timing->duration()->GetAsUnrestrictedDouble();
   String easing = effect->SpecifiedTiming().timing_function->ToString();
 
   std::unique_ptr<protocol::Animation::AnimationEffect> animation_object =
@@ -122,9 +254,9 @@ BuildObjectForAnimationEffect(KeyframeEffect* effect) {
           .setEndDelay(end_delay)
           .setIterationStart(computed_timing->iterationStart())
           .setIterations(computed_timing->iterations())
-          .setDuration(duration)
-          .setDirection(computed_timing->direction())
-          .setFill(computed_timing->fill())
+          .setDuration(NormalizedDuration(computed_timing->duration()))
+          .setDirection(computed_timing->direction().AsString())
+          .setFill(computed_timing->fill().AsString())
           .setEasing(easing)
           .build();
   if (effect->EffectTarget()) {
@@ -193,10 +325,8 @@ InspectorAnimationAgent::BuildObjectForAnimation(blink::Animation& animation) {
   }
 
   String id = String::Number(animation.SequenceNumber());
-  id_to_animation_.Set(id, &animation);
-
   double current_time = Timing::NullValue();
-  absl::optional<AnimationTimeDelta> animation_current_time =
+  std::optional<AnimationTimeDelta> animation_current_time =
       animation.CurrentTimeInternal();
   if (animation_current_time) {
     current_time = animation_current_time.value().InMillisecondsF();
@@ -207,7 +337,9 @@ InspectorAnimationAgent::BuildObjectForAnimation(blink::Animation& animation) {
           .setId(id)
           .setName(AnimationDisplayName(animation))
           .setPausedState(animation.Paused())
-          .setPlayState(animation.PlayStateString())
+          .setPlayState(
+              V8AnimationPlayState(animation.CalculateAnimationPlayState())
+                  .AsString())
           .setPlaybackRate(animation.playbackRate())
           .setStartTime(NormalizedStartTime(animation))
           .setCurrentTime(current_time)
@@ -217,6 +349,14 @@ InspectorAnimationAgent::BuildObjectForAnimation(blink::Animation& animation) {
     animation_object->setCssId(CreateCSSId(animation));
   if (animation_effect_object)
     animation_object->setSource(std::move(animation_effect_object));
+
+  std::unique_ptr<protocol::Animation::ViewOrScrollTimeline>
+      view_or_scroll_timeline =
+          BuildObjectForViewOrScrollTimeline(animation.TimelineInternal());
+  if (view_or_scroll_timeline) {
+    animation_object->setViewOrScrollTimeline(
+        std::move(view_or_scroll_timeline));
+  }
   return animation_object;
 }
 
@@ -242,24 +382,20 @@ protocol::Response InspectorAnimationAgent::getCurrentTime(
   if (!response.IsSuccess())
     return response;
 
-  auto it = id_to_animation_clone_.find(id);
-  if (it != id_to_animation_clone_.end())
-    animation = it->value;
-
   *current_time = Timing::NullValue();
-  if (animation->Paused() || !animation->timeline()->IsActive()) {
-    absl::optional<AnimationTimeDelta> animation_current_time =
+  if (animation->Paused() || !animation->TimelineInternal()->IsActive()) {
+    std::optional<AnimationTimeDelta> animation_current_time =
         animation->CurrentTimeInternal();
     if (animation_current_time) {
       *current_time = animation_current_time.value().InMillisecondsF();
     }
   } else {
     // Use startTime where possible since currentTime is limited.
-    absl::optional<AnimationTimeDelta> animation_start_time =
+    std::optional<AnimationTimeDelta> animation_start_time =
         animation->StartTimeInternal();
     if (animation_start_time) {
-      absl::optional<AnimationTimeDelta> timeline_time =
-          animation->timeline()->CurrentTime();
+      std::optional<AnimationTimeDelta> timeline_time =
+          animation->TimelineInternal()->CurrentTime();
       // TODO(crbug.com/916117): Handle NaN values for scroll linked animations.
       if (timeline_time) {
         *current_time = timeline_time.value().InMillisecondsF() -
@@ -278,81 +414,33 @@ protocol::Response InspectorAnimationAgent::setPaused(
     protocol::Response response = AssertAnimation(animation_id, animation);
     if (!response.IsSuccess())
       return response;
-    blink::Animation* clone = AnimationClone(animation);
-    if (!clone) {
-      return protocol::Response::ServerError(
-          "Failed to clone detached animation");
-    }
-    if (paused && !clone->Paused()) {
+    if (paused && !animation->Paused()) {
       // Ensure we restore a current time if the animation is limited.
-      absl::optional<AnimationTimeDelta> current_time;
-      if (!clone->timeline()->IsActive()) {
-        current_time = clone->CurrentTimeInternal();
+      std::optional<AnimationTimeDelta> current_time;
+      if (!animation->TimelineInternal()->IsActive()) {
+        current_time = animation->CurrentTimeInternal();
       } else {
-        absl::optional<AnimationTimeDelta> start_time =
-            clone->StartTimeInternal();
+        std::optional<AnimationTimeDelta> start_time =
+            animation->StartTimeInternal();
         if (start_time) {
-          absl::optional<AnimationTimeDelta> timeline_time =
-              clone->timeline()->CurrentTime();
+          std::optional<AnimationTimeDelta> timeline_time =
+              animation->TimelineInternal()->CurrentTime();
           // TODO(crbug.com/916117): Handle NaN values.
           if (timeline_time) {
             current_time = timeline_time.value() - start_time.value();
           }
         }
       }
-      clone->pause();
-      clone->SetCurrentTimeInternal(current_time.value());
-    } else if (!paused && clone->Paused()) {
-      clone->Unpause();
+
+      animation->pause();
+      if (current_time) {
+        animation->SetCurrentTimeInternal(current_time.value());
+      }
+    } else if (!paused && animation->Paused()) {
+      animation->Unpause();
     }
   }
   return protocol::Response::Success();
-}
-
-blink::Animation* InspectorAnimationAgent::AnimationClone(
-    blink::Animation* animation) {
-  const String id = String::Number(animation->SequenceNumber());
-  auto it = id_to_animation_clone_.find(id);
-  if (it != id_to_animation_clone_.end())
-    return it->value;
-
-  auto* old_effect = To<KeyframeEffect>(animation->effect());
-  DCHECK(old_effect->Model()->IsKeyframeEffectModel());
-  KeyframeEffectModelBase* old_model = old_effect->Model();
-  KeyframeEffectModelBase* new_model = nullptr;
-  // Clone EffectModel.
-  // TODO(samli): Determine if this is an animations bug.
-  if (old_model->IsStringKeyframeEffectModel()) {
-    auto* old_string_keyframe_model = To<StringKeyframeEffectModel>(old_model);
-    KeyframeVector old_keyframes = old_string_keyframe_model->GetFrames();
-    StringKeyframeVector new_keyframes;
-    for (auto& old_keyframe : old_keyframes)
-      new_keyframes.push_back(To<StringKeyframe>(*old_keyframe));
-    new_model = MakeGarbageCollected<StringKeyframeEffectModel>(new_keyframes);
-  } else if (old_model->IsTransitionKeyframeEffectModel()) {
-    auto* old_transition_keyframe_model =
-        To<TransitionKeyframeEffectModel>(old_model);
-    KeyframeVector old_keyframes = old_transition_keyframe_model->GetFrames();
-    TransitionKeyframeVector new_keyframes;
-    for (auto& old_keyframe : old_keyframes)
-      new_keyframes.push_back(To<TransitionKeyframe>(*old_keyframe));
-    new_model =
-        MakeGarbageCollected<TransitionKeyframeEffectModel>(new_keyframes);
-  }
-
-  auto* new_effect = MakeGarbageCollected<KeyframeEffect>(
-      old_effect->EffectTarget(), new_model, old_effect->SpecifiedTiming());
-  is_cloning_ = true;
-  blink::Animation* clone =
-      blink::Animation::Create(new_effect, animation->timeline());
-  is_cloning_ = false;
-  id_to_animation_clone_.Set(id, clone);
-  id_to_animation_.Set(String::Number(clone->SequenceNumber()), clone);
-  clone->play();
-  clone->setStartTime(animation->startTime(), ASSERT_NO_EXCEPTION);
-
-  animation->SetEffectSuppressed(true);
-  return clone;
 }
 
 protocol::Response InspectorAnimationAgent::seekAnimations(
@@ -363,14 +451,10 @@ protocol::Response InspectorAnimationAgent::seekAnimations(
     protocol::Response response = AssertAnimation(animation_id, animation);
     if (!response.IsSuccess())
       return response;
-    blink::Animation* clone = AnimationClone(animation);
-    if (!clone) {
-      return protocol::Response::ServerError(
-          "Failed to clone a detached animation.");
+    if (!animation->Paused()) {
+      animation->play();
     }
-    if (!clone->Paused())
-      clone->play();
-    clone->SetCurrentTimeInternal(
+    animation->SetCurrentTimeInternal(
         ANIMATION_TIME_DELTA_FROM_MILLISECONDS(current_time));
   }
   return protocol::Response::Success();
@@ -383,13 +467,10 @@ protocol::Response InspectorAnimationAgent::releaseAnimations(
     if (it != id_to_animation_.end())
       it->value->SetEffectSuppressed(false);
 
-    it = id_to_animation_clone_.find(animation_id);
-    if (it != id_to_animation_clone_.end())
-      it->value->cancel();
-
-    id_to_animation_clone_.erase(animation_id);
     id_to_animation_.erase(animation_id);
     cleared_animations_.insert(animation_id);
+    id_to_animation_snapshot_.erase(animation_id);
+    notify_animation_updated_tasks_.erase(animation_id);
   }
   return protocol::Response::Success();
 }
@@ -403,7 +484,6 @@ protocol::Response InspectorAnimationAgent::setTiming(
   if (!response.IsSuccess())
     return response;
 
-  animation = AnimationClone(animation);
   NonThrowableExceptionState exception_state;
 
   OptionalEffectTiming* timing = OptionalEffectTiming::Create();
@@ -424,10 +504,6 @@ protocol::Response InspectorAnimationAgent::resolveAnimation(
   if (!response.IsSuccess())
     return response;
 
-  auto it = id_to_animation_clone_.find(animation_id);
-  if (it != id_to_animation_clone_.end())
-    animation = it->value;
-
   const Element* element =
       To<KeyframeEffect>(animation->effect())->EffectTarget();
   Document* document = element->ownerDocument();
@@ -444,8 +520,7 @@ protocol::Response InspectorAnimationAgent::resolveAnimation(
       ToV8InspectorStringView(kAnimationObjectGroup));
   *result = v8_session_->wrapObject(
       script_state->GetContext(),
-      ToV8(animation, script_state->GetContext()->Global(),
-           script_state->GetIsolate()),
+      ToV8Traits<Animation>::ToV8(script_state, animation),
       ToV8InspectorStringView(kAnimationObjectGroup),
       false /* generatePreview */);
   if (!*result) {
@@ -457,8 +532,7 @@ protocol::Response InspectorAnimationAgent::resolveAnimation(
 
 String InspectorAnimationAgent::CreateCSSId(blink::Animation& animation) {
   static CSSPropertyID g_animation_properties[] = {
-      CSSPropertyID::kAnimationDelayStart,
-      CSSPropertyID::kAnimationDelayEnd,
+      CSSPropertyID::kAnimationDelay,
       CSSPropertyID::kAnimationDirection,
       CSSPropertyID::kAnimationDuration,
       CSSPropertyID::kAnimationFillMode,
@@ -508,7 +582,7 @@ String InspectorAnimationAgent::CreateCSSId(blink::Animation& animation) {
   DigestValue digest_result;
   digestor.Finish(digest_result);
   DCHECK(!digestor.has_failed());
-  return Base64Encode(base::make_span(digest_result).first<10>());
+  return Base64Encode(base::span(digest_result).first<10>());
 }
 
 void InspectorAnimationAgent::DidCreateAnimation(unsigned sequence_number) {
@@ -517,25 +591,250 @@ void InspectorAnimationAgent::DidCreateAnimation(unsigned sequence_number) {
   GetFrontend()->animationCreated(String::Number(sequence_number));
 }
 
-void InspectorAnimationAgent::AnimationPlayStateChanged(
-    blink::Animation* animation,
-    blink::Animation::AnimationPlayState old_play_state,
-    blink::Animation::AnimationPlayState new_play_state) {
-  const String& animation_id = String::Number(animation->SequenceNumber());
-
-  // We no longer care about animations that have been released.
-  if (cleared_animations_.Contains(animation_id))
+void InspectorAnimationAgent::NotifyAnimationUpdated(
+    const String& animation_id) {
+  if (!notify_animation_updated_tasks_.Contains(animation_id)) {
     return;
+  }
 
-  // Record newly starting animations only once, as |buildObjectForAnimation|
-  // constructs and caches our internal representation of the given |animation|.
-  if ((new_play_state == blink::Animation::kRunning ||
-       new_play_state == blink::Animation::kFinished) &&
-      !id_to_animation_.Contains(animation_id))
-    GetFrontend()->animationStarted(BuildObjectForAnimation(*animation));
-  else if (new_play_state == blink::Animation::kIdle ||
-           new_play_state == blink::Animation::kPaused)
-    GetFrontend()->animationCanceled(animation_id);
+  notify_animation_updated_tasks_.erase(animation_id);
+  if (!id_to_animation_.Contains(animation_id)) {
+    return;
+  }
+
+  blink::Animation* animation = id_to_animation_.at(animation_id);
+  if (!animation) {
+    return;
+  }
+
+  V8AnimationPlayState::Enum play_state =
+      animation->CalculateAnimationPlayState();
+  if (play_state != V8AnimationPlayState::Enum::kRunning &&
+      play_state != V8AnimationPlayState::Enum::kFinished) {
+    return;
+  }
+
+  GetFrontend()->animationUpdated(BuildObjectForAnimation(*animation));
+}
+
+bool InspectorAnimationAgent::CompareAndUpdateKeyframesSnapshot(
+    KeyframeEffect* keyframe_effect,
+    HeapVector<Member<AnimationKeyframeSnapshot>>*
+        animation_snapshot_keyframes) {
+  bool should_notify_frontend = false;
+  const KeyframeEffectModelBase* model = keyframe_effect->Model();
+  Vector<double> computed_offsets =
+      KeyframeEffectModelBase::GetComputedOffsets(model->GetFrames());
+  if (model->GetFrames().size() != animation_snapshot_keyframes->size()) {
+    // Notify frontend if there were previous keyframe snapshots and the
+    // size has changed. Otherwise we don't notify frontend as it means
+    // this is the first initialization of the `animation_snapshot_keyframes`
+    // vector.
+    if (animation_snapshot_keyframes->size() != 0) {
+      should_notify_frontend = true;
+    }
+
+    for (wtf_size_t i = 0; i < model->GetFrames().size(); i++) {
+      const Keyframe* keyframe = model->GetFrames().at(i);
+      if (!keyframe->IsStringKeyframe()) {
+        continue;
+      }
+
+      const auto* string_keyframe = To<StringKeyframe>(keyframe);
+      AnimationKeyframeSnapshot* keyframe_snapshot =
+          MakeGarbageCollected<AnimationKeyframeSnapshot>();
+      keyframe_snapshot->computed_offset = computed_offsets.at(i);
+      keyframe_snapshot->easing = string_keyframe->Easing().ToString();
+      animation_snapshot_keyframes->emplace_back(keyframe_snapshot);
+    }
+
+    return should_notify_frontend;
+  }
+
+  for (wtf_size_t i = 0; i < animation_snapshot_keyframes->size(); i++) {
+    AnimationKeyframeSnapshot* keyframe_snapshot =
+        animation_snapshot_keyframes->at(i);
+    const Keyframe* keyframe = model->GetFrames().at(i);
+    if (!keyframe->IsStringKeyframe()) {
+      continue;
+    }
+
+    const auto* string_keyframe = To<StringKeyframe>(keyframe);
+    if (keyframe_snapshot->computed_offset != computed_offsets.at(i)) {
+      keyframe_snapshot->computed_offset = computed_offsets.at(i);
+      should_notify_frontend = true;
+    }
+
+    if (keyframe_snapshot->easing != string_keyframe->Easing().ToString()) {
+      keyframe_snapshot->easing = string_keyframe->Easing().ToString();
+      should_notify_frontend = true;
+    }
+  }
+
+  return should_notify_frontend;
+}
+
+bool InspectorAnimationAgent::CompareAndUpdateInternalSnapshot(
+    blink::Animation& animation,
+    AnimationSnapshot* snapshot) {
+  V8AnimationPlayState::Enum new_play_state =
+      animation.PendingInternal() ? V8AnimationPlayState::Enum::kPending
+                                  : animation.CalculateAnimationPlayState();
+  bool should_notify_frontend = false;
+  double start_time = NormalizedStartTime(animation);
+  if (snapshot->start_time != start_time) {
+    snapshot->start_time = start_time;
+    should_notify_frontend = true;
+  }
+
+  if (snapshot->play_state != new_play_state) {
+    snapshot->play_state = new_play_state;
+    should_notify_frontend = true;
+  }
+
+  if (animation.effect()) {
+    ComputedEffectTiming* computed_timing =
+        animation.effect()->getComputedTiming();
+    if (computed_timing) {
+      double duration = NormalizedDuration(computed_timing->duration());
+      double delay = AsDoubleOrZero(computed_timing->delay());
+      double end_delay = AsDoubleOrZero(computed_timing->endDelay());
+      double iterations = computed_timing->iterations();
+      String easing = computed_timing->easing();
+      if (snapshot->duration != duration) {
+        snapshot->duration = duration;
+        should_notify_frontend = true;
+      }
+
+      if (snapshot->delay != delay) {
+        snapshot->delay = delay;
+        should_notify_frontend = true;
+      }
+
+      if (snapshot->end_delay != end_delay) {
+        snapshot->end_delay = end_delay;
+        should_notify_frontend = true;
+      }
+
+      if (snapshot->iterations != iterations) {
+        snapshot->iterations = iterations;
+        should_notify_frontend = true;
+      }
+
+      if (snapshot->timing_function != easing) {
+        snapshot->timing_function = easing;
+        should_notify_frontend = true;
+      }
+    }
+
+    if (KeyframeEffect* keyframe_effect =
+            DynamicTo<KeyframeEffect>(animation.effect())) {
+      if (CompareAndUpdateKeyframesSnapshot(keyframe_effect,
+                                            &snapshot->keyframes)) {
+        should_notify_frontend = true;
+      }
+    }
+  }
+
+  ScrollSnapshotTimeline* scroll_snapshot_timeline =
+      DynamicTo<ScrollSnapshotTimeline>(animation.TimelineInternal());
+  if (scroll_snapshot_timeline) {
+    std::optional<ScrollSnapshotTimeline::ScrollOffsets> scroll_offsets =
+        scroll_snapshot_timeline->GetResolvedScrollOffsets();
+    if (scroll_offsets.has_value()) {
+      if (scroll_offsets->start != snapshot->start_offset) {
+        snapshot->start_offset = scroll_offsets->start;
+        should_notify_frontend = true;
+      }
+
+      if (scroll_offsets->end != snapshot->end_offset) {
+        snapshot->end_offset = scroll_offsets->end;
+        should_notify_frontend = true;
+      }
+    }
+  }
+
+  return should_notify_frontend;
+}
+
+void InspectorAnimationAgent::AnimationUpdated(blink::Animation* animation) {
+  const String& animation_id = String::Number(animation->SequenceNumber());
+  // We no longer care about animations that have been released.
+  if (cleared_animations_.Contains(animation_id)) {
+    return;
+  }
+
+  // Initialize the animation snapshot to keep track of animation state changes
+  // on `AnimationUpdated` probe calls.
+  // * If a snapshot is found, it means there were previous calls to
+  // AnimationUpdated so, we retrieve the snapshot for comparison.
+  // * If a snapshot is not found, it means this is the animation's first call
+  // to AnimationUpdated so, we create a snapshot and store the play state for
+  // future comparisons.
+  AnimationSnapshot* snapshot;
+  V8AnimationPlayState::Enum new_play_state =
+      animation->PendingInternal() ? V8AnimationPlayState::Enum::kPending
+                                   : animation->CalculateAnimationPlayState();
+  V8AnimationPlayState::Enum old_play_state = V8AnimationPlayState::Enum::kIdle;
+  if (id_to_animation_snapshot_.Contains(animation_id)) {
+    snapshot = id_to_animation_snapshot_.at(animation_id);
+    old_play_state = snapshot->play_state;
+    snapshot->play_state = new_play_state;
+  } else {
+    snapshot = MakeGarbageCollected<AnimationSnapshot>();
+    snapshot->play_state = new_play_state;
+    id_to_animation_snapshot_.Set(animation_id, snapshot);
+  }
+
+  // Do not record pending animations in `id_to_animation_` and do not notify
+  // frontend.
+  if (new_play_state == V8AnimationPlayState::Enum::kPending) {
+    return;
+  }
+
+  // Record newly starting animations only once.
+  if (old_play_state != new_play_state) {
+    switch (new_play_state) {
+      case V8AnimationPlayState::Enum::kRunning:
+      case V8AnimationPlayState::Enum::kFinished: {
+        if (id_to_animation_.Contains(animation_id)) {
+          break;
+        }
+
+        this->CompareAndUpdateInternalSnapshot(*animation, snapshot);
+        id_to_animation_.Set(animation_id, animation);
+        GetFrontend()->animationStarted(BuildObjectForAnimation(*animation));
+        break;
+      }
+      case V8AnimationPlayState::Enum::kIdle:
+      case V8AnimationPlayState::Enum::kPaused:
+        GetFrontend()->animationCanceled(animation_id);
+        break;
+      case V8AnimationPlayState::Enum::kPending:
+        NOTREACHED();
+    }
+  }
+
+  // We only send animationUpdated events for running or finished animations.
+  if (new_play_state != V8AnimationPlayState::Enum::kRunning &&
+      new_play_state != V8AnimationPlayState::Enum::kFinished) {
+    return;
+  }
+
+  bool should_notify_frontend =
+      this->CompareAndUpdateInternalSnapshot(*animation, snapshot);
+  if (should_notify_frontend &&
+      !notify_animation_updated_tasks_.Contains(animation_id)) {
+    notify_animation_updated_tasks_.insert(animation_id);
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner =
+        inspected_frames_->Root()->GetTaskRunner(TaskType::kInternalInspector);
+    task_runner->PostDelayedTask(
+        FROM_HERE,
+        WTF::BindOnce(&InspectorAnimationAgent::NotifyAnimationUpdated,
+                      WrapPersistent(weak_factory_.GetWeakCell()),
+                      animation_id),
+        base::Milliseconds(50));
+  }
 }
 
 void InspectorAnimationAgent::DidClearDocumentOfWindowObject(
@@ -566,35 +865,47 @@ DocumentTimeline& InspectorAnimationAgent::ReferenceTimeline() {
 
 double InspectorAnimationAgent::NormalizedStartTime(
     blink::Animation& animation) {
-  double time_ms = Timing::NullValue();
-  absl::optional<AnimationTimeDelta> start_time = animation.StartTimeInternal();
-  if (start_time) {
-    time_ms = start_time.value().InMillisecondsF();
+  V8CSSNumberish* start_time = animation.startTime();
+  if (!start_time) {
+    return 0;
   }
 
-  auto* document_timeline = DynamicTo<DocumentTimeline>(animation.timeline());
-  if (document_timeline) {
-    if (ReferenceTimeline().PlaybackRate() == 0) {
-      time_ms += ReferenceTimeline().CurrentTimeMilliseconds().value_or(
-                     Timing::NullValue()) -
-                 document_timeline->CurrentTimeMilliseconds().value_or(
-                     Timing::NullValue());
-    } else {
-      time_ms +=
-          (document_timeline->ZeroTime() - ReferenceTimeline().ZeroTime())
-              .InMillisecondsF() *
-          ReferenceTimeline().PlaybackRate();
+  if (start_time->IsDouble()) {
+    double time_ms = start_time->GetAsDouble();
+    auto* document_timeline =
+        DynamicTo<DocumentTimeline>(animation.TimelineInternal());
+    if (document_timeline) {
+      if (ReferenceTimeline().PlaybackRate() == 0) {
+        time_ms += ReferenceTimeline().CurrentTimeMilliseconds().value_or(
+                       Timing::NullValue()) -
+                   document_timeline->CurrentTimeMilliseconds().value_or(
+                       Timing::NullValue());
+      } else {
+        time_ms +=
+            (document_timeline->ZeroTime() - ReferenceTimeline().ZeroTime())
+                .InMillisecondsF() *
+            ReferenceTimeline().PlaybackRate();
+      }
     }
+    // Round to the closest microsecond.
+    return std::round(time_ms * 1000) / 1000;
   }
-  // Round to the closest microsecond.
-  return std::round(time_ms * 1000) / 1000;
+
+  if (start_time->IsCSSNumericValue()) {
+    CSSUnitValue* percent_unit_value = start_time->GetAsCSSNumericValue()->to(
+        CSSPrimitiveValue::UnitType::kPercentage);
+    return percent_unit_value->value();
+  }
+
+  return 0;
 }
 
 void InspectorAnimationAgent::Trace(Visitor* visitor) const {
   visitor->Trace(inspected_frames_);
   visitor->Trace(css_agent_);
+  visitor->Trace(id_to_animation_snapshot_);
   visitor->Trace(id_to_animation_);
-  visitor->Trace(id_to_animation_clone_);
+  visitor->Trace(weak_factory_);
   InspectorBaseAgent::Trace(visitor);
 }
 

@@ -11,7 +11,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/observer_list_types.h"
 #include "chromeos/ash/components/dbus/rmad/rmad.pb.h"
-#include "chromeos/dbus/common/dbus_method_call_status.h"
+#include "chromeos/dbus/common/dbus_callback.h"
 
 namespace dbus {
 class Bus;
@@ -119,6 +119,22 @@ class COMPONENT_EXPORT(RMAD) RmadClient {
   virtual void RecordBrowserActionMetric(
       const rmad::RecordBrowserActionMetricRequest request,
       chromeos::DBusMethodCallback<rmad::RecordBrowserActionMetricReply>
+          callback) = 0;
+
+  // Extracts the diagnostics app from external sources.
+  virtual void ExtractExternalDiagnosticsApp(
+      chromeos::DBusMethodCallback<rmad::ExtractExternalDiagnosticsAppReply>
+          callback) = 0;
+
+  // Installs the diagnostics app extracted by last
+  // `ExtractExternalDiagnosticsApp` call.
+  virtual void InstallExtractedDiagnosticsApp(
+      chromeos::DBusMethodCallback<rmad::InstallExtractedDiagnosticsAppReply>
+          callback) = 0;
+
+  // Gets the installed diagnostics app.
+  virtual void GetInstalledDiagnosticsApp(
+      chromeos::DBusMethodCallback<rmad::GetInstalledDiagnosticsAppReply>
           callback) = 0;
 
   // Adds and removes the observer.

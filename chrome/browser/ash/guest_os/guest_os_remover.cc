@@ -7,6 +7,8 @@
 #include <string>
 #include <utility>
 
+#include "chrome/browser/ash/bruschetta/bruschetta_pref_names.h"
+#include "chrome/browser/ash/crostini/crostini_pref_names.h"
 #include "chrome/browser/ash/guest_os/guest_os_mime_types_service.h"
 #include "chrome/browser/ash/guest_os/guest_os_mime_types_service_factory.h"
 #include "chrome/browser/ash/guest_os/guest_os_registry_service.h"
@@ -15,6 +17,7 @@
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
 
 namespace guest_os {
@@ -42,7 +45,7 @@ void GuestOsRemover::RemoveVm() {
 }
 
 void GuestOsRemover::StopVmFinished(
-    absl::optional<vm_tools::concierge::StopVmResponse> response) {
+    std::optional<vm_tools::concierge::SuccessFailureResponse> response) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (!response) {
     LOG(ERROR) << "Failed to stop termina vm. Empty response.";
@@ -74,7 +77,7 @@ void GuestOsRemover::StopVmFinished(
 }
 
 void GuestOsRemover::DestroyDiskImageFinished(
-    absl::optional<vm_tools::concierge::DestroyDiskImageResponse> response) {
+    std::optional<vm_tools::concierge::DestroyDiskImageResponse> response) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (!response) {
     LOG(ERROR) << "Failed to destroy disk image. Empty response.";
@@ -88,6 +91,18 @@ void GuestOsRemover::DestroyDiskImageFinished(
                << response->failure_reason();
     std::move(callback_).Run(Result::kDestroyDiskImageFailed);
     return;
+  }
+
+  // Remove mic pref (maybe others too?)
+  switch (vm_type_) {
+    case VmType::TERMINA:
+      profile_->GetPrefs()->ClearPref(crostini::prefs::kCrostiniMicAllowed);
+      break;
+    case VmType::BRUSCHETTA:
+      profile_->GetPrefs()->ClearPref(bruschetta::prefs::kBruschettaMicAllowed);
+      break;
+    default:
+      break;
   }
 
   std::move(callback_).Run(Result::kSuccess);

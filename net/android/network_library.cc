@@ -7,9 +7,10 @@
 #include <dlfcn.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
@@ -18,8 +19,12 @@
 #include "base/native_library.h"
 #include "base/strings/string_split.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/threading/scoped_blocking_call.h"
+#include "net/base/features.h"
 #include "net/base/net_errors.h"
 #include "net/dns/public/dns_protocol.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "net/net_jni_headers/AndroidNetworkLibrary_jni.h"
 #include "net/net_jni_headers/DnsStatus_jni.h"
 
@@ -44,8 +49,10 @@ std::vector<std::string> GetUserAddedRoots() {
 }
 
 void VerifyX509CertChain(const std::vector<std::string>& cert_chain,
-                         base::StringPiece auth_type,
-                         base::StringPiece host,
+                         std::string_view auth_type,
+                         std::string_view host,
+                         std::string_view ocsp_response,
+                         std::string_view sct_list,
                          CertVerifyStatusAndroid* status,
                          bool* is_issued_by_known_root,
                          std::vector<std::string>* verified_chain) {
@@ -63,17 +70,33 @@ void VerifyX509CertChain(const std::vector<std::string>& cert_chain,
       ConvertUTF8ToJavaString(env, host);
   DCHECK(!host_string.is_null());
 
+  ScopedJavaLocalRef<jbyteArray> ocsp_response_byte;
+  ScopedJavaLocalRef<jbyteArray> sct_list_byte;
+  if (base::FeatureList::IsEnabled(
+          features::kUseCertTransparencyAwareApiForOsCertVerify)) {
+    // We also don't want to pass down an empty OCSP response or SCT list array
+    // because the platform cert verifier expects null when there's no OCSP
+    // response or SCT list.
+    if (!ocsp_response.empty()) {
+      ocsp_response_byte = ToJavaByteArray(env, ocsp_response);
+    }
+    if (!sct_list.empty()) {
+      sct_list_byte = ToJavaByteArray(env, sct_list);
+    }
+  }
+
   ScopedJavaLocalRef<jobject> result =
       Java_AndroidNetworkLibrary_verifyServerCertificates(
-          env, chain_byte_array, auth_string, host_string);
+          env, chain_byte_array, auth_string, host_string, ocsp_response_byte,
+          sct_list_byte);
 
   ExtractCertVerifyResult(result, status, is_issued_by_known_root,
                           verified_chain);
 }
 
-void AddTestRootCertificate(const uint8_t* cert, size_t len) {
+void AddTestRootCertificate(base::span<const uint8_t> cert) {
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jbyteArray> cert_array = ToJavaByteArray(env, cert, len);
+  ScopedJavaLocalRef<jbyteArray> cert_array = ToJavaByteArray(env, cert);
   DCHECK(!cert_array.is_null());
   Java_AndroidNetworkLibrary_addTestRootCertificate(env, cert_array);
 }
@@ -83,19 +106,20 @@ void ClearTestRootCertificates() {
   Java_AndroidNetworkLibrary_clearTestRootCertificates(env);
 }
 
-bool IsCleartextPermitted(const std::string& host) {
+bool IsCleartextPermitted(std::string_view host) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jstring> host_string = ConvertUTF8ToJavaString(env, host);
   return Java_AndroidNetworkLibrary_isCleartextPermitted(env, host_string);
 }
 
 bool HaveOnlyLoopbackAddresses() {
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::MAY_BLOCK);
   JNIEnv* env = AttachCurrentThread();
   return Java_AndroidNetworkLibrary_haveOnlyLoopbackAddresses(env);
 }
 
-bool GetMimeTypeFromExtension(const std::string& extension,
-                              std::string* result) {
+bool GetMimeTypeFromExtension(std::string_view extension, std::string* result) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> extension_string =
@@ -133,16 +157,16 @@ std::string GetWifiSSID() {
 }
 
 void SetWifiEnabledForTesting(bool enabled) {
-  Java_AndroidNetworkLibrary_setWifiEnabled(
+  Java_AndroidNetworkLibrary_setWifiEnabledForTesting(
       base::android::AttachCurrentThread(), enabled);
 }
 
-absl::optional<int32_t> GetWifiSignalLevel() {
+std::optional<int32_t> GetWifiSignalLevel() {
   const int count_buckets = 5;
   int signal_strength = Java_AndroidNetworkLibrary_getWifiSignalLevel(
       base::android::AttachCurrentThread(), count_buckets);
   if (signal_strength < 0)
-    return absl::nullopt;
+    return std::nullopt;
   DCHECK_LE(0, signal_strength);
   DCHECK_GE(count_buckets - 1, signal_strength);
 
@@ -162,7 +186,7 @@ bool GetDnsServersInternal(JNIEnv* env,
   base::android::JavaArrayOfByteArrayToBytesVector(
       env, Java_DnsStatus_getDnsServers(env, dns_status), &dns_servers_data);
   for (const std::vector<uint8_t>& dns_address_data : dns_servers_data) {
-    IPAddress dns_address(dns_address_data.data(), dns_address_data.size());
+    IPAddress dns_address(dns_address_data);
     IPEndPoint dns_server(dns_address, dns_protocol::kDefaultPort);
     dns_servers->push_back(dns_server);
   }
@@ -186,9 +210,6 @@ bool GetCurrentDnsServers(std::vector<IPEndPoint>* dns_servers,
                           bool* dns_over_tls_active,
                           std::string* dns_over_tls_hostname,
                           std::vector<std::string>* search_suffixes) {
-  DCHECK_GE(base::android::BuildInfo::GetInstance()->sdk_int(),
-            base::android::SDK_VERSION_MARSHMALLOW);
-
   JNIEnv* env = AttachCurrentThread();
   // Get the DNS status for the current default network.
   ScopedJavaLocalRef<jobject> result =
@@ -204,8 +225,8 @@ bool GetDnsServersForNetwork(std::vector<IPEndPoint>* dns_servers,
                              std::string* dns_over_tls_hostname,
                              std::vector<std::string>* search_suffixes,
                              handles::NetworkHandle network) {
-  DCHECK_GE(base::android::BuildInfo::GetInstance()->sdk_int(),
-            base::android::SDK_VERSION_P);
+  DCHECK_GE(base::android::android_info::sdk_int(),
+            base::android::android_info::SDK_VERSION_P);
 
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> result =
@@ -227,7 +248,6 @@ void TagSocket(SocketDescriptor socket, uid_t uid, int32_t tag) {
 
 namespace {
 
-using LollipopSetNetworkForSocket = int (*)(unsigned net_id, int socket_fd);
 using MarshmallowSetNetworkForSocket = int (*)(int64_t net_id, int socket_fd);
 
 MarshmallowSetNetworkForSocket GetMarshmallowSetNetworkForSocket() {
@@ -242,20 +262,6 @@ MarshmallowSetNetworkForSocket GetMarshmallowSetNetworkForSocket() {
       dlsym(dl, "android_setsocknetwork"));
 }
 
-LollipopSetNetworkForSocket GetLollipopSetNetworkForSocket() {
-  // On Android L use setNetworkForSocket from libnetd_client.so. Android's netd
-  // client library should always be loaded in our address space as it shims
-  // socket().
-  base::FilePath file(base::GetNativeLibraryName("netd_client"));
-  // Use RTLD_NOW to match Android's prior loading of the library:
-  // http://androidxref.com/6.0.0_r5/xref/bionic/libc/bionic/NetdClient.cpp#37
-  // Use RTLD_NOLOAD to assert that the library is already loaded and avoid
-  // doing any disk IO.
-  void* dl = dlopen(file.value().c_str(), RTLD_NOW | RTLD_NOLOAD);
-  return reinterpret_cast<LollipopSetNetworkForSocket>(
-      dlsym(dl, "setNetworkForSocket"));
-}
-
 }  // namespace
 
 int BindToNetwork(SocketDescriptor socket, handles::NetworkHandle network) {
@@ -263,28 +269,15 @@ int BindToNetwork(SocketDescriptor socket, handles::NetworkHandle network) {
   if (network == handles::kInvalidNetworkHandle)
     return ERR_INVALID_ARGUMENT;
 
-  // Android prior to Lollipop didn't have support for binding sockets to
-  // networks.
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_LOLLIPOP)
-    return ERR_NOT_IMPLEMENTED;
-
   int rv;
-  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
-      base::android::SDK_VERSION_MARSHMALLOW) {
-    static MarshmallowSetNetworkForSocket marshmallow_set_network_for_socket =
-        GetMarshmallowSetNetworkForSocket();
-    if (!marshmallow_set_network_for_socket)
-      return ERR_NOT_IMPLEMENTED;
-    rv = marshmallow_set_network_for_socket(network, socket);
-    if (rv)
-      rv = errno;
-  } else {
-    static LollipopSetNetworkForSocket lollipop_set_network_for_socket =
-        GetLollipopSetNetworkForSocket();
-    if (!lollipop_set_network_for_socket)
-      return ERR_NOT_IMPLEMENTED;
-    rv = -lollipop_set_network_for_socket(network, socket);
+  static MarshmallowSetNetworkForSocket marshmallow_set_network_for_socket =
+      GetMarshmallowSetNetworkForSocket();
+  if (!marshmallow_set_network_for_socket) {
+    return ERR_NOT_IMPLEMENTED;
+  }
+  rv = marshmallow_set_network_for_socket(network, socket);
+  if (rv) {
+    rv = errno;
   }
   // If |network| has since disconnected, |rv| will be ENONET.  Surface this as
   // ERR_NETWORK_CHANGED, rather than MapSystemError(ENONET) which gives back
@@ -325,11 +318,6 @@ NET_EXPORT_PRIVATE int GetAddrInfoForNetwork(handles::NetworkHandle network,
     errno = EINVAL;
     return EAI_SYSTEM;
   }
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_MARSHMALLOW) {
-    errno = ENOSYS;
-    return EAI_SYSTEM;
-  }
 
   static MarshmallowGetAddrInfoForNetwork get_addrinfo_for_network =
       GetMarshmallowGetAddrInfoForNetwork();
@@ -339,6 +327,19 @@ NET_EXPORT_PRIVATE int GetAddrInfoForNetwork(handles::NetworkHandle network,
   }
 
   return get_addrinfo_for_network(network, node, service, hints, res);
+}
+
+void RegisterQuicConnectionClosePayload(int fd, base::span<uint8_t> payload) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jbyteArray> payload_array = ToJavaByteArray(env, payload);
+  DCHECK(!payload_array.is_null());
+  Java_AndroidNetworkLibrary_registerQuicConnectionClosePayload(env, fd,
+                                                                payload_array);
+}
+
+void UnregisterQuicConnectionClosePayload(int fd) {
+  JNIEnv* env = AttachCurrentThread();
+  Java_AndroidNetworkLibrary_unregisterQuicConnectionClosePayload(env, fd);
 }
 
 }  // namespace net::android

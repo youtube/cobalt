@@ -7,19 +7,35 @@
 
 #include <stdint.h>
 
+#include <string_view>
+
 #include "base/gtest_prod_util.h"
-#include "base/strings/string_piece.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/metrics/metrics_reporting_state.h"
-#include "chrome/common/metrics.mojom.h"
+#include "chrome/common/buildflags.h"
 #include "components/metrics/metrics_service_accessor.h"
+#include "components/signin/public/base/signin_buildflags.h"
 #include "components/variations/synthetic_trials.h"
 #include "ppapi/buildflags/buildflags.h"
 
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/host/glic_synthetic_trial_manager.h"
+#endif
+
+#if BUILDFLAG(ENABLE_PPAPI)
+#include "chrome/common/ppapi_metrics.mojom.h"
+#endif
+
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+#include "chrome/browser/signin/bound_session_credentials/bound_session_cookie_refresh_service_impl.h"
+#endif
+
 class BrowserProcessImpl;
+class CampaignsManagerClientImpl;
 class ChromeMetricsServiceClient;
 class ChromePasswordManagerClient;
-class ChromeProcessSingleton;
+class ChromeVariationsServiceClient;
+class GlobalFeatures;
 class HttpsFirstModeService;
 class NavigationMetricsRecorder;
 class PrefService;
@@ -28,13 +44,27 @@ namespace {
 class CrashesDOMHandler;
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_ANDROID)
+namespace autofill {
+class AutofillClientProvider;
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_CHROMEOS)
 class ChromeCameraAppUIDelegate;
 
 namespace app_list::federated {
 class FederatedMetricsManager;
 }  // namespace app_list::federated
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
+namespace ash::input_method {
+class AutocorrectManager;
+}  // namespace ash::input_method
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+namespace browser_sync {
+class ChromeSyncClient;
+}
 
 namespace domain_reliability {
 bool ShouldCreateService();
@@ -52,13 +82,18 @@ class FirstRunMasterPrefsVariationsSeedTest;
 namespace metrics {
 class ChromeOSPerUserMetricsBrowserTestBase;
 class UkmConsentParamBrowserTest;
+class CrOSPreConsentMetricsManagerTest;
 }  // namespace metrics
 
+namespace optimization_guide {
+class ChromeOnDeviceModelServiceController;
+}  // namespace optimization_guide
+
 namespace safe_browsing {
-class ChromeCleanerControllerDelegate;
 class ChromeSafeBrowsingUIManagerDelegate;
 class DownloadUrlSBClient;
 class IncidentReportingService;
+class ServicesDelegateDesktop;
 
 namespace internal {
 class ReporterRunner;
@@ -90,7 +125,23 @@ class IsMetricsAndCrashReportingEnabled;
 
 namespace ash {
 class DemoSession;
+
+namespace settings {
+class PerSessionSettingsUserActionTracker;
+}  // namespace settings
+}  // namespace ash
+
+namespace tpcd::experiment {
+class ExperimentManagerImpl;
 }
+
+namespace readaloud {
+class SyntheticTrial;
+}
+
+namespace tab_groups {
+class TabGroupTrial;
+}  // namespace tab_groups
 
 // This class limits and documents access to metrics service helper methods.
 // Since these methods are private, each user has to be explicitly declared
@@ -110,7 +161,13 @@ class ChromeMetricsServiceAccessor : public metrics::MetricsServiceAccessor {
   static void SetMetricsAndCrashReportingForTesting(const bool* value);
 
  private:
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+  friend class BoundSessionCookieRefreshServiceImpl;
+#endif
   friend class ::CrashesDOMHandler;
+#if BUILDFLAG(IS_ANDROID)
+  friend class autofill::AutofillClientProvider;
+#endif  // BUILDFLAG(IS_ANDROID)
   friend class ChromeBrowserFieldTrials;
   // For ClangPGO.
   friend class ChromeBrowserMainExtraPartsMetrics;
@@ -118,6 +175,11 @@ class ChromeMetricsServiceAccessor : public metrics::MetricsServiceAccessor {
   friend class ChromeBrowserMainParts;
   friend class ChromeContentBrowserClient;
   friend class ChromeMetricsServicesManagerClient;
+  friend class ChromeSigninClient;
+  friend class browser_sync::ChromeSyncClient;
+  // TODO(crbug.com/40948861): Remove this friend when the limited entropy
+  // synthetic trial has wrapped up.
+  friend class ChromeVariationsServiceClient;
   friend bool domain_reliability::ShouldCreateService();
   friend class extensions::ChromeGuestViewManagerDelegate;
   friend class extensions::ChromeMetricsPrivateDelegate;
@@ -126,22 +188,27 @@ class ChromeMetricsServiceAccessor : public metrics::MetricsServiceAccessor {
       OnMetricsReportingCallbackType,
       ChangeMetricsReportingStateCalledFrom);
   friend void ApplyMetricsReportingPolicy();
+  friend class ash::settings::PerSessionSettingsUserActionTracker;
   friend class settings::MetricsReportingHandler;
   friend class UmaSessionStats;
-  friend class safe_browsing::ChromeCleanerControllerDelegate;
   friend class safe_browsing::ChromeSafeBrowsingUIManagerDelegate;
   friend class safe_browsing::DownloadUrlSBClient;
   friend class safe_browsing::IncidentReportingService;
+  friend class safe_browsing::ServicesDelegateDesktop;
   friend class safe_browsing::internal::ReporterRunner;
   friend class segmentation_platform::FieldTrialRegisterImpl;
   friend class ChromeMetricsServiceClient;
   friend class ChromePasswordManagerClient;
-  friend class ChromeProcessSingleton;
   friend class NavigationMetricsRecorder;
   friend class ChromeBrowserMainExtraPartsGpu;
   friend class Browser;
   friend class BrowserProcessImpl;
+  friend class GlobalFeatures;
+#if BUILDFLAG(ENABLE_GLIC)
+  friend class glic::GlicSyntheticTrialManager;
+#endif
   friend class OptimizationGuideKeyedService;
+  friend class optimization_guide::ChromeOnDeviceModelServiceController;
   friend class WebUITabStripFieldTrial;
   friend class feed::FeedServiceDelegateImpl;
   friend class FirstRunService;
@@ -149,16 +216,24 @@ class ChromeMetricsServiceAccessor : public metrics::MetricsServiceAccessor {
   friend class feed::WebFeedSubscriptionCoordinator;
   friend class HttpsFirstModeService;
   friend class ash::DemoSession;
+  friend class DataSharingUI;
+  // Used to register synthetic trials for ongoing growth experiments.
+  friend class CampaignsManagerClientImpl;
+  friend class tpcd::experiment::ExperimentManagerImpl;
+  friend class readaloud::SyntheticTrial;
+  friend class tab_groups::TabGroupTrial;
+#if !BUILDFLAG(IS_ANDROID)
+  friend class DefaultBrowserPromptTrial;
+#endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   friend class ChromeCameraAppUIDelegate;
-  friend class app_list::federated::FederatedMetricsManager;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // For RegisterSyntheticFieldTrial.
-  friend class FieldTrialObserver;
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+  // The following classes are friended because they check UMA consent status
+  // for the purpose of federated metrics collection.
+  friend class app_list::federated::FederatedMetricsManager;
+  friend class ash::input_method::AutocorrectManager;
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Testing related friends.
   friend class first_run::FirstRunMasterPrefsVariationsSeedTest;
@@ -168,7 +243,8 @@ class ChromeMetricsServiceAccessor : public metrics::MetricsServiceAccessor {
   friend class ClonedInstallClientIdResetBrowserTest;
   friend class metrics::ChromeOSPerUserMetricsBrowserTestBase;
   friend class SampledOutClientIdSavedBrowserTest;
-  friend class MetricsInternalsUIBrowserTest;
+  friend class MetricsInternalsUIBrowserTestWithLog;
+  friend class metrics::CrOSPreConsentMetricsManagerTest;
   FRIEND_TEST_ALL_PREFIXES(ChromeMetricsServiceAccessorTest,
                            MetricsReportingEnabled);
   FRIEND_TEST_ALL_PREFIXES(ChromeMetricsServicesManagerClientTest,
@@ -202,8 +278,8 @@ class ChromeMetricsServiceAccessor : public metrics::MetricsServiceAccessor {
   // data from when this trial and group were not active. Returns true on
   // success.
   static bool RegisterSyntheticFieldTrial(
-      base::StringPiece trial_name,
-      base::StringPiece group_name,
+      std::string_view trial_name,
+      std::string_view group_name,
       variations::SyntheticTrialAnnotationMode annotation_mode =
           variations::SyntheticTrialAnnotationMode::kNextLog);
 
@@ -211,11 +287,11 @@ class ChromeMetricsServiceAccessor : public metrics::MetricsServiceAccessor {
   // ChromeMetricsServiceAccessor for details.
   static void SetForceIsMetricsReportingEnabledPrefLookup(bool value);
 
-#if BUILDFLAG(ENABLE_PLUGINS)
-  // Provides an implementation of chrome::mojom::MetricsService.
-  static void BindMetricsServiceReceiver(
-      mojo::PendingReceiver<chrome::mojom::MetricsService> receiver);
-#endif  // BUILDFLAG(ENABLE_PLUGINS)
+#if BUILDFLAG(ENABLE_PPAPI)
+  // Provides an implementation of chrome::mojom::PpapiMetricsService.
+  static void BindPpapiMetricsServiceReceiver(
+      mojo::PendingReceiver<chrome::mojom::PpapiMetricsService> receiver);
+#endif  // BUILDFLAG(ENABLE_PPAPI)
 };
 
 #endif  // CHROME_BROWSER_METRICS_CHROME_METRICS_SERVICE_ACCESSOR_H_

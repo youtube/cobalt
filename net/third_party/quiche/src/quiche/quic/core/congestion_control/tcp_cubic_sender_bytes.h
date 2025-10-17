@@ -25,13 +25,13 @@ namespace quic {
 class RttStats;
 
 // Maximum window to allow when doing bandwidth resumption.
-const QuicPacketCount kMaxResumptionCongestionWindow = 200;
+inline constexpr QuicPacketCount kMaxResumptionCongestionWindow = 200;
 
 namespace test {
 class TcpCubicSenderBytesPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
+class QUICHE_EXPORT TcpCubicSenderBytes : public SendAlgorithmInterface {
  public:
   TcpCubicSenderBytes(const QuicClock* clock, const RttStats* rtt_stats,
                       bool reno, QuicPacketCount initial_tcp_congestion_window,
@@ -50,6 +50,8 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
   void SetNumEmulatedConnections(int num_connections);
   void SetInitialCongestionWindowInPackets(
       QuicPacketCount congestion_window) override;
+  void SetApplicationDrivenPacingRate(
+      QuicBandwidth /*application_bandwidth_target*/) override {}
   void OnConnectionMigration() override;
   void OnCongestionEvent(bool rtt_updated, QuicByteCount prior_in_flight,
                          QuicTime event_time,
@@ -74,8 +76,8 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
   std::string GetDebugState() const override;
   void OnApplicationLimited(QuicByteCount bytes_in_flight) override;
   void PopulateConnectionStats(QuicConnectionStats* /*stats*/) const override {}
-  bool SupportsECT0() const override { return false; }
-  bool SupportsECT1() const override { return false; }
+  bool EnableECT0() override { return false; }
+  bool EnableECT1() override { return false; }
   // End implementation of SendAlgorithmInterface.
 
   QuicByteCount min_congestion_window() const { return min_congestion_window_; }
@@ -86,7 +88,6 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
 
   bool IsCwndLimited(QuicByteCount bytes_in_flight) const;
 
-  // TODO(ianswett): Remove these and migrate to OnCongestionEvent.
   void OnPacketAcked(QuicPacketNumber acked_packet_number,
                      QuicByteCount acked_bytes, QuicByteCount prior_in_flight,
                      QuicTime event_time);
@@ -100,6 +101,13 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
                          QuicByteCount acked_bytes,
                          QuicByteCount prior_in_flight, QuicTime event_time);
   void HandleRetransmissionTimeout();
+  const RttStats* rtt_stats() const { return rtt_stats_; }
+
+  void set_congestion_window(QuicByteCount cwnd) { congestion_window_ = cwnd; }
+  void set_slowstart_threshold(QuicByteCount ssthresh) {
+    slowstart_threshold_ = ssthresh;
+  }
+  void ExitRecovery() { largest_sent_at_last_cutback_.Clear(); }
 
  private:
   friend class test::TcpCubicSenderBytesPeer;

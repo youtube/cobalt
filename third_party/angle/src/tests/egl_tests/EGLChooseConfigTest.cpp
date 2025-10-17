@@ -113,6 +113,61 @@ TEST_P(EGLChooseConfigTest, Defaults)
     }
 }
 
+// Test the validation errors for bad parameters for eglChooseConfig
+TEST_P(EGLChooseConfigTest, NegativeValidationBadAttributes)
+{
+    EGLDisplay display = getEGLWindow()->getDisplay();
+
+    // Choose configs using invalid attributes:
+    const EGLint invalidConfigAttributeList[][3] = {
+        {EGL_CONFIG_CAVEAT, 0, EGL_NONE},
+        {EGL_SURFACE_TYPE, ~EGL_VG_COLORSPACE_LINEAR_BIT, EGL_NONE},
+        {EGL_CONFORMANT, (EGL_OPENGL_ES_BIT | 0x0020), EGL_NONE},
+        {EGL_RENDERABLE_TYPE, (EGL_OPENGL_ES_BIT | 0x0020), EGL_NONE},
+    };
+    EGLint configCount;
+    EGLConfig config;
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        ASSERT_EGL_FALSE(
+            eglChooseConfig(display, &invalidConfigAttributeList[i][0], &config, 1, &configCount));
+        ASSERT_EGL_ERROR(EGL_BAD_ATTRIBUTE);
+    }
+}
+
+// Test that if all the config ID can be successfully chosen
+TEST_P(EGLChooseConfigTest, ValidateConfigID)
+{
+    EGLDisplay display = getEGLWindow()->getDisplay();
+
+    EGLint nConfigs       = 0;
+    EGLint allConfigCount = 0;
+    ASSERT_EGL_TRUE(eglGetConfigs(display, nullptr, 0, &nConfigs));
+    ASSERT_NE(nConfigs, 0);
+
+    std::vector<EGLConfig> allConfigs(nConfigs);
+    ASSERT_EGL_TRUE(eglGetConfigs(display, allConfigs.data(), nConfigs, &allConfigCount));
+    ASSERT_EQ(nConfigs, allConfigCount);
+
+    // All attributes except EGL_CONFIG_ID should be ignored when EGL_CONFIG_ID is include.
+    EGLint configIDAttributes[] = {EGL_CONFIG_ID,    EGL_DONT_CARE,       EGL_COLOR_BUFFER_TYPE,
+                                   EGL_RGB_BUFFER,   EGL_RENDERABLE_TYPE, EGL_OPENGL_ES_BIT,
+                                   EGL_SURFACE_TYPE, EGL_PIXMAP_BIT,      EGL_NONE};
+    for (EGLConfig configs : allConfigs)
+    {
+        EGLConfig configsWithID;
+        EGLint configID;
+        EGLint configCount;
+        eglGetConfigAttrib(display, configs, EGL_CONFIG_ID, &configID);
+        configIDAttributes[1] = configID;
+        ASSERT_EGL_TRUE(
+            eglChooseConfig(display, configIDAttributes, &configsWithID, 1, &configCount));
+        ASSERT_EGL_SUCCESS();
+        ASSERT_EQ(configCount, 1);
+    }
+}
+
 }  // namespace angle
 
 ANGLE_INSTANTIATE_TEST(EGLChooseConfigTest,

@@ -10,18 +10,23 @@
 
 #include "modules/rtp_rtcp/source/source_tracker.h"
 
-#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <list>
+#include <optional>
 #include <random>
 #include <set>
 #include <tuple>
 #include <utility>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_packet_info.h"
 #include "api/rtp_packet_infos.h"
+#include "api/transport/rtp/rtp_source.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -46,7 +51,7 @@ class ExpectedSourceTracker {
   explicit ExpectedSourceTracker(Clock* clock) : clock_(clock) {}
 
   void OnFrameDelivered(const RtpPacketInfos& packet_infos) {
-    const int64_t now_ms = clock_->TimeInMilliseconds();
+    const Timestamp now = clock_->CurrentTime();
 
     for (const auto& packet_info : packet_infos) {
       RtpSource::Extensions extensions = {
@@ -54,26 +59,26 @@ class ExpectedSourceTracker {
           packet_info.local_capture_clock_offset()};
 
       for (const auto& csrc : packet_info.csrcs()) {
-        entries_.emplace_front(now_ms, csrc, RtpSourceType::CSRC,
+        entries_.emplace_front(now, csrc, RtpSourceType::CSRC,
                                packet_info.rtp_timestamp(), extensions);
       }
 
-      entries_.emplace_front(now_ms, packet_info.ssrc(), RtpSourceType::SSRC,
+      entries_.emplace_front(now, packet_info.ssrc(), RtpSourceType::SSRC,
                              packet_info.rtp_timestamp(), extensions);
     }
 
-    PruneEntries(now_ms);
+    PruneEntries(now);
   }
 
   std::vector<RtpSource> GetSources() const {
-    PruneEntries(clock_->TimeInMilliseconds());
+    PruneEntries(clock_->CurrentTime());
 
     return std::vector<RtpSource>(entries_.begin(), entries_.end());
   }
 
  private:
-  void PruneEntries(int64_t now_ms) const {
-    const int64_t prune_ms = now_ms - 10000;  // 10 seconds
+  void PruneEntries(Timestamp now) const {
+    const Timestamp prune = now - TimeDelta::Seconds(10);
 
     std::set<std::pair<RtpSourceType, uint32_t>> seen;
 
@@ -84,7 +89,7 @@ class ExpectedSourceTracker {
       ++next;
 
       auto key = std::make_pair(it->source_type(), it->source_id());
-      if (!seen.insert(key).second || it->timestamp_ms() < prune_ms) {
+      if (!seen.insert(key).second || it->timestamp() < prune) {
         entries_.erase(it);
       }
 
@@ -167,9 +172,9 @@ class SourceTrackerRandomTest
     return std::uniform_int_distribution<uint32_t>()(generator_);
   }
 
-  absl::optional<uint8_t> GenerateAudioLevel() {
+  std::optional<uint8_t> GenerateAudioLevel() {
     if (std::bernoulli_distribution(0.25)(generator_)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     // Workaround for std::uniform_int_distribution<uint8_t> not being allowed.
@@ -177,9 +182,9 @@ class SourceTrackerRandomTest
         std::uniform_int_distribution<uint16_t>()(generator_));
   }
 
-  absl::optional<AbsoluteCaptureTime> GenerateAbsoluteCaptureTime() {
+  std::optional<AbsoluteCaptureTime> GenerateAbsoluteCaptureTime() {
     if (std::bernoulli_distribution(0.25)(generator_)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     AbsoluteCaptureTime value;
@@ -188,7 +193,7 @@ class SourceTrackerRandomTest
         std::uniform_int_distribution<uint64_t>()(generator_);
 
     if (std::bernoulli_distribution(0.5)(generator_)) {
-      value.estimated_capture_clock_offset = absl::nullopt;
+      value.estimated_capture_clock_offset = std::nullopt;
     } else {
       value.estimated_capture_clock_offset =
           std::uniform_int_distribution<int64_t>()(generator_);
@@ -197,9 +202,9 @@ class SourceTrackerRandomTest
     return value;
   }
 
-  absl::optional<TimeDelta> GenerateLocalCaptureClockOffset() {
+  std::optional<TimeDelta> GenerateLocalCaptureClockOffset() {
     if (std::bernoulli_distribution(0.5)(generator_)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     return TimeDelta::Millis(
         UQ32x32ToInt64Ms(std::uniform_int_distribution<int64_t>()(generator_)));
@@ -263,12 +268,12 @@ TEST(SourceTrackerTest, OnFrameDeliveredRecordsSourcesDistinctSsrcs) {
   constexpr uint32_t kCsrcs2 = 22;
   constexpr uint32_t kRtpTimestamp0 = 40;
   constexpr uint32_t kRtpTimestamp1 = 50;
-  constexpr absl::optional<uint8_t> kAudioLevel0 = 50;
-  constexpr absl::optional<uint8_t> kAudioLevel1 = 20;
-  constexpr absl::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime =
+  constexpr std::optional<uint8_t> kAudioLevel0 = 50;
+  constexpr std::optional<uint8_t> kAudioLevel1 = 20;
+  constexpr std::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime =
       AbsoluteCaptureTime{/*absolute_capture_timestamp=*/12,
-                          /*estimated_capture_clock_offset=*/absl::nullopt};
-  constexpr absl::optional<TimeDelta> kLocalCaptureClockOffset = absl::nullopt;
+                          /*estimated_capture_clock_offset=*/std::nullopt};
+  constexpr std::optional<TimeDelta> kLocalCaptureClockOffset = std::nullopt;
   constexpr Timestamp kReceiveTime0 = Timestamp::Millis(60);
   constexpr Timestamp kReceiveTime1 = Timestamp::Millis(70);
 
@@ -297,18 +302,17 @@ TEST(SourceTrackerTest, OnFrameDeliveredRecordsSourcesDistinctSsrcs) {
 
   time_controller.AdvanceTime(TimeDelta::Zero());
 
-  EXPECT_THAT(
-      tracker.GetSources(),
-      ElementsAre(RtpSource(timestamp.ms(), kSsrc2, RtpSourceType::SSRC,
-                            kRtpTimestamp1, extensions1),
-                  RtpSource(timestamp.ms(), kCsrcs2, RtpSourceType::CSRC,
-                            kRtpTimestamp1, extensions1),
-                  RtpSource(timestamp.ms(), kSsrc1, RtpSourceType::SSRC,
-                            kRtpTimestamp0, extensions0),
-                  RtpSource(timestamp.ms(), kCsrcs1, RtpSourceType::CSRC,
-                            kRtpTimestamp0, extensions0),
-                  RtpSource(timestamp.ms(), kCsrcs0, RtpSourceType::CSRC,
-                            kRtpTimestamp0, extensions0)));
+  EXPECT_THAT(tracker.GetSources(),
+              ElementsAre(RtpSource(timestamp, kSsrc2, RtpSourceType::SSRC,
+                                    kRtpTimestamp1, extensions1),
+                          RtpSource(timestamp, kCsrcs2, RtpSourceType::CSRC,
+                                    kRtpTimestamp1, extensions1),
+                          RtpSource(timestamp, kSsrc1, RtpSourceType::SSRC,
+                                    kRtpTimestamp0, extensions0),
+                          RtpSource(timestamp, kCsrcs1, RtpSourceType::CSRC,
+                                    kRtpTimestamp0, extensions0),
+                          RtpSource(timestamp, kCsrcs0, RtpSourceType::CSRC,
+                                    kRtpTimestamp0, extensions0)));
 }
 
 TEST(SourceTrackerTest, OnFrameDeliveredRecordsSourcesSameSsrc) {
@@ -319,13 +323,13 @@ TEST(SourceTrackerTest, OnFrameDeliveredRecordsSourcesSameSsrc) {
   constexpr uint32_t kRtpTimestamp0 = 40;
   constexpr uint32_t kRtpTimestamp1 = 45;
   constexpr uint32_t kRtpTimestamp2 = 50;
-  constexpr absl::optional<uint8_t> kAudioLevel0 = 50;
-  constexpr absl::optional<uint8_t> kAudioLevel1 = 20;
-  constexpr absl::optional<uint8_t> kAudioLevel2 = 10;
-  constexpr absl::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime =
+  constexpr std::optional<uint8_t> kAudioLevel0 = 50;
+  constexpr std::optional<uint8_t> kAudioLevel1 = 20;
+  constexpr std::optional<uint8_t> kAudioLevel2 = 10;
+  constexpr std::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime =
       AbsoluteCaptureTime{/*absolute_capture_timestamp=*/12,
-                          /*estimated_capture_clock_offset=*/absl::nullopt};
-  constexpr absl::optional<TimeDelta> kLocalCaptureClockOffset = absl::nullopt;
+                          /*estimated_capture_clock_offset=*/std::nullopt};
+  constexpr std::optional<TimeDelta> kLocalCaptureClockOffset = std::nullopt;
   constexpr Timestamp kReceiveTime0 = Timestamp::Millis(60);
   constexpr Timestamp kReceiveTime1 = Timestamp::Millis(70);
   constexpr Timestamp kReceiveTime2 = Timestamp::Millis(80);
@@ -363,16 +367,15 @@ TEST(SourceTrackerTest, OnFrameDeliveredRecordsSourcesSameSsrc) {
       .absolute_capture_time = kAbsoluteCaptureTime,
       .local_capture_clock_offset = kLocalCaptureClockOffset};
 
-  EXPECT_THAT(
-      tracker.GetSources(),
-      ElementsAre(RtpSource(timestamp.ms(), kSsrc, RtpSourceType::SSRC,
-                            kRtpTimestamp2, extensions2),
-                  RtpSource(timestamp.ms(), kCsrcs0, RtpSourceType::CSRC,
-                            kRtpTimestamp2, extensions2),
-                  RtpSource(timestamp.ms(), kCsrcs2, RtpSourceType::CSRC,
-                            kRtpTimestamp1, extensions1),
-                  RtpSource(timestamp.ms(), kCsrcs1, RtpSourceType::CSRC,
-                            kRtpTimestamp0, extensions0)));
+  EXPECT_THAT(tracker.GetSources(),
+              ElementsAre(RtpSource(timestamp, kSsrc, RtpSourceType::SSRC,
+                                    kRtpTimestamp2, extensions2),
+                          RtpSource(timestamp, kCsrcs0, RtpSourceType::CSRC,
+                                    kRtpTimestamp2, extensions2),
+                          RtpSource(timestamp, kCsrcs2, RtpSourceType::CSRC,
+                                    kRtpTimestamp1, extensions1),
+                          RtpSource(timestamp, kCsrcs1, RtpSourceType::CSRC,
+                                    kRtpTimestamp0, extensions0)));
 }
 
 TEST(SourceTrackerTest, OnFrameDeliveredUpdatesSources) {
@@ -384,20 +387,20 @@ TEST(SourceTrackerTest, OnFrameDeliveredUpdatesSources) {
   constexpr uint32_t kRtpTimestamp0 = 40;
   constexpr uint32_t kRtpTimestamp1 = 41;
   constexpr uint32_t kRtpTimestamp2 = 42;
-  constexpr absl::optional<uint8_t> kAudioLevel0 = 50;
-  constexpr absl::optional<uint8_t> kAudioLevel1 = absl::nullopt;
-  constexpr absl::optional<uint8_t> kAudioLevel2 = 10;
-  constexpr absl::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime0 =
+  constexpr std::optional<uint8_t> kAudioLevel0 = 50;
+  constexpr std::optional<uint8_t> kAudioLevel1 = std::nullopt;
+  constexpr std::optional<uint8_t> kAudioLevel2 = 10;
+  constexpr std::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime0 =
       AbsoluteCaptureTime{12, 34};
-  constexpr absl::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime1 =
+  constexpr std::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime1 =
       AbsoluteCaptureTime{56, 78};
-  constexpr absl::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime2 =
+  constexpr std::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime2 =
       AbsoluteCaptureTime{89, 90};
-  constexpr absl::optional<TimeDelta> kLocalCaptureClockOffset0 =
+  constexpr std::optional<TimeDelta> kLocalCaptureClockOffset0 =
       TimeDelta::Millis(123);
-  constexpr absl::optional<TimeDelta> kLocalCaptureClockOffset1 =
+  constexpr std::optional<TimeDelta> kLocalCaptureClockOffset1 =
       TimeDelta::Millis(456);
-  constexpr absl::optional<TimeDelta> kLocalCaptureClockOffset2 =
+  constexpr std::optional<TimeDelta> kLocalCaptureClockOffset2 =
       TimeDelta::Millis(789);
   constexpr Timestamp kReceiveTime0 = Timestamp::Millis(60);
   constexpr Timestamp kReceiveTime1 = Timestamp::Millis(61);
@@ -427,14 +430,13 @@ TEST(SourceTrackerTest, OnFrameDeliveredUpdatesSources) {
 
   time_controller.AdvanceTime(TimeDelta::Zero());
   Timestamp timestamp_0 = time_controller.GetClock()->CurrentTime();
-  EXPECT_THAT(
-      tracker.GetSources(),
-      ElementsAre(RtpSource(timestamp_0.ms(), kSsrc1, RtpSourceType::SSRC,
-                            kRtpTimestamp0, extensions0),
-                  RtpSource(timestamp_0.ms(), kCsrcs1, RtpSourceType::CSRC,
-                            kRtpTimestamp0, extensions0),
-                  RtpSource(timestamp_0.ms(), kCsrcs0, RtpSourceType::CSRC,
-                            kRtpTimestamp0, extensions0)));
+  EXPECT_THAT(tracker.GetSources(),
+              ElementsAre(RtpSource(timestamp_0, kSsrc1, RtpSourceType::SSRC,
+                                    kRtpTimestamp0, extensions0),
+                          RtpSource(timestamp_0, kCsrcs1, RtpSourceType::CSRC,
+                                    kRtpTimestamp0, extensions0),
+                          RtpSource(timestamp_0, kCsrcs0, RtpSourceType::CSRC,
+                                    kRtpTimestamp0, extensions0)));
 
   // Deliver packets with updated sources.
 
@@ -448,16 +450,15 @@ TEST(SourceTrackerTest, OnFrameDeliveredUpdatesSources) {
   time_controller.AdvanceTime(TimeDelta::Zero());
   Timestamp timestamp_1 = time_controller.GetClock()->CurrentTime();
 
-  EXPECT_THAT(
-      tracker.GetSources(),
-      ElementsAre(RtpSource(timestamp_1.ms(), kSsrc1, RtpSourceType::SSRC,
-                            kRtpTimestamp1, extensions1),
-                  RtpSource(timestamp_1.ms(), kCsrcs2, RtpSourceType::CSRC,
-                            kRtpTimestamp1, extensions1),
-                  RtpSource(timestamp_1.ms(), kCsrcs0, RtpSourceType::CSRC,
-                            kRtpTimestamp1, extensions1),
-                  RtpSource(timestamp_0.ms(), kCsrcs1, RtpSourceType::CSRC,
-                            kRtpTimestamp0, extensions0)));
+  EXPECT_THAT(tracker.GetSources(),
+              ElementsAre(RtpSource(timestamp_1, kSsrc1, RtpSourceType::SSRC,
+                                    kRtpTimestamp1, extensions1),
+                          RtpSource(timestamp_1, kCsrcs2, RtpSourceType::CSRC,
+                                    kRtpTimestamp1, extensions1),
+                          RtpSource(timestamp_1, kCsrcs0, RtpSourceType::CSRC,
+                                    kRtpTimestamp1, extensions1),
+                          RtpSource(timestamp_0, kCsrcs1, RtpSourceType::CSRC,
+                                    kRtpTimestamp0, extensions0)));
 
   // Deliver more packets with update csrcs and a new ssrc.
   time_controller.AdvanceTime(TimeDelta::Millis(17));
@@ -471,18 +472,17 @@ TEST(SourceTrackerTest, OnFrameDeliveredUpdatesSources) {
   time_controller.AdvanceTime(TimeDelta::Zero());
   Timestamp timestamp_2 = time_controller.GetClock()->CurrentTime();
 
-  EXPECT_THAT(
-      tracker.GetSources(),
-      ElementsAre(RtpSource(timestamp_2.ms(), kSsrc2, RtpSourceType::SSRC,
-                            kRtpTimestamp2, extensions2),
-                  RtpSource(timestamp_2.ms(), kCsrcs0, RtpSourceType::CSRC,
-                            kRtpTimestamp2, extensions2),
-                  RtpSource(timestamp_1.ms(), kSsrc1, RtpSourceType::SSRC,
-                            kRtpTimestamp1, extensions1),
-                  RtpSource(timestamp_1.ms(), kCsrcs2, RtpSourceType::CSRC,
-                            kRtpTimestamp1, extensions1),
-                  RtpSource(timestamp_0.ms(), kCsrcs1, RtpSourceType::CSRC,
-                            kRtpTimestamp0, extensions0)));
+  EXPECT_THAT(tracker.GetSources(),
+              ElementsAre(RtpSource(timestamp_2, kSsrc2, RtpSourceType::SSRC,
+                                    kRtpTimestamp2, extensions2),
+                          RtpSource(timestamp_2, kCsrcs0, RtpSourceType::CSRC,
+                                    kRtpTimestamp2, extensions2),
+                          RtpSource(timestamp_1, kSsrc1, RtpSourceType::SSRC,
+                                    kRtpTimestamp1, extensions1),
+                          RtpSource(timestamp_1, kCsrcs2, RtpSourceType::CSRC,
+                                    kRtpTimestamp1, extensions1),
+                          RtpSource(timestamp_0, kCsrcs1, RtpSourceType::CSRC,
+                                    kRtpTimestamp0, extensions0)));
 }
 
 TEST(SourceTrackerTest, TimedOutSourcesAreRemoved) {
@@ -492,15 +492,15 @@ TEST(SourceTrackerTest, TimedOutSourcesAreRemoved) {
   constexpr uint32_t kCsrcs2 = 22;
   constexpr uint32_t kRtpTimestamp0 = 40;
   constexpr uint32_t kRtpTimestamp1 = 41;
-  constexpr absl::optional<uint8_t> kAudioLevel0 = 50;
-  constexpr absl::optional<uint8_t> kAudioLevel1 = absl::nullopt;
-  constexpr absl::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime0 =
+  constexpr std::optional<uint8_t> kAudioLevel0 = 50;
+  constexpr std::optional<uint8_t> kAudioLevel1 = std::nullopt;
+  constexpr std::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime0 =
       AbsoluteCaptureTime{12, 34};
-  constexpr absl::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime1 =
+  constexpr std::optional<AbsoluteCaptureTime> kAbsoluteCaptureTime1 =
       AbsoluteCaptureTime{56, 78};
-  constexpr absl::optional<TimeDelta> kLocalCaptureClockOffset0 =
+  constexpr std::optional<TimeDelta> kLocalCaptureClockOffset0 =
       TimeDelta::Millis(123);
-  constexpr absl::optional<TimeDelta> kLocalCaptureClockOffset1 =
+  constexpr std::optional<TimeDelta> kLocalCaptureClockOffset1 =
       TimeDelta::Millis(456);
   constexpr Timestamp kReceiveTime0 = Timestamp::Millis(60);
   constexpr Timestamp kReceiveTime1 = Timestamp::Millis(61);
@@ -531,14 +531,21 @@ TEST(SourceTrackerTest, TimedOutSourcesAreRemoved) {
       .absolute_capture_time = kAbsoluteCaptureTime1,
       .local_capture_clock_offset = kLocalCaptureClockOffset1};
 
-  EXPECT_THAT(
-      tracker.GetSources(),
-      ElementsAre(RtpSource(timestamp_1.ms(), kSsrc, RtpSourceType::SSRC,
-                            kRtpTimestamp1, extensions1),
-                  RtpSource(timestamp_1.ms(), kCsrcs2, RtpSourceType::CSRC,
-                            kRtpTimestamp1, extensions1),
-                  RtpSource(timestamp_1.ms(), kCsrcs0, RtpSourceType::CSRC,
-                            kRtpTimestamp1, extensions1)));
+  EXPECT_THAT(tracker.GetSources(),
+              ElementsAre(RtpSource(timestamp_1, kSsrc, RtpSourceType::SSRC,
+                                    kRtpTimestamp1, extensions1),
+                          RtpSource(timestamp_1, kCsrcs2, RtpSourceType::CSRC,
+                                    kRtpTimestamp1, extensions1),
+                          RtpSource(timestamp_1, kCsrcs0, RtpSourceType::CSRC,
+                                    kRtpTimestamp1, extensions1)));
+}
+
+TEST(SourceTrackerTest, AvoidNegativeTimestamp) {
+  SimulatedClock clock(Timestamp::Zero());
+  SourceTracker tracker(&clock);
+  tracker.OnFrameDelivered(RtpPacketInfos(
+      {RtpPacketInfo(/*ssrc=*/111, /*csrcs=*/{}, /*rtp_timestamp=*/0,
+                     /*receive_time=*/Timestamp::Zero())}));
 }
 
 }  // namespace webrtc

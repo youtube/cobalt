@@ -17,24 +17,21 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.content_public.browser.test.ContentJUnit4ClassRunner;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.concurrent.Callable;
 
-/**
- * Integration tests for text input for Android L (or above) features.
- */
+/** Integration tests for text input for Android L (or above) features. */
 @RunWith(ContentJUnit4ClassRunner.class)
 @Batch(ImeTest.IME_BATCH)
 public class ImeLollipopTest {
-    @Rule
-    public ImeActivityTestRule mRule = new ImeActivityTestRule();
+    @Rule public ImeActivityTestRule mRule = new ImeActivityTestRule();
 
     @Before
     public void setUp() throws Exception {
@@ -76,8 +73,10 @@ public class ImeLollipopTest {
         Assert.assertNull(info.getCharacterBounds(4));
 
         // In "IMMEDIATE" mode, even when there's no change, we should be notified at least once.
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mRule.getInputMethodManagerWrapper().clearLastCursorAnchorInfo(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mRule.getInputMethodManagerWrapper().clearLastCursorAnchorInfo();
+                });
         requestCursorUpdates(InputConnection.CURSOR_UPDATE_IMMEDIATE);
         waitForUpdateCursorAnchorInfoComposingText("abcd");
 
@@ -88,24 +87,27 @@ public class ImeLollipopTest {
 
     private void requestCursorUpdates(final int cursorUpdateMode) throws Exception {
         final InputConnection connection = mRule.getConnection();
-        mRule.runBlockingOnImeThread(new Callable<Void>() {
-            @Override
-            public Void call() {
-                connection.requestCursorUpdates(cursorUpdateMode);
-                return null;
-            }
-        });
+        mRule.runBlockingOnImeThread(
+                new Callable<Void>() {
+                    @Override
+                    public Void call() {
+                        connection.requestCursorUpdates(cursorUpdateMode);
+                        return null;
+                    }
+                });
     }
 
     private void waitForUpdateCursorAnchorInfoComposingText(final String expected) {
-        CriteriaHelper.pollUiThread(() -> {
-            CursorAnchorInfo info = mRule.getInputMethodManagerWrapper().getLastCursorAnchorInfo();
-            if (info != null) {
-                Criteria.checkThat(info.getComposingText(), Matchers.notNullValue());
-            }
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    CursorAnchorInfo info =
+                            mRule.getInputMethodManagerWrapper().getLastCursorAnchorInfo();
+                    if (info != null) {
+                        Criteria.checkThat(info.getComposingText(), Matchers.notNullValue());
+                    }
 
-            String actual = (info == null ? "" : info.getComposingText().toString());
-            Criteria.checkThat(actual, Matchers.is(expected));
-        });
+                    String actual = (info == null ? "" : info.getComposingText().toString());
+                    Criteria.checkThat(actual, Matchers.is(expected));
+                });
     }
 }

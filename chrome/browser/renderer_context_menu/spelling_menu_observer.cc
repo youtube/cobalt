@@ -57,8 +57,7 @@ SpellingMenuObserver::SpellingMenuObserver(RenderViewContextMenuProxy* proxy)
   }
 }
 
-SpellingMenuObserver::~SpellingMenuObserver() {
-}
+SpellingMenuObserver::~SpellingMenuObserver() = default;
 
 void SpellingMenuObserver::InitMenu(const content::ContextMenuParams& params) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -195,8 +194,7 @@ void SpellingMenuObserver::OnContextMenuShown(
   // command_id is not found, e.g. if there is an early exit from InitMenu.
   proxy_->UpdateMenuItem(IDC_SPELLCHECK_SUGGESTION_0,
                          /*enabled=*/false,
-                         /*hidden=*/(use_remote_suggestions_ ? true : false),
-                         loading_message_);
+                         /*hidden=*/use_remote_suggestions_, loading_message_);
 
   // Disable and hide the rest of the placeholders until suggestions obtained.
   for (int i = 1;
@@ -338,13 +336,20 @@ void SpellingMenuObserver::ExecuteCommand(int command_id) {
                                         true);
       }
     } else if (!integrate_spelling_service_.GetValue()) {
-      content::RenderViewHost* rvh = proxy_->GetRenderViewHost();
-      gfx::Rect rect = rvh->GetWidget()->GetView()->GetViewBounds();
+      // We use the web contents' primary main frame here rather than getting
+      // the view from the local render frame host because we want to ensure
+      // that it is non-null (proxy_->GetRenderFrameHost() can return nullptr if
+      // the frame goes away). In these cases, the spelling preference changes
+      // are still valid (tied to the BrowsingContext / WebContents) so we still
+      // want to show the confirmation bubble.
+      content::RenderFrameHost* rfh =
+          proxy_->GetWebContents()->GetPrimaryMainFrame();
+      gfx::Rect rect = rfh->GetRenderWidgetHost()->GetView()->GetViewBounds();
       std::unique_ptr<SpellingBubbleModel> model(
           new SpellingBubbleModel(profile, proxy_->GetWebContents()));
       chrome::ShowConfirmBubble(
           proxy_->GetWebContents()->GetTopLevelNativeWindow(),
-          rvh->GetWidget()->GetView()->GetNativeView(),
+          rfh->GetRenderWidgetHost()->GetView()->GetNativeView(),
           gfx::Point(rect.CenterPoint().x(), rect.y()), std::move(model));
     } else {
       if (profile) {

@@ -4,24 +4,7 @@
 
 #include "components/pdf/browser/pdf_stream_delegate.h"
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "url/gurl.h"
-
 namespace pdf {
-
-PdfStreamDelegate::PdfStreamDelegate() = default;
-PdfStreamDelegate::~PdfStreamDelegate() = default;
-
-absl::optional<GURL> PdfStreamDelegate::MapToOriginalUrl(
-    content::WebContents* contents,
-    const GURL& stream_url) {
-  return absl::nullopt;
-}
-
-absl::optional<PdfStreamDelegate::StreamInfo> PdfStreamDelegate::GetStreamInfo(
-    content::WebContents* contents) {
-  return absl::nullopt;
-}
 
 PdfStreamDelegate::StreamInfo::StreamInfo() = default;
 PdfStreamDelegate::StreamInfo::StreamInfo(const StreamInfo&) = default;

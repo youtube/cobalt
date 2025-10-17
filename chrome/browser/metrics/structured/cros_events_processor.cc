@@ -37,4 +37,11 @@ void CrOSEventsProcessor::OnEventsRecord(Event* event) {
       Event::EventSequenceMetadata(current_reset_counter_));
 }
 
+void CrOSEventsProcessor::OnEventRecorded(StructuredEventProto* event) {}
+
+void CrOSEventsProcessor::OnProvideIndependentMetrics(
+    ChromeUserMetricsExtension* uma_proto) {
+  // no-op.
+}
+
 }  // namespace metrics::structured::cros_event

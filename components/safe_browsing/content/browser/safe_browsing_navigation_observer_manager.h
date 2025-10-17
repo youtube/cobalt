@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_SAFE_BROWSING_CONTENT_BROWSER_SAFE_BROWSING_NAVIGATION_OBSERVER_MANAGER_H_
 #define COMPONENTS_SAFE_BROWSING_CONTENT_BROWSER_SAFE_BROWSING_NAVIGATION_OBSERVER_MANAGER_H_
 
+#include <optional>
 #include <unordered_map>
 
 #include "base/containers/circular_deque.h"
@@ -17,9 +18,11 @@
 #include "components/safe_browsing/core/browser/referrer_chain_provider.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "components/sessions/core/session_id.h"
+#include "content/public/browser/service_worker_context.h"
+#include "content/public/browser/service_worker_context_observer.h"
 #include "content/public/browser/web_contents_observer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/protobuf/src/google/protobuf/repeated_field.h"
+#include "ui/base/clipboard/clipboard.h"
 #include "url/gurl.h"
 
 class PrefService;
@@ -38,11 +41,15 @@ struct ResolvedIPAddress;
 // User data stored in DownloadItem for referrer chain information.
 class ReferrerChainData : public base::SupportsUserData::Data {
  public:
-  ReferrerChainData(std::unique_ptr<ReferrerChain> referrer_chain,
+  ReferrerChainData(ReferrerChainProvider::AttributionResult attribution_result,
+                    std::unique_ptr<ReferrerChain> referrer_chain,
                     size_t referrer_chain_length,
                     size_t recent_navigation_to_collect);
   ~ReferrerChainData() override;
-  ReferrerChain* GetReferrerChain();
+  ReferrerChainProvider::AttributionResult attribution_result() const {
+    return attribution_result_;
+  }
+  ReferrerChain* GetReferrerChain() const;
   size_t referrer_chain_length() { return referrer_chain_length_; }
   size_t recent_navigations_to_collect() {
     return recent_navigations_to_collect_;
@@ -51,8 +58,14 @@ class ReferrerChainData : public base::SupportsUserData::Data {
   // Unique user data key used to get and set referrer chain data in
   // DownloadItem.
   static const char kDownloadReferrerChainDataKey[];
+  static const char kDownloadReferrerChainDataKeyForEnterprise[];
 
  private:
+  // Result of trying to get the referrer chain. Referrer chains are
+  // fetched once per download, at the beginning of downloading to disk.
+  ReferrerChainProvider::AttributionResult attribution_result_ =
+      ReferrerChainProvider::AttributionResult::NAVIGATION_EVENT_NOT_FOUND;
+  // The referrer chain itself
   std::unique_ptr<ReferrerChain> referrer_chain_;
   // This is the actual referrer chain length before appending recent navigation
   // events;
@@ -61,6 +74,20 @@ class ReferrerChainData : public base::SupportsUserData::Data {
   // user is incognito mode or hasn't enabled extended reporting, this value is
   // always 0.
   size_t recent_navigations_to_collect_;
+};
+
+// Struct to store a URL copied to the clipboard, along with which frame and
+// main_frame this was copied from.
+struct CopyPasteEntry {
+  explicit CopyPasteEntry(GURL target,
+                          GURL source_frame_url,
+                          GURL source_main_frame_url,
+                          base::Time recorded_time);
+  CopyPasteEntry(const CopyPasteEntry& other);
+  GURL target_;
+  GURL source_frame_url_;
+  GURL source_main_frame_url_;
+  base::Time recorded_time_;
 };
 
 // Struct that manages insertion, cleanup, and lookup of NavigationEvent
@@ -102,7 +129,7 @@ struct NavigationEventList {
   // event, it will return the first main frame event that matches the other
   // criteria. And if there is still no matching event, the function will return
   // an empty optional.
-  absl::optional<size_t> FindNavigationEvent(
+  std::optional<size_t> FindNavigationEvent(
       const base::Time& last_event_timestamp,
       const GURL& target_url,
       const GURL& target_main_frame_url,
@@ -122,7 +149,9 @@ struct NavigationEventList {
                                         SessionID target_tab_id,
                                         size_t start_index);
 
-  void RecordNavigationEvent(std::unique_ptr<NavigationEvent> nav_event);
+  void RecordNavigationEvent(
+      std::unique_ptr<NavigationEvent> nav_event,
+      std::optional<CopyPasteEntry> last_copy_paste_entry = std::nullopt);
 
   void RecordPendingNavigationEvent(
       content::NavigationHandle* navigation_handle,
@@ -171,8 +200,11 @@ struct NavigationEventList {
 // Manager class for SafeBrowsingNavigationObserver, which is in charge of
 // cleaning up stale navigation events, and identifying landing page/landing
 // referrer for a specific Safe Browsing event.
-class SafeBrowsingNavigationObserverManager : public ReferrerChainProvider,
-                                              public KeyedService {
+class SafeBrowsingNavigationObserverManager
+    : public ReferrerChainProvider,
+      public content::ServiceWorkerContextObserver,
+      public KeyedService,
+      public ui::Clipboard::ClipboardWriteObserver {
  public:
   // Helper function to check if user gesture is older than
   // kUserGestureTTL.
@@ -194,7 +226,9 @@ class SafeBrowsingNavigationObserverManager : public ReferrerChainProvider,
   // Sanitize referrer chain by only keeping origin information of all URLs.
   static void SanitizeReferrerChain(ReferrerChain* referrer_chain);
 
-  explicit SafeBrowsingNavigationObserverManager(PrefService* pref_service);
+  explicit SafeBrowsingNavigationObserverManager(
+      PrefService* pref_service,
+      content::ServiceWorkerContext* context);
 
   SafeBrowsingNavigationObserverManager(
       const SafeBrowsingNavigationObserverManager&) = delete;
@@ -210,6 +244,11 @@ class SafeBrowsingNavigationObserverManager : public ReferrerChainProvider,
   void RecordPendingNavigationEvent(
       content::NavigationHandle* navigation_handle,
       std::unique_ptr<NavigationEvent> nav_event);
+  // Record that a Push Notification initiated a navigation.
+  // |script_url| is the URL of the service worker.
+  // |url| is the destination URL.
+  void RecordNotificationNavigationEvent(const GURL& script_url,
+                                         const GURL& url);
   void AddRedirectUrlToPendingNavigationEvent(
       content::NavigationHandle* navigation_handle,
       const GURL& server_redirect_url);
@@ -237,6 +276,15 @@ class SafeBrowsingNavigationObserverManager : public ReferrerChainProvider,
       SessionID event_tab_id,  // Invalid if tab id is unknown or not available.
       const content::GlobalRenderFrameHostId&
           event_outermost_main_frame_id,  // Can also be Invalid.
+      int user_gesture_count_limit,
+      ReferrerChain* out_referrer_chain) override;
+
+  // Helper function to |IdentifyReferrerChainByEventURL| above in cases where
+  // |event_outermost_main_frame_id| is not available. That value will default
+  // to |content::GlobalRenderFrameHostId()|.
+  AttributionResult IdentifyReferrerChainByEventURL(
+      const GURL& event_url,
+      SessionID event_tab_id,  // Invalid if tab id is unknown or not available.
       int user_gesture_count_limit,
       ReferrerChain* out_referrer_chain) override;
 
@@ -304,6 +352,16 @@ class SafeBrowsingNavigationObserverManager : public ReferrerChainProvider,
   void AppendRecentNavigations(size_t recent_navigation_count,
                                ReferrerChain* out_referrer_chain);
 
+  // ui::Clipboard::ClipboardWriteObserver:
+  // Event for new URLs copied to the clipboard
+  void OnCopyURL(const GURL& url,
+                 const GURL& source_frame_url,
+                 const GURL& source_main_frame_url) override;
+
+  // content::ServiceWorkerContextObserver implementation.
+  void OnClientNavigated(const GURL& script_url, const GURL& url) override;
+  void OnWindowOpened(const GURL& script_url, const GURL& url) override;
+
  protected:
   NavigationEventList* navigation_event_list() {
     return &navigation_event_list_;
@@ -338,6 +396,12 @@ class SafeBrowsingNavigationObserverManager : public ReferrerChainProvider,
   // Remove stale entries from host_to_ip_map_ if they are older than
   // `GetNavigationFootprintTTL()`.
   void CleanUpIpAddresses();
+
+  // Remove stale copy entries.
+  void CleanUpCopyData();
+
+  // Remove stale entries from notification_navigation_events_.
+  void CleanUpNotificationNavigationEvents();
 
   bool IsCleanUpScheduled() const;
 
@@ -401,6 +465,25 @@ class SafeBrowsingNavigationObserverManager : public ReferrerChainProvider,
   raw_ptr<PrefService> pref_service_;
 
   base::OneShotTimer cleanup_timer_;
+
+  std::optional<CopyPasteEntry> last_copy_paste_entry_;
+
+  // A map of destination URLs to Push notification initiated navigation events.
+  base::flat_map<GURL, std::unique_ptr<NavigationEvent>>
+      notification_navigation_events_;
+
+  // A reference to the ServiceWorkerContext that enables us to observe clicks
+  // on Push notifications.
+  //
+  // |notification_context_| is expected to outlive the
+  // SafeBrowsingNavigationObserverManager.
+  //
+  // SafeBrowsingNavigationObserverManager is owned by
+  // SafeBrowsingNavigationObserverManagerFactory which listens for
+  // BrowserContextDestroyed events which happen before the BrowserContext is
+  // destroyed. (Note: the BrowserContext initiates ServiceWorkerContext
+  // destruction via the StoragePartition.)
+  raw_ptr<content::ServiceWorkerContext> notification_context_;
 };
 }  // namespace safe_browsing
 

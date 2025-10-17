@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "content/public/test/network_service_test_helper.h"
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -16,6 +22,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/field_trial.h"
 #include "base/process/process.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/current_thread.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -110,7 +117,8 @@ class SimpleCacheEntry : public network::mojom::SimpleCacheEntry {
         base::MakeRefCounted<base::RefCountedData<WriteDataCallback>>();
     callback_holder->data = std::move(callback);
 
-    auto data_to_pass = base::MakeRefCounted<net::IOBuffer>(data.size());
+    auto data_to_pass =
+        base::MakeRefCounted<net::IOBufferWithSize>(data.size());
     memcpy(data_to_pass->data(), data.data(), data.size());
     int rv = entry_->WriteData(index, offset, data_to_pass.get(), data.size(),
                                base::BindOnce(&SimpleCacheEntry::OnDataWritten,
@@ -136,7 +144,7 @@ class SimpleCacheEntry : public network::mojom::SimpleCacheEntry {
         base::MakeRefCounted<base::RefCountedData<ReadDataCallback>>();
     callback_holder->data = std::move(callback);
 
-    auto buffer = base::MakeRefCounted<net::IOBuffer>(length);
+    auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(length);
     int rv = entry_->ReadData(
         index, offset, buffer.get(), length,
         base::BindOnce(&SimpleCacheEntry::OnDataRead,
@@ -158,7 +166,8 @@ class SimpleCacheEntry : public network::mojom::SimpleCacheEntry {
         base::MakeRefCounted<base::RefCountedData<WriteDataCallback>>();
     callback_holder->data = std::move(callback);
 
-    auto data_to_pass = base::MakeRefCounted<net::IOBuffer>(data.size());
+    auto data_to_pass =
+        base::MakeRefCounted<net::IOBufferWithSize>(data.size());
     memcpy(data_to_pass->data(), data.data(), data.size());
     int rv =
         entry_->WriteSparseData(offset, data_to_pass.get(), data.size(),
@@ -183,7 +192,7 @@ class SimpleCacheEntry : public network::mojom::SimpleCacheEntry {
         base::MakeRefCounted<base::RefCountedData<ReadDataCallback>>();
     callback_holder->data = std::move(callback);
 
-    auto buffer = base::MakeRefCounted<net::IOBuffer>(length);
+    auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(length);
     int rv = entry_->ReadSparseData(
         offset, buffer.get(), length,
         base::BindOnce(&SimpleCacheEntry::OnDataRead,
@@ -423,14 +432,13 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
     : public network::mojom::NetworkServiceTest,
       public base::CurrentThread::DestructionObserver {
  public:
-  NetworkServiceTestImpl()
-      : test_host_resolver_(new TestHostResolver()),
-        memory_pressure_listener_(
-            FROM_HERE,
-            base::DoNothing(),
-            base::BindRepeating(&NetworkServiceTestHelper::
-                                    NetworkServiceTestImpl::OnMemoryPressure,
-                                base::Unretained(this))) {
+  NetworkServiceTestImpl() : test_host_resolver_(new TestHostResolver()) {
+    memory_pressure_listener_.emplace(
+        FROM_HERE, base::DoNothing(),
+        base::BindRepeating(
+            &NetworkServiceTestHelper::NetworkServiceTestImpl::OnMemoryPressure,
+            weak_factory_.GetWeakPtr()));
+
     if (base::CommandLine::ForCurrentProcess()->HasSwitch(
             switches::kUseMockCertVerifierForTesting)) {
       mock_cert_verifier_ = std::make_unique<net::MockCertVerifier>();
@@ -528,7 +536,7 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
   void MockCertVerifierSetDefaultResult(
       int32_t default_result,
       MockCertVerifierSetDefaultResultCallback callback) override {
-    // TODO(crbug.com/1377734): Since testing/variations/
+    // TODO(crbug.com/40243688): Since testing/variations/
     // fieldtrial_testing_config.json changes the command line flags after
     // ContentBrowserTest::SetUpCommandLine() and NetworkServiceTest
     // instantiation, MockCertVerifierSetDefaultResult can be called without
@@ -552,13 +560,6 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
       MockCertVerifierAddResultForCertAndHostCallback callback) override {
     mock_cert_verifier_->AddResultForCertAndHost(cert, host_pattern,
                                                  verify_result, rv);
-    std::move(callback).Run();
-  }
-
-  void SetRequireCT(RequireCT required,
-                    SetRequireCTCallback callback) override {
-    net::TransportSecurityState::SetRequireCTForTesting(
-        required == NetworkServiceTest::RequireCT::REQUIRE);
     std::move(callback).Run();
   }
 
@@ -624,7 +625,7 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
   }
 
   void SetSCTAuditingRetryDelay(
-      absl::optional<base::TimeDelta> delay,
+      std::optional<base::TimeDelta> delay,
       SetSCTAuditingRetryDelayCallback callback) override {
 #if BUILDFLAG(IS_CT_SUPPORTED)
     network::SCTAuditingReporter::SetRetryDelayForTesting(delay);
@@ -635,9 +636,8 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
   void GetEnvironmentVariableValue(
       const std::string& name,
       GetEnvironmentVariableValueCallback callback) override {
-    std::string value;
-    base::Environment::Create()->GetVar(name, &value);
-    std::move(callback).Run(value);
+    std::move(callback).Run(
+        base::Environment::Create()->GetVar(name).value_or(std::string()));
   }
 
   void Log(const std::string& message, LogCallback callback) override {
@@ -727,13 +727,14 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
   void MakeRequestToServer(network::TransferableSocket transferred,
                            const net::IPEndPoint& endpoint,
                            MakeRequestToServerCallback callback) override {
-    net::TCPSocket socket(nullptr, nullptr, net::NetLogSource());
-    socket.AdoptConnectedSocket(transferred.TakeSocket(), endpoint);
+    std::unique_ptr<net::TCPSocket> socket =
+        net::TCPSocket::Create(nullptr, nullptr, net::NetLogSource());
+    socket->AdoptConnectedSocket(transferred.TakeSocket(), endpoint);
     const std::string kRequest("GET / HTTP/1.0\r\n\r\n");
     auto io_buffer = base::MakeRefCounted<net::StringIOBuffer>(kRequest);
 
-    int rv = socket.Write(io_buffer.get(), io_buffer->size(), base::DoNothing(),
-                          TRAFFIC_ANNOTATION_FOR_TESTS);
+    int rv = socket->Write(io_buffer.get(), io_buffer->size(),
+                           base::DoNothing(), TRAFFIC_ANNOTATION_FOR_TESTS);
     // For purposes of tests, this IPC only supports sync Write calls.
     DCHECK_NE(net::ERR_IO_PENDING, rv);
     std::move(callback).Run(rv == static_cast<int>(kRequest.size()));
@@ -758,6 +759,14 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
     system_task_ptr->Start(std::move(results_cb));
   }
 
+  void SetIPv6ProbeResult(bool success,
+                          SetIPv6ProbeResultCallback callback) override {
+    network::NetworkService::GetNetworkServiceForTesting()
+        ->host_resolver_manager()
+        ->SetLastIPv6ProbeResultForTesting(success);
+    std::move(callback).Run();
+  }
+
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   void GetAddressMapCacheLinux(
       GetAddressMapCacheLinuxCallback callback) override {
@@ -767,6 +776,39 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
                             address_map_owner->GetOnlineLinks());
   }
 #endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+
+  void AllowsGSSAPILibraryLoad(
+      AllowsGSSAPILibraryLoadCallback callback) override {
+    bool allow_gssapi_library_load;
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+    allow_gssapi_library_load =
+        network::NetworkService::GetNetworkServiceForTesting()
+            ->http_auth_dynamic_network_service_params_for_testing()
+            ->allow_gssapi_library_load;
+#else
+    allow_gssapi_library_load = true;
+#endif
+
+    std::move(callback).Run(allow_gssapi_library_load);
+  }
+
+#if BUILDFLAG(IS_WIN)
+  void DisableExclusiveCookieDatabaseLockingForTesting(
+      DisableExclusiveCookieDatabaseLockingForTestingCallback callback)
+      override {
+    network::NetworkService::GetNetworkServiceForTesting()
+        ->disable_exclusive_cookie_database_locking_for_testing();
+    std::move(callback).Run();
+  }
+#endif  // BUILDFLAG(IS_WIN)
+
+  void IsHappyEyeballsV3Enabled(
+      IsHappyEyeballsV3EnabledCallback callback) override {
+    const bool enabled = network::NetworkService::GetNetworkServiceForTesting()
+                             ->host_resolver_manager()
+                             ->IsHappyEyeballsV3Enabled();
+    std::move(callback).Run(enabled);
+  }
 
  private:
   void OnMemoryPressure(
@@ -799,7 +841,7 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
   std::unique_ptr<net::MockCertVerifier> mock_cert_verifier_;
   std::unique_ptr<net::ScopedTransportSecurityStateSource>
       transport_security_state_source_;
-  base::MemoryPressureListener memory_pressure_listener_;
+  std::optional<base::MemoryPressureListener> memory_pressure_listener_;
   base::MemoryPressureListener::MemoryPressureLevel
       latest_memory_pressure_level_ =
           base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;

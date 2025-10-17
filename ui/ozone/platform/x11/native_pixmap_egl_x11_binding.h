@@ -8,11 +8,12 @@
 #include <memory>
 
 #include "ui/gfx/native_pixmap.h"
+#include "ui/gfx/x/connection.h"
+#include "ui/gfx/x/glx.h"
 #include "ui/ozone/public/native_pixmap_gl_binding.h"
 
-namespace gl {
-class NativePixmapEGLX11BindingHelper;
-}
+typedef void* EGLSurface;
+typedef void* EGLDisplay;
 
 namespace ui {
 
@@ -20,10 +21,10 @@ namespace ui {
 // within the context of X11.
 class NativePixmapEGLX11Binding : public NativePixmapGLBinding {
  public:
-  explicit NativePixmapEGLX11Binding(
-      std::unique_ptr<gl::NativePixmapEGLX11BindingHelper> binding_helper,
-      gfx::BufferFormat format);
+  explicit NativePixmapEGLX11Binding(gfx::BufferFormat format);
   ~NativePixmapEGLX11Binding() override;
+
+  static bool IsBufferFormatSupported(gfx::BufferFormat format);
 
   static std::unique_ptr<NativePixmapGLBinding> Create(
       scoped_refptr<gfx::NativePixmap> pixmap,
@@ -34,17 +35,17 @@ class NativePixmapEGLX11Binding : public NativePixmapGLBinding {
 
   static bool CanImportNativeGLXPixmap();
 
-  // NativePixmapGLBinding:
-  GLuint GetInternalFormat() override;
-  GLenum GetDataType() override;
-
  private:
+  bool Initialize(x11::Pixmap pixmap);
+
+  // Binds image to texture currently bound to |target|. Returns true on
+  // success.
   bool BindTexture(GLenum target, GLuint texture_id);
 
-  // TODO(crbug.com/1412693): Fold the helper class into this class once
-  // GLImageEGLPixmap no longer exists.
-  std::unique_ptr<gl::NativePixmapEGLX11BindingHelper> binding_helper_;
-  gfx::BufferFormat format_;
+  EGLSurface surface_ = nullptr;
+  EGLDisplay display_;
+
+  x11::Pixmap pixmap_ = x11::Pixmap::None;
 };
 
 }  // namespace ui

@@ -9,7 +9,6 @@
 #include "base/test/task_environment.h"
 #include "mojo/public/cpp/base/file_mojom_traits.h"
 #include "mojo/public/cpp/base/file_path_mojom_traits.h"
-#include "mojo/public/cpp/bindings/array_traits_wtf_vector.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
@@ -39,7 +38,7 @@ TEST_F(FetchApiRequestBodyMojomTraitsTest, RoundTripEmpty) {
 
 TEST_F(FetchApiRequestBodyMojomTraitsTest, RoundTripBytes) {
   ResourceRequestBody src(EncodedFormData::Create());
-  src.FormBody()->AppendData("hello", 5);
+  src.FormBody()->AppendData(base::span_from_cstring("hello"));
   src.FormBody()->SetIdentifier(29);
   src.FormBody()->SetContainsPasswordData(true);
 
@@ -53,7 +52,7 @@ TEST_F(FetchApiRequestBodyMojomTraitsTest, RoundTripBytes) {
   ASSERT_EQ(1u, dest.FormBody()->Elements().size());
   const FormDataElement& e = dest.FormBody()->Elements()[0];
   EXPECT_EQ(e.type_, FormDataElement::kData);
-  EXPECT_EQ("hello", String(e.data_.data(), e.data_.size()));
+  EXPECT_EQ("hello", String(e.data_));
 }
 
 TEST_F(FetchApiRequestBodyMojomTraitsTest, RoundTripFile) {
@@ -77,7 +76,7 @@ TEST_F(FetchApiRequestBodyMojomTraitsTest, RoundTripFile) {
 
 TEST_F(FetchApiRequestBodyMojomTraitsTest, RoundTripFileRange) {
   ResourceRequestBody src(EncodedFormData::Create());
-  src.FormBody()->AppendFileRange("abc", 4, 8, absl::nullopt);
+  src.FormBody()->AppendFileRange("abc", 4, 8, std::nullopt);
 
   ResourceRequestBody dest;
   EXPECT_TRUE(mojo::test::SerializeAndDeserialize<
@@ -90,17 +89,16 @@ TEST_F(FetchApiRequestBodyMojomTraitsTest, RoundTripFileRange) {
   EXPECT_EQ(e.filename_, "abc");
   EXPECT_EQ(e.file_start_, 4);
   EXPECT_EQ(e.file_length_, 8);
-  EXPECT_EQ(e.expected_file_modification_time_, absl::nullopt);
+  EXPECT_EQ(e.expected_file_modification_time_, std::nullopt);
 }
 
 TEST_F(FetchApiRequestBodyMojomTraitsTest, RoundTripBlobWithOpionalHandle) {
   ResourceRequestBody src(EncodedFormData::Create());
   mojo::MessagePipe pipe;
-  String uuid = "test_uuid";
   auto blob_data_handle = BlobDataHandle::Create(
-      uuid, "type-test", 100,
+      "test_uuid", "type-test", 100,
       mojo::PendingRemote<mojom::blink::Blob>(std::move(pipe.handle0), 0));
-  src.FormBody()->AppendBlob(uuid, blob_data_handle);
+  src.FormBody()->AppendBlob(blob_data_handle);
 
   ResourceRequestBody dest;
   EXPECT_TRUE(mojo::test::SerializeAndDeserialize<
@@ -110,7 +108,6 @@ TEST_F(FetchApiRequestBodyMojomTraitsTest, RoundTripBlobWithOpionalHandle) {
   ASSERT_EQ(1u, dest.FormBody()->Elements().size());
   const FormDataElement& e = dest.FormBody()->Elements()[0];
   EXPECT_EQ(e.type_, FormDataElement::kDataPipe);
-  EXPECT_EQ(e.blob_uuid_, String());
   EXPECT_TRUE(e.data_pipe_getter_);
 }
 

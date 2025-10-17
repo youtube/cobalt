@@ -14,22 +14,24 @@
 namespace blink {
 
 AtomicString TrackDefault::AudioKeyword() {
-  return "audio";
+  return AtomicString("audio");
 }
 
 AtomicString TrackDefault::VideoKeyword() {
-  return "video";
+  return AtomicString("video");
 }
 
 AtomicString TrackDefault::TextKeyword() {
-  return "text";
+  return AtomicString("text");
 }
 
-ScriptValue TrackDefault::kinds(ScriptState* script_state) const {
-  return ScriptValue(script_state->GetIsolate(), ToV8(kinds_, script_state));
+ScriptObject TrackDefault::kinds(ScriptState* script_state) const {
+  return ScriptObject(
+      script_state->GetIsolate(),
+      ToV8Traits<IDLSequence<IDLString>>::ToV8(script_state, kinds_));
 }
 
-TrackDefault* TrackDefault::Create(const AtomicString& type,
+TrackDefault* TrackDefault::Create(const V8TrackDefaultType& type,
                                    const String& language,
                                    const String& label,
                                    const Vector<String>& kinds,
@@ -44,7 +46,7 @@ TrackDefault* TrackDefault::Create(const AtomicString& type,
   //    language tag, then throw an INVALID_ACCESS_ERR and abort these steps.
   // FIXME: Implement BCP 47 language tag validation.
 
-  if (type == AudioKeyword()) {
+  if (type.AsEnum() == V8TrackDefaultType::Enum::kAudio) {
     // 2.1. If |type| equals "audio":
     //      If any string in |kinds| contains a value that is not listed as
     //      applying to audio in the kind categories table, then throw a
@@ -56,7 +58,7 @@ TrackDefault* TrackDefault::Create(const AtomicString& type,
         return nullptr;
       }
     }
-  } else if (type == VideoKeyword()) {
+  } else if (type.AsEnum() == V8TrackDefaultType::Enum::kVideo) {
     // 2.2. If |type| equals "video":
     //      If any string in |kinds| contains a value that is not listed as
     //      applying to video in the kind categories table, then throw a
@@ -68,7 +70,7 @@ TrackDefault* TrackDefault::Create(const AtomicString& type,
         return nullptr;
       }
     }
-  } else if (type == TextKeyword()) {
+  } else if (type.AsEnum() == V8TrackDefaultType::Enum::kText) {
     // 2.3. If |type| equals "text":
     //      If any string in |kinds| contains a value that is not listed in the
     //      text track kind list, then throw a TypeError and abort these
@@ -81,8 +83,7 @@ TrackDefault* TrackDefault::Create(const AtomicString& type,
       }
     }
   } else {
-    NOTREACHED();  // IDL enforcement should prevent this case.
-    return nullptr;
+    NOTREACHED();
   }
 
   // 3. Set the type attribute on this new object to |type|.
@@ -98,7 +99,7 @@ TrackDefault* TrackDefault::Create(const AtomicString& type,
 
 TrackDefault::~TrackDefault() = default;
 
-TrackDefault::TrackDefault(const AtomicString& type,
+TrackDefault::TrackDefault(const V8TrackDefaultType& type,
                            const String& language,
                            const String& label,
                            const Vector<String>& kinds,

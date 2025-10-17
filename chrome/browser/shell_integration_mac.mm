@@ -7,15 +7,16 @@
 #include <AppKit/AppKit.h>
 #include <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
-#include "base/mac/bundle_locations.h"
-#include "base/mac/foundation_util.h"
+#include "base/apple/bridging.h"
+#include "base/apple/bundle_locations.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/strings/sys_string_conversions.h"
 #include "build/branding_buildflags.h"
 #include "chrome/common/channel_info.h"
 #include "components/version_info/version_info.h"
-#import "net/base/mac/url_conversions.h"
+#import "net/base/apple/url_conversions.h"
 
 namespace shell_integration {
 
@@ -37,13 +38,38 @@ NSString* GetBundleIdForDefaultAppForScheme(NSString* scheme) {
   return default_app_bundle.bundleIdentifier;
 }
 
+// Returns the bundle ID of the default client application for `type`, or nil on
+// failure.
+NSString* GetBundleIdForDefaultAppForUTType(NSString* type) {
+  UTType* uttype = [UTType typeWithIdentifier:type];
+  if (!uttype) {
+    return nil;
+  }
+  NSURL* default_app_url = nil;
+  if (@available(macOS 12, *)) {
+    default_app_url =
+        [NSWorkspace.sharedWorkspace URLForApplicationToOpenContentType:uttype];
+  } else {
+    CFURLRef default_app_url_cf = LSCopyDefaultApplicationURLForContentType(
+        base::apple::NSToCFPtrCast(type), kLSRolesAll, nil);
+    if (!default_app_url_cf) {
+      return nil;
+    }
+    default_app_url = base::apple::CFToNSOwnershipCast(default_app_url_cf);
+  }
+  if (!default_app_url) {
+    return nil;
+  }
+  return [NSBundle bundleWithURL:default_app_url].bundleIdentifier;
+}
+
 }  // namespace
 
 bool SetAsDefaultBrowser() {
   if (@available(macOS 12, *)) {
     // We really do want the outer bundle here, not the main bundle since
     // setting a shortcut to Chrome as the default browser doesn't make sense.
-    NSURL* app_bundle = base::mac::OuterBundleURL();
+    NSURL* app_bundle = base::apple::OuterBundleURL();
     if (!app_bundle) {
       return false;
     }
@@ -60,14 +86,14 @@ bool SetAsDefaultBrowser() {
                                           toOpenContentType:UTTypeHTML
                                           completionHandler:^(NSError*){
                                           }];
-    // TODO(https://crbug.com/1393452): Passing empty completion handlers,
+    // TODO(crbug.com/40248220): Passing empty completion handlers,
     // above, is kinda broken, but given that this API is synchronous, nothing
     // better can be done. This entire API should be rebuilt.
   } else {
     // We really do want the outer bundle here, not the main bundle since
     // setting a shortcut to Chrome as the default browser doesn't make sense.
     CFStringRef identifier =
-        base::mac::NSToCFCast(base::mac::OuterBundle().bundleIdentifier);
+        base::apple::NSToCFPtrCast(base::apple::OuterBundle().bundleIdentifier);
     if (!identifier) {
       return false;
     }
@@ -116,7 +142,7 @@ bool SetAsDefaultClientForScheme(const std::string& scheme) {
   if (@available(macOS 12, *)) {
     // We really do want the main bundle here since it makes sense to set an
     // app shortcut as a default scheme handler.
-    NSURL* app_bundle = base::mac::MainBundleURL();
+    NSURL* app_bundle = base::apple::MainBundleURL();
     if (!app_bundle) {
       return false;
     }
@@ -127,21 +153,56 @@ bool SetAsDefaultClientForScheme(const std::string& scheme) {
                  completionHandler:^(NSError*){
                  }];
 
-    // TODO(https://crbug.com/1393452): Passing empty completion handlers,
+    // TODO(crbug.com/40248220): Passing empty completion handlers,
     // above, is kinda broken, but given that this API is synchronous, nothing
     // better can be done. This entire API should be rebuilt.
     return true;
   } else {
     // We really do want the main bundle here since it makes sense to set an
     // app shortcut as a default scheme handler.
-    NSString* identifier = base::mac::MainBundle().bundleIdentifier;
+    NSString* identifier = base::apple::MainBundle().bundleIdentifier;
     if (!identifier) {
       return false;
     }
 
     NSString* scheme_ns = base::SysUTF8ToNSString(scheme);
-    OSStatus return_code = LSSetDefaultHandlerForURLScheme(
-        base::mac::NSToCFCast(scheme_ns), base::mac::NSToCFCast(identifier));
+    OSStatus return_code =
+        LSSetDefaultHandlerForURLScheme(base::apple::NSToCFPtrCast(scheme_ns),
+                                        base::apple::NSToCFPtrCast(identifier));
+    return return_code == noErr;
+  }
+}
+
+bool SetAsDefaultHandlerForUTType(const std::string& type) {
+  if (type.empty()) {
+    return false;
+  }
+  UTType* uttype = [UTType typeWithIdentifier:base::SysUTF8ToNSString(type)];
+  if (!uttype) {
+    return false;
+  }
+  if (@available(macOS 12, *)) {
+    NSURL* app_bundle = base::apple::OuterBundleURL();
+    if (!app_bundle) {
+      return false;
+    }
+    [NSWorkspace.sharedWorkspace setDefaultApplicationAtURL:app_bundle
+                                          toOpenContentType:uttype
+                                          completionHandler:^(NSError*){
+                                          }];
+    return true;
+  } else {
+    NSString* identifier = base::apple::OuterBundle().bundleIdentifier;
+    if (!identifier) {
+      return false;
+    }
+    NSString* type_ns = base::SysUTF8ToNSString(type);
+    // Set the default handler for `kLSRolesAll`, as being default
+    // `kLSRolesViewer` alone is not necessarily enough to make double-clicking
+    // in Finder open the file in Chrome for all file types.
+    OSStatus return_code = LSSetDefaultRoleHandlerForContentType(
+        base::apple::NSToCFPtrCast(type_ns), kLSRolesAll,
+        base::apple::NSToCFPtrCast(identifier));
     return return_code == noErr;
   }
 }
@@ -174,9 +235,8 @@ std::vector<base::FilePath> GetAllApplicationPathsForURL(const GURL& url) {
     app_urls =
         [NSWorkspace.sharedWorkspace URLsForApplicationsToOpenURL:ns_url];
   } else {
-    CFArrayRef urls =
-        LSCopyApplicationURLsForURL(base::mac::NSToCFCast(ns_url), kLSRolesAll);
-    app_urls = [base::mac::CFToNSCast(urls) autorelease];
+    app_urls = base::apple::CFToNSOwnershipCast(LSCopyApplicationURLsForURL(
+        base::apple::NSToCFPtrCast(ns_url), kLSRolesAll));
   }
 
   if (app_urls.count == 0) {
@@ -186,39 +246,26 @@ std::vector<base::FilePath> GetAllApplicationPathsForURL(const GURL& url) {
   std::vector<base::FilePath> app_paths;
   app_paths.reserve(app_urls.count);
   for (NSURL* app_url in app_urls) {
-    app_paths.push_back(base::mac::NSURLToFilePath(app_url));
+    app_paths.push_back(base::apple::NSURLToFilePath(app_url));
   }
   return app_paths;
 }
 
 bool CanApplicationHandleURL(const base::FilePath& app_path, const GURL& url) {
   NSURL* ns_item_url = net::NSURLWithGURL(url);
-  NSURL* ns_app_url = base::mac::FilePathToNSURL(app_path);
+  NSURL* ns_app_url = base::apple::FilePathToNSURL(app_path);
   Boolean result = FALSE;
-  LSCanURLAcceptURL(base::mac::NSToCFCast(ns_item_url),
-                    base::mac::NSToCFCast(ns_app_url), kLSRolesAll,
+  LSCanURLAcceptURL(base::apple::NSToCFPtrCast(ns_item_url),
+                    base::apple::NSToCFPtrCast(ns_app_url), kLSRolesAll,
                     kLSAcceptDefault, &result);
   return result;
 }
 
-// Attempt to determine if this instance of Chrome is the default browser and
-// return the appropriate state. (Defined as being the handler for HTTP/HTTPS
-// schemes; we don't want to report "no" here if the user has simply chosen
-// to open HTML files in a text editor and FTP links with an FTP client.)
-DefaultWebClientState GetDefaultBrowser() {
-  // We really do want the outer bundle here, since this we want to know the
-  // status of the main Chrome bundle and not a shortcut.
-  NSString* my_identifier = base::mac::OuterBundle().bundleIdentifier;
-  if (!my_identifier) {
-    return UNKNOWN_DEFAULT;
-  }
-
-  NSString* default_browser = GetBundleIdForDefaultAppForScheme(@"http");
-  if ([default_browser isEqualToString:my_identifier]) {
-    return IS_DEFAULT;
-  }
-
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+// Returns true if `other_identifier` is another instance (or channel) of
+// Chrome, given Chrome bundle ID `chrome_identifier`.
+bool IsAnotherChromeChannel(NSString* chrome_identifier,
+                            NSString* other_identifier) {
   // Flavors of Chrome are of the constructions "com.google.Chrome" and
   // "com.google.Chrome.beta". If the first three components match, then these
   // are variant flavors.
@@ -230,12 +277,33 @@ DefaultWebClientState GetDefaultBrowser() {
     }
     return [parts componentsJoinedByString:@"."];
   };
+  NSString* chrome_identifier_lopped =
+      three_components_only_lopper(chrome_identifier);
+  NSString* other_identifier_lopped =
+      three_components_only_lopper(other_identifier);
+  return [chrome_identifier_lopped isEqualToString:other_identifier_lopped];
+}
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
-  NSString* my_identifier_lopped = three_components_only_lopper(my_identifier);
-  NSString* default_browser_lopped =
-      three_components_only_lopper(default_browser);
+// Attempt to determine if this instance of Chrome is the default browser and
+// return the appropriate state. (Defined as being the handler for HTTP/HTTPS
+// schemes; we don't want to report "no" here if the user has simply chosen
+// to open HTML files in a text editor and FTP links with an FTP client.)
+DefaultWebClientState GetDefaultBrowser() {
+  // We really do want the outer bundle here, since this we want to know the
+  // status of the main Chrome bundle and not a shortcut.
+  NSString* my_identifier = base::apple::OuterBundle().bundleIdentifier;
+  if (!my_identifier) {
+    return UNKNOWN_DEFAULT;
+  }
 
-  if ([my_identifier_lopped isEqualToString:default_browser_lopped]) {
+  NSString* default_browser = GetBundleIdForDefaultAppForScheme(@"http");
+  if ([default_browser isEqualToString:my_identifier]) {
+    return IS_DEFAULT;
+  }
+
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  if (IsAnotherChromeChannel(my_identifier, default_browser)) {
     return OTHER_MODE_IS_DEFAULT;
   }
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -257,7 +325,7 @@ DefaultWebClientState IsDefaultClientForScheme(const std::string& scheme) {
 
   // We really do want the main bundle here since it makes sense to set an
   // app shortcut as a default scheme handler.
-  NSString* my_identifier = base::mac::MainBundle().bundleIdentifier;
+  NSString* my_identifier = base::apple::MainBundle().bundleIdentifier;
   if (!my_identifier) {
     return UNKNOWN_DEFAULT;
   }
@@ -268,13 +336,37 @@ DefaultWebClientState IsDefaultClientForScheme(const std::string& scheme) {
                                                          : NOT_DEFAULT;
 }
 
+DefaultWebClientState IsDefaultHandlerForUTType(const std::string& type) {
+  if (type.empty()) {
+    return UNKNOWN_DEFAULT;
+  }
+  NSString* my_identifier = base::apple::OuterBundle().bundleIdentifier;
+  if (!my_identifier) {
+    return UNKNOWN_DEFAULT;
+  }
+  NSString* default_app =
+      GetBundleIdForDefaultAppForUTType(base::SysUTF8ToNSString(type));
+  if (!default_app) {
+    return UNKNOWN_DEFAULT;
+  }
+  if ([default_app isEqualToString:my_identifier]) {
+    return IS_DEFAULT;
+  }
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  if (IsAnotherChromeChannel(my_identifier, default_app)) {
+    return OTHER_MODE_IS_DEFAULT;
+  }
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  return NOT_DEFAULT;
+}
+
 namespace internal {
 
 DefaultWebClientSetPermission GetPlatformSpecificDefaultWebClientSetPermission(
     WebClientSetMethod method) {
   // This should be `SET_DEFAULT_INTERACTIVE`, but that changes how
   // `DefaultBrowserWorker` and `DefaultSchemeClientWorker` work.
-  // TODO(https://crbug.com/1393452): Migrate all callers to the new API,
+  // TODO(crbug.com/40248220): Migrate all callers to the new API,
   // migrate all the Mac code to integrate with it, and change this to return
   // the correct value.
   return SET_DEFAULT_UNATTENDED;

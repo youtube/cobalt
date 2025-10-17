@@ -1,9 +1,12 @@
 Name: ChromiumUpdater
-Version: Varies
-License: BSD
+URL: https://chromium.googlesource.com/chromium/src/+/main/chrome/updater/README.md
+Version: N/A
+Revision: DEPS
+License: BSD-3-Clause
 License File: LICENSE
 Security Critical: Yes
-CPEPrefix: cpe:2.3:a:google:updater:
+Shipped: yes
+CPEPrefix: cpe:2.3:a:google:updater:*:*:*:*:*:*:*:*
 
 Description:
 The ChromiumUpdater package contains the ChromiumUpdater app bundle, which is

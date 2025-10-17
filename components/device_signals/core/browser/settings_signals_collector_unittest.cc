@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,7 @@
 #include "base/values.h"
 #include "components/device_signals/core/browser/mock_settings_client.h"
 #include "components/device_signals/core/browser/signals_types.h"
+#include "components/device_signals/core/browser/user_permission_service.h"
 #include "components/device_signals/core/common/signals_constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -36,13 +37,13 @@ SignalsAggregationRequest CreateRequest(SignalName signal_name,
     options1.path = "test_path1";
     options1.key = "test_setting1";
     options1.get_value = true;
-    options1.hive = absl::nullopt;
+    options1.hive = std::nullopt;
 
     GetSettingsOptions options2;
     options2.path = "test_path2";
     options2.key = "test_setting2";
     options2.get_value = false;
-    options2.hive = absl::nullopt;
+    options2.hive = std::nullopt;
 
     request.settings_signal_parameters.push_back(options1);
     request.settings_signal_parameters.push_back(options2);
@@ -57,17 +58,16 @@ using GetSettingsSignalsCallback =
 
 class SettingsSignalsCollectorTest : public testing::Test {
  protected:
-  SettingsSignalsCollectorTest()
-      : signal_collector_(std::move(settings_client)) {}
+  SettingsSignalsCollectorTest() {
+    auto settings_client = std::make_unique<StrictMock<MockSettingsClient>>();
+    settings_client_ = settings_client.get();
+    signal_collector_ =
+        std::make_unique<SettingsSignalsCollector>(std::move(settings_client));
+  }
 
   base::test::TaskEnvironment task_environment_;
-
-  std::unique_ptr<StrictMock<MockSettingsClient>> settings_client =
-      std::make_unique<StrictMock<MockSettingsClient>>();
-  raw_ptr<StrictMock<MockSettingsClient>> settings_client_ =
-      settings_client.get();
-
-  SettingsSignalsCollector signal_collector_;
+  std::unique_ptr<SettingsSignalsCollector> signal_collector_;
+  raw_ptr<StrictMock<MockSettingsClient>> settings_client_;
 };
 
 // Test that runs a sanity check on the set of signals supported by this
@@ -76,7 +76,7 @@ TEST_F(SettingsSignalsCollectorTest, SupportedSettingsSignalNames) {
   const std::array<SignalName, 1> supported_signals{
       {SignalName::kSystemSettings}};
 
-  const auto names_set = signal_collector_.GetSupportedSignalNames();
+  const auto names_set = signal_collector_->GetSupportedSignalNames();
 
   EXPECT_EQ(names_set.size(), supported_signals.size());
   for (const auto& signal_name : supported_signals) {
@@ -89,8 +89,9 @@ TEST_F(SettingsSignalsCollectorTest, GetSettingsSignal_Unsupported) {
   SignalName signal_name = SignalName::kAntiVirus;
   SignalsAggregationResponse response;
   base::RunLoop run_loop;
-  signal_collector_.GetSignal(signal_name, CreateRequest(signal_name), response,
-                              run_loop.QuitClosure());
+  signal_collector_->GetSignal(signal_name, UserPermission::kGranted,
+                               CreateRequest(signal_name), response,
+                               run_loop.QuitClosure());
 
   run_loop.Run();
 
@@ -99,14 +100,29 @@ TEST_F(SettingsSignalsCollectorTest, GetSettingsSignal_Unsupported) {
             SignalCollectionError::kUnsupported);
 }
 
+// Tests that signal collection is halted if permission is not sufficient.
+TEST_F(SettingsSignalsCollectorTest, GetSignal_MissingConsent) {
+  SignalName signal_name = SignalName::kSystemSettings;
+  SignalsAggregationResponse response;
+  base::RunLoop run_loop;
+  signal_collector_->GetSignal(signal_name, UserPermission::kMissingConsent,
+                               CreateRequest(signal_name), response,
+                               run_loop.QuitClosure());
+
+  run_loop.Run();
+
+  ASSERT_FALSE(response.top_level_error.has_value());
+  ASSERT_FALSE(response.settings_response);
+}
+
 // Tests that the request does not contain the required parameters for the
 // settings signal.
 TEST_F(SettingsSignalsCollectorTest, GetSignal_Settings_MissingParameters) {
   SignalName signal_name = SignalName::kSystemSettings;
   SignalsAggregationResponse response;
   base::RunLoop run_loop;
-  signal_collector_.GetSignal(
-      signal_name,
+  signal_collector_->GetSignal(
+      signal_name, UserPermission::kGranted,
       CreateRequest(signal_name, /*with_settings_parameter=*/false), response,
       run_loop.QuitClosure());
 
@@ -126,8 +142,8 @@ TEST_F(SettingsSignalsCollectorTest, GetSignal_SettingsInfo) {
   retrieved_item.path = "test_path";
   retrieved_item.key = "test_key";
   retrieved_item.presence = PresenceValue::kFound;
-  retrieved_item.hive = absl::nullopt;
-  retrieved_item.setting_json_value = absl::nullopt;
+  retrieved_item.hive = std::nullopt;
+  retrieved_item.setting_json_value = std::nullopt;
 
   std::vector<SettingsItem> settings_items;
   settings_items.push_back(retrieved_item);
@@ -146,8 +162,8 @@ TEST_F(SettingsSignalsCollectorTest, GetSignal_SettingsInfo) {
 
   SignalsAggregationResponse response;
   base::RunLoop run_loop;
-  signal_collector_.GetSignal(signal_name, request, response,
-                              run_loop.QuitClosure());
+  signal_collector_->GetSignal(signal_name, UserPermission::kGranted, request,
+                               response, run_loop.QuitClosure());
 
   run_loop.Run();
 

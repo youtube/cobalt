@@ -13,34 +13,35 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/elapsed_timer.h"
+#include "chrome/browser/bookmarks/bookmark_merged_surface_service_observer.h"
 #include "chrome/browser/ui/global_error/global_error_observer.h"
 #include "chrome/browser/ui/global_error/global_error_service.h"
-#include "components/bookmarks/browser/base_bookmark_model_observer.h"
+#include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_everything_menu.h"
+#include "components/saved_tab_groups/public/saved_tab_group.h"
 #include "ui/base/models/menu_model.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/views/controls/menu/menu_delegate.h"
 
 class BookmarkMenuDelegate;
 class Browser;
-class ScopedNewBadgeTracker;
 
 namespace views {
 class MenuButtonController;
 class MenuItemView;
 class MenuRunner;
-}
+}  // namespace views
+
+struct BookmarkParentFolder;
 
 // AppMenu adapts the AppMenuModel to view's menu related classes.
-class AppMenu : public views::MenuDelegate,
-                public bookmarks::BaseBookmarkModelObserver,
-                public GlobalErrorObserver,
-                public base::SupportsWeakPtr<AppMenu> {
+class AppMenu final : public views::MenuDelegate,
+                      public BookmarkMergedSurfaceServiceObserver,
+                      public GlobalErrorObserver {
  public:
-  AppMenu(Browser* browser, int run_types);
+  AppMenu(Browser* browser, ui::MenuModel* model, int run_types);
   AppMenu(const AppMenu&) = delete;
   AppMenu& operator=(const AppMenu&) = delete;
   ~AppMenu() override;
-
-  void Init(ui::MenuModel* model);
 
   // Shows the menu relative to the specified controller's button.
   void RunMenu(views::MenuButtonController* host);
@@ -57,9 +58,13 @@ class AppMenu : public views::MenuDelegate,
 
   views::MenuItemView* root_menu_item() { return root_; }
 
-  // MenuDelegate overrides:
+  base::WeakPtr<AppMenu> AsWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
+
+  void SetTimerForTesting(base::ElapsedTimer timer);
+
+  // views::MenuDelegate:
   const gfx::FontList* GetLabelFontList(int command_id) const override;
-  absl::optional<SkColor> GetLabelColor(int command_id) const override;
+  std::optional<SkColor> GetLabelColor(int command_id) const override;
   std::u16string GetTooltipText(int command_id,
                                 const gfx::Point& p) const override;
   bool IsTriggerableEvent(views::MenuItemView* menu,
@@ -80,7 +85,7 @@ class AppMenu : public views::MenuDelegate,
   bool ShowContextMenu(views::MenuItemView* source,
                        int command_id,
                        const gfx::Point& p,
-                       ui::MenuSourceType source_type) override;
+                       ui::mojom::MenuSourceType source_type) override;
   bool CanDrag(views::MenuItemView* menu) override;
   void WriteDragData(views::MenuItemView* sender,
                      ui::OSExchangeData* data) override;
@@ -97,12 +102,31 @@ class AppMenu : public views::MenuDelegate,
   void OnMenuClosed(views::MenuItemView* menu) override;
   bool ShouldExecuteCommandWithoutClosingMenu(int command_id,
                                               const ui::Event& event) override;
+  bool ShouldTryPositioningBesideAnchor() const override;
 
-  // bookmarks::BaseBookmarkModelObserver overrides:
-  void BookmarkModelChanged() override;
+  // BookmarkMergedSurfaceServiceObserver overrides:
+  void BookmarkMergedSurfaceServiceLoaded() override;
+  void BookmarkMergedSurfaceServiceBeingDeleted() override;
+  void BookmarkNodeAdded(const BookmarkParentFolder& parent,
+                         size_t index) override;
+  void BookmarkNodesRemoved(
+      const BookmarkParentFolder& parent,
+      const base::flat_set<const bookmarks::BookmarkNode*>& nodes) override;
+  void BookmarkNodeMoved(const BookmarkParentFolder& old_parent,
+                         size_t old_index,
+                         const BookmarkParentFolder& new_parent,
+                         size_t new_index) override;
+  void BookmarkNodeChanged(const bookmarks::BookmarkNode* node) override;
+  void BookmarkNodeFaviconChanged(
+      const bookmarks::BookmarkNode* node) override {}
+  void BookmarkParentFolderChildrenReordered(
+      const BookmarkParentFolder& folder) override;
+  void BookmarkAllUserNodesRemoved() override;
 
   // GlobalErrorObserver:
   void OnGlobalErrorsChanged() override;
+
+  views::View* GetZoomAppMenuViewForTest();
 
  private:
   class CutCopyPasteView;
@@ -110,12 +134,13 @@ class AppMenu : public views::MenuDelegate,
   class ZoomView;
 
   typedef std::pair<ui::MenuModel*, size_t> Entry;
-  typedef std::map<int,Entry> CommandIDToEntry;
+  typedef std::map<int, Entry> CommandIDToEntry;
+
+  void BookmarkMergedSurfaceServiceChanged();
 
   // Populates |parent| with all the child menus in |model|. Recursively invokes
   // |PopulateMenu| for any submenu.
-  void PopulateMenu(views::MenuItemView* parent,
-                    ui::MenuModel* model);
+  void PopulateMenu(views::MenuItemView* parent, ui::MenuModel* model);
 
   // Adds a new menu item to |parent| at |menu_index| to represent the item in
   // |model| at |model_index|:
@@ -142,10 +167,10 @@ class AppMenu : public views::MenuDelegate,
   // in |command_id_to_entry_|.
   size_t ModelIndexFromCommandId(int command_id) const;
 
-  // The views menu. Owned by |menu_runner_|.
-  raw_ptr<views::MenuItemView, DanglingUntriaged> root_ = nullptr;
-
   std::unique_ptr<views::MenuRunner> menu_runner_;
+
+  // The views menu. Owned by `menu_runner_`.
+  raw_ptr<views::MenuItemView> root_ = nullptr;
 
   // Maps from the command ID in model to the model/index pair the item came
   // from.
@@ -153,6 +178,8 @@ class AppMenu : public views::MenuDelegate,
 
   // Browser the menu is being shown for.
   const raw_ptr<Browser, DanglingUntriaged> browser_;
+
+  const raw_ptr<ui::MenuModel> model_;
 
   // |CancelAndEvaluate| sets |selected_menu_model_| and |selected_index_|.
   // If |selected_menu_model_| is non-null after the menu completes
@@ -162,11 +189,20 @@ class AppMenu : public views::MenuDelegate,
       nullptr;
   size_t selected_index_ = 0;
 
+  std::vector<base::CallbackListSubscription>
+      profile_menu_item_selected_subscription_list_;
+
   // Used for managing the bookmark menu items.
   std::unique_ptr<BookmarkMenuDelegate> bookmark_menu_delegate_;
 
   // Menu corresponding to IDC_BOOKMARKS_MENU.
   raw_ptr<views::MenuItemView, DanglingUntriaged> bookmark_menu_ = nullptr;
+
+  // Used for managing the tab group menu items.
+  std::unique_ptr<tab_groups::STGEverythingMenu> stg_everything_menu_;
+
+  // Menu corresponding to IDC_SAVED_TAB_GROUPS_MENU.
+  raw_ptr<views::MenuItemView> saved_tab_groups_menu_ = nullptr;
 
   // Menu corresponding to IDC_FEEDBACK.
   raw_ptr<views::MenuItemView, DanglingUntriaged> feedback_menu_item_ = nullptr;
@@ -187,7 +223,7 @@ class AppMenu : public views::MenuDelegate,
   // Records the time from when menu opens to when the user selects a menu item.
   base::ElapsedTimer menu_opened_timer_;
 
-  std::unique_ptr<ScopedNewBadgeTracker> new_badge_tracker_;
+  base::WeakPtrFactory<AppMenu> weak_ptr_factory_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TOOLBAR_APP_MENU_H_

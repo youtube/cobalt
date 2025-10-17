@@ -24,10 +24,10 @@ static constexpr char kErrorHistogramName[] =
 static constexpr char kStatusHistogramName[] =
     "Enterprise.ProfileIdentifier.Status";
 
-absl::nullopt_t RecordError(ProfileIdService::Error error) {
+std::nullopt_t RecordError(ProfileIdService::Error error) {
   base::UmaHistogramBoolean(kStatusHistogramName, false);
   base::UmaHistogramEnumeration(kErrorHistogramName, error);
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 // Used in testing for storing and retrieving the profile identifier.
@@ -51,7 +51,7 @@ ProfileIdService::ProfileIdService(const std::string profile_id) {
 
 ProfileIdService::~ProfileIdService() = default;
 
-absl::optional<std::string> ProfileIdService::GetProfileId() {
+std::optional<std::string> ProfileIdService::GetProfileId() {
   std::string profile_id = GetTestProfileIdFromStorage();
   if (!profile_id.empty())
     return profile_id;
@@ -63,6 +63,17 @@ absl::optional<std::string> ProfileIdService::GetProfileId() {
   auto device_id = delegate_->GetDeviceId();
   if (device_id.empty())
     return RecordError(Error::kGetDeviceIdFailure);
+
+  return GetProfileIdWithGuidAndDeviceId(profile_guid, device_id);
+}
+
+std::optional<std::string> ProfileIdService::GetProfileIdWithGuidAndDeviceId(
+    const std::string profile_guid,
+    const std::string device_id) {
+  std::string profile_id = GetTestProfileIdFromStorage();
+  if (!profile_id.empty()) {
+    return profile_id;
+  }
 
   std::string encoded_string;
   base::Base64UrlEncode(base::SHA1HashString(profile_guid + device_id),

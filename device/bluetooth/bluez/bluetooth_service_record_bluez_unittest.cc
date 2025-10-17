@@ -5,6 +5,7 @@
 #include "device/bluetooth/bluez/bluetooth_service_record_bluez.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/bind.h"
@@ -21,7 +22,6 @@
 #include "device/bluetooth/dbus/fake_bluetooth_device_client.h"
 #include "device/bluetooth/test/bluetooth_test_bluez.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace bluez {
 
@@ -142,7 +142,7 @@ class BluetoothServiceRecordBlueZTest : public device::BluetoothTestBlueZ {
     return record;
   }
 
-  raw_ptr<BluetoothAdapterBlueZ> adapter_bluez_;
+  raw_ptr<BluetoothAdapterBlueZ, DanglingUntriaged> adapter_bluez_;
   size_t success_callbacks_;
   size_t error_callbacks_;
 
@@ -194,7 +194,7 @@ TEST_F(BluetoothServiceRecordBlueZTest, GetServiceRecords) {
   device->Connect(
       nullptr,
       base::BindLambdaForTesting(
-          [&run_loop](absl::optional<device::BluetoothDevice::ConnectErrorCode>
+          [&run_loop](std::optional<device::BluetoothDevice::ConnectErrorCode>
                           error_code) {
             EXPECT_FALSE(error_code.has_value());
             run_loop.Quit();

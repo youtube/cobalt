@@ -16,15 +16,30 @@ const char16_t* BruschettaInstallResultString(
     ENTRY(kUnknown);
     ENTRY(kSuccess);
     ENTRY(kInstallationProhibited);
-    ENTRY(kDlcInstallError);
     ENTRY(kDownloadError);
-    ENTRY(kInvalidFirmware);
     ENTRY(kInvalidBootDisk);
     ENTRY(kInvalidPflash);
     ENTRY(kUnableToOpenImages);
     ENTRY(kCreateDiskError);
     ENTRY(kStartVmFailed);
     ENTRY(kInstallPflashError);
+    ENTRY(kVmAlreadyExists);
+    ENTRY(kClearVekFailed);
+    ENTRY(kToolsDlcOfflineError);
+    ENTRY(kToolsDlcNeedUpdateError);
+    ENTRY(kToolsDlcNeedRebootError);
+    ENTRY(kToolsDlcDiskFullError);
+    ENTRY(kToolsDlcBusyError);
+    ENTRY(kToolsDlcUnknownError);
+    ENTRY(kFirmwareDlcOfflineError);
+    ENTRY(kFirmwareDlcNeedUpdateError);
+    ENTRY(kFirmwareDlcNeedRebootError);
+    ENTRY(kFirmwareDlcDiskFullError);
+    ENTRY(kFirmwareDlcBusyError);
+    ENTRY(kFirmwareDlcUnknownError);
+    ENTRY(kConciergeUnavailableError);
+    ENTRY(kNotEnoughMemoryError);
+    ENTRY(kNoAdidError);
   }
 #undef ENTRY
 #undef USTR

@@ -52,7 +52,6 @@ export function setup(views: View[]): void {
  * Checks if the view is already shown.
  *
  * @param index Index of the view.
- * @return Whether the view is shown or not.
  */
 function isShown(index: number): boolean {
   return state.get(allViews[index].name);
@@ -63,7 +62,6 @@ function isShown(index: number): boolean {
  * it becomes the topmost shown view.
  *
  * @param index Index of the view.
- * @return View shown.
  */
 function show(index: number): View {
   const view = allViews[index];
@@ -129,6 +127,10 @@ function findIndex(name: ViewName): number {
  * Opens a navigation session of the view; shows the view before entering it and
  * hides the view after leaving it for the ended session.
  *
+ * The Warning view can be opened multiple times with different warning types
+ * before being closed. `hide` might be called multiple times at the time the
+ * Warning view is closed (no remaining warning types).
+ *
  * @param name View name.
  * @param options Optional rest parameters for entering the view.
  * @return Promise for the operation or result.
@@ -139,7 +141,9 @@ export function open(
   const view = show(index);
   return {
     closed: view.enter(options).finally(() => {
-      hide(index);
+      if (isShown(index)) {
+        hide(index);
+      }
     }),
   };
 }
@@ -157,8 +161,6 @@ export function close(name: ViewName, condition?: unknown): void {
 
 /**
  * Handles key pressed event.
- *
- * @param event Key press event.
  */
 export function onKeyPressed(event: KeyboardEvent): void {
   const key = util.getKeyboardShortcut(event);
@@ -166,7 +168,9 @@ export function onKeyPressed(event: KeyboardEvent): void {
     case 'BrowserBack':
       // Only works for non-intent instance.
       if (!state.get(state.State.INTENT)) {
-        windowController.minimize();
+        // This is used in keypress event handler, and we don't wait for the
+        // window to minimize here.
+        void windowController.minimize();
       }
       break;
     case 'Alt--':
@@ -213,8 +217,6 @@ export function layoutShownViews(): void {
 
 /**
  * Returns whether the view is the top view above all shown view.
- *
- * @param name Name of the view.
  */
 export function isTopMostView(name: ViewName): boolean {
   return topmostIndex === findIndex(name);

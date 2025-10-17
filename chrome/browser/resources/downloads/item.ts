@@ -3,201 +3,171 @@
 // found in the LICENSE file.
 
 import './icons.html.js';
+// <if expr="_google_chrome">
+import './internal/icons.html.js';
+// </if>
+import 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import 'chrome://resources/cr_elements/cr_icons.css.js';
-import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
+// <if expr="_google_chrome">
+import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
+// </if>
+import 'chrome://resources/cr_elements/cr_progress/cr_progress.js';
 import 'chrome://resources/cr_elements/icons.html.js';
-import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
 import 'chrome://resources/js/action_link.js';
-import 'chrome://resources/cr_elements/action_link.css.js';
-import './strings.m.js';
-import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
-import 'chrome://resources/polymer/v3_0/paper-progress/paper-progress.js';
-import 'chrome://resources/polymer/v3_0/paper-styles/color.js';
+import '/strings.m.js';
 
+import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
+import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import type {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import {getToastManager} from 'chrome://resources/cr_elements/cr_toast/cr_toast_manager.js';
-import {FocusRowMixin} from 'chrome://resources/cr_elements/focus_row_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
+import {FocusRowMixinLit} from 'chrome://resources/cr_elements/focus_row_mixin_lit.js';
+import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {mojoString16ToString} from 'chrome://resources/js/mojo_type_util.js';
 import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
-import {htmlEscape} from 'chrome://resources/js/util_ts.js';
-import {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
-import {beforeNextRender, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {htmlEscape} from 'chrome://resources/js/util.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import {BrowserProxy} from './browser_proxy.js';
-import {DangerType, States} from './constants.js';
-import {MojomData} from './data.js';
-import {PageHandlerInterface} from './downloads.mojom-webui.js';
+import type {MojomData} from './data.js';
+import type {PageHandlerInterface} from './downloads.mojom-webui.js';
+import {DangerType, SafeBrowsingState, State, TailoredWarningType} from './downloads.mojom-webui.js';
 import {IconLoaderImpl} from './icon_loader.js';
-import {getTemplate} from './item.html.js';
+import {getCss} from './item.css.js';
+import {getHtml} from './item.html.js';
 
 export interface DownloadsItemElement {
   $: {
     'controlled-by': HTMLElement,
     'file-icon': HTMLImageElement,
     'file-link': HTMLAnchorElement,
-    'remove': HTMLElement,
+    'referrer-url': HTMLAnchorElement,
     'url': HTMLAnchorElement,
   };
 }
 
-const DownloadsItemElementBase = FocusRowMixin(PolymerElement);
+const DownloadsItemElementBase = I18nMixinLit(FocusRowMixinLit(CrLitElement));
+
+/**
+ * The UI pattern for displaying a download. Computed from DangerType and other
+ * properties of the download and user's profile.
+ */
+enum DisplayType {
+  NORMAL,
+  DANGEROUS,
+  SUSPICIOUS,
+  UNVERIFIED,
+  INSECURE,
+  ERROR,
+}
 
 export class DownloadsItemElement extends DownloadsItemElementBase {
   static get is() {
     return 'downloads-item';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      data: Object,
-
-      completelyOnDisk_: {
-        computed: 'computeCompletelyOnDisk_(' +
-            'data.state, data.fileExternallyRemoved)',
-        type: Boolean,
-        value: true,
+      data: {type: Object},
+      completelyOnDisk_: {type: Boolean},
+      shouldLinkFilename_: {type: Boolean},
+      isDangerous_: {type: Boolean},
+      isReviewable_: {type: Boolean},
+      pauseOrResumeText_: {type: String},
+      showCancel_: {type: Boolean},
+      showProgress_: {type: Boolean},
+      showDeepScan_: {type: Boolean},
+      showOpenAnyway_: {type: Boolean},
+      displayType_: {
+        type: Number,
+        state: true,
       },
 
-      hasShowInFolderLink_: {
-        computed: 'computeHasShowInFolderLink_(' +
-            'data.state, data.fileExternallyRemoved)',
-        type: Boolean,
-        value: true,
-      },
+      // <if expr="_google_chrome">
+      showEsbPromotion: {type: Boolean},
+      // </if>
 
-      controlledBy_: {
-        computed: 'computeControlledBy_(data.byExtId, data.byExtName)',
-        type: String,
-        value: '',
-      },
-
-      controlRemoveFromListAriaLabel_: {
-        type: String,
-        computed: 'computeControlRemoveFromListAriaLabel_(data.fileName)',
-      },
-
-      isActive_: {
-        computed: 'computeIsActive_(' +
-            'data.state, data.fileExternallyRemoved)',
-        type: Boolean,
-        value: true,
-      },
-
-      isDangerous_: {
-        computed: 'computeIsDangerous_(data.state)',
-        type: Boolean,
-        value: false,
-      },
-
-      isMalware_: {
-        computed: 'computeIsMalware_(isDangerous_, data.dangerType)',
-        type: Boolean,
-        value: false,
-      },
-
-      isReviewable_: {
-        computed: 'computeIsReviewable_(data.isReviewable)',
-        type: Boolean,
-        value: false,
-      },
-
-      isInProgress_: {
-        computed: 'computeIsInProgress_(data.state)',
-        type: Boolean,
-        value: false,
-      },
-
-      pauseOrResumeText_: {
-        computed: 'computePauseOrResumeText_(isInProgress_, data.resume)',
-        type: String,
-        observer: 'updatePauseOrResumeClass_',
-      },
-
-      showCancel_: {
-        computed: 'computeShowCancel_(data.state)',
-        type: Boolean,
-        value: false,
-      },
-
-      showProgress_: {
-        computed: 'computeShowProgress_(showCancel_, data.percent)',
-        type: Boolean,
-        value: false,
-      },
-
-      showOpenNow_: {
-        computed: 'computeShowOpenNow_(data.state)',
-        type: Boolean,
-        value: false,
-      },
-
-      showDeepScan_: {
-        computed: 'computeShowDeepScan_(data.state)',
-        type: Boolean,
-        value: false,
-      },
-
-      useFileIcon_: Boolean,
+      useFileIcon_: {type: Boolean},
+      showReferrerUrl_: {type: Boolean},
     };
   }
 
-  static get observers() {
-    return [
-      // TODO(dbeam): this gets called way more when I observe data.byExtId
-      // and data.byExtName directly. Why?
-      'observeControlledBy_(controlledBy_)',
-      'observeIsDangerous_(isDangerous_, data)',
-      'restoreFocusAfterCancelIfNeeded_(data)',
-    ];
-  }
-
-  data: MojomData;
+  accessor data: MojomData|undefined;
+  // <if expr="_google_chrome">
+  accessor showEsbPromotion: boolean = false;
+  // </if>
   private mojoHandler_: PageHandlerInterface|null = null;
-  private controlledBy_: string;
-  private isActive_: boolean;
-  private isDangerous_: boolean;
-  private isInProgress_: boolean;
-  private pauseOrResumeText_: string;
-  private showCancel_: boolean;
-  private showProgress_: boolean;
-  private useFileIcon_: boolean;
+  protected accessor isDangerous_: boolean = false;
+  protected accessor isReviewable_: boolean = false;
+  protected accessor pauseOrResumeText_: string = '';
+  protected accessor showCancel_: boolean = false;
+  protected accessor showProgress_: boolean = false;
+  protected accessor showDeepScan_: boolean = false;
+  protected accessor showOpenAnyway_: boolean = false;
+  protected accessor useFileIcon_: boolean = false;
+  protected accessor showReferrerUrl_: boolean =
+      loadTimeData.getBoolean('showReferrerUrl');
   private restoreFocusAfterCancel_: boolean = false;
-  override overrideCustomEquivalent: boolean;
+  private accessor displayType_: DisplayType = DisplayType.NORMAL;
+  private accessor completelyOnDisk_: boolean = true;
+  protected accessor shouldLinkFilename_: boolean = true;
+  override overrideCustomEquivalent: boolean = true;
 
-  constructor() {
-    super();
-
-    /** Used by FocusRowMixin. */
-    this.overrideCustomEquivalent = true;
-  }
-
-  /** @override */
-  override ready() {
-    super.ready();
-
+  override firstUpdated() {
     this.setAttribute('role', 'row');
     this.mojoHandler_ = BrowserProxy.getInstance().handler;
   }
 
-  focusOnRemoveButton() {
-    focusWithoutInk(this.$.remove);
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+
+    if (changedProperties.has('data')) {
+      this.completelyOnDisk_ = this.computeCompletelyOnDisk_();
+      this.shouldLinkFilename_ = this.computeShouldLinkFilename_();
+      this.isDangerous_ = this.computeIsDangerous_();
+      this.isReviewable_ = this.computeIsReviewable_();
+      this.pauseOrResumeText_ = this.computePauseOrResumeText_();
+      this.showCancel_ = this.computeShowCancel_();
+      // Compute showProgress_ after showCancel_ since it uses showCancel_.
+      this.showProgress_ = this.computeShowProgress_();
+      this.showDeepScan_ = this.computeShowDeepScan_();
+      this.showOpenAnyway_ = this.computeShowOpenAnyway_();
+      this.displayType_ = this.computeDisplayType_();
+    }
+  }
+
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+
+    if (changedProperties.has('data')) {
+      this.updateControlledBy_();
+      this.updateUiForStateChange_();
+      this.restoreFocusAfterCancelIfNeeded_();
+      // Since this item's height may have changed due to the updated data,
+      // we send an iron-resize event to iron-list to allow it to resize.
+      this.fire('iron-resize');
+    }
   }
 
   /** Overrides FocusRowMixin. */
   override getCustomEquivalent(sampleElement: HTMLElement): HTMLElement|null {
     if (sampleElement.getAttribute('focus-type') === 'cancel') {
-      return this.shadowRoot!.querySelector('[focus-type="retry"]');
+      return this.shadowRoot.querySelector('[focus-type="retry"]');
     }
     if (sampleElement.getAttribute('focus-type') === 'retry') {
-      return this.shadowRoot!.querySelector('[focus-type="pauseOrResume"]');
+      return this.shadowRoot.querySelector('[focus-type="pauseOrResume"]');
     }
     return null;
   }
@@ -206,17 +176,30 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
     return this.$['file-icon'];
   }
 
+  getMoreActionsButton(): CrIconButtonElement|null {
+    const button =
+        this.shadowRoot.querySelector<CrIconButtonElement>('#more-actions');
+    return button || null;
+  }
+
+  getMoreActionsMenu(): CrActionMenuElement {
+    const menu = this.shadowRoot.querySelector<CrActionMenuElement>(
+        '#more-actions-menu');
+    assert(!!menu);
+    return menu;
+  }
+
   /**
    * @return A JS string of the display URL.
    */
-  private getDisplayUrlStr_(displayUrl: String16): string {
-    return mojoString16ToString(displayUrl);
+  protected getDisplayUrlStr_(): string {
+    return this.data ? mojoString16ToString(this.data.displayUrl) : '';
   }
 
-  private computeClass_(): string {
+  protected computeClass_(): string {
     const classes = [];
 
-    if (this.isActive_) {
+    if (this.computeIsActive_()) {
       classes.push('is-active');
     }
 
@@ -232,17 +215,103 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
   }
 
   private computeCompletelyOnDisk_(): boolean {
-    return this.data.state === States.COMPLETE &&
-        !this.data.fileExternallyRemoved;
+    if (this.data === undefined) {
+      return false;
+    }
+
+    if (this.data.fileExternallyRemoved) {
+      return false;
+    }
+    switch (this.data.state) {
+      case State.kComplete:
+        return true;
+      case State.kInProgress:
+      case State.kCancelled:
+      case State.kPaused:
+      case State.kDangerous:
+      case State.kInterrupted:
+      case State.kInsecure:
+      case State.kAsyncScanning:
+      case State.kPromptForScanning:
+      case State.kPromptForLocalPasswordScanning:
+        return false;
+      default:
+        assertNotReached('Unhandled State encountered');
+    }
   }
 
-  private computeHasShowInFolderLink_(): boolean {
-    return loadTimeData.getBoolean('hasShowInFolder') &&
-        this.computeCompletelyOnDisk_();
+  private computeShouldLinkFilename_(): boolean {
+    if (this.data === undefined) {
+      return false;
+    }
+
+    if (!this.completelyOnDisk_) {
+      return false;
+    }
+
+    switch (this.data.dangerType) {
+      case DangerType.kDeepScannedFailed:
+        return false;
+      case DangerType.kNoApplicableDangerType:
+      case DangerType.kDangerousFile:
+      case DangerType.kDangerousUrl:
+      case DangerType.kDangerousContent:
+      case DangerType.kCookieTheft:
+      case DangerType.kUncommonContent:
+      case DangerType.kDangerousHost:
+      case DangerType.kPotentiallyUnwanted:
+      case DangerType.kAsyncScanning:
+      case DangerType.kAsyncLocalPasswordScanning:
+      case DangerType.kBlockedPasswordProtected:
+      case DangerType.kBlockedTooLarge:
+      case DangerType.kSensitiveContentWarning:
+      case DangerType.kSensitiveContentBlock:
+      case DangerType.kDeepScannedSafe:
+      case DangerType.kDeepScannedOpenedDangerous:
+      case DangerType.kBlockedScanFailed:
+        return true;
+      default:
+        assertNotReached('Unhandled DangerType encountered');
+    }
+  }
+
+  protected computeHasShowInFolderLink_(): boolean {
+    if (this.data === undefined) {
+      return false;
+    }
+
+    if (!this.computeCompletelyOnDisk_()) {
+      return false;
+    }
+
+    switch (this.data.dangerType) {
+      case DangerType.kDeepScannedFailed:
+        return false;
+      case DangerType.kNoApplicableDangerType:
+      case DangerType.kDangerousFile:
+      case DangerType.kDangerousUrl:
+      case DangerType.kDangerousContent:
+      case DangerType.kCookieTheft:
+      case DangerType.kUncommonContent:
+      case DangerType.kDangerousHost:
+      case DangerType.kPotentiallyUnwanted:
+      case DangerType.kAsyncScanning:
+      case DangerType.kAsyncLocalPasswordScanning:
+      case DangerType.kBlockedPasswordProtected:
+      case DangerType.kBlockedTooLarge:
+      case DangerType.kSensitiveContentWarning:
+      case DangerType.kSensitiveContentBlock:
+      case DangerType.kDeepScannedSafe:
+      case DangerType.kDeepScannedOpenedDangerous:
+      case DangerType.kBlockedScanFailed:
+        return true;
+      default:
+        assertNotReached('Unhandled DangerType encountered');
+    }
   }
 
   private computeControlledBy_(): string {
-    if (!this.data.byExtId || !this.data.byExtName) {
+    if (!this.data || !this.data.byExtId || !this.data.byExtName) {
       return '';
     }
 
@@ -251,12 +320,11 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
     return loadTimeData.getStringF('controlledByUrl', url, htmlEscape(name));
   }
 
-  private computeControlRemoveFromListAriaLabel_(): string {
-    return loadTimeData.getStringF(
-        'controlRemoveFromListAriaLabel', this.data.fileName);
-  }
+  protected computeDate_(): string {
+    if (!this.data) {
+      return '';
+    }
 
-  private computeDate_(): string {
     assert(typeof this.data.hideDate === 'boolean');
     if (this.data.hideDate) {
       return '';
@@ -264,100 +332,413 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
     return this.data.sinceString || this.data.dateString;
   }
 
-  private computeDescriptionVisible_(): boolean {
+  protected computeDescriptionVisible_(): boolean {
     return this.computeDescription_() !== '';
   }
 
-  private computeDescription_(): string {
+  protected computeSecondLineVisible_(): boolean {
+    if (!this.data) {
+      return false;
+    }
+    switch (this.data.state) {
+      case State.kAsyncScanning:
+        return true;
+      case State.kInProgress:
+      case State.kCancelled:
+      case State.kComplete:
+      case State.kPaused:
+      case State.kDangerous:
+      case State.kInterrupted:
+      case State.kInsecure:
+      case State.kPromptForScanning:
+      case State.kPromptForLocalPasswordScanning:
+        return false;
+      default:
+        assertNotReached('Unhandled State encountered');
+    }
+  }
+
+  private isSuspiciousEnterpriseApVerdict_(
+      requestsApVerdicts: boolean, dangerType: DangerType): boolean {
+    switch (dangerType) {
+      case DangerType.kUncommonContent:
+        return requestsApVerdicts;
+      case DangerType.kSensitiveContentWarning:
+        return true;
+      case DangerType.kNoApplicableDangerType:
+      case DangerType.kDangerousFile:
+      case DangerType.kDangerousUrl:
+      case DangerType.kDangerousContent:
+      case DangerType.kCookieTheft:
+      case DangerType.kDangerousHost:
+      case DangerType.kPotentiallyUnwanted:
+      case DangerType.kAsyncScanning:
+      case DangerType.kAsyncLocalPasswordScanning:
+      case DangerType.kBlockedPasswordProtected:
+      case DangerType.kBlockedTooLarge:
+      case DangerType.kSensitiveContentBlock:
+      case DangerType.kDeepScannedFailed:
+      case DangerType.kDeepScannedSafe:
+      case DangerType.kDeepScannedOpenedDangerous:
+      case DangerType.kBlockedScanFailed:
+        return false;
+      default:
+        assertNotReached('Unhandled DangerType encountered');
+    }
+  }
+
+  private computeDisplayType_(): DisplayType {
+    // Most downloads are normal. If we don't have data, don't assume danger.
+    if (!this.data) {
+      return DisplayType.NORMAL;
+    }
+
+    if (this.data.isInsecure) {
+      return DisplayType.INSECURE;
+    }
+
+    switch (this.data.state) {
+      case State.kAsyncScanning:
+      case State.kPromptForScanning:
+      case State.kPromptForLocalPasswordScanning:
+        return DisplayType.SUSPICIOUS;
+      case State.kInsecure:
+        return DisplayType.INSECURE;
+      case State.kInProgress:
+      case State.kCancelled:
+      case State.kComplete:
+      case State.kPaused:
+      case State.kDangerous:
+      case State.kInterrupted:
+        break;
+      default:
+        assertNotReached('Unhandled State encountered');
+    }
+
+    // Enterprise AP verdicts.
+    if (this.isSuspiciousEnterpriseApVerdict_(
+            loadTimeData.getBoolean('requestsApVerdicts'),
+            this.data.dangerType)) {
+      return DisplayType.SUSPICIOUS;
+    }
+
+    switch (this.data.dangerType) {
+      // Mimics logic in download_ui_model.cc for downloads with danger_type
+      // DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE.
+      case DangerType.kDangerousFile:
+        return this.data.hasSafeBrowsingVerdict ? DisplayType.SUSPICIOUS :
+                                                  DisplayType.UNVERIFIED;
+      case DangerType.kDangerousUrl:
+      case DangerType.kDangerousContent:
+      case DangerType.kCookieTheft:
+      case DangerType.kDangerousHost:
+      case DangerType.kPotentiallyUnwanted:
+      case DangerType.kDeepScannedOpenedDangerous:
+        return DisplayType.DANGEROUS;
+      case DangerType.kUncommonContent:
+      case DangerType.kDeepScannedFailed:
+        return DisplayType.SUSPICIOUS;
+      case DangerType.kNoApplicableDangerType:
+      case DangerType.kAsyncScanning:
+      case DangerType.kAsyncLocalPasswordScanning:
+      case DangerType.kSensitiveContentWarning:
+      case DangerType.kDeepScannedSafe:
+      case DangerType.kBlockedScanFailed:
+        return DisplayType.NORMAL;
+      case DangerType.kBlockedPasswordProtected:
+      case DangerType.kBlockedTooLarge:
+      case DangerType.kSensitiveContentBlock:
+        return DisplayType.ERROR;
+      default:
+        assertNotReached('Unhandled DangerType encountered');
+    }
+  }
+
+  protected computeDeepScanControlText_(): string {
+    if (!this.data) {
+      return '';
+    }
+
+    switch (this.data.state) {
+      case State.kPromptForScanning:
+        return loadTimeData.getString('controlDeepScan');
+      case State.kPromptForLocalPasswordScanning:
+        return loadTimeData.getString('controlLocalPasswordScan');
+      case State.kInProgress:
+      case State.kCancelled:
+      case State.kComplete:
+      case State.kPaused:
+      case State.kDangerous:
+      case State.kInterrupted:
+      case State.kInsecure:
+      case State.kAsyncScanning:
+        return '';
+      default:
+        assertNotReached('Unhandled State encountered');
+    }
+  }
+
+  protected computeSaveDangerousLabel_(): string {
+    switch (this.displayType_) {
+      case DisplayType.DANGEROUS:
+        return this.i18n('controlKeepDangerous');
+      case DisplayType.SUSPICIOUS:
+        return this.i18n('controlKeepSuspicious');
+      case DisplayType.UNVERIFIED:
+        return this.i18n('controlKeepUnverified');
+      case DisplayType.INSECURE:
+        return this.i18n('controlKeepInsecure');
+      case DisplayType.NORMAL:
+      case DisplayType.ERROR:
+        return '';
+      default:
+        assertNotReached('Unhandled DisplayType encountered');
+    }
+  }
+
+  protected computeDescription_(): string {
+    if (!this.data) {
+      return '';
+    }
+
     const data = this.data;
 
     switch (data.state) {
-      case States.COMPLETE:
+      case State.kComplete:
         switch (data.dangerType) {
-          case DangerType.DEEP_SCANNED_SAFE:
-            return loadTimeData.getString('deepScannedSafeDesc');
-          case DangerType.DEEP_SCANNED_OPENED_DANGEROUS:
+          case DangerType.kDeepScannedOpenedDangerous:
             return loadTimeData.getString('deepScannedOpenedDangerousDesc');
+          case DangerType.kDeepScannedFailed:
+            return loadTimeData.getString('deepScannedFailedDesc');
+          case DangerType.kNoApplicableDangerType:
+          case DangerType.kDangerousFile:
+          case DangerType.kDangerousUrl:
+          case DangerType.kDangerousContent:
+          case DangerType.kCookieTheft:
+          case DangerType.kUncommonContent:
+          case DangerType.kDangerousHost:
+          case DangerType.kPotentiallyUnwanted:
+          case DangerType.kAsyncScanning:
+          case DangerType.kAsyncLocalPasswordScanning:
+          case DangerType.kBlockedPasswordProtected:
+          case DangerType.kBlockedTooLarge:
+          case DangerType.kSensitiveContentWarning:
+          case DangerType.kSensitiveContentBlock:
+          case DangerType.kDeepScannedSafe:
+          case DangerType.kBlockedScanFailed:
+            return '';
+          default:
+            assertNotReached('Unhandled DangerType encountered');
         }
-        break;
-
-      case States.INSECURE:
+      case State.kInsecure:
         return loadTimeData.getString('insecureDownloadDesc');
-
-      case States.DANGEROUS:
+      case State.kDangerous:
         switch (data.dangerType) {
-          case DangerType.DANGEROUS_FILE:
-            return loadTimeData.getString('dangerFileDesc');
-
-          case DangerType.DANGEROUS_URL:
-          case DangerType.DANGEROUS_CONTENT:
-          case DangerType.DANGEROUS_HOST:
+          case DangerType.kNoApplicableDangerType:
+            return '';
+          case DangerType.kDangerousFile:
+            return data.safeBrowsingState ===
+                    SafeBrowsingState.kNoSafeBrowsing ?
+                loadTimeData.getString('noSafeBrowsingDesc') :
+                loadTimeData.getString('dangerFileDesc');
+          case DangerType.kDangerousUrl:
+          case DangerType.kDangerousContent:
+          case DangerType.kDangerousHost:
             return loadTimeData.getString('dangerDownloadDesc');
-
-          case DangerType.UNCOMMON_CONTENT:
-            return loadTimeData.getString('dangerUncommonDesc');
-
-          case DangerType.POTENTIALLY_UNWANTED:
+          case DangerType.kCookieTheft:
+            switch (data.tailoredWarningType) {
+              case TailoredWarningType.kCookieTheft:
+                return loadTimeData.getString('dangerDownloadCookieTheft');
+              case TailoredWarningType.kSuspiciousArchive:
+              case TailoredWarningType.kNoApplicableTailoredWarningType:
+                return loadTimeData.getString('dangerDownloadDesc');
+              default:
+                assertNotReached('Unhandled TailoredWarningType encountered');
+            }
+          case DangerType.kUncommonContent:
+            switch (data.tailoredWarningType) {
+              case TailoredWarningType.kSuspiciousArchive:
+                return loadTimeData.getString(
+                    'dangerUncommonSuspiciousArchiveDesc');
+              case TailoredWarningType.kCookieTheft:
+              case TailoredWarningType.kNoApplicableTailoredWarningType:
+                return loadTimeData.getString('dangerUncommonDesc');
+              default:
+                assertNotReached('Unhandled TailoredWarningType encountered');
+            }
+          case DangerType.kPotentiallyUnwanted:
             return loadTimeData.getString('dangerSettingsDesc');
-
-          case DangerType.SENSITIVE_CONTENT_WARNING:
+          case DangerType.kAsyncScanning:
+          case DangerType.kAsyncLocalPasswordScanning:
+          case DangerType.kBlockedPasswordProtected:
+          case DangerType.kBlockedTooLarge:
+            return '';
+          case DangerType.kSensitiveContentWarning:
             return loadTimeData.getString('sensitiveContentWarningDesc');
-
-          case DangerType.DANGEROUS_ACCOUNT_COMPROMISE:
-            return loadTimeData.getString('accountCompromiseDownloadDesc');
+          case DangerType.kSensitiveContentBlock:
+          case DangerType.kDeepScannedFailed:
+          case DangerType.kDeepScannedSafe:
+          case DangerType.kDeepScannedOpenedDangerous:
+          case DangerType.kBlockedScanFailed:
+            return '';
+          default:
+            assertNotReached('Unhandled DangerType encountered');
         }
-        break;
-
-      case States.ASYNC_SCANNING:
+      case State.kAsyncScanning:
         return loadTimeData.getString('asyncScanningDownloadDesc');
-      case States.PROMPT_FOR_SCANNING:
+      case State.kPromptForScanning:
         return loadTimeData.getString('promptForScanningDesc');
-      case States.IN_PROGRESS:
-      case States.PAUSED:  // Fallthrough.
+      case State.kPromptForLocalPasswordScanning:
+        return loadTimeData.getString('promptForLocalPasswordScanningDesc');
+      case State.kInProgress:
+      case State.kPaused:  // Fallthrough.
         return data.progressStatusText;
-
-      case States.INTERRUPTED:
+      case State.kInterrupted:
         switch (data.dangerType) {
-          case DangerType.SENSITIVE_CONTENT_BLOCK:
-            return loadTimeData.getString('sensitiveContentBlockedDesc');
-          case DangerType.BLOCKED_TOO_LARGE:
-            return loadTimeData.getString('blockedTooLargeDesc');
-          case DangerType.BLOCKED_PASSWORD_PROTECTED:
+          case DangerType.kNoApplicableDangerType:
+          case DangerType.kDangerousFile:
+          case DangerType.kDangerousUrl:
+          case DangerType.kDangerousContent:
+          case DangerType.kDangerousHost:
+          case DangerType.kCookieTheft:
+          case DangerType.kUncommonContent:
+          case DangerType.kPotentiallyUnwanted:
+          case DangerType.kAsyncScanning:
+          case DangerType.kAsyncLocalPasswordScanning:
+            return '';
+          case DangerType.kBlockedPasswordProtected:
             return loadTimeData.getString('blockedPasswordProtectedDesc');
+          case DangerType.kBlockedTooLarge:
+            return loadTimeData.getString('blockedTooLargeDesc');
+          case DangerType.kSensitiveContentWarning:
+            return '';
+          case DangerType.kSensitiveContentBlock:
+            return loadTimeData.getString('sensitiveContentBlockedDesc');
+          case DangerType.kDeepScannedFailed:
+          case DangerType.kDeepScannedSafe:
+          case DangerType.kDeepScannedOpenedDangerous:
+          case DangerType.kBlockedScanFailed:
+            return '';
+          default:
+            assertNotReached('Unhandled DangerType encountered');
         }
+      case State.kCancelled:
+        return '';
+      default:
+        assertNotReached('Unhandled State encountered');
     }
-
-    return '';
   }
 
-  private computeIcon_(): string {
+  protected computeIconAriaHidden_(): string {
+    return (this.displayType_ === DisplayType.NORMAL ||
+            this.displayType_ === DisplayType.ERROR) ?
+        'true' :
+        'false';
+  }
+
+  protected computeIconAriaLabel_(): string {
+    switch (this.displayType_) {
+      case DisplayType.DANGEROUS:
+        return this.i18n('accessibleLabelDangerous');
+      case DisplayType.INSECURE:
+        return this.i18n('accessibleLabelInsecure');
+      case DisplayType.UNVERIFIED:
+        return this.i18n('accessibleLabelUnverified');
+      case DisplayType.SUSPICIOUS:
+        return this.i18n('accessibleLabelSuspicious');
+      case DisplayType.NORMAL:
+      case DisplayType.ERROR:
+        return '';
+      default:
+        assertNotReached('Unhandled DisplayType encountered');
+    }
+  }
+
+  protected iconAndDescriptionColor_(): string {
+    switch (this.displayType_) {
+      case DisplayType.DANGEROUS:
+      case DisplayType.ERROR:
+        return 'red';
+      case DisplayType.INSECURE:
+      case DisplayType.UNVERIFIED:
+      case DisplayType.SUSPICIOUS:
+        return 'grey';
+      case DisplayType.NORMAL:
+        return '';
+      default:
+        assertNotReached('Unhandled DisplayType encountered');
+    }
+  }
+
+  protected computeIcon_(): string {
     if (this.data) {
-      const dangerType = this.data.dangerType as DangerType;
-      if ((loadTimeData.getBoolean('requestsApVerdicts') &&
-           dangerType === DangerType.UNCOMMON_CONTENT) ||
-          dangerType === DangerType.SENSITIVE_CONTENT_WARNING) {
+      switch (this.displayType_) {
+        case DisplayType.DANGEROUS:
+          return 'downloads:dangerous';
+        case DisplayType.INSECURE:
+        case DisplayType.UNVERIFIED:
+        case DisplayType.SUSPICIOUS:
+          return 'cr:warning';
+        case DisplayType.ERROR:
+          return 'cr:error';
+        case DisplayType.NORMAL:
+          break;
+        default:
+          assertNotReached('Unhandled DisplayType encountered');
+      }
+
+      assert(this.displayType_ === DisplayType.NORMAL);
+      const dangerType: DangerType = this.data.dangerType;
+      if (this.isSuspiciousEnterpriseApVerdict_(
+              loadTimeData.getBoolean('requestsApVerdicts'), dangerType)) {
         return 'cr:warning';
       }
 
-      const ERROR_TYPES = [
-        DangerType.SENSITIVE_CONTENT_BLOCK,
-        DangerType.BLOCKED_TOO_LARGE,
-        DangerType.BLOCKED_PASSWORD_PROTECTED,
-      ];
-      if (ERROR_TYPES.includes(dangerType)) {
-        return 'cr:error';
+      switch (dangerType) {
+        case DangerType.kDeepScannedFailed:
+          return 'cr:info';
+        case DangerType.kSensitiveContentBlock:
+        case DangerType.kBlockedTooLarge:
+        case DangerType.kBlockedPasswordProtected:
+          return 'cr:error';
+        case DangerType.kNoApplicableDangerType:
+        case DangerType.kDangerousFile:
+        case DangerType.kDangerousUrl:
+        case DangerType.kDangerousContent:
+        case DangerType.kCookieTheft:
+        case DangerType.kUncommonContent:
+        case DangerType.kDangerousHost:
+        case DangerType.kPotentiallyUnwanted:
+        case DangerType.kAsyncScanning:
+        case DangerType.kAsyncLocalPasswordScanning:
+        case DangerType.kSensitiveContentWarning:
+        case DangerType.kDeepScannedSafe:
+        case DangerType.kDeepScannedOpenedDangerous:
+        case DangerType.kBlockedScanFailed:
+          break;
+        default:
+          assertNotReached('Unhandled DangerType encountered');
       }
 
-      if (this.data.state === States.ASYNC_SCANNING) {
-        return 'cr:info';
-      }
-
-      if (this.data.state === States.PROMPT_FOR_SCANNING) {
-        return 'cr:warning';
+      switch (this.data.state) {
+        case State.kAsyncScanning:
+        case State.kPromptForScanning:
+        case State.kPromptForLocalPasswordScanning:
+          return 'cr:warning';
+        case State.kInProgress:
+        case State.kCancelled:
+        case State.kComplete:
+        case State.kPaused:
+        case State.kDangerous:
+        case State.kInterrupted:
+        case State.kInsecure:
+          break;
+        default:
+          assertNotReached('Unhandled State encountered');
       }
     }
     if (this.isDangerous_) {
-      return 'cr:error';
+      return 'downloads:dangerous';
     }
     if (!this.useFileIcon_) {
       return 'cr:insert-drive-file';
@@ -365,83 +746,68 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
     return '';
   }
 
-  private computeIconColor_(): string {
+  protected computeIconColor_(): string {
     if (this.data) {
-      const dangerType = this.data.dangerType as DangerType;
-      if ((loadTimeData.getBoolean('requestsApVerdicts') &&
-           dangerType === DangerType.UNCOMMON_CONTENT) ||
-          dangerType === DangerType.SENSITIVE_CONTENT_WARNING) {
-        return 'yellow';
-      }
-
-      const WARNING_TYPES = [
-        DangerType.SENSITIVE_CONTENT_BLOCK,
-        DangerType.BLOCKED_TOO_LARGE,
-        DangerType.BLOCKED_PASSWORD_PROTECTED,
-      ];
-      if (WARNING_TYPES.includes(dangerType)) {
-        return 'red';
-      }
-
-      if (this.data.state === States.ASYNC_SCANNING) {
-        return 'grey';
-      }
-
-      if (this.data.state === States.PROMPT_FOR_SCANNING) {
-        return 'yellow';
-      }
+      return this.iconAndDescriptionColor_();
     }
     if (this.isDangerous_) {
       return 'red';
     }
     if (!this.useFileIcon_) {
-      return 'paper-grey';
+      return 'light-grey';
     }
     return '';
   }
 
   private computeIsActive_(): boolean {
-    return this.data.state !== States.CANCELLED &&
-        this.data.state !== States.INTERRUPTED &&
-        !this.data.fileExternallyRemoved;
+    if (!this.data) {
+      return true;
+    }
+    if (this.data.fileExternallyRemoved) {
+      return false;
+    }
+    switch (this.data.state) {
+      case State.kComplete:
+      case State.kInProgress:
+        return true;
+      case State.kCancelled:
+      case State.kInterrupted:
+      case State.kPaused:
+      case State.kDangerous:
+      case State.kInsecure:
+      case State.kAsyncScanning:
+      case State.kPromptForScanning:
+      case State.kPromptForLocalPasswordScanning:
+        return false;
+      default:
+        assertNotReached('Unhandled State encountered');
+    }
   }
 
   private computeIsDangerous_(): boolean {
-    return this.data.state === States.DANGEROUS ||
-        this.data.state === States.INSECURE;
-  }
-
-  private computeIsInProgress_(): boolean {
-    return this.data.state === States.IN_PROGRESS;
-  }
-
-  private computeIsMalware_(): boolean {
-    return this.isDangerous_ &&
-        (this.data.dangerType === DangerType.DANGEROUS_CONTENT ||
-         this.data.dangerType === DangerType.DANGEROUS_HOST ||
-         this.data.dangerType === DangerType.DANGEROUS_URL ||
-         this.data.dangerType === DangerType.POTENTIALLY_UNWANTED ||
-         this.data.dangerType === DangerType.DANGEROUS_ACCOUNT_COMPROMISE);
+    if (!this.data) {
+      return false;
+    }
+    switch (this.data.state) {
+      case State.kDangerous:
+      case State.kInsecure:
+        return true;
+      case State.kInProgress:
+      case State.kCancelled:
+      case State.kComplete:
+      case State.kPaused:
+      case State.kInterrupted:
+      case State.kAsyncScanning:
+      case State.kPromptForScanning:
+      case State.kPromptForLocalPasswordScanning:
+        return false;
+      default:
+        assertNotReached('Unhandled State encountered');
+    }
   }
 
   private computeIsReviewable_(): boolean {
-    return this.data.isReviewable;
-  }
-
-  private toggleButtonClass_() {
-    this.shadowRoot!.querySelector('#pauseOrResume')!.classList.toggle(
-        'action-button',
-        this.pauseOrResumeText_ === loadTimeData.getString('controlResume'));
-  }
-
-  private updatePauseOrResumeClass_() {
-    if (!this.pauseOrResumeText_) {
-      return;
-    }
-
-    // Wait for dom-if to switch to true, in case the text has just changed
-    // from empty.
-    beforeNextRender(this, () => this.toggleButtonClass_());
+    return !!this.data && this.data.isReviewable;
   }
 
   private computePauseOrResumeText_(): string {
@@ -449,7 +815,7 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
       return '';
     }
 
-    if (this.isInProgress_) {
+    if (this.data.state === State.kInProgress) {
       return loadTimeData.getString('controlPause');
     }
     if (this.data.resume) {
@@ -458,95 +824,263 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
     return '';
   }
 
-  private computeRemoveStyle_(): string {
+  protected computeShowRemove_(): boolean {
     const canDelete = loadTimeData.getBoolean('allowDeletingHistory');
     const hideRemove = this.isDangerous_ || this.showCancel_ || !canDelete;
-    return hideRemove ? 'visibility: hidden' : '';
+    return !hideRemove;
   }
 
-  private computeShowCancel_(): boolean {
-    return this.data.state === States.IN_PROGRESS ||
-        this.data.state === States.PAUSED ||
-        this.data.state === States.ASYNC_SCANNING;
+  protected computeRemoveStyle_(): string {
+    return this.computeShowRemove_() ? '' : 'visibility: hidden';
+  }
+
+  protected computeShowControlsForDangerous_(): boolean {
+    return !this.isReviewable_ && this.isDangerous_;
+  }
+
+  protected computeShowCancel_(): boolean {
+    if (!this.data) {
+      return false;
+    }
+    switch (this.data.state) {
+      case State.kInProgress:
+      case State.kPaused:
+        return true;
+      case State.kCancelled:
+      case State.kComplete:
+      case State.kDangerous:
+      case State.kInterrupted:
+      case State.kInsecure:
+      case State.kAsyncScanning:
+      case State.kPromptForScanning:
+      case State.kPromptForLocalPasswordScanning:
+        return false;
+      default:
+        assertNotReached('Unhandled State encountered');
+    }
   }
 
   private computeShowProgress_(): boolean {
-    return this.showCancel_ && this.data.percent >= -1 &&
-        this.data.state !== States.ASYNC_SCANNING &&
-        this.data.state !== States.PROMPT_FOR_SCANNING;
-  }
-
-  private computeShowOpenNow_(): boolean {
-    const allowOpenNow = loadTimeData.getBoolean('allowOpenNow');
-    return this.data.state === States.ASYNC_SCANNING && allowOpenNow;
+    if (!this.data) {
+      return false;
+    }
+    switch (this.data.state) {
+      case State.kInProgress:
+      case State.kCancelled:
+      case State.kComplete:
+      case State.kPaused:
+      case State.kDangerous:
+      case State.kInterrupted:
+      case State.kInsecure:
+        return this.showCancel_ && this.data.percent >= -1;
+      case State.kAsyncScanning:
+        return true;
+      case State.kPromptForScanning:
+      case State.kPromptForLocalPasswordScanning:
+        return false;
+      default:
+        assertNotReached('Unhandled State encountered');
+    }
   }
 
   private computeShowDeepScan_(): boolean {
-    return this.data.state === States.PROMPT_FOR_SCANNING;
+    if (!this.data) {
+      return false;
+    }
+    switch (this.data.state) {
+      case State.kPromptForScanning:
+      case State.kPromptForLocalPasswordScanning:
+        return true;
+      case State.kInProgress:
+      case State.kCancelled:
+      case State.kComplete:
+      case State.kPaused:
+      case State.kDangerous:
+      case State.kInterrupted:
+      case State.kInsecure:
+      case State.kAsyncScanning:
+        return false;
+      default:
+        assertNotReached('Unhandled State encountered');
+    }
   }
 
-  private computeTag_(): string {
+  private computeShowOpenAnyway_(): boolean {
+    if (!this.data) {
+      return false;
+    }
+    switch (this.data.dangerType) {
+      case DangerType.kDeepScannedFailed:
+        return true;
+      case DangerType.kNoApplicableDangerType:
+      case DangerType.kDangerousFile:
+      case DangerType.kDangerousUrl:
+      case DangerType.kDangerousContent:
+      case DangerType.kCookieTheft:
+      case DangerType.kUncommonContent:
+      case DangerType.kDangerousHost:
+      case DangerType.kPotentiallyUnwanted:
+      case DangerType.kAsyncScanning:
+      case DangerType.kAsyncLocalPasswordScanning:
+      case DangerType.kBlockedPasswordProtected:
+      case DangerType.kBlockedTooLarge:
+      case DangerType.kSensitiveContentWarning:
+      case DangerType.kSensitiveContentBlock:
+      case DangerType.kDeepScannedSafe:
+      case DangerType.kDeepScannedOpenedDangerous:
+      case DangerType.kBlockedScanFailed:
+        return false;
+      default:
+        assertNotReached('Unhandled DangerType encountered');
+    }
+  }
+
+  protected computeShowActionMenu_(): boolean {
+    if (!this.data) {
+      return false;
+    }
+    // If any of these actions are available, the action menu must be shown
+    // because they don't have corresponding "quick actions".
+    return !!this.pauseOrResumeText_ ||             // pause-or-resume
+        this.computeShowControlsForDangerous_() ||  // save-dangerous
+        this.data.retry ||                          // retry
+        this.showDeepScan_ ||    // deep-scan and bypass-deep-scan
+        this.showCancel_ ||      // cancel
+        this.showOpenAnyway_ ||  // open-anyway
+        this.isReviewable_;      // review-dangerous
+  }
+
+  protected computeShowCopyDownloadLink_(): boolean {
+    return !!(this.data && this.data.url);
+  }
+
+  protected computeShowQuickRemove_(): boolean {
+    return this.isReviewable_ || this.computeShowRemove_() ||
+        this.computeShowControlsForDangerous_();
+  }
+
+  protected computeShowQuickShow_(): boolean {
+    // Only show the quick "show in folder" button if the full action menu
+    // is hidden. If the action menu is shown, hide the quick "show in folder"
+    // button to save space since this action will have an entry in the menu
+    // anyway.
+    return this.computeHasShowInFolderLink_() && !this.computeShowActionMenu_();
+  }
+
+  protected computeTag_(): string {
+    if (!this.data) {
+      return '';
+    }
     switch (this.data.state) {
-      case States.CANCELLED:
+      case State.kCancelled:
         return loadTimeData.getString('statusCancelled');
-
-      case States.INTERRUPTED:
+      case State.kInterrupted:
         return this.data.lastReasonText;
-
-      case States.COMPLETE:
+      case State.kComplete:
         return this.data.fileExternallyRemoved ?
             loadTimeData.getString('statusRemoved') :
             '';
+      case State.kInProgress:
+      case State.kPaused:
+      case State.kDangerous:
+      case State.kInsecure:
+      case State.kAsyncScanning:
+      case State.kPromptForScanning:
+      case State.kPromptForLocalPasswordScanning:
+        return '';
+      default:
+        assertNotReached('Unhandled State encountered');
     }
-
-    return '';
   }
 
-  private isIndeterminate_(): boolean {
-    return this.data.percent === -1;
+  protected isIndeterminate_(): boolean {
+    if (!this.data || this.data.percent === -1) {
+      return true;
+    }
+    switch (this.data.state) {
+      case State.kAsyncScanning:
+        return true;
+      case State.kInProgress:
+      case State.kCancelled:
+      case State.kComplete:
+      case State.kPaused:
+      case State.kDangerous:
+      case State.kInterrupted:
+      case State.kInsecure:
+      case State.kPromptForScanning:
+      case State.kPromptForLocalPasswordScanning:
+        return false;
+      default:
+        assertNotReached('Unhandled State encountered');
+    }
   }
 
-  private observeControlledBy_() {
-    this.$['controlled-by'].innerHTML = sanitizeInnerHtml(this.controlledBy_);
-    if (this.controlledBy_) {
-      const link = this.shadowRoot!.querySelector('#controlled-by a');
+  private updateControlledBy_() {
+    const controlledBy = this.computeControlledBy_();
+    this.$['controlled-by'].innerHTML = sanitizeInnerHtml(controlledBy);
+    if (controlledBy) {
+      const link = this.shadowRoot.querySelector('#controlled-by a');
       link!.setAttribute('focus-row-control', '');
       link!.setAttribute('focus-type', 'controlledBy');
     }
   }
 
-  private observeIsDangerous_() {
+  protected shouldShowReferrerUrl_(): boolean {
+    return this.showReferrerUrl_ && !!this.data &&
+        this.data.displayReferrerUrl.data.length > 0;
+  }
+
+  getReferrerUrlAnchorElement(): HTMLAnchorElement|null {
+    return this.$['referrer-url'].querySelector('a') || null;
+  }
+
+  private updateUiForStateChange_() {
     const removeFileUrlLinks = () => {
       this.$.url.removeAttribute('href');
       this.$['file-link'].removeAttribute('href');
+    };
+
+    const updateReferrerUrlLinkHref = (hrefValue?: string) => {
+      const referrerUrlLink = this.getReferrerUrlAnchorElement();
+      if (!referrerUrlLink) {
+        // No <a> tag, nothing to do.
+        return;
+      }
+      if (!hrefValue) {
+        referrerUrlLink.removeAttribute('href');
+        return;
+      }
+      referrerUrlLink.setAttribute('href', hrefValue);
+      referrerUrlLink.setAttribute('focus-row-control', '');
+      referrerUrlLink.setAttribute('focus-type', 'referrerUrl');
+      referrerUrlLink.setAttribute('target', '_blank');
+      referrerUrlLink.setAttribute('rel', 'noopener');
     };
 
     if (!this.data) {
       return;
     }
 
-    const OVERRIDDEN_ICON_TYPES = [
-      DangerType.SENSITIVE_CONTENT_BLOCK,
-      DangerType.BLOCKED_TOO_LARGE,
-      DangerType.BLOCKED_PASSWORD_PROTECTED,
-    ];
+    // "else" case already handled by `shouldShowReferrerUrl_`.
+    if (this.data.displayReferrerUrl.data.length > 0) {
+      const referrerLine = loadTimeData.getStringF(
+          'referrerLine', mojoString16ToString(this.data.displayReferrerUrl));
+      this.$['referrer-url'].innerHTML = sanitizeInnerHtml(referrerLine);
+    }
 
-    // Handle various dangerous cases.
-    if (this.isDangerous_) {
-      removeFileUrlLinks();
-      this.useFileIcon_ = false;
-      return;
-    }
-    if (OVERRIDDEN_ICON_TYPES.includes(this.data.dangerType as DangerType)) {
-      this.useFileIcon_ = false;
-      return;
-    }
-    if (this.data.state === States.ASYNC_SCANNING) {
-      this.useFileIcon_ = false;
-      return;
-    }
-    if (this.data.state === States.PROMPT_FOR_SCANNING) {
-      this.useFileIcon_ = false;
+    // Returns whether to use the file icon, and additionally clears file url
+    // links if necessary.
+    const mayUseFileIcon = () => {
+      const use = this.displayType_ === DisplayType.NORMAL;
+      if (!use) {
+        removeFileUrlLinks();
+        updateReferrerUrlLinkHref();
+      }
+      return use;
+    };
+
+    this.useFileIcon_ = mayUseFileIcon();
+    if (!this.useFileIcon_) {
       return;
     }
 
@@ -557,97 +1091,231 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
       removeFileUrlLinks();
     }
 
+    // The file is not dangerous. Link the referrer_url if supplied.
+    if (this.data.referrerUrl) {
+      updateReferrerUrlLinkHref(this.data.referrerUrl.url);
+    } else {
+      updateReferrerUrlLinkHref();
+    }
+
     const path = this.data.filePath;
     IconLoaderImpl.getInstance()
         .loadIcon(this.$['file-icon'], path)
         .then(success => {
-          if (path === this.data.filePath &&
-              this.data.state !== States.ASYNC_SCANNING) {
-            this.useFileIcon_ = success;
+          if (!!this.data && path === this.data.filePath &&
+              this.data.state !== State.kAsyncScanning) {
+            // Check again if we may use the file icon, to avoid a race between
+            // loading the icon and determining the proper danger type.
+            this.useFileIcon_ = mayUseFileIcon() && success;
           }
         });
   }
 
-  private onCancelClick_() {
+  // <if expr="_google_chrome">
+  protected onEsbPromotionClick_() {
+    assert(!!this.mojoHandler_);
+    this.mojoHandler_.openEsbSettings();
+  }
+  // </if>
+
+  protected onCopyDownloadLinkClick_(e: Event) {
+    if (!this.data || !this.data.url) {
+      return;
+    }
+    navigator.clipboard.writeText(this.data.url.url);
+    this.displayCopyToast_(e);
+  }
+
+  protected onMoreActionsClick_() {
+    const button = this.getMoreActionsButton();
+    // The menu button is not always shown, but if this handler is invoked, then
+    // it must be.
+    assert(!!button);
+    this.getMoreActionsMenu().showAt(button);
+  }
+
+  // Handles the "x" remove button which can be different actions depending on
+  // the state of the download.
+  protected onQuickRemoveClick_(e: Event) {
+    if (this.isReviewable_ || this.computeShowControlsForDangerous_()) {
+      this.onDiscardDangerousClick_(e);
+      return;
+    }
+    assert(this.computeShowRemove_());
+    this.onRemoveClick_(e);
+  }
+
+  protected onCancelClick_() {
     this.restoreFocusAfterCancel_ = true;
-    this.mojoHandler_!.cancel(this.data.id);
+    assert(!!this.mojoHandler_);
+    this.mojoHandler_.cancel(this.dataId_());
+    getAnnouncerInstance().announce(
+        loadTimeData.getString('screenreaderCanceled'));
+    this.getMoreActionsMenu().close();
   }
 
-  private onDiscardDangerousClick_() {
-    this.mojoHandler_!.discardDangerous(this.data.id);
+  protected onDiscardDangerousClick_(e: Event) {
+    assert(!!this.mojoHandler_);
+    this.mojoHandler_.discardDangerous(this.dataId_());
+    this.displayRemovedToast_(/*canUndo=*/ false, e);
+    this.getMoreActionsMenu().close();
   }
 
-  private onOpenNowClick_() {
-    this.mojoHandler_!.openDuringScanningRequiringGesture(this.data.id);
+  private dataId_(): string {
+    return this.data ? this.data.id : '';
   }
 
-  private onDeepScanClick_() {
-    this.mojoHandler_!.deepScan(this.data.id);
+  protected onDeepScanClick_() {
+    this.mojoHandler_!.deepScan(this.dataId_());
+    this.getMoreActionsMenu().close();
   }
 
-  private onBypassDeepScanClick_() {
-    this.mojoHandler_!.bypassDeepScanRequiringGesture(this.data.id);
+  protected onBypassDeepScanClick_() {
+    this.mojoHandler_!.bypassDeepScanRequiringGesture(this.dataId_());
+    this.getMoreActionsMenu().close();
   }
 
-  private onReviewDangerousClick_() {
-    this.mojoHandler_!.reviewDangerousRequiringGesture(this.data.id);
+  protected onReviewDangerousClick_() {
+    this.mojoHandler_!.reviewDangerousRequiringGesture(this.dataId_());
+    this.getMoreActionsMenu().close();
   }
 
-  private onDragStart_(e: Event) {
+  protected onOpenAnywayClick_() {
+    this.mojoHandler_!.openFileRequiringGesture(this.dataId_());
+    this.getMoreActionsMenu().close();
+  }
+
+  protected onDragStart_(e: Event) {
     e.preventDefault();
-    this.mojoHandler_!.drag(this.data.id);
+    this.mojoHandler_!.drag(this.dataId_());
   }
 
-  private onFileLinkClick_(e: Event) {
+  protected onFileLinkClick_(e: Event) {
     e.preventDefault();
-    this.mojoHandler_!.openFileRequiringGesture(this.data.id);
+    this.mojoHandler_!.openFileRequiringGesture(this.dataId_());
   }
 
-  private onUrlClick_() {
-    if (!this.data.url) {
+  protected onUrlClick_() {
+    if (!this.data || !this.data.url) {
       return;
     }
     chrome.send(
         'metricsHandler:recordAction', ['Downloads_OpenUrlOfDownloadedItem']);
   }
 
-  private onPauseOrResumeClick_() {
-    if (this.isInProgress_) {
-      this.mojoHandler_!.pause(this.data.id);
-    } else {
-      this.mojoHandler_!.resume(this.data.id);
-    }
+  private doPause_() {
+    assert(!!this.mojoHandler_);
+    this.mojoHandler_.pause(this.dataId_());
+    getAnnouncerInstance().announce(
+        loadTimeData.getString('screenreaderPaused'));
   }
 
-  private onRemoveClick_(e: Event) {
-    this.mojoHandler_!.remove(this.data.id);
+  private doResume_() {
+    assert(!!this.mojoHandler_);
+    this.mojoHandler_.resume(this.dataId_());
+    getAnnouncerInstance().announce(
+        loadTimeData.getString('screenreaderResumed'));
+  }
+
+  protected onPauseOrResumeClick_() {
+    if (this.data && this.data.state === State.kInProgress) {
+      this.doPause_();
+    } else {
+      this.doResume_();
+    }
+    this.getMoreActionsMenu().close();
+  }
+
+  private displayCopyToast_(e: Event) {
+    if (!this.data || !this.data.url) {
+      return;
+    }
+
     const pieces = loadTimeData.getSubstitutedStringPieces(
-                       loadTimeData.getString('toastRemovedFromList'),
-                       this.data.fileName) as unknown as
-        Array<{collapsible: boolean, value: string, arg?: string}>;
+                       loadTimeData.getString('toastCopiedDownloadLink'),
+                       this.data.url.url) as unknown as
+        Array<{collapsible: boolean, value: string, arg: string}>;
+    pieces.forEach(p => {
+      p.collapsible = !!p.arg;
+    });
+    getToastManager().showForStringPieces(pieces, /*hideSlotted=*/ true);
+
+    e.stopPropagation();
+    e.preventDefault();
+  }
+
+  private displayRemovedToast_(canUndo: boolean, e: Event) {
+    const templateStringId =
+        (this.displayType_ === DisplayType.NORMAL && this.completelyOnDisk_) ?
+        'toastDeletedFromHistoryStillOnDevice' :
+        'toastDeletedFromHistory';
+    const filename = this.data ? this.data.fileName : '';
+    const pieces = loadTimeData.getSubstitutedStringPieces(
+                       loadTimeData.getString(templateStringId), filename) as
+        unknown as Array<{collapsible: boolean, value: string, arg?: string}>;
 
     pieces.forEach(p => {
       // Make the file name collapsible.
       p.collapsible = !!p.arg;
     });
-    const canUndo = !this.data.isDangerous && !this.data.isInsecure;
-    getToastManager().showForStringPieces(pieces, /* hideSlotted= */ !canUndo);
+    getToastManager().showForStringPieces(pieces, /*hideSlotted=*/ !canUndo);
 
     // Stop propagating a click to the document to remove toast.
     e.stopPropagation();
     e.preventDefault();
   }
 
-  private onRetryClick_() {
-    this.mojoHandler_!.retryDownload(this.data.id);
+  protected onRemoveClick_(e: Event) {
+    assert(!!this.mojoHandler_);
+    assert(this.data);
+    this.mojoHandler_.remove(this.data.id);
+    const canUndo = !this.data.isDangerous && !this.data.isInsecure;
+    this.displayRemovedToast_(canUndo, e);
+    this.getMoreActionsMenu().close();
   }
 
-  private onSaveDangerousClick_() {
-    this.mojoHandler_!.saveDangerousRequiringGesture(this.data.id);
+  protected onRetryClick_() {
+    this.mojoHandler_!.retryDownload(this.dataId_());
+    this.getMoreActionsMenu().close();
   }
 
-  private onShowClick_() {
+  private notifySaveDangerousClick_() {
+    this.dispatchEvent(new CustomEvent('save-dangerous-click', {
+      bubbles: true,
+      composed: true,
+      detail: {id: this.dataId_()},
+    }));
+  }
+
+  protected onSaveDangerousClick_() {
+    this.getMoreActionsMenu().close();
+
+    if (this.displayType_ === DisplayType.DANGEROUS) {
+      this.notifySaveDangerousClick_();
+      return;
+    }
+
+    // "Suspicious" types which show up in grey can be validated directly.
+    // This maps each such display type to its applicable screenreader
+    // announcement string id.
+    const SAVED_FROM_PAGE_TYPES_ANNOUNCEMENTS = new Map([
+      [DisplayType.SUSPICIOUS, 'screenreaderSavedSuspicious'],
+      [DisplayType.UNVERIFIED, 'screenreaderSavedUnverified'],
+      [DisplayType.INSECURE, 'screenreaderSavedInsecure'],
+    ]);
+    assert(SAVED_FROM_PAGE_TYPES_ANNOUNCEMENTS.has(this.displayType_));
+    assert(this.data);
+    assert(!!this.mojoHandler_);
+    this.mojoHandler_.saveSuspiciousRequiringGesture(this.data.id);
+    const announcement = loadTimeData.getString(
+        SAVED_FROM_PAGE_TYPES_ANNOUNCEMENTS.get(this.displayType_) as string);
+    getAnnouncerInstance().announce(announcement);
+  }
+
+  protected onShowClick_() {
+    assert(this.data);
     this.mojoHandler_!.show(this.data.id);
+    this.getMoreActionsMenu().close();
   }
 
   private restoreFocusAfterCancelIfNeeded_() {
@@ -658,7 +1326,7 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
     setTimeout(() => {
       const element = this.getFocusRow().getFirstFocusable('retry');
       if (element) {
-        (element as HTMLElement).focus();
+        element.focus();
       }
     });
   }

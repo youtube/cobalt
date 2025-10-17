@@ -2,20 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import './strings.m.js';
+import '/strings.m.js';
 import './alert_indicators.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {CustomElement} from 'chrome://resources/js/custom_element.js';
 import {getFavicon} from 'chrome://resources/js/icon.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {isRTL} from 'chrome://resources/js/util_ts.js';
+import {isRTL} from 'chrome://resources/js/util.js';
 
-import {AlertIndicatorsElement} from './alert_indicators.js';
+import type {AlertIndicatorsElement} from './alert_indicators.js';
 import {getTemplate} from './tab.html.js';
-import {Tab, TabNetworkState} from './tab_strip.mojom-webui.js';
+import type {Tab} from './tab_strip.mojom-webui.js';
 import {TabSwiper} from './tab_swiper.js';
-import {CloseTabAction, TabsApiProxy, TabsApiProxyImpl} from './tabs_api_proxy.js';
+import {TabNetworkState} from './tabs.mojom-webui.js';
+import type {TabsApiProxy} from './tabs_api_proxy.js';
+import {CloseTabAction, TabsApiProxyImpl} from './tabs_api_proxy.js';
 
 function getAccessibleTitle(tab: Tab): string {
   const tabTitle = tab.title;
@@ -32,7 +34,7 @@ function getAccessibleTitle(tab: Tab): string {
 }
 
 /**
- * TODO(crbug.com/1025390): padding-inline-end cannot be animated yet.
+ * TODO(crbug.com/40659171): padding-inline-end cannot be animated yet.
  */
 function getPaddingInlineEndProperty(): string {
   return isRTL() ? 'paddingLeft' : 'paddingRight';
@@ -60,27 +62,25 @@ export class TabElement extends CustomElement {
     super();
 
     this.alertIndicatorsEl_ =
-        this.$<AlertIndicatorsElement>('tabstrip-alert-indicators')!;
+        this.getRequiredElement('tabstrip-alert-indicators');
     // Normally, custom elements will get upgraded automatically once added
     // to the DOM, but TabElement may need to update properties on
     // AlertIndicatorElement before this happens, so upgrade it manually.
     customElements.upgrade(this.alertIndicatorsEl_);
 
-    this.closeButtonEl_ = this.$<HTMLElement>('#close')!;
+    this.closeButtonEl_ = this.getRequiredElement('#close');
     this.closeButtonEl_.setAttribute(
         'aria-label', loadTimeData.getString('closeTab'));
 
-    this.dragImageEl_ = this.$<HTMLElement>('#dragImage')!;
-
-    this.tabEl_ = this.$<HTMLElement>('#tab')!;
-
-    this.faviconEl_ = this.$<HTMLElement>('#favicon')!;
-
-    this.thumbnail_ = this.$<HTMLImageElement>('#thumbnailImg')!;
+    this.dragImageEl_ = this.getRequiredElement('#dragImage');
+    this.tabEl_ = this.getRequiredElement('#tab');
+    this.faviconEl_ = this.getRequiredElement('#favicon');
+    this.thumbnail_ =
+        this.getRequiredElement<HTMLImageElement>('#thumbnailImg');
 
     this.tabsApi_ = TabsApiProxyImpl.getInstance();
 
-    this.titleTextEl_ = this.$<HTMLElement>('#titleText')!;
+    this.titleTextEl_ = this.getRequiredElement('#titleText');
 
     /**
      * Flag indicating if this TabElement can accept dragover events. This

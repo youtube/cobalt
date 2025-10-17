@@ -5,16 +5,14 @@
 #include "pdf/test/test_pdfium_engine.h"
 
 #include <stdint.h>
-#include <string.h>
 
 #include <iterator>
 #include <vector>
 
-#include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/values.h"
 #include "pdf/document_attachment_info.h"
 #include "pdf/document_metadata.h"
-#include "pdf/pdf_engine.h"
 #include "pdf/pdfium/pdfium_engine.h"
 #include "pdf/pdfium/pdfium_form_filler.h"
 
@@ -29,7 +27,7 @@ const uint8_t TestPDFiumEngine::kLoadedData[];
 // static
 const uint8_t TestPDFiumEngine::kSaveData[];
 
-TestPDFiumEngine::TestPDFiumEngine(PDFEngine::Client* client)
+TestPDFiumEngine::TestPDFiumEngine(PDFiumEngineClient* client)
     : PDFiumEngine(client, PDFiumFormFiller::ScriptOption::kNoJavaScript) {}
 
 TestPDFiumEngine::~TestPDFiumEngine() = default;
@@ -55,9 +53,9 @@ uint32_t TestPDFiumEngine::GetLoadedByteSize() {
   return sizeof(kLoadedData);
 }
 
-bool TestPDFiumEngine::ReadLoadedBytes(uint32_t length, void* buffer) {
-  DCHECK_LE(length, GetLoadedByteSize());
-  memcpy(buffer, kLoadedData, length);
+bool TestPDFiumEngine::ReadLoadedBytes(uint32_t offset,
+                                       base::span<uint8_t> buffer) {
+  buffer.copy_from(base::span(kLoadedData).subspan(offset, buffer.size()));
   return true;
 }
 

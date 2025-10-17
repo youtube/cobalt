@@ -29,7 +29,7 @@
 
 #include "third_party/blink/renderer/core/layout/shapes/polygon_shape.h"
 
-#include "third_party/blink/renderer/platform/geometry/layout_point.h"
+#include "third_party/blink/renderer/platform/geometry/path_builder.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 
 namespace blink {
@@ -118,10 +118,11 @@ static FloatShapeInterval ClippedCircleXRange(const gfx::PointF& center,
   return FloatShapeInterval(center.x() - xi, center.x() + xi);
 }
 
-LayoutRect PolygonShape::ShapeMarginLogicalBoundingBox() const {
+LogicalRect PolygonShape::ShapeMarginLogicalBoundingBox() const {
   gfx::RectF box = polygon_.BoundingBox();
   box.Outset(ShapeMargin());
-  return LayoutRect(box);
+  return LogicalRect(LayoutUnit(box.x()), LayoutUnit(box.y()),
+                     LayoutUnit(box.width()), LayoutUnit(box.height()));
 }
 
 LineSegment PolygonShape::GetExcludedInterval(LayoutUnit logical_top,
@@ -172,10 +173,15 @@ LineSegment PolygonShape::GetExcludedInterval(LayoutUnit logical_top,
 void PolygonShape::BuildDisplayPaths(DisplayPaths& paths) const {
   if (!polygon_.NumberOfVertices())
     return;
-  paths.shape.MoveTo(polygon_.VertexAt(0));
+
+  PathBuilder shape;
+  shape.MoveTo(polygon_.VertexAt(0));
   for (wtf_size_t i = 1; i < polygon_.NumberOfVertices(); ++i)
-    paths.shape.AddLineTo(polygon_.VertexAt(i));
-  paths.shape.CloseSubpath();
+    shape.LineTo(polygon_.VertexAt(i));
+  shape.Close();
+
+  DCHECK(paths.shape.IsEmpty());
+  paths.shape = shape.Finalize();
 }
 
 }  // namespace blink

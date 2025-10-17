@@ -2,7 +2,6 @@
 <script src="../../../resources/gesture-util.js"></script>
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
-<script src="../../../virtual/percent-based-scrolling/resources/percent-based-util.js"></script>
 
 <style type="text/css">
     body {
@@ -13,77 +12,66 @@
 
 <script>
 async function reset() {
-    document.scrollingElement.scrollTop = 0;
-    document.scrollingElement.scrollLeft = 0;
+    await waitForScrollReset(document.scrollingElement);
     await waitForCompositorCommit();
+}
+
+async function waitForWheelTickAndScroll(xTicks, yTicks, position) {
+  const scrollPromise = waitForScrollendEvent(document);
+  const gesturePromise = wheelTick(xTicks, yTicks, position);
+  return Promise.all([gesturePromise, scrollPromise]);
 }
 
 var position = {x: 20, y: 20};
 promise_test(async () => {
     await reset();
-    await wheelTick(0, 1, position);
-    await waitForAnimationEndTimeBased( () => {
-        return document.scrollingElement.scrollTop;
-    });
-    const {x: expectedScrollX, y: expectedScrollY} = 
-        calculateExpectedScroll(document.scrollingElement, 0, pixelsPerTick());
+    await waitForWheelTickAndScroll(0, 1, position);
+    const expectedScrollDeltaY = pixelsPerTick();
     if (internals.runtimeFlags.fractionalScrollOffsetsEnabled) {
-        assert_approx_equals(document.scrollingElement.scrollLeft, expectedScrollX, 0.0001);
-        assert_approx_equals(document.scrollingElement.scrollTop, expectedScrollY, 0.0001);
+        assert_approx_equals(document.scrollingElement.scrollLeft, 0, 0.0001);
+        assert_approx_equals(document.scrollingElement.scrollTop, expectedScrollDeltaY, 0.0001);
     } else {
-        assert_equals(Math.round(document.scrollingElement.scrollLeft), expectedScrollX);
-        assert_equals(Math.round(document.scrollingElement.scrollTop), expectedScrollY);
+        assert_equals(Math.round(document.scrollingElement.scrollLeft), 0);
+        assert_equals(Math.round(document.scrollingElement.scrollTop), expectedScrollDeltaY);
     }
 }, "One vertical wheel tick scrolls the right number of pixels in high dpi mode.");
 
 promise_test(async () => {
     await reset();
-    await wheelTick(1, 0, position);
-    await waitForAnimationEndTimeBased( () => {
-        return document.scrollingElement.scrollLeft;
-    });
-    const {x: expectedScrollX, y: expectedScrollY} = 
-        calculateExpectedScroll(document.scrollingElement, pixelsPerTick(), 0);
+    await waitForWheelTickAndScroll(1, 0, position);
+    const expectedScrollDeltaX = pixelsPerTick();
     if (internals.runtimeFlags.fractionalScrollOffsetsEnabled) {
-        assert_approx_equals(document.scrollingElement.scrollLeft, expectedScrollX, 0.0001);
-        assert_approx_equals(document.scrollingElement.scrollTop, expectedScrollY, 0.0001);
+        assert_approx_equals(document.scrollingElement.scrollLeft, expectedScrollDeltaX, 0.0001);
+        assert_approx_equals(document.scrollingElement.scrollTop, 0, 0.0001);
     } else {
-        assert_equals(Math.round(document.scrollingElement.scrollLeft), expectedScrollX);
-        assert_equals(Math.round(document.scrollingElement.scrollTop), expectedScrollY);
+        assert_equals(Math.round(document.scrollingElement.scrollLeft), expectedScrollDeltaX);
+        assert_equals(Math.round(document.scrollingElement.scrollTop), 0);
     }
 }, "One horizontal wheel tick scrolls the right number of pixels in high dpi mode.");
 
 promise_test(async () => {
     await reset();
-    await wheelTick(0, 2, position);
-    await waitForAnimationEndTimeBased( () => {
-        return document.scrollingElement.scrollTop;
-    });
-    const {x: expectedScrollX, y: expectedScrollY} = 
-        calculateExpectedScroll(document.scrollingElement, 0, pixelsPerTick() * 2);
+    await waitForWheelTickAndScroll(0, 2, position);
+    const expectedScrollDeltaY = pixelsPerTick() * 2;
     if (internals.runtimeFlags.fractionalScrollOffsetsEnabled) {
-        assert_approx_equals(document.scrollingElement.scrollLeft, expectedScrollX, 0.0001);
-        assert_approx_equals(document.scrollingElement.scrollTop, expectedScrollY, 0.0001);
+        assert_approx_equals(document.scrollingElement.scrollLeft, 0, 0.0001);
+        assert_approx_equals(document.scrollingElement.scrollTop, expectedScrollDeltaY, 0.0001);
     } else {
-        assert_equals(Math.round(document.scrollingElement.scrollLeft), expectedScrollX);
-        assert_equals(Math.round(document.scrollingElement.scrollTop), expectedScrollY);
+        assert_equals(Math.round(document.scrollingElement.scrollLeft), 0);
+        assert_equals(Math.round(document.scrollingElement.scrollTop), expectedScrollDeltaY);
     }
 }, "Two vertical wheel ticks scroll the right number of pixels in high dpi mode.");
 
 promise_test(async () => {
     await reset();
-    await wheelTick(2, 0, position);
-    await waitForAnimationEndTimeBased( () => {
-        return document.scrollingElement.scrollLeft;
-    });
-    const {x: expectedScrollX, y: expectedScrollY} = 
-        calculateExpectedScroll(document.scrollingElement, pixelsPerTick() * 2, 0);
+    await waitForWheelTickAndScroll(2, 0, position);
+    const expectedScrollDeltaX = pixelsPerTick() * 2;
     if (internals.runtimeFlags.fractionalScrollOffsetsEnabled) {
-        assert_approx_equals(document.scrollingElement.scrollLeft, expectedScrollX, 0.0001);
-        assert_approx_equals(document.scrollingElement.scrollTop, expectedScrollY, 0.0001);
+        assert_approx_equals(document.scrollingElement.scrollLeft, expectedScrollDeltaX, 0.0001);
+        assert_approx_equals(document.scrollingElement.scrollTop, 0, 0.0001);
     } else {
-        assert_equals(Math.round(document.scrollingElement.scrollLeft), expectedScrollX);
-        assert_equals(Math.round(document.scrollingElement.scrollTop), expectedScrollY);
+        assert_equals(Math.round(document.scrollingElement.scrollLeft), expectedScrollDeltaX);
+        assert_equals(Math.round(document.scrollingElement.scrollTop), 0);
     }
 }, "Two horizontal wheel ticks scroll the right number of pixels in high dpi mode.");
 </script>

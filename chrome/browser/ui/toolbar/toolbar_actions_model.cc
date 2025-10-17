@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/metrics/histogram_base.h"
@@ -17,21 +17,17 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/observer_list.h"
 #include "base/one_shot_event.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/extensions/extension_management.h"
-#include "chrome/browser/extensions/extension_message_bubble_controller.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/profile_util.h"
 #include "chrome/browser/extensions/tab_helper.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/extensions/extension_action_view_controller.h"
-#include "chrome/browser/ui/extensions/extension_message_bubble_factory.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_controller.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model_factory.h"
+#include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_action_manager.h"
@@ -50,12 +46,12 @@ ToolbarActionsModel::ToolbarActionsModel(
     : profile_(profile),
       extension_prefs_(extension_prefs),
       prefs_(profile_->GetPrefs()),
-      extension_action_api_(extensions::ExtensionActionAPI::Get(profile_)),
+      extension_action_dispatcher_(
+          extensions::ExtensionActionDispatcher::Get(profile_)),
       extension_registry_(extensions::ExtensionRegistry::Get(profile_)),
       extension_action_manager_(
           extensions::ExtensionActionManager::Get(profile_)),
-      actions_initialized_(false),
-      has_active_bubble_(false) {
+      actions_initialized_(false) {
   extensions::ExtensionSystem::Get(profile_)->ready().Post(
       FROM_HERE, base::BindOnce(&ToolbarActionsModel::OnReady,
                                 weak_ptr_factory_.GetWeakPtr()));
@@ -68,7 +64,7 @@ ToolbarActionsModel::ToolbarActionsModel(
                           base::Unretained(this)));
 }
 
-ToolbarActionsModel::~ToolbarActionsModel() {}
+ToolbarActionsModel::~ToolbarActionsModel() = default;
 
 // static
 ToolbarActionsModel* ToolbarActionsModel::Get(Profile* profile) {
@@ -87,11 +83,7 @@ void ToolbarActionsModel::OnExtensionActionUpdated(
     extensions::ExtensionAction* extension_action,
     content::WebContents* web_contents,
     content::BrowserContext* browser_context) {
-  // Notify observers if the extension exists and is in the model.
-  if (HasAction(extension_action->extension_id())) {
-    for (Observer& observer : observers_)
-      observer.OnToolbarActionUpdated(extension_action->extension_id());
-  }
+  NotifyToolbarActionUpdated(extension_action->extension_id());
 }
 
 void ToolbarActionsModel::OnExtensionLoaded(
@@ -100,8 +92,9 @@ void ToolbarActionsModel::OnExtensionLoaded(
   // We don't want to add the same extension twice. It may have already been
   // added by EXTENSION_BROWSER_ACTION_VISIBILITY_CHANGED below, if the user
   // hides the browser action and then disables and enables the extension.
-  if (!HasAction(extension->id()) && ShouldAddExtension(extension))
+  if (!HasAction(extension->id()) && ShouldAddExtension(extension)) {
     AddAction(extension->id());
+  }
 }
 
 void ToolbarActionsModel::OnExtensionUnloaded(
@@ -133,10 +126,12 @@ void ToolbarActionsModel::OnExtensionPermissionsUpdated(
     const extensions::Extension& extension,
     const extensions::PermissionSet& permissions,
     extensions::PermissionsManager::UpdateReason reason) {
-  if (HasAction(extension.id())) {
-    for (Observer& observer : observers_)
-      observer.OnToolbarActionUpdated(extension.id());
-  }
+  NotifyToolbarActionUpdated(extension.id());
+}
+
+void ToolbarActionsModel::OnActiveTabPermissionGranted(
+    const extensions::Extension& extension) {
+  NotifyToolbarActionUpdated(extension.id());
 }
 
 void ToolbarActionsModel::Shutdown() {
@@ -148,7 +143,7 @@ void ToolbarActionsModel::RemovePref(const ActionId& action_id) {
   // the active pinned set.
   DCHECK(!IsActionPinned(action_id));
   auto stored_pinned_actions = extension_prefs_->GetPinnedExtensions();
-  auto iter = base::ranges::find(stored_pinned_actions, action_id);
+  auto iter = std::ranges::find(stored_pinned_actions, action_id);
   if (iter != stored_pinned_actions.end()) {
     stored_pinned_actions.erase(iter);
     extension_prefs_->SetPinnedExtensions(stored_pinned_actions);
@@ -162,7 +157,7 @@ void ToolbarActionsModel::OnReady() {
   // changes so that the toolbar buttons can be shown in their stable ordering
   // taken from prefs.
   extension_registry_observation_.Observe(extension_registry_.get());
-  extension_action_observation_.Observe(extension_action_api_.get());
+  extension_action_observation_.Observe(extension_action_dispatcher_.get());
   permissions_manager_observation_.Observe(
       extensions::PermissionsManager::Get(profile_));
 
@@ -171,16 +166,18 @@ void ToolbarActionsModel::OnReady() {
   extension_management_observation_.Observe(management);
 
   actions_initialized_ = true;
-  for (Observer& observer : observers_)
+  for (Observer& observer : observers_) {
     observer.OnToolbarModelInitialized();
+  }
 }
 
 bool ToolbarActionsModel::ShouldAddExtension(
     const extensions::Extension* extension) {
   // In incognito mode, don't add any extensions that aren't incognito-enabled.
   if (profile_->IsOffTheRecord() &&
-      !extensions::util::IsIncognitoEnabled(extension->id(), profile_))
+      !extensions::util::IsIncognitoEnabled(extension->id(), profile_)) {
     return false;
+  }
 
   // In this case, we don't care about the browser action visibility, because
   // we want to show each extension regardless.
@@ -193,8 +190,9 @@ void ToolbarActionsModel::AddAction(const ActionId& action_id) {
 
   action_ids_.insert(action_id);
 
-  for (Observer& observer : observers_)
+  for (Observer& observer : observers_) {
     observer.OnToolbarActionAdded(action_id);
+  }
 
   UpdatePinnedActionIds();
 }
@@ -202,30 +200,30 @@ void ToolbarActionsModel::AddAction(const ActionId& action_id) {
 void ToolbarActionsModel::RemoveAction(const ActionId& action_id) {
   const bool did_erase = action_ids_.erase(action_id) > 0;
   // TODO(devlin): Can we DCHECK did_erase?
-  if (!did_erase)
+  if (!did_erase) {
     return;
+  }
 
   UpdatePinnedActionIds();
 
-  for (Observer& observer : observers_)
+  for (Observer& observer : observers_) {
     observer.OnToolbarActionRemoved(action_id);
-}
-
-std::unique_ptr<extensions::ExtensionMessageBubbleController>
-ToolbarActionsModel::GetExtensionMessageBubbleController(Browser* browser) {
-  std::unique_ptr<extensions::ExtensionMessageBubbleController> controller;
-  if (has_active_bubble())
-    return controller;
-  controller = ExtensionMessageBubbleFactory(browser).GetController();
-  if (controller)
-    controller->SetIsActiveBubble();
-  return controller;
+  }
 }
 
 const std::u16string ToolbarActionsModel::GetExtensionName(
     const ActionId& action_id) const {
   return base::UTF8ToUTF16(
       extension_registry_->enabled_extensions().GetByID(action_id)->name());
+}
+
+bool ToolbarActionsModel::HasAction(const ActionId& action_id) const {
+  return base::Contains(action_ids_, action_id);
+}
+
+bool ToolbarActionsModel::CanShowActionsInToolbar(const Browser& browser) {
+  // Pinning extensions is not available in PWAs.
+  return !web_app::AppBrowserController::IsWebApp(&browser);
 }
 
 bool ToolbarActionsModel::IsRestrictedUrl(const GURL& url) const {
@@ -237,10 +235,52 @@ bool ToolbarActionsModel::IsRestrictedUrl(const GURL& url) const {
   // If nay extension has access, we want to properly message that (since
   // saying "No extensions can run..." is inaccurate). Other extensions
   // will still be properly attributed in UI.
-  return base::ranges::all_of(action_ids(), [this, url](ActionId id) {
-    return GetExtensionById(id)->permissions_data()->IsRestrictedUrl(
-        url, /*error=*/nullptr);
+  return std::ranges::all_of(action_ids(), [this, url](ActionId id) {
+    // action_ids() could include disabled extensions that haven't been removed
+    // yet from the set due to race conditions. Thus, we don't consider them in
+    // the restricted url computation.
+    auto* extension = GetExtensionById(id);
+    if (!extension) {
+      return true;
+    }
+
+    return extension->permissions_data()->IsRestrictedUrl(url,
+                                                          /*error=*/nullptr);
   });
+}
+
+bool ToolbarActionsModel::IsPolicyBlockedHost(const GURL& url) const {
+  extensions::ManagementPolicy* policy =
+      extensions::ExtensionSystem::Get(profile_)->management_policy();
+  auto is_enterprise_extension =
+      [policy](const extensions::Extension& extension) {
+        return !policy->UserMayModifySettings(&extension, nullptr) ||
+               policy->MustRemainInstalled(&extension, nullptr);
+      };
+
+  // `url` is NOT a policy-blockedsite when there are no extensions installed.
+  if (action_ids().empty()) {
+    return false;
+  }
+
+  for (auto& action_id : action_ids()) {
+    // Skip enterprise extensions since they could still access policy-blocked
+    // sites.
+    const extensions::Extension* extension = GetExtensionById(action_id);
+    if (is_enterprise_extension(*extension)) {
+      continue;
+    }
+
+    // `url` is NOT a policy-blocked sit when it's allowed for any
+    // non-enterprise extension.
+    if (!extension->permissions_data()->IsPolicyBlockedHost(url)) {
+      return false;
+    }
+  }
+
+  // `url` is a policy-blocked site when it's blocked for every non-enterprise
+  // extension.
+  return true;
 }
 
 bool ToolbarActionsModel::IsActionPinned(const ActionId& action_id) const {
@@ -255,12 +295,13 @@ bool ToolbarActionsModel::IsActionForcePinned(const ActionId& action_id) const {
 
 void ToolbarActionsModel::MovePinnedAction(const ActionId& action_id,
                                            size_t target_index) {
-  // TODO(crbug.com/1266952): This code assumes all actions are in
+  // TODO(crbug.com/40204281): This code assumes all actions are in
   // stored_pinned_actions, which force-pinned actions aren't; so, always keep
   // them 'to the right' of other actions. Remove this guard if we ever add
   // force-pinned actions to the pref.
-  if (IsActionForcePinned(action_id))
+  if (IsActionForcePinned(action_id)) {
     return;
+  }
 
   // If pinned actions are empty, we're going to have a real bad time (with
   // out Keep this a hard CHECK (not a DCHECK).
@@ -269,13 +310,14 @@ void ToolbarActionsModel::MovePinnedAction(const ActionId& action_id,
       << "Changing action position is disallowed in incognito.";
 
   auto current_position_on_toolbar =
-      base::ranges::find(pinned_action_ids_, action_id);
-  DCHECK(current_position_on_toolbar != pinned_action_ids_.end());
+      std::ranges::find(pinned_action_ids_, action_id);
+  CHECK(current_position_on_toolbar != pinned_action_ids_.end());
   size_t current_index_on_toolbar =
       current_position_on_toolbar - pinned_action_ids_.begin();
 
-  if (current_index_on_toolbar == target_index)
+  if (current_index_on_toolbar == target_index) {
     return;
+  }
 
   bool is_left_to_right_move = target_index > current_index_on_toolbar;
 
@@ -305,7 +347,7 @@ void ToolbarActionsModel::MovePinnedAction(const ActionId& action_id,
   // non-force-pinned neighbor. This basically keeps force-pinned actions on the
   // right at all times.
   //
-  // TODO(crbug.com/1266952): Simplify this logic when force-pinned extensions
+  // TODO(crbug.com/40204281): Simplify this logic when force-pinned extensions
   // are saved in the pref.
   std::vector<ActionId>::iterator non_force_pinned_neighbor =
       pinned_action_ids_.end();
@@ -337,12 +379,12 @@ void ToolbarActionsModel::MovePinnedAction(const ActionId& action_id,
       non_force_pinned_neighbor == pinned_action_ids_.end();
   auto target_position = move_to_end
                              ? stored_pinned_actions.end()
-                             : base::ranges::find(stored_pinned_actions,
-                                                  *non_force_pinned_neighbor);
+                             : std::ranges::find(stored_pinned_actions,
+                                                 *non_force_pinned_neighbor);
 
   auto current_position_in_prefs =
-      base::ranges::find(stored_pinned_actions, action_id);
-  DCHECK(current_position_in_prefs != stored_pinned_actions.end());
+      std::ranges::find(stored_pinned_actions, action_id);
+  CHECK(current_position_in_prefs != stored_pinned_actions.end());
 
   // Rotate |action_id| to be in the target position.
   if (is_left_to_right_move) {
@@ -369,18 +411,19 @@ void ToolbarActionsModel::MovePinnedAction(const ActionId& action_id,
 void ToolbarActionsModel::InitializeActionList() {
   CHECK(action_ids_.empty());  // We shouldn't have any actions yet.
 
-  if (profile_->IsOffTheRecord())
+  if (profile_->IsOffTheRecord()) {
     IncognitoPopulate();
-  else
+  } else {
     Populate();
+  }
 
   // Set |pinned_action_ids_| directly to avoid notifying observers that they
   // have changed even though they haven't.
   pinned_action_ids_ = GetFilteredPinnedActionIds();
 
   if (!profile_->IsOffTheRecord()) {
-    // Prefixed with "ExtensionToolbarModel" rather than
-    // "Extensions.Toolbar" for historical reasons.
+    // Prefixed with "ExtensionToolbarModel" rather than "Extensions.Toolbar"
+    // for historical reasons.
     base::UmaHistogramCounts100("ExtensionToolbarModel.BrowserActionsCount",
                                 action_ids_.size());
     if (extensions::profile_util::ProfileCanUseNonComponentExtensions(
@@ -409,14 +452,11 @@ void ToolbarActionsModel::Populate() {
       extension_registry_->enabled_extensions();
   for (const scoped_refptr<const extensions::Extension>& extension :
        extensions) {
-    if (!ShouldAddExtension(extension.get()))
+    if (!ShouldAddExtension(extension.get())) {
       continue;
+    }
     action_ids_.insert(extension->id());
   }
-}
-
-bool ToolbarActionsModel::HasAction(const ActionId& action_id) const {
-  return base::Contains(action_ids_, action_id);
 }
 
 void ToolbarActionsModel::IncognitoPopulate() {
@@ -446,12 +486,15 @@ void ToolbarActionsModel::SetActionVisibility(const ActionId& action_id,
   if (is_now_visible) {
     stored_pinned_action_ids.push_back(action_id);
   } else {
-    base::Erase(stored_pinned_action_ids, action_id);
+    std::erase(stored_pinned_action_ids, action_id);
   }
   extension_prefs_->SetPinnedExtensions(stored_pinned_action_ids);
   // The |pinned_action_ids_| should be updated as a result of updating the
   // preference.
   DCHECK(pinned_action_ids_ == GetFilteredPinnedActionIds());
+
+  extension_action_dispatcher_->OnActionPinnedStateChanged(action_id,
+                                                           is_now_visible);
 }
 
 const extensions::Extension* ToolbarActionsModel::GetExtensionById(
@@ -461,26 +504,30 @@ const extensions::Extension* ToolbarActionsModel::GetExtensionById(
 
 void ToolbarActionsModel::UpdatePinnedActionIds() {
   // If extensions are not ready, defer to later Populate() call.
-  if (!actions_initialized_)
+  if (!actions_initialized_) {
     return;
+  }
 
   std::vector<ActionId> pinned_extensions = GetFilteredPinnedActionIds();
-  if (pinned_extensions == pinned_action_ids_)
+  if (pinned_extensions == pinned_action_ids_) {
     return;
+  }
 
   pinned_action_ids_ = pinned_extensions;
-  for (Observer& observer : observers_)
+  for (Observer& observer : observers_) {
     observer.OnToolbarPinnedActionsChanged();
+  }
 }
 
 std::vector<ToolbarActionsModel::ActionId>
 ToolbarActionsModel::GetFilteredPinnedActionIds() const {
   // Force-pinned extensions should always be present in the output vector.
   extensions::ExtensionIdList pinned = extension_prefs_->GetPinnedExtensions();
+
   auto* management =
       extensions::ExtensionManagementFactory::GetForBrowserContext(profile_);
   // O(n^2), but there are typically very few force-pinned extensions.
-  base::ranges::copy_if(
+  std::ranges::copy_if(
       management->GetForcePinnedList(), std::back_inserter(pinned),
       [&pinned](const std::string& id) { return !base::Contains(pinned, id); });
 
@@ -488,8 +535,20 @@ ToolbarActionsModel::GetFilteredPinnedActionIds() const {
   // startup so that we don't keep saving stale IDs.
   std::vector<ActionId> filtered_action_ids;
   for (auto& action_id : pinned) {
-    if (HasAction(action_id))
+    if (HasAction(action_id)) {
       filtered_action_ids.push_back(action_id);
+    }
   }
   return filtered_action_ids;
+}
+
+void ToolbarActionsModel::NotifyToolbarActionUpdated(
+    const ActionId& action_id) {
+  if (!HasAction(action_id)) {
+    return;
+  }
+
+  for (Observer& observer : observers_) {
+    observer.OnToolbarActionUpdated(action_id);
+  }
 }

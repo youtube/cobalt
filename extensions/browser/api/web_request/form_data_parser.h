@@ -7,10 +7,9 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
-// Cannot forward declare StringPiece because it is a typedef.
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 
 namespace net {
@@ -37,10 +36,8 @@ class FormDataParser {
     const std::string& name() const { return name_; }
     base::Value take_value() { return std::move(value_); }
 
-    void set_name(base::StringPiece str) {
-      name_.assign(str.data(), str.size());
-    }
-    void SetBinaryValue(base::StringPiece str);
+    void set_name(std::string_view str) { name_ = str; }
+    void SetBinaryValue(std::string_view str);
     void SetStringValue(std::string str);
 
    private:
@@ -53,13 +50,13 @@ class FormDataParser {
 
   virtual ~FormDataParser();
 
-  // Creates a correct parser instance based on the |request_headers|. Returns
+  // Creates a correct parser instance based on the `request_headers`. Returns
   // null on failure.
   static std::unique_ptr<FormDataParser> Create(
       const net::HttpRequestHeaders& request_headers);
 
-  // Creates a correct parser instance based on |content_type_header|, the
-  // "Content-Type" request header value. If |content_type_header| is NULL, it
+  // Creates a correct parser instance based on `content_type_header`, the
+  // "Content-Type" request header value. If `content_type_header` is NULL, it
   // defaults to "application/x-www-form-urlencoded". Returns NULL on failure.
   static std::unique_ptr<FormDataParser> CreateFromContentTypeHeader(
       const std::string* content_type_header);
@@ -68,19 +65,19 @@ class FormDataParser {
   virtual bool AllDataReadOK() = 0;
 
   // Gets the next name-value pair from the source data and stores it in
-  // |result|. Returns true if a pair was found. Callers must have previously
+  // `result`. Returns true if a pair was found. Callers must have previously
   // succesfully called the SetSource method.
   virtual bool GetNextNameValue(Result* result) = 0;
 
-  // Sets the |source| of the data to be parsed. One form data parser is only
+  // Sets the `source` of the data to be parsed. One form data parser is only
   // expected to be associated with one source, so generally, SetSource should
   // be only called once. However, for technical reasons, the source might only
   // be available in chunks for multipart encoded forms, in which case it is OK
   // to call SetSource multiple times to add all chunks of a single source. The
-  // ownership of |source| is left with the caller and the source should live
-  // until |this| dies or |this->SetSource()| is called again, whichever comes
+  // ownership of `source` is left with the caller and the source should live
+  // until `this` dies or |this->SetSource()| is called again, whichever comes
   // sooner. Returns true on success.
-  virtual bool SetSource(base::StringPiece source) = 0;
+  virtual bool SetSource(std::string_view source) = 0;
 
  protected:
   FormDataParser();

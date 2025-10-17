@@ -67,20 +67,65 @@
     "static",
     "invisible",
 
+    // command attribute
+    // https://open-ui.org/components/invokers.explainer/
+    "auto",
+    // command for popovers
+    "toggle-popover",
+    "hide-popover",
+    "show-popover",
+    // command for dialog
+    "show-modal",
+    "close",
+    "request-close",
+    // command for details
+    "toggle",
+    "close",
+    "open",
+    // command for input and select
+    "show-picker",
+    // command for number input
+    "step-up",
+    "step-down",
+    // invokeaction for fullscreen
+    "toggle-fullscreen",
+    "request-fullscreen",
+    "exit-fullscreen",
+    // invokeaction for audio and video
+    "play-pause",
+    "pause",
+    "play",
+    "toggle-muted",
+
     // loading attribute
     // https://github.com/scott-little/lazyload#ways-the-loading-attribute-can-be-used
     "lazy",
     "eager",
     "auto",
 
-    // popover attribute (experimental)
-    // https://github.com/openui/open-ui/blob/main/research/src/pages/popup/popup.research.explainer.mdx
+    // popover attribute
+    // https://html.spec.whatwg.org/multipage/popover.html#dom-popover
     "auto",
+    "manual",
+    // Experimental popover=hint value
+    // https://open-ui.org/components/popover-hint.research.explainer/
     "hint",
-    "async",
+
+    // popovertargetaction attribute
+    // https://html.spec.whatwg.org/C/#attr-popovertargetaction
+    "toggle",
     "show",
     "hide",
-    "toggle",
+
+    // hidden=until-found attribute
+    // https://html.spec.whatwg.org/#the-hidden-attribute
+    "until-found",
+
+    // dialog closedby attribute
+    // See https://github.com/whatwg/html/pull/10737.
+    "any",
+    "closerequest",
+    "none",
 
     // referrerpolicy attribute
     // https://w3c.github.io/webappsec-referrer-policy/#referrer-policies
@@ -109,5 +154,75 @@
     // https://github.com/whatwg/html/pull/5465
     "open",
     "closed",
+
+    // visibilityState
+    // https://w3c.github.io/page-visibility/#visibilitystate-enum
+    "hidden",
+    "visible",
+
+    // Blocking attributes
+    // https://html.spec.whatwg.org/C/#blocking-attribute
+    "render",
+    "full-frame-rate",
+
+    // dropEffect IDL attribute
+    // https://html.spec.whatwg.org/C/#dom-datatransfer-dropeffect
+    "none",
+
+    // Various Aria attribute values
+    // https://www.w3.org/TR/wai-aria-1.1/#valuetype_true-false
+    "false",
+    "true",
+
+    // ol[type] https://html.spec.whatwg.org/C/#attr-ol-type and
+    // symbolic predefined counter style
+    // https://drafts.csswg.org/css-counter-styles-3/#simple-symbolic
+    "decimal",
+    "lower-roman",
+    "upper-roman",
+    "lower-alpha",
+    "upper-alpha",
+    "disc",
+    "circle",
+    "square",
+    "disclosure-open",
+    "disclosure-closed",
+
+    // contenteditable content/IDL attribute
+    // https://html.spec.whatwg.org/C/#attr-contenteditable
+    // https://html.spec.whatwg.org/C/#dom-contenteditable
+    "true",
+    "plaintext-only",
+    "false",
+    "inherit",
+
+    // controlslist attribute
+    // https://wicg.github.io/controls-list/html-output/multipage/embedded-content.html#attr-media-controlslist
+    "nodownload",
+    "nofullscreen",
+    "noplaybackrate",
+    "noremoteplayback",
+
+    // <meta> name attribute
+    // https://html.spec.whatwg.org/C/#standard-metadata-names
+    "color-scheme",
+
+    // Some values of KeyboardEvent.key.
+    // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+    "ArrowDown",
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowUp",
+    "End",
+    "Home",
+    "PageDown",
+    "PageUp",
+    {name: "Enter", Symbol: "kCapitalEnter"},
+    "Escape",
+    "Tab",
+
+    // common media types
+    "text/html",
+    "application/xml",
   ],
 }

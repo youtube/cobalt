@@ -15,9 +15,8 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
 #include "third_party/blink/renderer/core/svg/svg_string_list_tear_off.h"
+#include "third_party/blink/renderer/platform/bindings/enumeration_base.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
-#include "third_party/blink/renderer/platform/fonts/font_description.h"
-#include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
 #include "third_party/blink/renderer/platform/privacy_budget/identifiability_digest_helpers.h"
 #include "third_party/perfetto/include/perfetto/tracing/event_context.h"
 #include "v8/include/v8-function-callback.h"
@@ -86,10 +85,10 @@ String V8ValueToString(v8::Local<v8::Context> current_context,
   v8::Local<v8::String> v8_string;
 
   if (!value->ToDetailString(current_context).ToLocal(&v8_string)) {
-    return String("");
+    return g_empty_string;
   }
 
-  return ToBlinkString<String>(v8_string, kDoNotExternalize);
+  return ToBlinkString<String>(isolate, v8_string, kDoNotExternalize);
 }
 
 FontLookupType ToTypeProto(Dactyloscoper::FontLookupType lookup_type) {
@@ -121,10 +120,20 @@ void Dactyloscoper::RecordDirectSurface(ExecutionContext* context,
                                         const String& str) {
   if (!context || !ShouldSample(feature))
     return;
-  if (str.empty())
-    return;
   Dactyloscoper::RecordDirectSurface(context, feature,
                                      IdentifiabilitySensitiveStringToken(str));
+}
+
+// static
+void Dactyloscoper::RecordDirectSurface(
+    ExecutionContext* context,
+    WebFeature feature,
+    const bindings::EnumerationBase& value) {
+  if (!context || !ShouldSample(feature)) {
+    return;
+  }
+  Dactyloscoper::RecordDirectSurface(
+      context, feature, IdentifiabilitySensitiveStringToken(value.AsString()));
 }
 
 // static
@@ -132,8 +141,6 @@ void Dactyloscoper::RecordDirectSurface(ExecutionContext* context,
                                         WebFeature feature,
                                         const Vector<String>& strs) {
   if (!context || !ShouldSample(feature))
-    return;
-  if (strs.empty())
     return;
   IdentifiableTokenBuilder builder;
   for (const auto& str : strs) {
@@ -148,10 +155,10 @@ void Dactyloscoper::RecordDirectSurface(ExecutionContext* context,
                                         const DOMArrayBufferView* buffer) {
   if (!context || !ShouldSample(feature))
     return;
-  if (!buffer || buffer->byteLength() == 0)
-    return;
-  IdentifiableTokenBuilder builder(base::make_span(
-      static_cast<uint8_t*>(buffer->BaseAddress()), buffer->byteLength()));
+  IdentifiableTokenBuilder builder;
+  if (buffer && buffer->byteLength() > 0) {
+    builder.AddBytes(buffer->ByteSpan());
+  }
   Dactyloscoper::RecordDirectSurface(context, feature, builder.GetToken());
 }
 
@@ -165,7 +172,6 @@ void Dactyloscoper::RecordDirectSurface(ExecutionContext* context,
 // static
 void Dactyloscoper::TraceFontLookup(ExecutionContext* execution_context,
                                     const AtomicString& name,
-                                    const FontDescription& font_description,
                                     Dactyloscoper::FontLookupType lookup_type) {
   TRACE_EVENT_INSTANT(
       TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"),
@@ -187,11 +193,6 @@ void Dactyloscoper::TraceFontLookup(ExecutionContext* execution_context,
         FontLookup& font_lookup = *(high_entropy_api.set_font_lookup());
         font_lookup.set_type(ToTypeProto(lookup_type));
         font_lookup.set_name(name.Utf8());
-        FontSelectionRequest font_selection_request =
-            font_description.GetFontSelectionRequest();
-        font_lookup.set_weight(font_selection_request.weight.RawValue());
-        font_lookup.set_width(font_selection_request.width.RawValue());
-        font_lookup.set_slope(font_selection_request.slope.RawValue());
       });
 }
 
@@ -221,12 +222,6 @@ Dactyloscoper::HighEntropyTracer::HighEntropyTracer(
         CalledJsApi& called_api = *(high_entropy_api.set_called_api());
         called_api.set_identifier(called_api_name);
 
-        SourceLocationProto* proto_source_location_deprecated =
-            called_api.set_source_location();
-        std::unique_ptr<SourceLocation> source_location =
-            CaptureSourceLocation(execution_context);
-        source_location->WriteIntoTrace(
-            ctx.Wrap(proto_source_location_deprecated));
         for (int i = 0; i < info.Length(); ++i) {
           JSFunctionArgument& arg = *(called_api.add_func_arguments());
           arg.set_type(GetArgumentType(info[i]));
@@ -234,6 +229,8 @@ Dactyloscoper::HighEntropyTracer::HighEntropyTracer(
               V8ValueToString(current_context, isolate, info[i]).Utf8());
         }
 
+        std::unique_ptr<SourceLocation> source_location =
+            CaptureSourceLocation(execution_context);
         SourceLocationProto* proto_source_location =
             high_entropy_api.set_source_location();
         source_location->WriteIntoTrace(ctx.Wrap(proto_source_location));

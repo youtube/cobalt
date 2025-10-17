@@ -24,7 +24,7 @@
 #include "libANGLE/renderer/d3d/formatutilsD3D.h"
 #include "libANGLE/renderer/renderer_utils.h"
 #include "libANGLE/renderer/serial_utils.h"
-#include "platform/FeaturesD3D_autogen.h"
+#include "platform/autogen/FeaturesD3D_autogen.h"
 
 namespace egl
 {
@@ -45,13 +45,13 @@ namespace rx
 class ContextImpl;
 struct D3DUniform;
 struct D3DVarying;
-class DeviceD3D;
 class EGLImageD3D;
 class FramebufferImpl;
 class ImageD3D;
 class IndexBuffer;
 class NativeWindowD3D;
 class ProgramD3D;
+class ProgramExecutableD3D;
 class RenderTargetD3D;
 class ShaderExecutableD3D;
 class SwapChainD3D;
@@ -477,7 +477,6 @@ class RendererD3D : public BufferFactoryD3D
 };
 
 unsigned int GetBlendSampleMask(const gl::State &glState, int samples);
-bool InstancedPointSpritesActive(ProgramD3D *programD3D, gl::PrimitiveMode mode);
 GLenum DefaultGLErrorCode(HRESULT hr);
 
 // Define stubs so we don't need to include D3D9/D3D11 headers directly.

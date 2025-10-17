@@ -5,6 +5,7 @@
 #include "content/browser/browsing_data/browsing_data_remover_impl.h"
 
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -26,18 +27,32 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "components/browsing_data/core/cookie_or_cache_deletion_choice.h"
+#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
+#include "content/browser/browser_context_impl.h"
 #include "content/browser/browsing_data/browsing_data_filter_builder_impl.h"
+#include "content/browser/btm/btm_service_impl.h"
+#include "content/browser/btm/btm_utils.h"
+#include "content/browser/fingerprinting_protection/canvas_noise_token_data.h"
+#include "content/browser/preloading/prefetch/prefetch_features.h"
+#include "content/browser/preloading/prefetch/prefetch_service.h"
+#include "content/browser/preloading/prefetch/prefetch_status.h"
+#include "content/browser/preloading/prerender/prerender_host_registry.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
+#include "content/browser/renderer_host/render_process_host_impl.h"
+#include "content/browser/web_contents/web_contents_impl.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/browsing_data_remover_delegate.h"
+#include "content/public/browser/client_hints_controller_delegate.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/download_manager.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/storage_partition.h"
-#include "content/public/common/content_features.h"
+#include "content/public/browser/storage_partition_config.h"
+#include "content/public/common/content_client.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/clear_data_filter.mojom.h"
@@ -116,8 +131,8 @@ BrowsingDataRemoverImpl::BrowsingDataRemoverImpl(
     : browser_context_(browser_context),
       remove_mask_(0xffffffffffffffffull),
       origin_type_mask_(0xffffffffffffffffull),
-      is_removing_(false),
-      storage_partition_for_testing_(nullptr) {
+      storage_partition_config_(std::nullopt),
+      is_removing_(false) {
   DCHECK(browser_context_);
 }
 
@@ -216,15 +231,17 @@ void BrowsingDataRemoverImpl::RemoveWithFilterAndReply(
 }
 
 void BrowsingDataRemoverImpl::RemoveStorageBucketsAndReply(
+    std::optional<StoragePartitionConfig> storage_partition_config,
     const blink::StorageKey& storage_key,
     const std::set<std::string>& storage_buckets,
     base::OnceClosure callback) {
   DCHECK(callback);
-  GetStoragePartition()->ClearDataForBuckets(
-      storage_key, storage_buckets,
-      base::BindPostTaskToCurrentDefault(
-          base::BindOnce(&BrowsingDataRemoverImpl::DidRemoveStorageBuckets,
-                         GetWeakPtr(), std::move(callback))));
+  GetStoragePartition(std::move(storage_partition_config))
+      ->ClearDataForBuckets(
+          storage_key, storage_buckets,
+          base::BindPostTaskToCurrentDefault(
+              base::BindOnce(&BrowsingDataRemoverImpl::DidRemoveStorageBuckets,
+                             GetWeakPtr(), std::move(callback))));
 }
 
 void BrowsingDataRemoverImpl::DidRemoveStorageBuckets(
@@ -245,6 +262,10 @@ void BrowsingDataRemoverImpl::RemoveInternal(
   DCHECK(!observer || observer_list_.HasObserver(observer))
       << "Every observer must register itself (by calling AddObserver()) "
       << "before observing a removal task.";
+
+  CHECK(!filter_builder || !filter_builder->MatchesNothing())
+      << "Filters of type `kDelete` with empty origin and domain lists match "
+      << "nothing. To match all origins and domains, use a `kPreserve` filter.";
 
   // Remove() and RemoveAndReply() pass a null pointer to indicate no filter.
   // No filter is equivalent to one that |MatchesAllOriginsAndDomains()|.
@@ -331,25 +352,33 @@ void BrowsingDataRemoverImpl::RemoveImpl(
   DCHECK_NE(base::Time(), delete_end);
   DCHECK(domains_for_deferred_cookie_deletion_.empty());
 
+  // If a specific StoragePartition is specified in the filter, only data
+  // types that are scoped to a StoragePartition should be removed.
+  DCHECK(!filter_builder->GetStoragePartitionConfig().has_value() ||
+         !(remove_mask & ~DATA_TYPE_ON_STORAGE_PARTITION));
+
   delete_begin_ = delete_begin;
   delete_end_ = delete_end;
   remove_mask_ = remove_mask;
   origin_type_mask_ = origin_type_mask;
+  storage_partition_config_ = filter_builder->GetStoragePartitionConfig();
   failed_data_types_ = 0;
 
   // Record the combined deletion of cookies and cache.
-  CookieOrCacheDeletionChoice choice = NEITHER_COOKIES_NOR_CACHE;
+  browsing_data::CookieOrCacheDeletionChoice choice =
+      browsing_data::CookieOrCacheDeletionChoice::kNeitherCookiesNorCache;
   if (remove_mask & DATA_TYPE_COOKIES &&
       origin_type_mask_ & ORIGIN_TYPE_UNPROTECTED_WEB) {
     choice =
-        remove_mask & DATA_TYPE_CACHE ? BOTH_COOKIES_AND_CACHE : ONLY_COOKIES;
+        remove_mask & DATA_TYPE_CACHE
+            ? browsing_data::CookieOrCacheDeletionChoice::kBothCookiesAndCache
+            : browsing_data::CookieOrCacheDeletionChoice::kOnlyCookies;
   } else if (remove_mask & DATA_TYPE_CACHE) {
-    choice = ONLY_CACHE;
+    choice = browsing_data::CookieOrCacheDeletionChoice::kOnlyCache;
   }
 
   base::UmaHistogramEnumeration(
-      "History.ClearBrowsingData.UserDeletedCookieOrCache", choice,
-      MAX_CHOICE_VALUE);
+      "History.ClearBrowsingData.UserDeletedCookieOrCache", choice);
 
   //////////////////////////////////////////////////////////////////////////////
   // INITIALIZATION
@@ -375,6 +404,9 @@ void BrowsingDataRemoverImpl::RemoveImpl(
 
   //////////////////////////////////////////////////////////////////////////////
   // STORAGE PARTITION DATA
+  StoragePartition* storage_partition =
+      GetStoragePartition(filter_builder->GetStoragePartitionConfig());
+
   uint32_t storage_partition_remove_mask = 0;
 
   // We ignore the DATA_TYPE_COOKIES request if UNPROTECTED_WEB is not set,
@@ -385,13 +417,21 @@ void BrowsingDataRemoverImpl::RemoveImpl(
   if (remove_mask & DATA_TYPE_COOKIES &&
       origin_type_mask_ & ORIGIN_TYPE_UNPROTECTED_WEB) {
     storage_partition_remove_mask |= StoragePartition::REMOVE_DATA_MASK_COOKIES;
-    // Interest groups should be cleared with cookies for its origin trial as
-    // the current FLEDGE implementation has the same privacy characteristics.
-    storage_partition_remove_mask |=
-        StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS;
+    if (!filter_builder->PartitionedCookiesOnly()) {
+      // Interest groups should be cleared with cookies for its origin trial as
+      // the current FLEDGE implementation has the same privacy characteristics.
+      //
+      // Interest groups are per-origin, and don't support the concept of
+      // partitioning, so we only trigger their deletion if *unpartitioned*
+      // cookies are being deleted (hence the not-PartitionedCookiesOnly check
+      // above).
+      storage_partition_remove_mask |=
+          StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS;
+    }
     if (embedder_delegate_) {
       domains_for_deferred_cookie_deletion_ =
-          embedder_delegate_->GetDomainsForDeferredCookieDeletion(remove_mask);
+          embedder_delegate_->GetDomainsForDeferredCookieDeletion(
+              storage_partition, remove_mask);
     }
   }
   if (remove_mask & DATA_TYPE_LOCAL_STORAGE) {
@@ -457,12 +497,23 @@ void BrowsingDataRemoverImpl::RemoveImpl(
     storage_partition_remove_mask |=
         StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS_INTERNAL;
   }
+  if (remove_mask & DATA_TYPE_INTEREST_GROUPS_USER_CLEAR) {
+    storage_partition_remove_mask |=
+        StoragePartition::REMOVE_DATA_MASK_INTEREST_GROUPS_USER_CLEAR;
+  }
   if (remove_mask & DATA_TYPE_SHARED_STORAGE) {
     storage_partition_remove_mask |=
         StoragePartition::REMOVE_DATA_MASK_SHARED_STORAGE;
   }
+  if (remove_mask & DATA_TYPE_DEVICE_BOUND_SESSIONS) {
+    storage_partition_remove_mask |=
+        StoragePartition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS;
+  }
 
-  StoragePartition* storage_partition = GetStoragePartition();
+  if ((remove_mask & DATA_TYPE_COOKIES) || (remove_mask & DATA_TYPE_CACHE)) {
+    storage_partition_remove_mask |=
+        StoragePartition::REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY;
+  }
 
   if (storage_partition_remove_mask) {
     // If cookies are supposed to be conditionally deleted from the storage
@@ -494,7 +545,7 @@ void BrowsingDataRemoverImpl::RemoveImpl(
     bool perform_storage_cleanup =
         delete_begin_.is_null() && delete_end_.is_max() &&
         origin_type_mask_ & ORIGIN_TYPE_UNPROTECTED_WEB &&
-        filter_builder->GetMode() == BrowsingDataFilterBuilder::Mode::kPreserve;
+        filter_builder->MatchesMostOriginsAndDomains();
 
     storage_partition->ClearData(
         storage_partition_remove_mask,
@@ -514,9 +565,11 @@ void BrowsingDataRemoverImpl::RemoveImpl(
     network::mojom::NetworkContext* network_context =
         storage_partition->GetNetworkContext();
 
-    // TODO(msramek): Clear the cache of all renderers.
+    if (filter_builder->MatchesMostOriginsAndDomains()) {
+      RenderProcessHostImpl::ClearAllResourceCaches();
+    }
 
-    // TODO(crbug.com/813882): implement retry on network service.
+    // TODO(crbug.com/40563720): implement retry on network service.
 
     // The clearing of the HTTP cache happens in the network service process
     // when enabled. Note that we've deprecated the concept of a media cache,
@@ -529,10 +582,9 @@ void BrowsingDataRemoverImpl::RemoveImpl(
             features::kCodeCacheDeletionWithoutFilter)) {
       // Experimentally perform preservelist deletions without filter and skip
       // origin specific deletions. See crbug.com/1040039#26.
-      if (filter_builder->GetMode() ==
-          BrowsingDataFilterBuilder::Mode::kPreserve) {
+      if (filter_builder->MatchesMostOriginsAndDomains()) {
         storage_partition->ClearCodeCaches(
-            delete_begin, delete_end, /*filter=*/base::NullCallback(),
+            delete_begin, delete_end, /*url_matcher=*/base::NullCallback(),
             CreateTaskCompletionClosureForMojo(TracingDataType::kCodeCaches));
       }
     } else {
@@ -542,8 +594,7 @@ void BrowsingDataRemoverImpl::RemoveImpl(
     }
 
     // TODO(crbug.com/1985971) : Implement filtering for NetworkHistory.
-    if (filter_builder->GetMode() ==
-        BrowsingDataFilterBuilder::Mode::kPreserve) {
+    if (filter_builder->MatchesMostOriginsAndDomains()) {
       // When clearing cache, wipe accumulated network related data
       // (TransportSecurityState and HttpServerPropertiesManager data).
       network_context->ClearNetworkingHistoryBetween(
@@ -552,7 +603,66 @@ void BrowsingDataRemoverImpl::RemoveImpl(
     }
 
     // Clears the PrefetchedSignedExchangeCache of all RenderFrameHostImpls.
-    RenderFrameHostImpl::ClearAllPrefetchedSignedExchangeCache();
+    if (filter_builder->MatchesMostOriginsAndDomains()) {
+      RenderFrameHostImpl::ClearAllPrefetchedSignedExchangeCache();
+    }
+
+    // Clears the CORS PreFlight cache. We don't support delete_begin,
+    // delete_end time range, as the preflight cache max age is capped to 2hrs.
+    network_context->ClearCorsPreflightCache(
+        filter_builder->BuildNetworkServiceFilter(),
+        CreateTaskCompletionClosureForMojo(TracingDataType::kPreflightCache));
+
+    // Clears the BFCache entries that match the removal filter for the current
+    // browser context.
+    auto storage_key_filter = filter_builder->BuildStorageKeyFilter();
+    for (WebContentsImpl* web_contents : WebContentsImpl::GetAllWebContents()) {
+      if (web_contents->GetBrowserContext() == browser_context_) {
+        web_contents->GetController().GetBackForwardCache().Flush(
+            storage_key_filter);
+      }
+    }
+  }
+
+  // Clears the Prerender Cache as part of Clear-Site-Data prerenderCache header
+  // and Browsing Data Cache Removal.
+  if (remove_mask & (DATA_TYPE_PRERENDER_CACHE | DATA_TYPE_CACHE)) {
+    auto storage_key_filter = filter_builder->BuildStorageKeyFilter();
+    for (WebContentsImpl* web_contents : WebContentsImpl::GetAllWebContents()) {
+      if (web_contents->GetBrowserContext() == browser_context_) {
+        PrerenderHostRegistry* prerender_host_registry =
+            web_contents->GetPrerenderHostRegistry();
+        if (prerender_host_registry) {
+          prerender_host_registry->CancelHostsByOriginFilter(
+              storage_key_filter, PrerenderFinalStatus::kBrowsingDataRemoved);
+        }
+      }
+    }
+    // We need task completion closures for prefetch/prerender cache clearing to
+    // prevent premature destruction of the SiteDataClearer object. Without
+    // these closures, the kSynchronous task may complete first and trigger
+    // OnBrowsingDataRemoverDone before these operations finish,
+    // causing state to be reset while operations are still pending.
+    GetUIThreadTaskRunner({})->PostTaskAndReply(
+        FROM_HERE, base::DoNothing(),
+        CreateTaskCompletionClosure(TracingDataType::kPrerenderCache));
+  }
+
+  // Clears the Prefetch Cache as part of Clear-Site-Data prefetchCache header
+  // and Browsing Data Cache Removal.
+  if ((remove_mask & (DATA_TYPE_PREFETCH_CACHE | DATA_TYPE_CACHE)) &&
+      base::FeatureList::IsEnabled(features::kPrefetchBrowsingDataRemoval)) {
+    if (auto* prefetch_service =
+            BrowserContextImpl::From(browser_context_)->GetPrefetchService()) {
+      auto storage_key_filter = filter_builder->BuildStorageKeyFilter();
+      GetUIThreadTaskRunner({})->PostTaskAndReply(
+          FROM_HERE,
+          base::BindOnce(
+              &PrefetchService::EvictPrefetchesForBrowsingDataRemoval,
+              prefetch_service->GetWeakPtr(), storage_key_filter,
+              PrefetchStatus::kPrefetchEvictedAfterBrowsingDataRemoved),
+          CreateTaskCompletionClosure(TracingDataType::kPrefetchCache));
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -574,10 +684,10 @@ void BrowsingDataRemoverImpl::RemoveImpl(
 
   //////////////////////////////////////////////////////////////////////////////
   // Reporting cache.
-  // TODO(https://crbug.com/1291489): Add unit test to cover this.
+  // TODO(crbug.com/40818785): Add unit test to cover this.
   if (remove_mask & DATA_TYPE_COOKIES) {
     network::mojom::NetworkContext* network_context =
-        browser_context_->GetDefaultStoragePartition()->GetNetworkContext();
+        storage_partition->GetNetworkContext();
     network_context->ClearReportingCacheClients(
         filter_builder->BuildNetworkServiceFilter(),
         CreateTaskCompletionClosureForMojo(TracingDataType::kReportingCache));
@@ -585,18 +695,74 @@ void BrowsingDataRemoverImpl::RemoveImpl(
         filter_builder->BuildNetworkServiceFilter(),
         CreateTaskCompletionClosureForMojo(
             TracingDataType::kNetworkErrorLogging));
+
+    // Clears the BFCache entries that are loaded with "Cache-Control: no-store"
+    // header and match the removal filter for the current browser context.
+    auto storage_key_filter = filter_builder->BuildStorageKeyFilter();
+    for (WebContentsImpl* web_contents : WebContentsImpl::GetAllWebContents()) {
+      if (web_contents->GetBrowserContext() == browser_context_) {
+        web_contents->GetController()
+            .GetBackForwardCache()
+            .FlushCacheControlNoStoreEntries(storage_key_filter);
+      }
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////
   // Auth cache.
+  if (remove_mask & DATA_TYPE_COOKIES) {
+    storage_partition->GetNetworkContext()->ClearHttpAuthCache(
+        delete_begin_.is_null() ? base::Time::Min() : delete_begin_,
+        delete_end_.is_null() ? base::Time::Max() : delete_end_,
+        filter_builder->BuildNetworkServiceFilter(),
+        CreateTaskCompletionClosureForMojo(TracingDataType::kAuthCache));
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Shared Dictionaries.
+  if ((remove_mask & DATA_TYPE_COOKIES) || (remove_mask & DATA_TYPE_CACHE)) {
+    if (base::FeatureList::IsEnabled(
+            network::features::kCompressionDictionaryTransportBackend)) {
+      network::mojom::NetworkContext* network_context =
+          storage_partition->GetNetworkContext();
+      network_context->ClearSharedDictionaryCache(
+          delete_begin, delete_end, filter_builder->BuildNetworkServiceFilter(),
+          CreateTaskCompletionClosureForMojo(
+              TracingDataType::kSharedDictionary));
+    }
+  }
+
+  // Different types of BTM events are cleared for DATA_TYPE_HISTORY and
+  // DATA_TYPE_COOKIES.
+  BtmEventRemovalType btm_mask = BtmEventRemovalType::kNone;
   if ((remove_mask & DATA_TYPE_COOKIES) &&
-      !(remove_mask & DATA_TYPE_AVOID_CLOSING_CONNECTIONS)) {
-    browser_context_->GetDefaultStoragePartition()
-        ->GetNetworkContext()
-        ->ClearHttpAuthCache(
-            delete_begin_.is_null() ? base::Time::Min() : delete_begin_,
-            delete_end_.is_null() ? base::Time::Max() : delete_end_,
-            CreateTaskCompletionClosureForMojo(TracingDataType::kAuthCache));
+      !filter_builder->PartitionedCookiesOnly()) {
+    btm_mask |= BtmEventRemovalType::kStorage;
+  }
+  if (GetContentClient()->browser()->ShouldBtmDeleteInteractionRecords(
+          remove_mask)) {
+    btm_mask |= BtmEventRemovalType::kHistory;
+  }
+
+  if (btm_mask != BtmEventRemovalType::kNone) {
+    if (BtmServiceImpl* btm_service = BtmServiceImpl::Get(browser_context_)) {
+      btm_service->RemoveEvents(delete_begin_, delete_end_,
+                                filter_builder->BuildNetworkServiceFilter(),
+                                btm_mask);
+    }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Regenerate CanvasNoiseToken:
+  // Renegerate the noise token for canvas noising. Because these noise tokens
+  // are linked to the profile, it can be used to identify users. As such,
+  // regeneration of the randomized token must occur to prevent creating a
+  // stable identifier.
+  if (remove_mask & DATA_TYPE_COOKIES &&
+      base::FeatureList::IsEnabled(
+          fingerprinting_protection_interventions::features::kCanvasNoise) &&
+      filter_builder->MatchesMostOriginsAndDomains()) {
+    content::CanvasNoiseTokenData::SetNewToken(browser_context_);
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -626,8 +792,9 @@ void BrowsingDataRemoverImpl::SetWouldCompleteCallbackForTesting(
 }
 
 void BrowsingDataRemoverImpl::OverrideStoragePartitionForTesting(
+    const StoragePartitionConfig& storage_partition_config,
     StoragePartition* storage_partition) {
-  storage_partition_for_testing_ = storage_partition;
+  storage_partitions_for_testing_[storage_partition_config] = storage_partition;
 }
 
 const base::Time& BrowsingDataRemoverImpl::GetLastUsedBeginTimeForTesting() {
@@ -640,6 +807,15 @@ uint64_t BrowsingDataRemoverImpl::GetLastUsedRemovalMaskForTesting() {
 
 uint64_t BrowsingDataRemoverImpl::GetLastUsedOriginTypeMaskForTesting() {
   return origin_type_mask_;
+}
+
+std::optional<StoragePartitionConfig>
+BrowsingDataRemoverImpl::GetLastUsedStoragePartitionConfigForTesting() {
+  return storage_partition_config_;
+}
+
+uint64_t BrowsingDataRemoverImpl::GetPendingTaskCountForTesting() {
+  return task_queue_.size();
 }
 
 BrowsingDataRemoverImpl::RemovalTask::RemovalTask(
@@ -671,10 +847,18 @@ bool BrowsingDataRemoverImpl::RemovalTask::IsSameDeletion(
          *filter_builder == *other.filter_builder;
 }
 
-StoragePartition* BrowsingDataRemoverImpl::GetStoragePartition() {
+StoragePartition* BrowsingDataRemoverImpl::GetStoragePartition(
+    std::optional<StoragePartitionConfig> storage_partition_config) {
   DCHECK(!browser_context_->ShutdownStarted());
-  return storage_partition_for_testing_
-             ? storage_partition_for_testing_.get()
+  if (!storage_partitions_for_testing_.empty()) {
+    StoragePartition* storage_partition =
+        storage_partitions_for_testing_[storage_partition_config.value_or(
+            StoragePartitionConfig::CreateDefault(browser_context_))];
+    CHECK(storage_partition);
+    return storage_partition;
+  }
+  return storage_partition_config.has_value()
+             ? browser_context_->GetStoragePartition(*storage_partition_config)
              : browser_context_->GetDefaultStoragePartition();
 }
 
@@ -708,8 +892,7 @@ void BrowsingDataRemoverImpl::Notify() {
   }
 
   base::TimeDelta delta = base::TimeTicks::Now() - task.task_started;
-  if (task.filter_builder->GetMode() ==
-      BrowsingDataFilterBuilder::Mode::kPreserve) {
+  if (task.filter_builder->MatchesMostOriginsAndDomains()) {
     // Full, and time based and filtered deletions are often implemented
     // differently, so we track them in separate metrics.
     if (!task.filter_builder->MatchesAllOriginsAndDomains()) {
@@ -769,7 +952,13 @@ void BrowsingDataRemoverImpl::OnTaskComplete(TracingDataType data_type,
   // If any cookie deletions have been deferred do them now since all other
   // tasks are completed.
   if (!domains_for_deferred_cookie_deletion_.empty()) {
+    std::optional<StoragePartitionConfig> storage_partition_config =
+        task_queue_.front().filter_builder->GetStoragePartitionConfig();
+
     DCHECK(remove_mask_ & DATA_TYPE_COOKIES);
+    DCHECK(!storage_partition_config.has_value() ||
+           storage_partition_config->is_default());
+
     auto deletion_filter = network::mojom::CookieDeletionFilter::New();
     deletion_filter->including_domains =
         std::move(domains_for_deferred_cookie_deletion_);
@@ -786,14 +975,15 @@ void BrowsingDataRemoverImpl::OnTaskComplete(TracingDataType data_type,
       // because the StoragePartition's destructor has already started running.
       failed_data_types_ |= StoragePartition::REMOVE_DATA_MASK_COOKIES;
     } else {
-      GetStoragePartition()->ClearData(
-          StoragePartition::REMOVE_DATA_MASK_COOKIES,
-          /*quota_storage_remove_mask=*/0,
-          /*filter_builder=*/nullptr,
-          /*storage_key_policy_matcher=*/base::NullCallback(),
-          std::move(deletion_filter),
-          /*perform_storage_cleanup=*/false, delete_begin_, delete_end_,
-          CreateTaskCompletionClosure(TracingDataType::kDeferredCookies));
+      GetStoragePartition(storage_partition_config)
+          ->ClearData(
+              StoragePartition::REMOVE_DATA_MASK_COOKIES,
+              /*quota_storage_remove_mask=*/0,
+              /*filter_builder=*/nullptr,
+              /*storage_key_policy_matcher=*/base::NullCallback(),
+              std::move(deletion_filter),
+              /*perform_storage_cleanup=*/false, delete_begin_, delete_end_,
+              CreateTaskCompletionClosure(TracingDataType::kDeferredCookies));
       return;
     }
   }
@@ -841,6 +1031,14 @@ const char* BrowsingDataRemoverImpl::GetHistogramSuffix(TracingDataType task) {
       return "DeferredCookies";
     case TracingDataType::kSharedStorage:
       return "SharedStorage";
+    case TracingDataType::kPreflightCache:
+      return "PreflightCache";
+    case TracingDataType::kSharedDictionary:
+      return "SharedDictionary";
+    case TracingDataType::kPrefetchCache:
+      return "PrefetchCache";
+    case TracingDataType::kPrerenderCache:
+      return "PrerenderCache";
   }
 }
 
@@ -874,6 +1072,30 @@ void BrowsingDataRemoverImpl::RecordUnfinishedSubTasks() {
     UMA_HISTOGRAM_ENUMERATION(
         "History.ClearBrowsingData.Duration.SlowTasks180s", task);
   }
+}
+
+void BrowsingDataRemoverImpl::ClearClientHintCacheAndReply(
+    const url::Origin& origin,
+    base::OnceClosure callback) {
+  GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(&BrowsingDataRemoverImpl::ClearClientHintCacheAndReplyImpl,
+                     GetWeakPtr(), origin, std::move(callback)));
+}
+
+void BrowsingDataRemoverImpl::ClearClientHintCacheAndReplyImpl(
+    const url::Origin& origin,
+    base::OnceClosure callback) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  DCHECK(callback);
+  ClientHintsControllerDelegate* delegate =
+      browser_context_->GetClientHintsControllerDelegate();
+  if (delegate) {
+    delegate->PersistClientHints(origin,
+                                 /*parent_rfh=*/nullptr,
+                                 /*client_hints=*/{});
+  }
+  std::move(callback).Run();
 }
 
 base::WeakPtr<BrowsingDataRemoverImpl> BrowsingDataRemoverImpl::GetWeakPtr() {

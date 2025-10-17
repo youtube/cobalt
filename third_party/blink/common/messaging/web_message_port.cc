@@ -4,6 +4,8 @@
 
 #include "third_party/blink/public/common/messaging/web_message_port.h"
 
+#include <variant>
+
 #include "base/memory/ptr_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "third_party/blink/public/common/messaging/message_port_channel.h"
@@ -239,12 +241,12 @@ bool WebMessagePort::Accept(mojo::Message* mojo_message) {
   auto ports = std::move(transferable_message.ports);
   // Decode the string portion of the message.
   Message message;
-  absl::optional<WebMessagePayload> optional_payload =
+  std::optional<WebMessagePayload> optional_payload =
       blink::DecodeToWebMessagePayload(std::move(transferable_message));
   if (!optional_payload)
     return false;
   auto& payload = optional_payload.value();
-  if (auto* str = absl::get_if<std::u16string>(&payload)) {
+  if (auto* str = std::get_if<std::u16string>(&payload)) {
     message.data = std::move(*str);
   } else {
     return false;

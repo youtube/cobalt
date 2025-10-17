@@ -7,58 +7,52 @@
 
 #import "ios/chrome/app/spotlight/base_spotlight_manager.h"
 
-class ChromeBrowserState;
+class PrefService;
+class ProfileIOS;
+
+namespace favicon {
+class LargeIconService;
+}  // namespace favicon
 
 namespace bookmarks {
-class BookmarkNode;
 class BookmarkModel;
-}
+class BookmarkNode;
+}  // namespace bookmarks
 
 @class CSSearchableItem;
 @class TopSitesSpotlightManager;
-@class SpotlightInterface;
 
-@protocol BookmarkUpdatedDelegate
-
-// Called when a bookmark is updated.
-- (void)bookmarkUpdated;
-
-@end
-
+/// This class is intended to be used by the SpotlightManager
+/// It maintains an index of bookmark items in spotlightInterface from the
+/// observed bookmarkModel. The methods should be called on main thread, but
+/// will internally dispatch work to a background thread
 @interface BookmarksSpotlightManager : BaseSpotlightManager
-
-// The delegate notified when a bookmark is updated.
-@property(nonatomic, weak) id<BookmarkUpdatedDelegate> delegate;
-
-+ (BookmarksSpotlightManager*)bookmarksSpotlightManagerWithBrowserState:
-    (ChromeBrowserState*)browserState;
-
-// Checks the date of the latest global indexation and reindex all bookmarks if
-// needed.
-- (void)reindexBookmarksIfNeeded;
-
-// Methods below here are for testing or debugging only.
 
 - (instancetype)
     initWithLargeIconService:(favicon::LargeIconService*)largeIconService
                bookmarkModel:(bookmarks::BookmarkModel*)bookmarkModel
-          spotlightInterface:(SpotlightInterface*)spotlightInterface;
+          spotlightInterface:(SpotlightInterface*)spotlightInterface
+       searchableItemFactory:(SearchableItemFactory*)searchableItemFactory
+                 prefService:(PrefService*)prefService;
 
-// Recursively adds node ancestors titles to keywords. Permanent nodes are
-// ignored.
-- (void)getParentKeywordsForNode:(const bookmarks::BookmarkNode*)node
-                         inArray:(NSMutableArray*)keywords;
+/// Number of pending large icon tasks.
+@property(nonatomic, assign) NSUInteger pendingLargeIconTasksCount;
 
-// Adds keywords to `item`.
-- (void)addKeywords:(NSArray*)keywords toSearchableItem:(CSSearchableItem*)item;
++ (BookmarksSpotlightManager*)bookmarksSpotlightManagerWithProfile:
+    (ProfileIOS*)profile;
 
-// Called before the instance is deallocated. This method should be overridden
-// by the subclasses and de-activate the instance.
-- (void)shutdown;
+/// Checks the date of the latest global indexation and reindex all bookmarks if
+/// needed.
+- (void)reindexBookmarksIfNeeded;
 
-// Clears all the bookmarks in the Spotlight index then index the bookmarks in
-// the model.
-- (void)clearAndReindexModelWithCompletionBlock:(void (^)(NSError* error))block;
+/// Clears all the bookmarks in the Spotlight index then index the bookmarks in
+/// the model.
+- (void)clearAndReindexModel;
+
+/// Recursively returns all the parent folders names of a node.
+/// It is exposed mainly to be tested.
+- (NSMutableArray*)parentFolderNamesForNode:
+    (const bookmarks::BookmarkNode*)node;
 
 @end
 

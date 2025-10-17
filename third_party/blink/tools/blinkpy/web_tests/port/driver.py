@@ -35,6 +35,7 @@ import time
 
 from blinkpy.common.system import path
 from blinkpy.common.system.profiler import ProfilerFactory
+from blinkpy.web_tests.models.testharness_results import is_all_pass_test_result
 
 _log = logging.getLogger(__name__)
 
@@ -99,11 +100,14 @@ def coalesce_repeated_switches(cmd):
 
 
 class DriverInput(object):
-    def __init__(self, test_name, timeout, image_hash, wpt_print_mode, args):
+    def __init__(self, test_name, timeout, image_hash, wpt_print_mode,
+                 trace_file, startup_trace_file, args):
         self.test_name = test_name
         self.timeout = timeout  # in ms
         self.image_hash = image_hash
         self.wpt_print_mode = wpt_print_mode
+        self.trace_file = trace_file
+        self.startup_trace_file = startup_trace_file
         self.args = args
 
 
@@ -128,6 +132,8 @@ class DriverOutput(object):
                  crash_site=None,
                  leak=False,
                  leak_log=None,
+                 trace_file=None,
+                 startup_trace_file=None,
                  pid=None,
                  command=None):
         # FIXME: Args could be renamed to better clarify what they do.
@@ -144,6 +150,8 @@ class DriverOutput(object):
         self.crash_site = crash_site
         self.leak = leak
         self.leak_log = leak_log
+        self.trace_file = trace_file
+        self.startup_trace_file = startup_trace_file
         self.test_time = test_time
         self.measurements = measurements
         self.timeout = timeout
@@ -160,7 +168,109 @@ class DeviceFailure(Exception):
     pass
 
 
-class Driver(object):
+class TestURIMapper:
+
+    def __init__(self, port):
+        self._wpt_dirs = port.wpt_dirs()
+        self._port = port
+
+    # The *_HOST_AND_PORTS tuples are (hostname, insecure_port, secure_port),
+    # i.e. the information needed to create HTTP and HTTPS URLs.
+    # TODO(burnik): Read from config or args.
+    HTTP_DIR = 'http/tests/'
+    HTTP_LOCAL_DIR = 'http/tests/local/'
+    HTTP_HOST_AND_PORTS = ('127.0.0.1', 8000, 8443)
+    WPT_HOST_AND_PORTS = ('web-platform.test', 8001, 8444)
+    WPT_H2_PORT = 9000
+
+    def is_http_test(self, test_name):
+        return (test_name.startswith(self.HTTP_DIR)
+                and not test_name.startswith(self.HTTP_LOCAL_DIR))
+
+    def test_to_uri(self, test_name):
+        """Convert a test name to a URI.
+
+        Tests which have an 'https' directory in their paths or '.https.' or
+        '.serviceworker.' in their name will be loaded over HTTPS; all other
+        tests over HTTP. Example paths loaded over HTTPS:
+        http/tests/security/mixedContent/https/test1.html
+        http/tests/security/mixedContent/test1.https.html
+        external/wpt/encoding/idlharness.any.serviceworker.html
+        """
+        using_wptserve = self._port.should_use_wptserve(test_name)
+
+        if not self.is_http_test(test_name) and not using_wptserve:
+            return path.abspath_to_uri(self._port.host.platform,
+                                       self._port.abspath_for_test(test_name))
+
+        if using_wptserve:
+            for wpt_path, url_prefix in self._wpt_dirs.items():
+                # The keys of _wpt_dirs do not have trailing slashes.
+                wpt_path += '/'
+                if test_name.startswith(wpt_path):
+                    test_dir_prefix = wpt_path
+                    test_url_prefix = url_prefix
+                    break
+            else:
+                # We really shouldn't reach here, but in case we do, fail gracefully.
+                _log.error('Unrecognized WPT test name: %s', test_name)
+                test_dir_prefix = 'external/wpt/'
+                test_url_prefix = '/'
+            hostname, insecure_port, secure_port = self.WPT_HOST_AND_PORTS
+            if '.www.' in test_name:
+                hostname = "www.%s" % hostname
+            if '.h2.' in test_name:
+                secure_port = self.WPT_H2_PORT
+        else:
+            test_dir_prefix = self.HTTP_DIR
+            test_url_prefix = '/'
+            hostname, insecure_port, secure_port = self.HTTP_HOST_AND_PORTS
+
+        relative_path = test_name[len(test_dir_prefix):]
+
+        if ('/https/' in test_name or '.https.' in test_name
+                or '.h2.' in test_name or '.serviceworker.' in test_name
+                or '.serviceworker-module.' in test_name):
+            return 'https://%s:%d%s%s' % (hostname, secure_port,
+                                          test_url_prefix, relative_path)
+        return 'http://%s:%d%s%s' % (hostname, insecure_port, test_url_prefix,
+                                     relative_path)
+
+    def _get_uri_prefixes(self, hostname, insecure_port, secure_port):
+        """Returns the HTTP and HTTPS URI prefix for a hostname."""
+        return [
+            'http://%s:%d/' % (hostname, insecure_port),
+            'https://%s:%d/' % (hostname, secure_port)
+        ]
+
+    def uri_to_test(self, uri):
+        """Return the base web test name for a given URI.
+
+        This returns the test name for a given URI, e.g., if you passed in
+        "file:///src/web_tests/fast/html/keygen.html" it would return
+        "fast/html/keygen.html".
+        """
+
+        if uri.startswith('file:///'):
+            prefix = path.abspath_to_uri(self._port.host.platform,
+                                         self._port.web_tests_dir())
+            if not prefix.endswith('/'):
+                prefix += '/'
+            return uri[len(prefix):]
+
+        for prefix in self._get_uri_prefixes(*self.HTTP_HOST_AND_PORTS):
+            if uri.startswith(prefix):
+                return self.HTTP_DIR + uri[len(prefix):]
+        for prefix in self._get_uri_prefixes(*self.WPT_HOST_AND_PORTS):
+            if uri.startswith(prefix):
+                url_path = '/' + uri[len(prefix):]
+                for wpt_path, url_prefix in self._wpt_dirs.items():
+                    if url_path.startswith(url_prefix):
+                        return wpt_path + '/' + url_path[len(url_prefix):]
+        raise NotImplementedError('unknown url type: %s' % uri)
+
+
+class Driver(TestURIMapper):
     """object for running test(s) using content_shell or other driver."""
 
     def __init__(self, port, worker_number, no_timeout=False):
@@ -172,8 +282,7 @@ class Driver(object):
         port - reference back to the port object.
         worker_number - identifier for a particular worker/driver instance
         """
-        self.WPT_DIRS = port.WPT_DIRS
-        self._port = port
+        super().__init__(port)
         self._worker_number = worker_number
         self._no_timeout = no_timeout
 
@@ -208,10 +317,8 @@ class Driver(object):
         if self._port.get_option('profile'):
             profiler_name = self._port.get_option('profiler')
             self._profiler = ProfilerFactory.create_profiler(
-                self._port.host,
-                self._port._path_to_driver(),  # pylint: disable=protected-access
-                self._port.artifacts_directory(),
-                profiler_name)
+                self._port.host, self._port.path_to_driver(),
+                self._port.artifacts_directory(), profiler_name)
         else:
             self._profiler = None
 
@@ -272,7 +379,8 @@ class Driver(object):
             # In the timeout case, we kill the hung process as well.
             # Add a delay to allow process to finish post-run hooks, such as dumping code coverage data.
             out, err = self._server_process.stop(
-                self._port.get_option('driver_kill_timeout_secs'))
+                timeout_secs=self._port.get_option('driver_kill_timeout_secs'),
+                send_sigterm=self._port.get_option('kill_driver_with_sigterm'))
             if out:
                 text += out
             if err:
@@ -304,6 +412,24 @@ class Driver(object):
                        'ascii', 'replace')
         if actual_image_hash:
             actual_image_hash = actual_image_hash.decode('utf8', 'replace')
+        startup_trace_file = driver_input.startup_trace_file
+        if (startup_trace_file
+                and not self._port.host.filesystem.isabs(startup_trace_file)):
+            startup_trace_file = self._port.host.filesystem.join(
+                self._port.host.filesystem.getcwd(), startup_trace_file)
+        if startup_trace_file:
+            # The startup trace file won't get flushed to disk until the server
+            # process stops. In practice, the existence of startup_trace_file
+            # means that the server process is restarted after every test
+            # anyway, so this just accelerates the inevitable.
+            out, err = self._server_process.stop(
+                timeout_secs=self._port.get_option('driver_kill_timeout_secs'),
+                send_sigterm=self._port.get_option('kill_driver_with_sigterm'))
+            if out:
+                text += out
+            if err:
+                self.error_from_test += err
+            self._server_process = None
         return DriverOutput(text,
                             image,
                             actual_image_hash,
@@ -319,6 +445,8 @@ class Driver(object):
                             crash_site=crash_site,
                             leak=leaked,
                             leak_log=self._leak_log,
+                            trace_file=driver_input.trace_file,
+                            startup_trace_file=startup_trace_file,
                             pid=pid,
                             command=command)
 
@@ -327,108 +455,6 @@ class Driver(object):
         return self._port._get_crash_log(self._crashed_process_name,
                                          self._crashed_pid, stdout, stderr,
                                          newer_than)
-
-    # FIXME: Seems this could just be inlined into callers.
-    @classmethod
-    def _command_wrapper(cls, wrapper_option):
-        # Hook for injecting valgrind or other runtime instrumentation,
-        # used by e.g. tools/valgrind/valgrind_tests.py.
-        return shlex.split(wrapper_option) if wrapper_option else []
-
-    # The *_HOST_AND_PORTS tuples are (hostname, insecure_port, secure_port),
-    # i.e. the information needed to create HTTP and HTTPS URLs.
-    # TODO(burnik): Read from config or args.
-    HTTP_DIR = 'http/tests/'
-    HTTP_LOCAL_DIR = 'http/tests/local/'
-    HTTP_HOST_AND_PORTS = ('127.0.0.1', 8000, 8443)
-    WPT_HOST_AND_PORTS = ('web-platform.test', 8001, 8444)
-    WPT_H2_PORT = 9000
-
-    def is_http_test(self, test_name):
-        return (test_name.startswith(self.HTTP_DIR)
-                and not test_name.startswith(self.HTTP_LOCAL_DIR))
-
-    def test_to_uri(self, test_name):
-        """Convert a test name to a URI.
-
-        Tests which have an 'https' directory in their paths or '.https.' or
-        '.serviceworker.' in their name will be loaded over HTTPS; all other
-        tests over HTTP. Example paths loaded over HTTPS:
-        http/tests/security/mixedContent/https/test1.html
-        http/tests/security/mixedContent/test1.https.html
-        external/wpt/encoding/idlharness.any.serviceworker.html
-        """
-        using_wptserve = self._port.should_use_wptserve(test_name)
-
-        if not self.is_http_test(test_name) and not using_wptserve:
-            return path.abspath_to_uri(self._port.host.platform,
-                                       self._port.abspath_for_test(test_name))
-
-        if using_wptserve:
-            for wpt_path, url_prefix in self.WPT_DIRS.items():
-                # The keys of WPT_DIRS do not have trailing slashes.
-                wpt_path += '/'
-                if test_name.startswith(wpt_path):
-                    test_dir_prefix = wpt_path
-                    test_url_prefix = url_prefix
-                    break
-            else:
-                # We really shouldn't reach here, but in case we do, fail gracefully.
-                _log.error('Unrecognized WPT test name: %s', test_name)
-                test_dir_prefix = 'external/wpt/'
-                test_url_prefix = '/'
-            hostname, insecure_port, secure_port = self.WPT_HOST_AND_PORTS
-            if '.www.' in test_name:
-                hostname = "www.%s" % hostname
-            if '.h2.' in test_name:
-                secure_port = self.WPT_H2_PORT
-        else:
-            test_dir_prefix = self.HTTP_DIR
-            test_url_prefix = '/'
-            hostname, insecure_port, secure_port = self.HTTP_HOST_AND_PORTS
-
-        relative_path = test_name[len(test_dir_prefix):]
-
-        if ('/https/' in test_name or '.https.' in test_name
-                or '.h2.' in test_name or '.serviceworker.' in test_name
-                or '.serviceworker-module.' in test_name):
-            return 'https://%s:%d%s%s' % (hostname, secure_port,
-                                          test_url_prefix, relative_path)
-        return 'http://%s:%d%s%s' % (hostname, insecure_port, test_url_prefix,
-                                     relative_path)
-
-    def _get_uri_prefixes(self, hostname, insecure_port, secure_port):
-        """Returns the HTTP and HTTPS URI prefix for a hostname."""
-        return [
-            'http://%s:%d/' % (hostname, insecure_port),
-            'https://%s:%d/' % (hostname, secure_port)
-        ]
-
-    def uri_to_test(self, uri):
-        """Return the base web test name for a given URI.
-
-        This returns the test name for a given URI, e.g., if you passed in
-        "file:///src/web_tests/fast/html/keygen.html" it would return
-        "fast/html/keygen.html".
-        """
-
-        if uri.startswith('file:///'):
-            prefix = path.abspath_to_uri(self._port.host.platform,
-                                         self._port.web_tests_dir())
-            if not prefix.endswith('/'):
-                prefix += '/'
-            return uri[len(prefix):]
-
-        for prefix in self._get_uri_prefixes(*self.HTTP_HOST_AND_PORTS):
-            if uri.startswith(prefix):
-                return self.HTTP_DIR + uri[len(prefix):]
-        for prefix in self._get_uri_prefixes(*self.WPT_HOST_AND_PORTS):
-            if uri.startswith(prefix):
-                url_path = '/' + uri[len(prefix):]
-                for wpt_path, url_prefix in self.WPT_DIRS.items():
-                    if url_path.startswith(url_prefix):
-                        return wpt_path + '/' + url_path[len(url_prefix):]
-        raise NotImplementedError('unknown url type: %s' % uri)
 
     def has_crashed(self):
         if self._server_process is None:
@@ -505,6 +531,10 @@ class Driver(object):
         # startup to be slower (if the workaround is triggered via the
         # --initialize-webgpu-adapter-at-startup flag, right above in the
         # code in _start()).
+        #
+        # TODO(crbug.com/329003665): See if `wpt_internal/webgpu/` is runnable
+        # with wptrunner + chromedriver + chrome, which would obviate the need
+        # for `000_run_me_first.https.html`.
         init_timeout = self._port.get_option(
             'initialize_webgpu_adapter_at_startup_timeout_ms')
         startup_input = DriverInput(
@@ -512,9 +542,12 @@ class Driver(object):
             timeout=init_timeout,
             image_hash=None,
             wpt_print_mode=None,
+            trace_file=None,
+            startup_trace_file=None,
             args=per_test_args)
         output = self._run_one_input(startup_input, start_time=time.time())
-        if output.text and b'PASS 000_run_me_first' in output.text:
+        if output.text and is_all_pass_test_result(
+                output.text.decode(errors='replace')):
             return True, None
 
         output.text = (b'Failed to initialize WebGPU adapter at startup via '
@@ -554,12 +587,17 @@ class Driver(object):
         return self._server_process.pid()
 
     def stop(self, timeout_secs=None):
-        if timeout_secs is None:
-            # Add a delay to allow process to finish post-run hooks, such as dumping code coverage data.
-            timeout_secs = self._port.get_option('driver_kill_timeout_secs')
+        # Add a delay to allow process to finish post-run hooks, such as dumping
+        # code coverage data; but allow for 0 timeout if explicitly requested.
+        if timeout_secs != 0:
+            timeout_secs = max(
+                timeout_secs or 0,
+                self._port.get_option('driver_kill_timeout_secs', 0))
 
         if self._server_process:
-            self._server_process.stop(timeout_secs)
+            self._server_process.stop(
+                timeout_secs=timeout_secs,
+                send_sigterm=self._port.get_option('kill_driver_with_sigterm'))
             self._server_process = None
             if self._profiler:
                 self._profiler.profile_after_exit()
@@ -571,16 +609,24 @@ class Driver(object):
         self._current_cmd_line = None
 
     def _base_cmd_line(self):
-        return [self._port._path_to_driver()]  # pylint: disable=protected-access
+        return [
+            self._port.path_to_driver(),
+            '--run-web-tests',
+            # To take effect, `--ignore-certificate-errors-spki-list` requires
+            # an embedder-defined `--user-data-dir`.
+            '--user-data-dir',
+        ]
 
     def cmd_line(self, per_test_args):
-        cmd = self._command_wrapper(self._port.get_option('wrapper'))
+        cmd = list(self._port.get_option('wrapper', []))
         cmd += self._base_cmd_line()
         if self._no_timeout:
             cmd.append('--no-timeout')
         cmd.extend(self._port.additional_driver_flags())
         if self._port.get_option('enable_leak_detection'):
             cmd.append('--enable-leak-detection')
+        if self._port.get_option('nocheck_sys_deps', False):
+            cmd.append('--disable-system-font-check')
         cmd.extend(per_test_args)
         cmd = coalesce_repeated_switches(cmd)
         cmd.append('-')
@@ -641,6 +687,14 @@ class Driver(object):
             if not driver_input.image_hash:
                 command += "'"
             command += "'print"
+        if driver_input.trace_file:
+            if not driver_input.wpt_print_mode:
+                command += "'"
+                if not driver_input.image_hash:
+                    command += "'"
+            command += "'"
+            command += driver_input.trace_file
+
         return command + '\n'
 
     def _read_first_block(self, deadline):

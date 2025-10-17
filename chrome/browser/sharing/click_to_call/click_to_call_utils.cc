@@ -4,21 +4,21 @@
 
 #include "chrome/browser/sharing/click_to_call/click_to_call_utils.h"
 
-#include <cctype>
+#include <algorithm>
+#include <optional>
 
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sharing/click_to_call/phone_number_regex.h"
-#include "chrome/browser/sharing/features.h"
-#include "chrome/browser/sharing/sharing_service.h"
 #include "chrome/browser/sharing/sharing_service_factory.h"
-#include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/sharing_message/features.h"
+#include "components/sharing_message/pref_names.h"
+#include "components/sharing_message/sharing_service.h"
 #include "content/public/browser/browser_context.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "url/url_constants.h"
 #include "url/url_util.h"
@@ -56,14 +56,14 @@ bool IsClickToCallEnabled(content::BrowserContext* browser_context) {
 }
 
 // Returns the first possible phone number in |selection_text| given the
-// |regex_variant| to be used or absl::nullopt if the regex did not match.
-absl::optional<std::string> ExtractPhoneNumber(
+// |regex_variant| to be used or std::nullopt if the regex did not match.
+std::optional<std::string> ExtractPhoneNumber(
     const std::string& selection_text) {
   std::string parsed_number;
 
   const re2::RE2& regex = GetPhoneNumberRegex();
   if (!re2::RE2::PartialMatch(selection_text, regex, &parsed_number))
-    return absl::nullopt;
+    return std::nullopt;
 
   return base::UTF16ToUTF8(
       base::TrimWhitespace(base::UTF8ToUTF16(parsed_number), base::TRIM_ALL));
@@ -73,11 +73,10 @@ absl::optional<std::string> ExtractPhoneNumber(
 std::string GetUnescapedURLContent(const GURL& url) {
   std::string content_string(url.GetContent());
   url::RawCanonOutputT<char16_t> unescaped_content;
-  url::DecodeURLEscapeSequences(content_string.data(), content_string.size(),
+  url::DecodeURLEscapeSequences(content_string,
                                 url::DecodeURLMode::kUTF8OrIsomorphic,
                                 &unescaped_content);
-  return base::UTF16ToUTF8(
-      std::u16string(unescaped_content.data(), unescaped_content.length()));
+  return base::UTF16ToUTF8(unescaped_content.view());
 }
 
 }  // namespace
@@ -88,23 +87,23 @@ bool ShouldOfferClickToCallForURL(content::BrowserContext* browser_context,
          IsUrlSafeForClickToCall(url) && IsClickToCallEnabled(browser_context);
 }
 
-absl::optional<std::string> ExtractPhoneNumberForClickToCall(
+std::optional<std::string> ExtractPhoneNumberForClickToCall(
     content::BrowserContext* browser_context,
     const std::string& selection_text) {
   DCHECK(!selection_text.empty());
 
   if (selection_text.size() > kSelectionTextMaxLength)
-    return absl::nullopt;
+    return std::nullopt;
 
   // See https://en.cppreference.com/w/cpp/string/byte/isdigit for why this uses
   // unsigned char.
-  int digits = base::ranges::count_if(
-      selection_text, [](unsigned char c) { return std::isdigit(c); });
+  int digits = std::ranges::count_if(
+      selection_text, [](unsigned char c) { return absl::ascii_isdigit(c); });
   if (digits > kSelectionTextMaxDigits)
-    return absl::nullopt;
+    return std::nullopt;
 
   if (!IsClickToCallEnabled(browser_context))
-    return absl::nullopt;
+    return std::nullopt;
 
   return ExtractPhoneNumber(selection_text);
 }
@@ -115,7 +114,7 @@ bool IsUrlSafeForClickToCall(const GURL& url) {
   std::string unescaped = GetUnescapedURLContent(url);
   // We don't allow any number that contains any of these characters as they
   // might be used to create USSD codes.
-  return !unescaped.empty() && base::ranges::none_of(unescaped, [](char c) {
+  return !unescaped.empty() && std::ranges::none_of(unescaped, [](char c) {
     return c == '#' || c == '*' || c == '%';
   });
 }

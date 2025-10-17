@@ -64,8 +64,9 @@ AppServiceAppIconLoader::AppServiceAppIconLoader(
     int resource_size_in_dip,
     AppIconLoaderDelegate* delegate)
     : AppIconLoader(profile, resource_size_in_dip, delegate) {
-  Observe(&apps::AppServiceProxyFactory::GetForProfile(profile)
-               ->AppRegistryCache());
+  app_registry_cache_observer_.Observe(
+      &apps::AppServiceProxyFactory::GetForProfile(profile)
+           ->AppRegistryCache());
 }
 
 AppServiceAppIconLoader::~AppServiceAppIconLoader() = default;
@@ -80,7 +81,9 @@ void AppServiceAppIconLoader::FetchImage(const std::string& id) {
   AppIDToIconMap::const_iterator it = icon_map_.find(id);
   if (it != icon_map_.end()) {
     if (!it->second.isNull()) {
-      delegate()->OnAppImageUpdated(id, it->second);
+      delegate()->OnAppImageUpdated(id, it->second,
+                                    /*is_placeholder_icon=*/false,
+                                    /*badge_image=*/std::nullopt);
     }
     return;
   }
@@ -109,7 +112,9 @@ void AppServiceAppIconLoader::UpdateImage(const std::string& id) {
     return;
   }
 
-  delegate()->OnAppImageUpdated(id, it->second);
+  delegate()->OnAppImageUpdated(id, it->second,
+                                /*is_placeholder_icon=*/false,
+                                /*badge_image=*/std::nullopt);
 }
 
 void AppServiceAppIconLoader::OnAppUpdate(const apps::AppUpdate& update) {
@@ -127,7 +132,7 @@ void AppServiceAppIconLoader::OnAppUpdate(const apps::AppUpdate& update) {
 
 void AppServiceAppIconLoader::OnAppRegistryCacheWillBeDestroyed(
     apps::AppRegistryCache* cache) {
-  Observe(nullptr);
+  app_registry_cache_observer_.Reset();
 }
 
 void AppServiceAppIconLoader::CallLoadIcon(const std::string& app_id,
@@ -137,24 +142,18 @@ void AppServiceAppIconLoader::CallLoadIcon(const std::string& app_id,
 
   auto icon_type = apps::IconType::kStandard;
 
-  // When Crostini generates shelf id as the app_id, which couldn't match to an
-  // app, the default penguin icon should be loaded.
+  // When a GuestOS shelf app_id doesn't belong to a registered app, use a
+  // default icon corresponding to the type of VM the window came from.
   if (guest_os::IsUnregisteredCrostiniShelfAppId(app_id)) {
-    proxy->LoadIconFromIconKey(
-        apps::AppType::kCrostini, app_id, apps::IconKey(), icon_type,
-        icon_size_in_dip(), allow_placeholder_icon,
+    proxy->LoadDefaultIcon(
+        guest_os::GetAppType(profile(), app_id), icon_size_in_dip(),
+        apps::IconEffects::kNone, icon_type,
         base::BindOnce(&AppServiceAppIconLoader::OnLoadIcon,
                        weak_ptr_factory_.GetWeakPtr(), app_id));
     return;
   }
 
-  auto app_type = proxy->AppRegistryCache().GetAppType(app_id);
-  if (app_type == apps::AppType::kUnknown) {
-    return;
-  }
-
-  proxy->LoadIcon(app_type, app_id, icon_type, icon_size_in_dip(),
-                  allow_placeholder_icon,
+  proxy->LoadIcon(app_id, icon_type, icon_size_in_dip(), allow_placeholder_icon,
                   base::BindOnce(&AppServiceAppIconLoader::OnLoadIcon,
                                  weak_ptr_factory_.GetWeakPtr(), app_id));
 }
@@ -178,7 +177,8 @@ void AppServiceAppIconLoader::OnLoadIcon(const std::string& app_id,
     }
     gfx::ImageSkia image = icon_value->uncompressed;
     icon_map_[id] = image;
-    delegate()->OnAppImageUpdated(id, image);
+    delegate()->OnAppImageUpdated(id, image, icon_value->is_placeholder_icon,
+                                  /*badge_image=*/std::nullopt);
   }
 
   if (icon_value->is_placeholder_icon) {

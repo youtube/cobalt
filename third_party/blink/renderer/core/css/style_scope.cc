@@ -15,7 +15,8 @@ namespace blink {
 StyleScope::StyleScope(StyleRule* from, CSSSelectorList* to)
     : from_(from), to_(to) {}
 
-StyleScope::StyleScope(StyleSheetContents* contents) : contents_(contents) {}
+StyleScope::StyleScope(StyleSheetContents* contents, CSSSelectorList* to)
+    : contents_(contents), to_(to) {}
 
 StyleScope::StyleScope(const StyleScope& other)
     : contents_(other.contents_),
@@ -27,6 +28,23 @@ StyleScope* StyleScope::CopyWithParent(const StyleScope* parent) const {
   StyleScope* copy = MakeGarbageCollected<StyleScope>(*this);
   copy->parent_ = parent;
   return copy;
+}
+
+const StyleScope* StyleScope::Renest(StyleRule* new_parent) const {
+  StyleRule* reparented_from =
+      from_ ? blink::To<StyleRule>(from_->Renest(new_parent)) : nullptr;
+  if (from_ == reparented_from) {
+    return this;
+  }
+  // Note that for the "to" selector, any '&' selectors must point
+  // to the "from" selector.
+  CSSSelectorList* reparented_to = to_ ? to_->Renest(reparented_from) : nullptr;
+  // For implicit scopes, we should have exited early due to from_==nullptr.
+  CHECK(!contents_);
+  // The `parent_` member should only be populated via calls to CopyWithParent
+  // (RuleSet-time), and this StyleScope should not be one such copy.
+  CHECK(!parent_);
+  return MakeGarbageCollected<StyleScope>(reparented_from, reparented_to);
 }
 
 const CSSSelector* StyleScope::From() const {
@@ -43,88 +61,68 @@ const CSSSelector* StyleScope::To() const {
   return nullptr;
 }
 
-bool StyleScope::HasImplicitRoot(Element* element) const {
-  if (!contents_) {
-    return false;
-  }
-  return contents_->HasOwnerParentNode(element);
-}
-
-unsigned StyleScope::Specificity() const {
-  if (!specificity_.has_value()) {
-    specificity_ =
-        MaximumSpecificity(From()) + (parent_ ? parent_->Specificity() : 0);
-  }
-  return *specificity_;
-}
-
-StyleScope* StyleScope::Parse(CSSParserTokenRange prelude,
+StyleScope* StyleScope::Parse(CSSParserTokenStream& stream,
                               const CSSParserContext* context,
+                              CSSNestingType nesting_type,
+                              StyleRule* parent_rule_for_nesting,
                               StyleSheetContents* style_sheet) {
   HeapVector<CSSSelector> arena;
 
-  absl::optional<base::span<CSSSelector>> from;
-  absl::optional<base::span<CSSSelector>> to;
+  base::span<CSSSelector> from;
+  base::span<CSSSelector> to;
 
-  prelude.ConsumeWhitespace();
-
-  if (prelude.AtEnd()) {
-    // Implicitly rooted.
-    return MakeGarbageCollected<StyleScope>(style_sheet);
-  }
-
-  if (prelude.Peek().GetType() != kLeftParenthesisToken) {
-    return nullptr;
-  }
+  stream.ConsumeWhitespace();
 
   // <scope-start>
-  {
-    auto block = prelude.ConsumeBlock();
-    // TODO(crbug.com/1280240): Pass actual nesting context from the outside.
-    from = CSSSelectorParser::ParseScopeBoundary(
-        block, context, CSSNestingType::kNone,
-        /* parent_rule_for_nesting */ nullptr, style_sheet, arena);
-    if (!from.has_value()) {
+  if (stream.Peek().GetType() == kLeftParenthesisToken) {
+    CSSParserTokenStream::BlockGuard guard(stream);
+    stream.ConsumeWhitespace();
+    from = CSSSelectorParser::ParseScopeBoundary(stream, context, nesting_type,
+                                                 parent_rule_for_nesting,
+                                                 style_sheet, arena);
+    if (from.empty()) {
       return nullptr;
     }
   }
+  stream.ConsumeWhitespace();
 
-  CSSNestingType nesting_type = CSSNestingType::kNone;
   StyleRule* from_rule = nullptr;
-  if (from.has_value() && !from.value().empty()) {
-    auto* properties = MakeGarbageCollected<ImmutableCSSPropertyValueSet>(
-        /* properties */ nullptr, /* count */ 0,
-        CSSParserMode::kHTMLStandardMode);
-    nesting_type = CSSNestingType::kScope;
-    from_rule = StyleRule::Create(from.value(), properties);
+  if (!from.empty()) {
+    auto* properties = ImmutableCSSPropertyValueSet::Create(
+        base::span<CSSPropertyValue>(), CSSParserMode::kHTMLStandardMode);
+    from_rule = StyleRule::Create(from, properties);
   }
-
-  prelude.ConsumeWhitespace();
 
   // to (<scope-end>)
-  if (css_parsing_utils::ConsumeIfIdent(prelude, "to")) {
-    if (prelude.Peek().GetType() != kLeftParenthesisToken) {
+  if (css_parsing_utils::ConsumeIfIdent(stream, "to")) {
+    if (stream.Peek().GetType() != kLeftParenthesisToken) {
       return nullptr;
     }
 
-    auto block = prelude.ConsumeBlock();
+    // Note that <scope-start> should act as the enclosing style rule for
+    // the purposes of matching the parent pseudo-class (&) within <scope-end>,
+    // hence we're not passing `nesting_type` or `parent_rule_for_nesting`
+    // to `ParseScopeBoundary` here.
+    //
+    // https://drafts.csswg.org/css-nesting-1/#nesting-at-scope
+    CSSParserTokenStream::BlockGuard guard(stream);
+    stream.ConsumeWhitespace();
     to = CSSSelectorParser::ParseScopeBoundary(
-        block, context, nesting_type,
+        stream, context, CSSNestingType::kScope,
         /* parent_rule_for_nesting */ from_rule, style_sheet, arena);
-    if (!to.has_value()) {
+    if (to.empty()) {
       return nullptr;
     }
   }
-
-  prelude.ConsumeWhitespace();
-
-  if (!prelude.AtEnd()) {
-    return nullptr;
-  }
+  stream.ConsumeWhitespace();
 
   CSSSelectorList* to_list =
-      to.has_value() ? CSSSelectorList::AdoptSelectorVector(to.value())
-                     : nullptr;
+      !to.empty() ? CSSSelectorList::AdoptSelectorVector(to) : nullptr;
+
+  if (from.empty()) {
+    // Implicitly rooted.
+    return MakeGarbageCollected<StyleScope>(style_sheet, to_list);
+  }
 
   return MakeGarbageCollected<StyleScope>(from_rule, to_list);
 }

@@ -18,7 +18,7 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.util.Base64;
 import dev.cobalt.util.Log;
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
 
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
 public abstract class CobaltService {

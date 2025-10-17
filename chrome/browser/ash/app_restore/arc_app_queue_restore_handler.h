@@ -7,6 +7,7 @@
 
 #include <list>
 #include <map>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -14,12 +15,11 @@
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "chrome/browser/ash/scheduler_configuration_manager.h"
 #include "chromeos/ash/components/dbus/resourced/resourced_client.h"
+#include "chromeos/ash/components/scheduler_config/scheduler_configuration_manager.h"
 #include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd.mojom.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/aura/env.h"
 #include "ui/aura/env_observer.h"
 #include "ui/aura/window.h"
@@ -50,40 +50,14 @@ struct CpuTick {
   }
 };
 
-// This is used for logging, so do not remove or reorder existing entries.
-enum class RestoreResult {
-  kFinish = 0,
-  kNotFinish = 1,
-
-  // Add any new values above this one, and update kMaxValue to the highest
-  // enumerator value.
-  kMaxValue = kNotFinish,
-};
-
-// This is used for logging, so do not remove or reorder existing entries.
-enum class ArcRestoreState {
-  kSuccess = 0,
-  kSuccessWithMemoryPressure = 1,
-  kSuccessWithCPUUsageRateLimiting = 2,
-  kSuccessWithMemoryPressureAndCPUUsageRateLimiting = 3,
-  kFailedWithMemoryPressure = 4,
-  kFailedWithCPUUsageRateLimiting = 5,
-  kFailedWithMemoryPressureAndCPUUsageRateLimiting = 6,
-  kFailedWithUnknown = 7,
-
-  // Add any new values above this one, and update kMaxValue to the highest
-  // enumerator value.
-  kMaxValue = kFailedWithUnknown,
-};
-
-constexpr char kRestoredAppWindowCountHistogram[] =
+inline constexpr char kRestoredAppWindowCountHistogram[] =
     "Apps.RestoreArcWindowCount";
 
 // The restoration process might be blocked by some issues, e.g. the memory
 // pressure, CPU rate, etc. However we don't want to have the restoration
 // process taking too long to interact the normal usage. So if the restoration
 // has finished in `kAppLaunchDelay` timeframe, we stop the restoration process.
-constexpr base::TimeDelta kStopRestoreDelay = base::Minutes(1);
+inline constexpr base::TimeDelta kStopRestoreDelay = base::Minutes(1);
 
 // The ArcAppQueueRestoreHandler class restores ARC apps during the system
 // startup phase.
@@ -104,7 +78,10 @@ class ArcAppQueueRestoreHandler
     }
   };
 
-  ArcAppQueueRestoreHandler();
+  // `scheduler_configuration_manager` should be non-null and must outlive
+  // `this`. In tests, it may be null.
+  explicit ArcAppQueueRestoreHandler(
+      SchedulerConfigurationManager* scheduler_configuration_manager);
   ArcAppQueueRestoreHandler(const ArcAppQueueRestoreHandler&) = delete;
   ArcAppQueueRestoreHandler& operator=(const ArcAppQueueRestoreHandler&) =
       delete;
@@ -172,7 +149,7 @@ class ArcAppQueueRestoreHandler
 
   // Override ResourcedClient::Observer
   void OnMemoryPressure(ResourcedClient::PressureLevel level,
-                        uint64_t reclaim_target_kb) override;
+                        memory_pressure::ReclaimTarget target) override;
 
   // Returns true if there are windows to be restored. Otherwise, returns false.
   bool HasRestoreData();
@@ -218,9 +195,7 @@ class ArcAppQueueRestoreHandler
   void RecordArcGhostWindowLaunch(bool is_arc_ghost_window);
   void RecordRestoreResult();
 
-  SchedulerConfigurationManager* GetSchedulerConfigurationManager();
-
-  raw_ptr<AppLaunchHandler, ExperimentalAsh> handler_ = nullptr;
+  raw_ptr<AppLaunchHandler, DanglingUntriaged> handler_ = nullptr;
 
   // The app id list from the restore data. If the app has been added the
   // AppRegistryCache, the app will be removed from `app_ids_` to
@@ -243,8 +218,7 @@ class ArcAppQueueRestoreHandler
   std::map<int32_t, int32_t> window_id_to_session_id_;
   std::map<int32_t, int32_t> session_id_to_window_id_;
 
-  raw_ptr<full_restore::ArcGhostWindowHandler, ExperimentalAsh>
-      window_handler_ = nullptr;
+  raw_ptr<full_restore::ArcGhostWindowHandler> window_handler_ = nullptr;
 
   // If the system is under memory pressuure or high CPU usage rate, only launch
   // 1 window following the window stack priority. `first_run_` is used to check
@@ -284,17 +258,13 @@ class ArcAppQueueRestoreHandler
   ResourcedClient::PressureLevel pressure_level_ =
       ResourcedClient::PressureLevel::MODERATE;
 
-  absl::optional<bool> should_apply_cpu_restirction_;
-
-  // Record if the restore process faced memory pressure or CPU usage limiting.
-  bool was_memory_pressured_ = false;
-  bool was_cpu_usage_limited_ = false;
+  std::optional<bool> should_apply_cpu_restirction_;
 
   mojo::Remote<cros_healthd::mojom::CrosHealthdProbeService> probe_service_;
 
   // Cpu usage rate count window. It save the cpu usage in a time interval.
   std::list<CpuTick> cpu_tick_window_;
-  absl::optional<CpuTick> last_cpu_tick_;
+  std::optional<CpuTick> last_cpu_tick_;
   base::RepeatingTimer cpu_tick_count_timer_;
 
   base::ScopedObservation<apps::AppRegistryCache,
@@ -303,6 +273,10 @@ class ArcAppQueueRestoreHandler
 
   base::ScopedObservation<ResourcedClient, ResourcedClient::Observer>
       resourced_client_observer_{this};
+
+  base::ScopedObservation<SchedulerConfigurationManagerBase,
+                          SchedulerConfigurationManagerBase::Observer>
+      scheduler_configuration_manager_observer_{this};
 
   base::WeakPtrFactory<ArcAppQueueRestoreHandler> weak_ptr_factory_{this};
 };

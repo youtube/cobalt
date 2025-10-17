@@ -8,7 +8,6 @@
 #include <string>
 #include <utility>
 
-#include "ash/components/arc/app/arc_playstore_search_request_state.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -20,13 +19,13 @@
 #include "chrome/browser/ash/app_list/search/test/test_search_controller.h"
 #include "chrome/browser/ash/app_list/test/test_app_list_controller_delegate.h"
 #include "chrome/browser/ash/arc/icon_decode_request.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/experiences/arc/app/arc_playstore_search_request_state.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/common/extension_builder.h"
 
 namespace app_list::test {
 
-// Parameterized by feature ProductivityLauncher.
 class ArcPlayStoreSearchProviderTest : public AppListTestBase {
  public:
   ArcPlayStoreSearchProviderTest() = default;
@@ -76,13 +75,13 @@ class ArcPlayStoreSearchProviderTest : public AppListTestBase {
   }
 
   void AddExtension(const extensions::Extension* extension) {
-    service()->AddExtension(extension);
+    registrar()->AddExtension(extension);
   }
 
  private:
   std::unique_ptr<::test::TestAppListControllerDelegate> controller_;
   std::unique_ptr<TestSearchController> search_controller_;
-  raw_ptr<ArcPlayStoreSearchProvider, ExperimentalAsh> provider_ = nullptr;
+  raw_ptr<ArcPlayStoreSearchProvider> provider_ = nullptr;
   ArcAppTest arc_test_;
 };
 

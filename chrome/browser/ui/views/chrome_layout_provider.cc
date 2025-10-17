@@ -7,19 +7,12 @@
 #include <algorithm>
 
 #include "base/feature_list.h"
-#include "base/logging.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "ui/base/pointer/touch_ui_controller.h"
-#include "ui/base/ui_base_features.h"
 #include "ui/gfx/shadow_value.h"
 
 namespace {
-
-// TODO(pbos): Inline kHarmonyLayoutUnit calculations below as it's not really
-// respected (there's 3 * unit / 4 in use to express 12).
-// The Harmony layout unit. All distances are in terms of this unit.
-constexpr int kHarmonyLayoutUnit = 16;
 
 ChromeLayoutProvider* g_chrome_layout_provider = nullptr;
 
@@ -54,8 +47,10 @@ gfx::Insets ChromeLayoutProvider::GetInsetsMetric(int metric) const {
   switch (metric) {
     case views::INSETS_DIALOG:
     case views::INSETS_DIALOG_SUBSECTION: {
-      return features::IsChromeRefresh2023() ? gfx::Insets::VH(20, 20)
-                                             : gfx::Insets(kHarmonyLayoutUnit);
+      return gfx::Insets::VH(20, 20);
+    }
+    case views::INSETS_DIALOG_FOOTNOTE: {
+      return gfx::Insets::TLBR(10, 20, 15, 20);
     }
     case views::INSETS_CHECKBOX_RADIO_BUTTON: {
       gfx::Insets insets = LayoutProvider::GetInsetsMetric(metric);
@@ -64,35 +59,34 @@ gfx::Insets ChromeLayoutProvider::GetInsetsMetric(int metric) const {
                                insets.right());
     }
     case views::INSETS_VECTOR_IMAGE_BUTTON:
-      return gfx::Insets(kHarmonyLayoutUnit / 4);
+      return gfx::Insets(4);
     case views::InsetsMetric::INSETS_LABEL_BUTTON:
-      return touch_ui ? gfx::Insets::VH(kHarmonyLayoutUnit / 2,
-                                        kHarmonyLayoutUnit / 2)
+      return touch_ui ? gfx::Insets::VH(8, 8)
                       : LayoutProvider::GetInsetsMetric(metric);
     case INSETS_BOOKMARKS_BAR_BUTTON:
       return touch_ui ? gfx::Insets::VH(8, 10) : gfx::Insets(6);
     case INSETS_TOAST:
-      return gfx::Insets::VH(0, kHarmonyLayoutUnit);
+      return gfx::Insets::VH(0, 16);
     case INSETS_OMNIBOX_PILL_BUTTON:
-      if ((base::FeatureList::IsEnabled(omnibox::kCr2023ActionChips) ||
-           features::GetChromeRefresh2023Level() ==
-               features::ChromeRefresh2023Level::kLevel2) &&
-          !touch_ui) {
+      if (!touch_ui) {
         return gfx::Insets::VH(4, 8);
       } else {
-        return touch_ui
-                   ? gfx::Insets::VH(kHarmonyLayoutUnit / 2, kHarmonyLayoutUnit)
-                   : gfx::Insets::VH(5, 12);
+        return touch_ui ? gfx::Insets::VH(8, 16) : gfx::Insets::VH(5, 12);
       }
     case INSETS_PAGE_INFO_HOVER_BUTTON: {
       const gfx::Insets insets =
           LayoutProvider::GetInsetsMetric(views::INSETS_LABEL_BUTTON);
-      const int horizontal_padding =
-          GetDistanceMetric(views::DISTANCE_BUTTON_HORIZONTAL_PADDING);
+      const int horizontal_padding = 20;
       // Hover button in page info requires double the height compared to the
       // label button because it behaves like a menu control.
       return gfx::Insets::VH(insets.height(), horizontal_padding);
     }
+    case INSETS_RECENT_ACTIVITY_IMAGE_MARGIN:
+      return gfx::Insets::TLBR(0, 12, 0, 16);
+    case INSETS_TASK_MANAGER:
+      return gfx::Insets::TLBR(4, 20, 20, 20);
+    case INSETS_PAGE_INFO_FOOTER_BUTTON:
+      return gfx::Insets::VH(12, 20);
     default:
       return LayoutProvider::GetInsetsMetric(metric);
   }
@@ -102,21 +96,20 @@ int ChromeLayoutProvider::GetDistanceMetric(int metric) const {
   DCHECK_GE(metric, views::VIEWS_DISTANCE_START);
   DCHECK_LT(metric, views::VIEWS_DISTANCE_MAX);
 
-  if (metric < views::VIEWS_DISTANCE_END)
+  if (metric < views::VIEWS_DISTANCE_END) {
     return LayoutProvider::GetDistanceMetric(metric);
+  }
 
   switch (static_cast<ChromeDistanceMetric>(metric)) {
     case DISTANCE_CONTENT_LIST_VERTICAL_SINGLE:
-      return kHarmonyLayoutUnit / 4;
+      return 4;
     case DISTANCE_CONTENT_LIST_VERTICAL_MULTI:
-      return kHarmonyLayoutUnit / 2;
-    case DISTANCE_CONTROL_LIST_VERTICAL:
-      return kHarmonyLayoutUnit * 3 / 4;
-    case DISTANCE_DROPDOWN_BUTTON_LABEL_ARROW_SPACING:
       return 8;
-    case DISTANCE_DROPDOWN_BUTTON_RIGHT_MARGIN:
-      return 12;
+    case DISTANCE_EXTENSIONS_MENU_WIDTH:
+      return kMediumDialogWidth;
     case DISTANCE_EXTENSIONS_MENU_BUTTON_ICON_SIZE:
+      return 20;
+    case DISTANCE_EXTENSIONS_MENU_BUTTON_ICON_SMALL_SIZE:
       return 16;
     case DISTANCE_EXTENSIONS_MENU_EXTENSION_ICON_SIZE:
       return 28;
@@ -125,37 +118,33 @@ int ChromeLayoutProvider::GetDistanceMetric(int metric) const {
               GetDistanceMetric(DISTANCE_EXTENSIONS_MENU_BUTTON_ICON_SIZE)) /
              2;
     case DISTANCE_EXTENSIONS_MENU_BUTTON_MARGIN:
-      return GetDistanceMetric(DISTANCE_CONTROL_LIST_VERTICAL);
+      return 12;
+    case DISTANCE_EXTENSIONS_MENU_LABEL_ICON_SPACING:
+      return 4;
     case DISTANCE_RELATED_CONTROL_HORIZONTAL_SMALL:
-      return kHarmonyLayoutUnit;
+      return 16;
     case DISTANCE_RELATED_CONTROL_VERTICAL_SMALL:
-      return kHarmonyLayoutUnit / 2;
+      return 8;
     case DISTANCE_BUTTON_MINIMUM_WIDTH:
       return GetDistanceMetric(views::DISTANCE_DIALOG_BUTTON_MINIMUM_WIDTH);
     case DISTANCE_RELATED_LABEL_HORIZONTAL_LIST:
-      return kHarmonyLayoutUnit / 2;
+      return 8;
     case DISTANCE_SUBSECTION_HORIZONTAL_INDENT:
       return 0;
     case DISTANCE_TOAST_CONTROL_VERTICAL:
       return 8;
     case DISTANCE_TOAST_LABEL_VERTICAL:
       return 12;
-    case DISTANCE_UNRELATED_CONTROL_HORIZONTAL:
-      return kHarmonyLayoutUnit;
     case DISTANCE_UNRELATED_CONTROL_HORIZONTAL_LARGE:
-      return kHarmonyLayoutUnit;
+      return 16;
     case DISTANCE_UNRELATED_CONTROL_VERTICAL_LARGE:
-      return kHarmonyLayoutUnit;
-    case DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE:
-      return 20;
+      return 16;
     case DISTANCE_STANDALONE_BUBBLE_PREFERRED_WIDTH:
       return kMediumDialogWidth;
-    case DISTANCE_LARGE_MODAL_DIALOG_PREFERRED_WIDTH:
-      return kLargeDialogWidth;
     case DISTANCE_BETWEEN_PRIMARY_AND_SECONDARY_LABELS_HORIZONTAL:
       return 24;
     case DISTANCE_OMNIBOX_CELL_VERTICAL_PADDING:
-      return 8;
+      return 12;
     case DISTANCE_OMNIBOX_TWO_LINE_CELL_VERTICAL_PADDING:
       return 4;
     case DISTANCE_SIDE_PANEL_HEADER_VECTOR_ICON_SIZE:
@@ -163,20 +152,104 @@ int ChromeLayoutProvider::GetDistanceMetric(int metric) const {
     case DISTANCE_SIDE_PANEL_HEADER_BUTTON_MINIMUM_SIZE:
       return 20;
     case DISTANCE_SIDE_PANEL_HEADER_INTERIOR_MARGIN_HORIZONTAL:
+      return 4;
+    case DISTANCE_HORIZONTAL_SEPARATOR_PADDING_PAGE_INFO_VIEW:
+      return 20;
+    case DISTANCE_INFOBAR_HORIZONTAL_ICON_LABEL_PADDING:
+      return 16;
+    case DISTANCE_INFOBAR_HEIGHT:
+      // Spec says height of button should be 36dp, vertical padding on both
+      // top and bottom should be 8dp.
+      return 36 + 2 * 8;
+    case DISTANCE_PERMISSION_PROMPT_HORIZONTAL_ICON_LABEL_PADDING:
       return 8;
+    case DISTANCE_RICH_HOVER_BUTTON_ICON_HORIZONTAL:
+      return 8;
+    case DISTANCE_TASK_MANAGER_SEARCH_BAR_ICON_AND_BUTTON_HORIZONTAL_SPACING:
+      return 4;
+    case DISTANCE_TASK_MANAGER_SEARCH_ICON_SIZE:
+      return 20;
+    case DISTANCE_TASK_MANAGER_SEARCH_BAR_MIN_WIDTH:
+      return 160;
+    case DISTANCE_TASK_MANAGER_SEARCH_BAR_MIN_HEIGHT:
+      return 36;
+    case DISTANCE_TASK_MANAGER_TAB_HEIGHT:
+      return 54;
+    case DISTANCE_TOAST_BUBBLE_BETWEEN_CHILD_SPACING:
+    case DISTANCE_TOAST_BUBBLE_BROWSER_WINDOW_MARGIN:
+      return 4;
+    case DISTANCE_TOAST_BUBBLE_BETWEEN_LABEL_ACTION_BUTTON_SPACING:
+    case DISTANCE_TOAST_BUBBLE_BETWEEN_LABEL_MENU_BUTTON_SPACING:
+      return 16;
+    case DISTANCE_TOAST_BUBBLE_HEIGHT:
+      return 48;
+    case DISTANCE_TOAST_BUBBLE_HEIGHT_ACTION_BUTTON:
+      return 36;
+    case DISTANCE_TOAST_BUBBLE_HEIGHT_CONTENT:
+      return 24;
+    case DISTANCE_TOAST_BUBBLE_ICON_SIZE:
+    case DISTANCE_TOAST_BUBBLE_MENU_ICON_SIZE:
+      return 20;
+    case DISTANCE_TOAST_BUBBLE_LEADING_ICON_SIDE_MARGINS:
+      return 2;
+    case DISTANCE_TOAST_BUBBLE_MARGIN_LEFT:
+      return 12;
+    case DISTANCE_TOAST_BUBBLE_MARGIN_RIGHT_ACTION_BUTTON:
+      return 6;
+    case DISTANCE_TOAST_BUBBLE_MARGIN_RIGHT_CLOSE_BUTTON:
+    case DISTANCE_TOAST_BUBBLE_MARGIN_RIGHT_MENU_BUTTON:
+      return 10;
+    case DISTANCE_TOAST_BUBBLE_MARGIN_RIGHT_LABEL:
+      return 16;
+    case DISTANCE_RECENT_ACTIVITY_AVATAR_SIZE:
+      return 32;
+    case DISTANCE_RECENT_ACTIVITY_AVATAR_FALLBACK_SIZE:
+      return 24;
+    case DISTANCE_RECENT_ACTIVITY_FAVICON_CONTAINER_RADIUS:
+      return 9;
+    case DISTANCE_RECENT_ACTIVITY_FAVICON_CONTAINER_BORDER_WIDTH:
+      return 2;
+    case DISTANCE_RECENT_ACTIVITY_FAVICON_CONTAINER_PADDING:
+      return 4;
+    case DISTANCE_RECENT_ACTIVITY_FAVICON_CONTAINER_OFFSET_FROM_AVATAR:
+      return 2;
+    case DISTANCE_RECENT_ACTIVITY_CONTAINER_RADIUS:
+      return 8;
+    case DISTANCE_RECENT_ACTIVITY_CONTAINER_VERTICAL_MARGIN:
+      return 10;
+    case DISTANCE_RECENT_ACTIVITY_CONTAINER_VERTICAL_PADDING:
+      return 6;
+    case DISTANCE_RECENT_ACTIVITY_ROW_VERTICAL_PADDING:
+      return 6;
+    case DISTANCE_ACCOUNT_INFO_ROW_AVATAR_EMAIL:
+      return 8;
+    case DISTANCE_COLLABORATION_MESSAGING_AVATAR_FALLBACK_ICON_PADDING:
+      return 2;
+    case DISTANCE_COLLABORATION_MESSAGING_AVATAR_FALLBACK_ICON_BORDER_SIZE:
+      return 1;
+    case DISTANCE_TEXTFIELD_ACCOUNT_CARD_VERTICAL:
+      return 4;
+    case DISTANCE_FEATURE_FIRST_RUN_INFO_BOX_ICON_SIZE:
+      return 16;
+    case DISTANCE_FEATURE_FIRST_RUN_INFO_BOX_PADDING:
+      return 12;
+    case DISTANCE_FEATURE_FIRST_RUN_INFO_BOX_ROUNDED_BORDER_RADIUS:
+      return 12;
+    case DISTANCE_FEATURE_FIRST_RUN_INFO_BOX_VERTICAL:
+      return 1;
   }
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
 int ChromeLayoutProvider::GetSnappedDialogWidth(int min_width) const {
   for (int snap_point :
        {kSmallDialogWidth, kMediumDialogWidth, kLargeDialogWidth}) {
-    if (min_width <= snap_point)
+    if (min_width <= snap_point) {
       return snap_point;
+    }
   }
 
-  return ((min_width + kHarmonyLayoutUnit - 1) / kHarmonyLayoutUnit) *
-         kHarmonyLayoutUnit;
+  return ((min_width + 15) / 16) * 16;
 }
 
 const views::TypographyProvider& ChromeLayoutProvider::GetTypographyProvider()

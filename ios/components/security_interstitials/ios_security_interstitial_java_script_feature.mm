@@ -7,10 +7,6 @@
 #import "ios/components/security_interstitials/ios_blocking_page_tab_helper.h"
 #import "ios/web/public/js_messaging/script_message.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace security_interstitials {
 
 namespace {
@@ -35,7 +31,7 @@ IOSSecurityInterstitialJavaScriptFeature::
 IOSSecurityInterstitialJavaScriptFeature::
     ~IOSSecurityInterstitialJavaScriptFeature() = default;
 
-absl::optional<std::string>
+std::optional<std::string>
 IOSSecurityInterstitialJavaScriptFeature::GetScriptMessageHandlerName() const {
   return kWebUIMessageHandlerName;
 }

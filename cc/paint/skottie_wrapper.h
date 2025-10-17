@@ -38,13 +38,17 @@ namespace cc {
 class CC_PAINT_EXPORT SkottieWrapper
     : public base::RefCountedThreadSafe<SkottieWrapper> {
  public:
+  // Factory methods are "Unsafe" because they assume the `data` comes from a
+  // trusted source. If this is not the case, use the
+  // `data_decoder::JsonSanitizer` to rinse the data first.
+  //
   // Creates an instance that can be serialized for IPC. This uses additional
   // memory to store the raw animation data.
-  static scoped_refptr<SkottieWrapper> CreateSerializable(
+  static scoped_refptr<SkottieWrapper> UnsafeCreateSerializable(
       std::vector<uint8_t> data);
 
   // Creates a non serializable instance of the class. This uses less memory.
-  static scoped_refptr<SkottieWrapper> CreateNonSerializable(
+  static scoped_refptr<SkottieWrapper> UnsafeCreateNonSerializable(
       base::span<const uint8_t> data);
 
   SkottieWrapper(const SkottieWrapper&) = delete;
@@ -84,14 +88,14 @@ class CC_PAINT_EXPORT SkottieWrapper
   enum class FrameDataFetchResult {
     // A new image is available for the given asset, and the callback's output
     // parameters have been filled with the new frame data.
-    NEW_DATA_AVAILABLE,
+    kNewDataAvailable,
     // The callback's output parameters have not been filled and will be
     // ignored by SkottieWrapper. In this case, SkottieWrapper will reuse the
     // frame data that was most recently provided for the given asset (it caches
     // this internally). Note it is acceptable to set |image_out| to a null
     // SkImage; Skottie will simply skip the image asset while rendering the
     // rest of the frame.
-    NO_UPDATE,
+    kNoUpdate,
   };
   // The callback's implementation must synchronously fill the output
   // arguments. |asset_id| is guaranteed to be a valid asset that's present

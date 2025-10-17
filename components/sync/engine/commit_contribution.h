@@ -7,9 +7,9 @@
 
 #include <stddef.h>
 
-#include "components/sync/base/syncer_error.h"
 #include "components/sync/engine/commit_and_get_updates_types.h"
 #include "components/sync/engine/cycle/status_controller.h"
+#include "components/sync/engine/syncer_error.h"
 
 namespace sync_pb {
 class ClientToServerMessage;
@@ -29,7 +29,7 @@ class CommitContribution {
   CommitContribution() = default;
   virtual ~CommitContribution() = default;
 
-  // Serialize this contribution's entries to the given commit request |msg|.
+  // Serialize this contribution's entries to the given commit request `msg`.
   //
   // This function is not const.  It may update some state in this contribution
   // that will be used when processing the associated commit response.  This
@@ -37,7 +37,7 @@ class CommitContribution {
   virtual void AddToCommitMessage(sync_pb::ClientToServerMessage* msg) = 0;
 
   // Updates this contribution's contents in accordance with the provided
-  // |response|.
+  // `response`.
   //
   // It is not valid to call this function unless AddToCommitMessage() was
   // called earlier.  This function should not be called more than once.

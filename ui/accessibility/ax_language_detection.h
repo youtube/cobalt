@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "third_party/cld_3/src/src/nnet_language_identifier.h"
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_export.h"
@@ -217,26 +218,22 @@ class AX_EXPORT AXLanguageInfoStats {
 // TODO(chrishall): Investigate the cost of using AXTreeObserver, given that it
 // has many empty virtual methods which are called for every AXTree change and
 // we are only currently interested in OnAtomicUpdateFinished.
-class AX_EXPORT AXLanguageDetectionObserver : public ui::AXTreeObserver {
+class AX_EXPORT AXLanguageDetectionObserver : public AXTreeObserver {
  public:
   // Observer constructor will register itself with the provided AXTree.
   explicit AXLanguageDetectionObserver(AXTree* tree);
-
-  // Observer destructor will remove itself as an observer from the AXTree.
   ~AXLanguageDetectionObserver() override;
-
-  // AXLanguageDetectionObserver contains a pointer so copying is non-trivial.
   AXLanguageDetectionObserver(const AXLanguageDetectionObserver&) = delete;
   AXLanguageDetectionObserver& operator=(const AXLanguageDetectionObserver&) =
       delete;
 
  private:
-  void OnAtomicUpdateFinished(ui::AXTree* tree,
+  // |ui::AXTreeObserver|
+  void OnAtomicUpdateFinished(AXTree* tree,
                               bool root_changed,
                               const std::vector<Change>& changes) override;
 
-  // Non-owning pointer to AXTree, used to de-register observer on destruction.
-  const raw_ptr<AXTree> tree_;
+  base::ScopedObservation<ui::AXTree, ui::AXTreeObserver> observation_{this};
 };
 
 // AXLanguageDetectionManager manages all of the context needed for language

@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_BYTECODE_ARRAY_INL_H_
 #define V8_OBJECTS_BYTECODE_ARRAY_INL_H_
 
+#include "src/objects/bytecode-array.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -17,18 +19,28 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/bytecode-array-tq-inl.inc"
+OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, ExposedTrustedObject)
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(BytecodeArray)
+SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
+RELEASE_ACQUIRE_SMI_ACCESSORS(BytecodeArray, length, kLengthOffset)
+PROTECTED_POINTER_ACCESSORS(BytecodeArray, handler_table, TrustedByteArray,
+                            kHandlerTableOffset)
+PROTECTED_POINTER_ACCESSORS(BytecodeArray, constant_pool, TrustedFixedArray,
+                            kConstantPoolOffset)
+ACCESSORS(BytecodeArray, wrapper, Tagged<BytecodeWrapper>, kWrapperOffset)
+RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(BytecodeArray,
+                                            source_position_table,
+                                            TrustedByteArray,
+                                            kSourcePositionTableOffset)
 
-byte BytecodeArray::get(int index) const {
-  DCHECK(index >= 0 && index < this->length());
-  return ReadField<byte>(kHeaderSize + index * kCharSize);
+uint8_t BytecodeArray::get(int index) const {
+  DCHECK(index >= 0 && index < length());
+  return ReadField<uint8_t>(kHeaderSize + index * kCharSize);
 }
 
-void BytecodeArray::set(int index, byte value) {
-  DCHECK(index >= 0 && index < this->length());
-  WriteField<byte>(kHeaderSize + index * kCharSize, value);
+void BytecodeArray::set(int index, uint8_t value) {
+  DCHECK(index >= 0 && index < length());
+  WriteField<uint8_t>(kHeaderSize + index * kCharSize, value);
 }
 
 void BytecodeArray::set_frame_size(int32_t frame_size) {
@@ -45,12 +57,28 @@ int BytecodeArray::register_count() const {
   return static_cast<int>(frame_size()) / kSystemPointerSize;
 }
 
-void BytecodeArray::set_parameter_count(int32_t number_of_parameters) {
-  DCHECK_GE(number_of_parameters, 0);
-  // Parameter count is stored as the size on stack of the parameters to allow
-  // it to be used directly by generated code.
-  WriteField<int32_t>(kParameterSizeOffset,
-                      (number_of_parameters << kSystemPointerSizeLog2));
+uint16_t BytecodeArray::parameter_count() const {
+  return ReadField<uint16_t>(kParameterSizeOffset);
+}
+
+uint16_t BytecodeArray::parameter_count_without_receiver() const {
+  return parameter_count() - 1;
+}
+
+void BytecodeArray::set_parameter_count(uint16_t number_of_parameters) {
+  WriteField<uint16_t>(kParameterSizeOffset, number_of_parameters);
+}
+
+uint16_t BytecodeArray::max_arguments() const {
+  return ReadField<uint16_t>(kMaxArgumentsOffset);
+}
+
+void BytecodeArray::set_max_arguments(uint16_t max_arguments) {
+  WriteField<uint16_t>(kMaxArgumentsOffset, max_arguments);
+}
+
+int32_t BytecodeArray::max_frame_size() const {
+  return frame_size() + (max_arguments() << kSystemPointerSizeLog2);
 }
 
 interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
@@ -77,22 +105,6 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
   }
 }
 
-uint16_t BytecodeArray::bytecode_age() const {
-  // Bytecode is aged by the concurrent marker.
-  return RELAXED_READ_UINT16_FIELD(*this, kBytecodeAgeOffset);
-}
-
-void BytecodeArray::set_bytecode_age(uint16_t age) {
-  // Bytecode is aged by the concurrent marker.
-  RELAXED_WRITE_UINT16_FIELD(*this, kBytecodeAgeOffset, age);
-}
-
-int32_t BytecodeArray::parameter_count() const {
-  // Parameter count is stored as the size on stack of the parameters to allow
-  // it to be used directly by generated code.
-  return ReadField<int32_t>(kParameterSizeOffset) >> kSystemPointerSizeLog2;
-}
-
 void BytecodeArray::clear_padding() {
   int data_size = kHeaderSize + length();
   memset(reinterpret_cast<void*>(address() + data_size), 0,
@@ -104,50 +116,46 @@ Address BytecodeArray::GetFirstBytecodeAddress() {
 }
 
 bool BytecodeArray::HasSourcePositionTable() const {
-  Object maybe_table = source_position_table(kAcquireLoad);
-  return !(maybe_table.IsUndefined() || DidSourcePositionGenerationFail());
+  return has_source_position_table(kAcquireLoad);
 }
 
-bool BytecodeArray::DidSourcePositionGenerationFail() const {
-  return source_position_table(kAcquireLoad).IsException();
+DEF_GETTER(BytecodeArray, SourcePositionTable, Tagged<TrustedByteArray>) {
+  // WARNING: This function may be called from a background thread, hence
+  // changes to how it accesses the heap can easily lead to bugs.
+  Tagged<Object> maybe_table = raw_source_position_table(kAcquireLoad);
+  if (IsTrustedByteArray(maybe_table))
+    return Cast<TrustedByteArray>(maybe_table);
+  DCHECK_EQ(maybe_table, Smi::zero());
+  return GetIsolateFromWritableObject(*this)
+      ->heap()
+      ->empty_trusted_byte_array();
 }
 
 void BytecodeArray::SetSourcePositionsFailedToCollect() {
-  set_source_position_table(GetReadOnlyRoots().exception(), kReleaseStore);
+  TaggedField<Object>::Release_Store(*this, kSourcePositionTableOffset,
+                                     Smi::zero());
 }
 
-DEF_GETTER(BytecodeArray, SourcePositionTable, ByteArray) {
-  // WARNING: This function may be called from a background thread, hence
-  // changes to how it accesses the heap can easily lead to bugs.
-  Object maybe_table = source_position_table(cage_base, kAcquireLoad);
-  if (maybe_table.IsByteArray(cage_base)) return ByteArray::cast(maybe_table);
-  ReadOnlyRoots roots = GetReadOnlyRoots();
-  DCHECK(maybe_table.IsUndefined(roots) || maybe_table.IsException(roots));
-  return roots.empty_byte_array();
-}
-
-DEF_GETTER(BytecodeArray, raw_constant_pool, Object) {
-  Object value =
-      TaggedField<Object>::load(cage_base, *this, kConstantPoolOffset);
+DEF_GETTER(BytecodeArray, raw_constant_pool, Tagged<Object>) {
+  Tagged<Object> value = RawProtectedPointerField(kConstantPoolOffset).load();
   // This field might be 0 during deserialization.
-  DCHECK(value == Smi::zero() || value.IsFixedArray());
+  DCHECK(value == Smi::zero() || IsTrustedFixedArray(value));
   return value;
 }
 
-DEF_GETTER(BytecodeArray, raw_handler_table, Object) {
-  Object value =
-      TaggedField<Object>::load(cage_base, *this, kHandlerTableOffset);
+DEF_GETTER(BytecodeArray, raw_handler_table, Tagged<Object>) {
+  Tagged<Object> value = RawProtectedPointerField(kHandlerTableOffset).load();
   // This field might be 0 during deserialization.
-  DCHECK(value == Smi::zero() || value.IsByteArray());
+  DCHECK(value == Smi::zero() || IsTrustedByteArray(value));
   return value;
 }
 
-DEF_GETTER(BytecodeArray, raw_source_position_table, Object) {
-  Object value =
-      TaggedField<Object>::load(cage_base, *this, kSourcePositionTableOffset);
-  // This field might be 0 during deserialization.
-  DCHECK(value == Smi::zero() || value.IsByteArray() || value.IsUndefined() ||
-         value.IsException());
+DEF_ACQUIRE_GETTER(BytecodeArray, raw_source_position_table, Tagged<Object>) {
+  Tagged<Object> value =
+      RawProtectedPointerField(kSourcePositionTableOffset).Acquire_Load();
+  // This field might be 0 during deserialization or if source positions have
+  // not been (successfully) collected.
+  DCHECK(value == Smi::zero() || IsTrustedByteArray(value));
   return value;
 }
 
@@ -155,24 +163,29 @@ int BytecodeArray::BytecodeArraySize() const { return SizeFor(this->length()); }
 
 DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   int size = BytecodeArraySize();
-  Object maybe_constant_pool = raw_constant_pool(cage_base);
-  if (maybe_constant_pool.IsFixedArray()) {
-    size += FixedArray::cast(maybe_constant_pool).Size(cage_base);
+  Tagged<Object> maybe_constant_pool = raw_constant_pool(cage_base);
+  if (IsTrustedFixedArray(maybe_constant_pool)) {
+    size += Cast<TrustedFixedArray>(maybe_constant_pool)->Size();
   } else {
     DCHECK_EQ(maybe_constant_pool, Smi::zero());
   }
-  Object maybe_handler_table = raw_handler_table(cage_base);
-  if (maybe_handler_table.IsByteArray()) {
-    size += ByteArray::cast(maybe_handler_table).Size();
+  Tagged<Object> maybe_handler_table = raw_handler_table(cage_base);
+  if (IsTrustedByteArray(maybe_handler_table)) {
+    size += Cast<TrustedByteArray>(maybe_handler_table)->AllocatedSize();
   } else {
     DCHECK_EQ(maybe_handler_table, Smi::zero());
   }
-  Object maybe_table = raw_source_position_table(cage_base);
-  if (maybe_table.IsByteArray()) {
-    size += ByteArray::cast(maybe_table).Size();
+  Tagged<Object> maybe_table = raw_source_position_table(kAcquireLoad);
+  if (IsByteArray(maybe_table)) {
+    size += Cast<ByteArray>(maybe_table)->AllocatedSize();
   }
   return size;
 }
+
+OBJECT_CONSTRUCTORS_IMPL(BytecodeWrapper, Struct)
+
+TRUSTED_POINTER_ACCESSORS(BytecodeWrapper, bytecode, BytecodeArray,
+                          kBytecodeOffset, kBytecodeArrayIndirectPointerTag)
 
 }  // namespace internal
 }  // namespace v8

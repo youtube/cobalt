@@ -8,6 +8,7 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_CLIENT_BASE_H_
 #define QUICHE_QUIC_TOOLS_QUIC_CLIENT_BASE_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -15,7 +16,6 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/deterministic_connection_id_generator.h"
-#include "quiche/quic/core/http/quic_client_push_promise_index.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/quic_config.h"
@@ -112,6 +112,7 @@ class QuicClientBase : public QuicSession::Visitor {
       const QuicConnectionId& /*server_connection_id*/) override {}
   void OnServerPreferredAddressAvailable(
       const QuicSocketAddress& server_preferred_address) override;
+  void OnPathDegrading() override;
 
   // Initializes the client to create a connection. Should be called exactly
   // once before calling StartConnect or Connect. Returns true if the
@@ -187,6 +188,10 @@ class QuicClientBase : public QuicSession::Visitor {
 
   void SetUserAgentID(const std::string& user_agent_id) {
     crypto_config_.set_user_agent_id(user_agent_id);
+  }
+
+  void SetPreferredGroups(const std::vector<uint16_t>& preferred_groups) {
+    crypto_config_.set_preferred_groups(preferred_groups);
   }
 
   void SetTlsSignatureAlgorithms(std::string signature_algorithms) {
@@ -277,6 +282,8 @@ class QuicClientBase : public QuicSession::Visitor {
 
   QuicConnectionHelperInterface* helper() { return helper_.get(); }
 
+  QuicAlarmFactory* alarm_factory() { return alarm_factory_.get(); }
+
   NetworkHelper* network_helper();
   const NetworkHelper* network_helper() const;
 
@@ -325,6 +332,24 @@ class QuicClientBase : public QuicSession::Visitor {
     return validated_paths_;
   }
 
+  // Enable port migration upon path degrading after given number of PTOs.
+  // If no value is provided, path degrading will be detected after 4 PTOs by
+  // default.
+  void EnablePortMigrationUponPathDegrading(
+      std::optional<int> num_ptos_for_path_degrading) {
+    allow_port_migration_ = true;
+    if (num_ptos_for_path_degrading.has_value()) {
+      session_->connection()
+          ->sent_packet_manager()
+          .set_num_ptos_for_path_degrading(num_ptos_for_path_degrading.value());
+    }
+  }
+
+  virtual void OnSocketMigrationProbingSuccess(
+      std::unique_ptr<QuicPathValidationContext> context);
+
+  virtual void OnSocketMigrationProbingFailure() {}
+
  protected:
   // TODO(rch): Move GetNumSentClientHellosFromSession and
   // GetNumReceivedServerConfigUpdatesFromSession into a new/better
@@ -364,8 +389,6 @@ class QuicClientBase : public QuicSession::Visitor {
 
   // Returns the client connection ID to use.
   virtual QuicConnectionId GetClientConnectionId();
-
-  QuicAlarmFactory* alarm_factory() { return alarm_factory_.get(); }
 
   // Subclasses may need to explicitly clear the session on destruction
   // if they create it with objects that will be destroyed before this is.
@@ -453,7 +476,7 @@ class QuicClientBase : public QuicSession::Visitor {
   // If set,
   // - GetNextConnectionId will use this as the next server connection id.
   // - GenerateNewConnectionId will not be called.
-  absl::optional<QuicConnectionId> server_connection_id_override_;
+  std::optional<QuicConnectionId> server_connection_id_override_;
 
   // GenerateNewConnectionId creates a random connection ID of this length.
   // Defaults to 8.
@@ -472,6 +495,9 @@ class QuicClientBase : public QuicSession::Visitor {
 
   DeterministicConnectionIdGenerator connection_id_generator_{
       kQuicDefaultConnectionIdLength};
+
+  bool allow_port_migration_{false};
+  uint32_t num_path_degrading_handled_{0};
 };
 
 }  // namespace quic

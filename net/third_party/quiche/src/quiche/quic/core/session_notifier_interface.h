@@ -12,7 +12,7 @@ namespace quic {
 
 // Pure virtual class to be notified when a packet containing a frame is acked
 // or lost.
-class QUIC_EXPORT_PRIVATE SessionNotifierInterface {
+class QUICHE_EXPORT SessionNotifierInterface {
  public:
   virtual ~SessionNotifierInterface() {}
 
@@ -20,7 +20,8 @@ class QUIC_EXPORT_PRIVATE SessionNotifierInterface {
   // returns false otherwise.
   virtual bool OnFrameAcked(const QuicFrame& frame,
                             QuicTime::Delta ack_delay_time,
-                            QuicTime receive_timestamp) = 0;
+                            QuicTime receive_timestamp,
+                            bool is_retransmission) = 0;
 
   // Called when |frame| is retransmitted.
   virtual void OnStreamFrameRetransmitted(const QuicStreamFrame& frame) = 0;

@@ -9,10 +9,10 @@
 
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/auto_reset.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/mojom/manifest.mojom-shared.h"
@@ -76,7 +76,7 @@ bool LocalizeManifest(const extensions::MessageBundle& messages,
                       std::string* error);
 
 // Load message catalogs, localize manifest and attach message bundle to the
-// extension. |gzip_permission| will be passed to LoadMessageCatalogs
+// extension. `gzip_permission` will be passed to LoadMessageCatalogs
 // (see below for details).
 bool LocalizeExtension(const base::FilePath& extension_path,
                        base::Value::Dict* manifest,
@@ -103,26 +103,26 @@ void GetAllLocales(std::set<std::string>* all_locales);
 
 // Provides a vector of all fallback locales for message localization.
 // The vector is ordered by priority of locale - application locale,
-// first_parent, ..., |default_locale|.
+// first_parent, ..., `default_locale`.
 void GetAllFallbackLocales(const std::string& default_locale,
                            std::vector<std::string>* all_fallback_locales);
 
-// Fill |valid_locales| with all valid locales under |locale_path|.
-// |valid_locales| is the intersection of the set of locales supported by
-// Chrome and the set of locales specified by |locale_path|.
-// Returns true if vaild_locales contains at least one locale, false otherwise.
-// |error| contains an error message when a locale is corrupt or missing.
+// Fill `valid_locales` with all valid locales under `locale_path`.
+// `valid_locales` is the intersection of the set of locales supported by
+// Chrome and the set of locales specified by `locale_path`.
+// Returns true if valid_locales contains at least one locale, false otherwise.
+// `error` contains an error message when a locale is corrupt or missing.
 bool GetValidLocales(const base::FilePath& locale_path,
                      std::set<std::string>* valid_locales,
                      std::string* error);
 
 // Loads messages file for the default locale and application locales
 // (application locales do not have to exist). Application locales include the
-// current locale and its parents. If |gzip_permission| is
+// current locale and its parents. If `gzip_permission` is
 // kAllowForTrustedSource, this will look for compressed messages files and
 // decompress them if they exist. Returns the message bundle if it can load the
 // default locale messages file and all messages are valid. Otherwise returns
-// null and sets |error|.
+// null and sets `error`.
 extensions::MessageBundle* LoadMessageCatalogs(
     const base::FilePath& locale_path,
     const std::string& default_locale,
@@ -137,9 +137,9 @@ bool ValidateExtensionLocales(const base::FilePath& extension_path,
 
 // Returns true if directory has "." in the name (for .svn) or if it doesn't
 // belong to Chrome locales.
-// |locales_path| is extension_id/_locales
-// |locale_path| is extension_id/_locales/xx
-// |all_locales| is a set of all valid Chrome locales.
+// `locales_path` is extension_id/_locales
+// `locale_path` is extension_id/_locales/xx
+// `all_locales` is a set of all valid Chrome locales.
 bool ShouldSkipValidation(const base::FilePath& locales_path,
                           const base::FilePath& locale_path,
                           const std::set<std::string>& all_locales);
@@ -153,17 +153,17 @@ class ScopedLocaleForTest {
   ScopedLocaleForTest();
 
   // Sets temporary locale for the current scope.
-  explicit ScopedLocaleForTest(base::StringPiece locale);
+  explicit ScopedLocaleForTest(std::string_view locale);
 
   // Sets process and preferred locales for the current scope.
-  ScopedLocaleForTest(base::StringPiece process_locale,
-                      base::StringPiece preferred_locale);
+  ScopedLocaleForTest(std::string_view process_locale,
+                      std::string_view preferred_locale);
 
   ~ScopedLocaleForTest();
 
  private:
-  base::StringPiece process_locale_;    // The process locale at ctor time.
-  base::StringPiece preferred_locale_;  // The preferred locale at ctor time.
+  std::string_view process_locale_;    // The process locale at ctor time.
+  std::string_view preferred_locale_;  // The preferred locale at ctor time.
 };
 
 // Returns a locale like "en-CA".

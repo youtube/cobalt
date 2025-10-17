@@ -5,9 +5,10 @@
 #ifndef EXTENSIONS_COMMON_MANIFEST_HANDLERS_CSP_INFO_H_
 #define EXTENSIONS_COMMON_MANIFEST_HANDLERS_CSP_INFO_H_
 
+#include <optional>
 #include <string>
+#include <string_view>
 
-#include "base/strings/string_piece_forward.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_handler.h"
 
@@ -43,8 +44,11 @@ struct CSPInfo : public Extension::ManifestData {
       const std::string& relative_path);
 
   // Returns the Content Security Policy to be used for extension isolated
-  // worlds or null if there is no defined CSP.
-  static const std::string* GetIsolatedWorldCSP(const Extension& extension);
+  // worlds or nullopt if there is no defined CSP.
+  // Note that a non-nullopt, empty string is different from a nullopt result,
+  // since an empty CSP permits everything.
+  static std::optional<std::string> GetIsolatedWorldCSP(
+      const Extension& extension);
 
   // Returns the extension's Content Security Policy for the sandboxed pages.
   static const std::string& GetSandboxContentSecurityPolicy(
@@ -83,7 +87,7 @@ class CSPHandler : public ManifestHandler {
   // pages.
   bool ParseExtensionPagesCSP(Extension* extension,
                               std::u16string* error,
-                              base::StringPiece manifest_key,
+                              std::string_view manifest_key,
                               const base::Value* content_security_policy);
 
   // Parses the content security policy specified in the manifest for sandboxed
@@ -92,13 +96,13 @@ class CSPHandler : public ManifestHandler {
   // sources in the sandbox CSP.
   bool ParseSandboxCSP(Extension* extension,
                        std::u16string* error,
-                       base::StringPiece manifest_key,
+                       std::string_view manifest_key,
                        const base::Value* sandbox_csp,
                        bool allow_remote_sources);
 
   // Helper to set the extension pages content security policy manifest data.
   bool SetExtensionPagesCSP(Extension* extension,
-                            base::StringPiece manifest_key,
+                            std::string_view manifest_key,
                             std::string content_security_policy);
 
   // Helper to set the sandbox content security policy manifest data.

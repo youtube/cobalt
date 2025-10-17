@@ -18,20 +18,31 @@ MediaEngagementService* MediaEngagementServiceFactory::GetForProfile(
 
 // static
 MediaEngagementServiceFactory* MediaEngagementServiceFactory::GetInstance() {
-  return base::Singleton<MediaEngagementServiceFactory>::get();
+  static base::NoDestructor<MediaEngagementServiceFactory> instance;
+  return instance.get();
 }
 
 MediaEngagementServiceFactory::MediaEngagementServiceFactory()
     : ProfileKeyedServiceFactory(
           "MediaEngagementServiceFactory",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(HistoryServiceFactory::GetInstance());
   DependsOn(HostContentSettingsMapFactory::GetInstance());
 }
 
-MediaEngagementServiceFactory::~MediaEngagementServiceFactory() {}
+MediaEngagementServiceFactory::~MediaEngagementServiceFactory() = default;
 
-KeyedService* MediaEngagementServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+MediaEngagementServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new MediaEngagementService(Profile::FromBrowserContext(context));
+  return std::make_unique<MediaEngagementService>(
+      Profile::FromBrowserContext(context));
 }

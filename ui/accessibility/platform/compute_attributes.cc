@@ -5,8 +5,8 @@
 #include "ui/accessibility/platform/compute_attributes.h"
 
 #include <cstddef>
+#include <optional>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/accessibility/platform/ax_platform_node_delegate.h"
@@ -14,9 +14,8 @@
 namespace ui {
 namespace {
 
-absl::optional<int32_t> GetCellAttribute(
-    const ui::AXPlatformNodeDelegate* delegate,
-    ax::mojom::IntAttribute attribute) {
+std::optional<int32_t> GetCellAttribute(const AXPlatformNodeDelegate* delegate,
+                                        ax::mojom::IntAttribute attribute) {
   switch (attribute) {
     case ax::mojom::IntAttribute::kAriaCellColumnIndex:
       return delegate->GetTableCellAriaColIndex();
@@ -31,22 +30,20 @@ absl::optional<int32_t> GetCellAttribute(
     case ax::mojom::IntAttribute::kTableCellRowSpan:
       return delegate->GetTableCellRowSpan();
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
-absl::optional<int32_t> GetRowAttribute(
-    const ui::AXPlatformNodeDelegate* delegate,
-    ax::mojom::IntAttribute attribute) {
+std::optional<int32_t> GetRowAttribute(const AXPlatformNodeDelegate* delegate,
+                                       ax::mojom::IntAttribute attribute) {
   if (attribute == ax::mojom::IntAttribute::kTableRowIndex) {
     return delegate->GetTableRowRowIndex();
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<int32_t> GetTableAttribute(
-    const ui::AXPlatformNodeDelegate* delegate,
-    ax::mojom::IntAttribute attribute) {
+std::optional<int32_t> GetTableAttribute(const AXPlatformNodeDelegate* delegate,
+                                         ax::mojom::IntAttribute attribute) {
   switch (attribute) {
     case ax::mojom::IntAttribute::kTableColumnCount:
       return delegate->GetTableColCount();
@@ -57,12 +54,12 @@ absl::optional<int32_t> GetTableAttribute(
     case ax::mojom::IntAttribute::kAriaRowCount:
       return delegate->GetTableAriaRowCount();
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
-absl::optional<int> GetOrderedSetItemAttribute(
-    const ui::AXPlatformNodeDelegate* delegate,
+std::optional<int> GetOrderedSetItemAttribute(
+    const AXPlatformNodeDelegate* delegate,
     ax::mojom::IntAttribute attribute) {
   switch (attribute) {
     case ax::mojom::IntAttribute::kPosInSet:
@@ -70,36 +67,35 @@ absl::optional<int> GetOrderedSetItemAttribute(
     case ax::mojom::IntAttribute::kSetSize:
       return delegate->GetSetSize();
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
-absl::optional<int> GetOrderedSetAttribute(
-    const ui::AXPlatformNodeDelegate* delegate,
+std::optional<int> GetOrderedSetAttribute(
+    const AXPlatformNodeDelegate* delegate,
     ax::mojom::IntAttribute attribute) {
   switch (attribute) {
     case ax::mojom::IntAttribute::kSetSize:
       return delegate->GetSetSize();
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
-absl::optional<int32_t> GetFromData(const ui::AXPlatformNodeDelegate* delegate,
-                                    ax::mojom::IntAttribute attribute) {
+std::optional<int32_t> GetFromData(const AXPlatformNodeDelegate* delegate,
+                                   ax::mojom::IntAttribute attribute) {
   int32_t value;
   if (delegate->GetIntAttribute(attribute, &value)) {
     return value;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace
 
-absl::optional<int32_t> ComputeAttribute(
-    const ui::AXPlatformNodeDelegate* delegate,
-    ax::mojom::IntAttribute attribute) {
-  absl::optional<int32_t> maybe_value = absl::nullopt;
+std::optional<int32_t> ComputeAttribute(const AXPlatformNodeDelegate* delegate,
+                                        ax::mojom::IntAttribute attribute) {
+  std::optional<int32_t> maybe_value = std::nullopt;
 
   // Color-related attributes.
   if (attribute == ax::mojom::IntAttribute::kColor)

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "services/audio/test/fake_loopback_group_member.h"
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 #include <string>
 
-#include "base/numerics/math_constants.h"
 #include "media/audio/audio_device_description.h"
 #include "media/base/audio_bus.h"
 
@@ -46,9 +47,9 @@ void FakeLoopbackGroupMember::RenderMoreAudio(
     base::TimeTicks output_timestamp) {
   if (snooper_) {
     for (int ch = 0; ch < params_.channels(); ++ch) {
-      const double step = 2.0 * base::kPiDouble * frequency_by_channel_[ch] /
+      const double step = 2.0 * std::numbers::pi * frequency_by_channel_[ch] /
                           params_.sample_rate();
-      float* const samples = audio_bus_->channel(ch);
+      auto samples = audio_bus_->channel_span(ch);
       for (int frame = 0; frame < params_.frames_per_buffer(); ++frame) {
         samples[frame] = std::sin((at_frame_ + frame) * step);
       }

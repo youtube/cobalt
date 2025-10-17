@@ -4,9 +4,9 @@
 # found in the LICENSE file.
 """Download ASAN Chrome - Helper for downloading an ASAN build of Chrome.
 
-Uses Omaha Proxy to fetch latest build info for all supported platforms. Then
-tries to find the corresponding ASAN build (or one close to it) from Chrome's
-GCS bucket of ASAN builds.
+Uses Chromium Dash to fetch the latest build info for all supported platforms.
+Then tries to find the corresponding ASAN build (or one close to it) from
+Chrome's GCS bucket of ASAN builds.
 """
 
 import argparse
@@ -22,18 +22,17 @@ from urllib.parse import quote as urlquote
 from urllib import error as urlliberror
 
 
-class ChromeRelease():
-    def __init__(self, os, branch_position, version, channel,
-                 true_branch) -> None:
+class ChromeRelease:
+
+    def __init__(self, os, branch_position, version, channel) -> None:
         self.os = os
         self.branch_position = branch_position
         self.version = version
         self.channel = channel
-        self.true_branch = true_branch
 
 
 def get_current_os():
-    # Translates platform.system() values to corresponding OmahaProxy OS names.
+    # Translates platform.system() values to corresponding Chromium Dash names.
     return {
         'Windows': 'win64',
         'Linux': 'linux',
@@ -55,26 +54,37 @@ def fetch_json(release_info_url):
                  f'{release_info_url}')
         try:
             return json.loads(resp.read())
-        except json.JSONDecodeError as e:
-            fail(f'Failed to parse release metata response from '
+        except json.JSONDecodeError:
+            fail(f'Failed to parse release metadata response from '
                  f'{release_info_url}')
 
 
-def get_release_metadata_by_version(release_info):
-    uri = (f'https://omahaproxy.appspot.com/deps.json?version='
-           f'{release_info.version}')
+def get_release_metadata_by_version(version):
+    uri = (f'https://chromiumdash.appspot.com/fetch_version'
+           f'?version={version}')
     json_response = fetch_json(uri)
-    release_info.branch_position = json_response['chromium_base_position']
-    release_info.true_branch = json_response['chromium_branch']
+    return json_response['chromium_main_branch_position']
 
 
 def get_release_metadata_by_channel(release_info):
-    uri = (f'https://omahaproxy.appspot.com/all.json?'
-           f'os={release_info.os}&channel={release_info.channel}')
-    json_response = fetch_json(uri)[0]['versions'][0]
-    release_info.branch_position = json_response['branch_base_position']
-    release_info.true_branch = json_response['true_branch']
-    release_info.version = json_response['version']
+    os_to_platform = {
+        'linux': 'linux',
+        'linux_debug': 'linux',
+        'mac': 'mac',
+        'win64': 'win64',
+    }
+    platform = os_to_platform[release_info.os]
+    uri = (f'https://chromiumdash.appspot.com/fetch_releases'
+           f'?platform={platform}'
+           f'&channel={release_info.channel}'
+           f'&num=1&offset=0')
+    json_response = fetch_json(uri)
+    if not json_response:
+        fail(f'No releases found for platform "{platform}" '
+             f'and channel "{release_info.channel}"')
+    release = json_response[0]
+    release_info.branch_position = release['chromium_main_branch_position']
+    release_info.version = release['version']
 
 
 def get_release_metadata(release_info):
@@ -84,7 +94,8 @@ def get_release_metadata(release_info):
     if release_info.branch_position:
         return
     elif release_info.version:
-        get_release_metadata_by_version(release_info)
+        release_info.branch_position = get_release_metadata_by_version(
+            release_info.version)
     else:
         # If the channel unspecified, use channel closest to ToT for given OS.
         if not release_info.channel:
@@ -97,7 +108,8 @@ def get_release_metadata(release_info):
 
 
 def download_asan_chrome(release_info, download_dir, quiet, retries=100):
-    def ReportHook(blocknum, blocksize, totalsize):
+
+    def report_hook(blocknum, blocksize, totalsize):
         if quiet:
             return
         size = blocknum * blocksize
@@ -111,15 +123,14 @@ def download_asan_chrome(release_info, download_dir, quiet, retries=100):
         sys.stdout.write('\r' + progress)
         sys.stdout.flush()
 
-    # Translates OmahaProxy OS names to corresponding GCS storage paths.
+    # Translates Chromium Dash OS names to corresponding GCS storage paths.
     os_to_path = {
         'win64': 'win32-release_x64/asan-win32-release_x64',
         'linux': 'linux-release/asan-linux-release',
         'linux_debug': 'linux-debug/asan-linux-debug',
         'mac': 'mac-release/asan-mac-release',
-        'mac_debug': 'mac-release/asan-mac-debug',
+        # 'mac_debug': 'mac-debug/asan-mac-debug',
         # 'ios': 'ios-release/asan-ios-release', # unsupported
-        'cros': 'linux-release-chromeos/asan-linux-release',
         # android is currently unsupported
     }
 
@@ -139,7 +150,8 @@ def download_asan_chrome(release_info, download_dir, quiet, retries=100):
     outfile_path = os.path.join(download_dir, outfile_name)
     try:
         logging.debug(f'Fetching ASAN build from {asan_build_uri}')
-        outfile_path, _ = urlretrieve(asan_build_uri, outfile_path, ReportHook)
+        outfile_path, _ = urlretrieve(asan_build_uri, outfile_path,
+                                      report_hook)
     except urlliberror.HTTPError as e:
         if e.code == 404 and retries > 0:
             # Not every branch position gets an ASAN build, so try the previous
@@ -166,15 +178,22 @@ def main(release_info, download_dir, quiet):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--version', help='Chrome version, e.g. 105.0.5191.2.')
+    group.add_argument('--version',
+                       help='Chrome version, e.g. 120.0.6099.216.')
     group.add_argument('--branch_position',
                        help='Chrome branch base position, e.g. 1025959.')
     group.add_argument('--channel',
                        choices=['canary', 'dev', 'beta', 'stable'],
                        help='Chromium channel, e.g. canary.')
-    parser.add_argument('--os',
-                        choices=['linux', 'mac', 'win64', 'cros'],
-                        help='Operating system type as defined by OmahaProxy.')
+    parser.add_argument(
+        '--os',
+        choices=[
+            'win64',
+            'linux',
+            'linux_debug',
+            'mac',
+        ],
+        help='Operating system type as defined by Chromium Dash.')
     parser.add_argument(
         '--download_directory',
         default='.',
@@ -204,5 +223,5 @@ if __name__ == '__main__':
         logging.basicConfig(level=loglevel)
 
     release_info = ChromeRelease(args.os, args.branch_position, args.version,
-                                 args.channel, None)
+                                 args.channel)
     main(release_info, args.download_directory, args.quiet)

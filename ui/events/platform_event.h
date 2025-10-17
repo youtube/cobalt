@@ -7,20 +7,16 @@
 
 #include "build/build_config.h"
 
+// TODO(crbug.com/40267204): Both gfx::NativeEvent and ui::PlatformEvent
+// are typedefs for native event types on different platforms, but they're
+// slightly different and used in different places. They should be merged.
+
 #if BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
-#elif BUILDFLAG(IS_MAC)
-#if defined(__OBJC__)
-@class NSEvent;
-#else   // __OBJC__
-class NSEvent;
-#endif  // __OBJC__
-#elif BUILDFLAG(IS_IOS)
-#if defined(__OBJC__)
-@class UIEvent;
-#else   // __OBJC__
-class UIEvent;
-#endif  // __OBJC__
+#elif BUILDFLAG(IS_APPLE)
+#include "base/apple/owned_objc.h"
+#elif BUILDFLAG(IS_ANDROID)
+#include "ui/events/android/platform_event_android.h"
 #endif
 
 namespace ui {
@@ -35,9 +31,11 @@ using PlatformEvent = ui::Event*;
 #elif BUILDFLAG(IS_WIN)
 using PlatformEvent = CHROME_MSG;
 #elif BUILDFLAG(IS_MAC)
-using PlatformEvent = NSEvent*;
+using PlatformEvent = base::apple::OwnedNSEvent;
 #elif BUILDFLAG(IS_IOS)
-using PlatformEvent = UIEvent*;
+using PlatformEvent = base::apple::OwnedUIEvent;
+#elif BUILDFLAG(IS_ANDROID)
+using PlatformEvent = ui::PlatformEventAndroid;
 #else
 using PlatformEvent = void*;
 #endif

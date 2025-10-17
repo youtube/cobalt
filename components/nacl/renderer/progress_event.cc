@@ -36,7 +36,6 @@ const char* EventTypeToName(PP_NaClEventType event_type) {
       return "crash";
   }
   NOTREACHED();
-  return "";
 }
 
 void DispatchProgressEventOnMainThread(PP_Instance instance,

@@ -39,6 +39,7 @@
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
+#include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 
@@ -49,11 +50,8 @@ SubmitInputType::SubmitInputType(HTMLInputElement& element)
   UseCounter::Count(element.GetDocument(), WebFeature::kInputTypeSubmit);
 }
 
-const AtomicString& SubmitInputType::FormControlType() const {
-  return input_type_names::kSubmit;
-}
-
 void SubmitInputType::AppendToFormData(FormData& form_data) const {
+  InputType::AppendToFormData(form_data);
   if (GetElement().IsActivatedSubmit()) {
     form_data.AppendFromElement(GetElement().GetName(),
                                 GetElement().ValueOrDefaultLabel());
@@ -80,14 +78,16 @@ String SubmitInputType::DefaultLabel() const {
   return GetLocale().QueryString(IDS_FORM_SUBMIT_LABEL);
 }
 
-bool SubmitInputType::IsTextButton() const {
-  return true;
-}
-
 void SubmitInputType::ValueAttributeChanged() {
   UseCounter::Count(GetElement().GetDocument(),
                     WebFeature::kInputTypeSubmitWithValue);
   BaseButtonInputType::ValueAttributeChanged();
+}
+
+void SubmitInputType::AdjustStyle(ComputedStyleBuilder& builder) {
+  builder.SetShouldIgnoreOverflowPropertyForInlineBlockBaseline();
+  builder.SetInlineBlockBaselineEdge(EInlineBlockBaselineEdge::kContentBox);
+  BaseButtonInputType::AdjustStyle(builder);
 }
 
 }  // namespace blink

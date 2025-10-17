@@ -9,9 +9,11 @@
 #ifndef CONTENT_PUBLIC_BROWSER_PAGE_NAVIGATOR_H_
 #define CONTENT_PUBLIC_BROWSER_PAGE_NAVIGATOR_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/child_process_host.h"
@@ -23,7 +25,6 @@
 #include "ipc/ipc_message.h"
 #include "services/network/public/cpp/resource_request_body.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/navigation/impression.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/frame/triggering_event_info.mojom-shared.h"
@@ -50,7 +51,7 @@ struct CONTENT_EXPORT OpenURLParams {
                 bool started_from_context_menu);
   OpenURLParams(const GURL& url,
                 const Referrer& referrer,
-                int frame_tree_node_id,
+                FrameTreeNodeId frame_tree_node_id,
                 WindowOpenDisposition disposition,
                 ui::PageTransition transition,
                 bool is_renderer_initiated);
@@ -78,7 +79,7 @@ struct CONTENT_EXPORT OpenURLParams {
   // drop), and the frame with the corresponding token may have been deleted
   // before the navigation begins. This parameter is defined if and only if
   // |initiator_process_id| below is.
-  absl::optional<blink::LocalFrameToken> initiator_frame_token;
+  std::optional<blink::LocalFrameToken> initiator_frame_token;
 
   // ID of the renderer process of the RenderFrameHost that initiated the
   // navigation. This is defined if and only if |initiator_frame_token| above
@@ -86,11 +87,11 @@ struct CONTENT_EXPORT OpenURLParams {
   int initiator_process_id = ChildProcessHost::kInvalidUniqueID;
 
   // The origin of the initiator of the navigation.
-  absl::optional<url::Origin> initiator_origin;
+  std::optional<url::Origin> initiator_origin;
 
   // The base url of the initiator of the navigation. This will be non-null only
   // if the navigation is about:blank or about:srcdoc.
-  absl::optional<GURL> initiator_base_url;
+  std::optional<GURL> initiator_base_url;
 
   // SiteInstance of the frame that initiated the navigation or null if we
   // don't know it.
@@ -107,9 +108,9 @@ struct CONTENT_EXPORT OpenURLParams {
   // is terminated by \r\n.  May be empty if no extra headers are needed.
   std::string extra_headers;
 
-  // The browser-global FrameTreeNode ID or RenderFrameHost::kNoFrameTreeNodeId
-  // to indicate the main frame.
-  int frame_tree_node_id = RenderFrameHost::kNoFrameTreeNodeId;
+  // The browser-global FrameTreeNode ID for the frame to navigate, or the
+  // default-constructed invalid value to indicate the main frame.
+  FrameTreeNodeId frame_tree_node_id;
 
   // Routing id of the source RenderFrameHost.
   int source_render_frame_id = MSG_ROUTING_NONE;
@@ -160,21 +161,32 @@ struct CONTENT_EXPORT OpenURLParams {
   // Optional impression associated with this navigation. Only set on
   // navigations that originate from links with impression attributes. Used for
   // conversion measurement.
-  absl::optional<blink::Impression> impression;
+  std::optional<blink::Impression> impression;
 
   // Indicates that this navigation is for PDF content in a renderer.
   bool is_pdf = false;
+
+  // True if the initiator explicitly asked for opener relationships to be
+  // preserved, via rel="opener".
+  bool has_rel_opener = false;
 };
 
 class PageNavigator {
  public:
-  virtual ~PageNavigator() {}
+  virtual ~PageNavigator() = default;
 
-  // Opens a URL with the given disposition.  The transition specifies how this
-  // navigation should be recorded in the history system (for example, typed).
-  // Returns the WebContents the URL is opened in, or nullptr if the URL wasn't
-  // opened immediately.
-  virtual WebContents* OpenURL(const OpenURLParams& params) = 0;
+  // Opens a URL using parameters from `params`.
+  // Returns:
+  //    * A pointer to the WebContents object where the URL is opened.
+  //    * nullptr if the URL could not be opened immediately.
+  //
+  // If a `navigation_handle_callback` function is provided, it should be called
+  // with the pending navigation (if any) when the navigation handle become
+  // available. This allows callers to observe or attach their specific data.
+  // This function may not be called if the navigation fails for any reason.
+  virtual WebContents* OpenURL(const OpenURLParams& params,
+                               base::OnceCallback<void(NavigationHandle&)>
+                                   navigation_handle_callback) = 0;
 };
 
 }  // namespace content

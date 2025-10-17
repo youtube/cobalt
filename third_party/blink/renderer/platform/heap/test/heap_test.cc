@@ -28,6 +28,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
+#include <array>
+
 #include "base/synchronization/lock.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
@@ -53,14 +60,17 @@
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
-#include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
 #include "v8/include/cppgc/internal/api-constants.h"
 
 namespace blink {
 
 namespace {
 
-class HeapTest : public TestSupportingGC {};
+class HeapTest : public TestSupportingGC {
+#if DCHECK_IS_ON()
+  void TearDown() override { WTF::SetIsBeforeThreadCreatedForTest(); }
+#endif
+};
 
 class HeapDeathTest : public TestSupportingGC {};
 
@@ -104,7 +114,7 @@ static_assert(WTF::IsTraceable<HeapDeque<IntWrapper>>::value,
 static_assert(
     WTF::IsTraceable<HeapHashSet<IntWrapper, IntWrapperHashTraits>>::value,
     "HeapHashSet<IntWrapper> must be traceable.");
-static_assert(WTF::IsTraceable<HeapHashMap<int, IntWrapper>>::value,
+static_assert(WTF::IsTraceable<HeapHashMap<int, Member<IntWrapper>>>::value,
               "HeapHashMap<int, IntWrapper> must be traceable.");
 
 }  // namespace
@@ -506,9 +516,9 @@ class ThreadedWeaknessTester : public ThreadedTesterBase {
     int gc_count = 0;
     while (!Done()) {
       {
-        Persistent<HeapHashMap<ThreadMarker, WeakMember<IntWrapper>>> weak_map =
-            MakeGarbageCollected<
-                HeapHashMap<ThreadMarker, WeakMember<IntWrapper>>>();
+        Persistent<GCedHeapHashMap<ThreadMarker, WeakMember<IntWrapper>>>
+            weak_map = MakeGarbageCollected<
+                GCedHeapHashMap<ThreadMarker, WeakMember<IntWrapper>>>();
 
         for (int i = 0; i < kNumberOfAllocations; i++) {
           weak_map->insert(ThreadMarker(i),
@@ -610,8 +620,8 @@ TEST_F(HeapTest, HashMapOfMembers) {
   IntWrapper::destructor_calls_ = 0;
   size_t initial_object_payload_size = GetOverallObjectSize();
   {
-    typedef HeapHashMap<Member<IntWrapper>, Member<IntWrapper>>
-        HeapObjectIdentityMap;
+    using HeapObjectIdentityMap =
+        GCedHeapHashMap<Member<IntWrapper>, Member<IntWrapper>>;
 
     Persistent<HeapObjectIdentityMap> map =
         MakeGarbageCollected<HeapObjectIdentityMap>();
@@ -713,9 +723,9 @@ TEST_F(HeapTest, MAYBE_LargeHashMap) {
 
   ClearOutOldGarbage();
   wtf_size_t size = kLargeObjectSize /
-                    sizeof(HeapHashMap<int, Member<IntWrapper>>::ValueType);
-  Persistent<HeapHashMap<int, Member<IntWrapper>>> map =
-      MakeGarbageCollected<HeapHashMap<int, Member<IntWrapper>>>();
+                    sizeof(GCedHeapHashMap<int, Member<IntWrapper>>::ValueType);
+  Persistent<GCedHeapHashMap<int, Member<IntWrapper>>> map =
+      MakeGarbageCollected<GCedHeapHashMap<int, Member<IntWrapper>>>();
   map->ReserveCapacityForSize(size);
   EXPECT_LE(size, map->Capacity());
 }
@@ -728,8 +738,8 @@ TEST_F(HeapTest, LargeVector) {
   ClearOutOldGarbage();
 
   const wtf_size_t size = kLargeObjectSize / sizeof(Member<IntWrapper>);
-  Persistent<HeapVector<Member<IntWrapper>>> vector =
-      MakeGarbageCollected<HeapVector<Member<IntWrapper>>>(size);
+  Persistent<GCedHeapVector<Member<IntWrapper>>> vector =
+      MakeGarbageCollected<GCedHeapVector<Member<IntWrapper>>>(size);
   EXPECT_LE(size, vector->capacity());
 }
 
@@ -900,8 +910,8 @@ TEST_F(HeapTest, HeapVectorOnStackLargeObjectPageSized) {
 
 namespace {
 template <typename T, typename U>
-bool DequeContains(HeapDeque<T>& deque, U u) {
-  typedef typename HeapDeque<T>::iterator iterator;
+bool DequeContains(GCedHeapDeque<T>& deque, U u) {
+  typedef typename GCedHeapDeque<T>::iterator iterator;
   for (iterator it = deque.begin(); it != deque.end(); ++it) {
     if (*it == u)
       return true;
@@ -913,18 +923,15 @@ bool DequeContains(HeapDeque<T>& deque, U u) {
 TEST_F(HeapTest, HeapCollectionTypes) {
   IntWrapper::destructor_calls_ = 0;
 
-  typedef HeapHashMap<Member<IntWrapper>, Member<IntWrapper>> MemberMember;
-  typedef HeapHashMap<Member<IntWrapper>, int> MemberPrimitive;
-  typedef HeapHashMap<int, Member<IntWrapper>> PrimitiveMember;
-
-  typedef HeapHashSet<Member<IntWrapper>> MemberSet;
-  typedef HeapHashCountedSet<Member<IntWrapper>> MemberCountedSet;
-
-  typedef HeapVector<Member<IntWrapper>, 2> MemberVector;
-  typedef HeapDeque<Member<IntWrapper>> MemberDeque;
-
-  typedef HeapVector<PairWrappedUnwrapped, 2> VectorWU;
-  typedef HeapVector<PairUnwrappedWrapped, 2> VectorUW;
+  using MemberMember = GCedHeapHashMap<Member<IntWrapper>, Member<IntWrapper>>;
+  using MemberPrimitive = GCedHeapHashMap<Member<IntWrapper>, int>;
+  using PrimitiveMember = GCedHeapHashMap<int, Member<IntWrapper>>;
+  using MemberSet = GCedHeapHashSet<Member<IntWrapper>>;
+  using MemberCountedSet = GCedHeapHashCountedSet<Member<IntWrapper>>;
+  using MemberVector = GCedHeapVector<Member<IntWrapper>, 2>;
+  using MemberDeque = GCedHeapDeque<Member<IntWrapper>>;
+  using VectorWU = GCedHeapVector<PairWrappedUnwrapped, 2>;
+  using VectorUW = GCedHeapVector<PairUnwrappedWrapped, 2>;
 
   Persistent<MemberMember> member_member = MakeGarbageCollected<MemberMember>();
   Persistent<MemberMember> member_member2 =
@@ -1031,43 +1038,43 @@ TEST_F(HeapTest, HeapCollectionTypes) {
       EXPECT_EQ(1u, deque->size());
       EXPECT_EQ(2u, deque2->size());
 
-      MemberVector& cvec = container->vector;
+      auto& cvec = container->vector;
       cvec.swap(*vector.Get());
       vector2->swap(cvec);
       vector->swap(cvec);
 
-      VectorWU& cvec_wu = container->vector_wu;
+      auto& cvec_wu = container->vector_wu;
       cvec_wu.swap(*vector_wu.Get());
       vector_wu2->swap(cvec_wu);
       vector_wu->swap(cvec_wu);
 
-      VectorUW& cvec_uw = container->vector_uw;
+      auto& cvec_uw = container->vector_uw;
       cvec_uw.swap(*vector_uw.Get());
       vector_uw2->swap(cvec_uw);
       vector_uw->swap(cvec_uw);
 
-      MemberDeque& c_deque = container->deque;
+      auto& c_deque = container->deque;
       c_deque.Swap(*deque.Get());
       deque2->Swap(c_deque);
       deque->Swap(c_deque);
 
       // Swap set and set2 in a roundabout way.
-      MemberSet& cset1 = container->set;
-      MemberSet& cset2 = container->set2;
+      auto& cset1 = container->set;
+      auto& cset2 = container->set2;
       set->swap(cset1);
       set2->swap(cset2);
       set->swap(cset2);
       cset1.swap(cset2);
       cset2.swap(*set2);
 
-      MemberCountedSet& c_counted_set = container->set3;
+      auto& c_counted_set = container->set3;
       set3->swap(c_counted_set);
       EXPECT_EQ(0u, set3->size());
       set3->swap(c_counted_set);
 
       // Triple swap.
       container->map.swap(*member_member2);
-      MemberMember& contained_map = container->map;
+      auto& contained_map = container->map;
       member_member3->swap(contained_map);
       member_member3->swap(*member_member);
 
@@ -1425,14 +1432,17 @@ TEST_F(HeapTest, HeapWeakCollectionSimple) {
   ClearOutOldGarbage();
   IntWrapper::destructor_calls_ = 0;
 
-  Persistent<HeapVector<Member<IntWrapper>>> keep_numbers_alive =
-      MakeGarbageCollected<HeapVector<Member<IntWrapper>>>();
+  Persistent<GCedHeapVector<Member<IntWrapper>>> keep_numbers_alive =
+      MakeGarbageCollected<GCedHeapVector<Member<IntWrapper>>>();
 
-  typedef HeapHashMap<WeakMember<IntWrapper>, Member<IntWrapper>> WeakStrong;
-  typedef HeapHashMap<Member<IntWrapper>, WeakMember<IntWrapper>> StrongWeak;
-  typedef HeapHashMap<WeakMember<IntWrapper>, WeakMember<IntWrapper>> WeakWeak;
-  typedef HeapHashSet<WeakMember<IntWrapper>> WeakSet;
-  typedef HeapHashCountedSet<WeakMember<IntWrapper>> WeakCountedSet;
+  using WeakStrong =
+      GCedHeapHashMap<WeakMember<IntWrapper>, Member<IntWrapper>>;
+  using StrongWeak =
+      GCedHeapHashMap<Member<IntWrapper>, WeakMember<IntWrapper>>;
+  using WeakWeak =
+      GCedHeapHashMap<WeakMember<IntWrapper>, WeakMember<IntWrapper>>;
+  using WeakSet = GCedHeapHashSet<WeakMember<IntWrapper>>;
+  using WeakCountedSet = GCedHeapHashCountedSet<WeakMember<IntWrapper>>;
 
   Persistent<WeakStrong> weak_strong = MakeGarbageCollected<WeakStrong>();
   Persistent<StrongWeak> strong_weak = MakeGarbageCollected<StrongWeak>();
@@ -1487,8 +1497,8 @@ template <typename Set>
 void OrderedSetHelper(bool strong) {
   IntWrapper::destructor_calls_ = 0;
 
-  Persistent<HeapVector<Member<IntWrapper>>> keep_numbers_alive =
-      MakeGarbageCollected<HeapVector<Member<IntWrapper>>>();
+  Persistent<GCedHeapVector<Member<IntWrapper>>> keep_numbers_alive =
+      MakeGarbageCollected<GCedHeapVector<Member<IntWrapper>>>();
 
   Persistent<Set> set1 = MakeGarbageCollected<Set>();
   Persistent<Set> set2 = MakeGarbageCollected<Set>();
@@ -1596,9 +1606,9 @@ void OrderedSetHelper(bool strong) {
 
 TEST_F(HeapTest, HeapWeakLinkedHashSet) {
   ClearOutOldGarbage();
-  OrderedSetHelper<HeapLinkedHashSet<Member<IntWrapper>>>(true);
+  OrderedSetHelper<GCedHeapLinkedHashSet<Member<IntWrapper>>>(true);
   ClearOutOldGarbage();
-  OrderedSetHelper<HeapLinkedHashSet<WeakMember<IntWrapper>>>(false);
+  OrderedSetHelper<GCedHeapLinkedHashSet<WeakMember<IntWrapper>>>(false);
 }
 
 namespace {
@@ -1679,7 +1689,7 @@ class RefCountedAndGarbageCollected final
   ~RefCountedAndGarbageCollected() { ++destructor_calls_; }
 
   void AddRef() {
-    if (UNLIKELY(!ref_count_)) {
+    if (!ref_count_) [[unlikely]] {
       keep_alive_ = this;
     }
     ++ref_count_;
@@ -1704,14 +1714,15 @@ int RefCountedAndGarbageCollected::destructor_calls_ = 0;
 static void HeapMapDestructorHelper(bool clear_maps) {
   ThingWithDestructor::live_things_with_destructor_ = 0;
 
-  typedef HeapHashMap<WeakMember<IntWrapper>,
-                      Member<RefCountedAndGarbageCollected>>
-      RefMap;
+  using RefMap = HeapHashMap<WeakMember<IntWrapper>,
+                             Member<RefCountedAndGarbageCollected>>;
+  using GCedRefMap = GCedHeapHashMap<WeakMember<IntWrapper>,
+                                     Member<RefCountedAndGarbageCollected>>;
+  using Map = HeapHashMap<WeakMember<IntWrapper>, ThingWithDestructor>;
+  using GCedMap = GCedHeapHashMap<WeakMember<IntWrapper>, ThingWithDestructor>;
 
-  typedef HeapHashMap<WeakMember<IntWrapper>, ThingWithDestructor> Map;
-
-  Persistent<Map> map(MakeGarbageCollected<Map>());
-  Persistent<RefMap> ref_map(MakeGarbageCollected<RefMap>());
+  Persistent<GCedMap> map(MakeGarbageCollected<GCedMap>());
+  Persistent<GCedRefMap> ref_map(MakeGarbageCollected<GCedRefMap>());
 
   Persistent<IntWrapper> luck(MakeGarbageCollected<IntWrapper>(103));
 
@@ -1819,11 +1830,14 @@ void SetIteratorCheck(T& it, const T& end, int expected) {
 TEST_F(HeapTest, HeapWeakCollectionTypes) {
   IntWrapper::destructor_calls_ = 0;
 
-  typedef HeapHashMap<WeakMember<IntWrapper>, Member<IntWrapper>> WeakStrong;
-  typedef HeapHashMap<Member<IntWrapper>, WeakMember<IntWrapper>> StrongWeak;
-  typedef HeapHashMap<WeakMember<IntWrapper>, WeakMember<IntWrapper>> WeakWeak;
-  typedef HeapHashSet<WeakMember<IntWrapper>> WeakSet;
-  typedef HeapLinkedHashSet<WeakMember<IntWrapper>> WeakOrderedSet;
+  using WeakStrong =
+      GCedHeapHashMap<WeakMember<IntWrapper>, Member<IntWrapper>>;
+  using StrongWeak =
+      GCedHeapHashMap<Member<IntWrapper>, WeakMember<IntWrapper>>;
+  using WeakWeak =
+      GCedHeapHashMap<WeakMember<IntWrapper>, WeakMember<IntWrapper>>;
+  using WeakSet = GCedHeapHashSet<WeakMember<IntWrapper>>;
+  using WeakOrderedSet = GCedHeapLinkedHashSet<WeakMember<IntWrapper>>;
 
   ClearOutOldGarbage();
 
@@ -1857,8 +1871,8 @@ TEST_F(HeapTest, HeapWeakCollectionTypes) {
       Persistent<WeakOrderedSet> weak_ordered_set =
           MakeGarbageCollected<WeakOrderedSet>();
 
-      Persistent<HeapVector<Member<IntWrapper>>> keep_numbers_alive =
-          MakeGarbageCollected<HeapVector<Member<IntWrapper>>>();
+      Persistent<GCedHeapVector<Member<IntWrapper>>> keep_numbers_alive =
+          MakeGarbageCollected<GCedHeapVector<Member<IntWrapper>>>();
       for (int i = 0; i < 128; i += 2) {
         auto* wrapped = MakeGarbageCollected<IntWrapper>(i);
         auto* wrapped2 = MakeGarbageCollected<IntWrapper>(i + 1);
@@ -1942,8 +1956,8 @@ TEST_F(HeapTest, HeapWeakCollectionTypes) {
         PreciselyCollectGarbage();
         unsigned count = 0;
         for (int i = 0; i < 128; i += 2) {
-          bool first_alive = keep_numbers_alive->at(i);
-          bool second_alive = keep_numbers_alive->at(i + 1);
+          bool first_alive = keep_numbers_alive->at(i) != nullptr;
+          bool second_alive = keep_numbers_alive->at(i + 1) != nullptr;
           if (first_alive && (collection_number == kWeakStrongIndex ||
                               collection_number == kStrongWeakIndex))
             second_alive = true;
@@ -2044,7 +2058,7 @@ TEST_F(HeapTest, HeapHashCountedSetToVector) {
   set.insert(MakeGarbageCollected<IntWrapper>(1));
   set.insert(MakeGarbageCollected<IntWrapper>(2));
 
-  CopyToVector(set, vector);
+  vector.assign(set.Values());
   EXPECT_EQ(3u, vector.size());
 
   Vector<int> int_vector;
@@ -2064,10 +2078,45 @@ TEST_F(HeapTest, WeakHeapHashCountedSetToVector) {
   set.insert(MakeGarbageCollected<IntWrapper>(1));
   set.insert(MakeGarbageCollected<IntWrapper>(2));
 
-  CopyToVector(set, vector);
+  vector.assign(set.Values());
   EXPECT_LE(3u, vector.size());
   for (const auto& i : vector)
     EXPECT_TRUE(i->Value() == 1 || i->Value() == 2);
+}
+
+TEST_F(HeapTest, HeapHashSetToVector) {
+  HeapHashSet<Member<IntWrapper>> set;
+  HeapVector<Member<IntWrapper>> vector;
+  set.insert(MakeGarbageCollected<IntWrapper>(1));
+  set.insert(MakeGarbageCollected<IntWrapper>(1));
+  set.insert(MakeGarbageCollected<IntWrapper>(2));
+
+  vector.assign(set);
+  EXPECT_EQ(3u, vector.size());
+
+  Vector<int> int_vector;
+  for (const auto& i : vector) {
+    int_vector.push_back(i->Value());
+  }
+  std::sort(int_vector.begin(), int_vector.end());
+  ASSERT_EQ(3u, int_vector.size());
+  EXPECT_EQ(1, int_vector[0]);
+  EXPECT_EQ(1, int_vector[1]);
+  EXPECT_EQ(2, int_vector[2]);
+}
+
+TEST_F(HeapTest, WeakHeapHashSetToVector) {
+  HeapHashSet<WeakMember<IntWrapper>> set;
+  HeapVector<Member<IntWrapper>> vector;
+  set.insert(MakeGarbageCollected<IntWrapper>(1));
+  set.insert(MakeGarbageCollected<IntWrapper>(1));
+  set.insert(MakeGarbageCollected<IntWrapper>(2));
+
+  vector.assign(set);
+  EXPECT_EQ(3u, vector.size());
+  for (const auto& i : vector) {
+    EXPECT_TRUE(i->Value() == 1 || i->Value() == 2);
+  }
 }
 
 TEST_F(HeapTest, RefCountedGarbageCollected) {
@@ -2107,12 +2156,12 @@ TEST_F(HeapTest, CollectionNesting) {
   int k;
   int* key = &k;
   IntWrapper::destructor_calls_ = 0;
-  typedef HeapVector<Member<IntWrapper>> IntVector;
-  typedef HeapDeque<Member<IntWrapper>> IntDeque;
-  HeapHashMap<void*, Member<IntVector>>* map =
-      MakeGarbageCollected<HeapHashMap<void*, Member<IntVector>>>();
-  HeapHashMap<void*, Member<IntDeque>>* map2 =
-      MakeGarbageCollected<HeapHashMap<void*, Member<IntDeque>>>();
+  typedef GCedHeapVector<Member<IntWrapper>> IntVector;
+  typedef GCedHeapDeque<Member<IntWrapper>> IntDeque;
+  GCedHeapHashMap<void*, Member<IntVector>>* map =
+      MakeGarbageCollected<GCedHeapHashMap<void*, Member<IntVector>>>();
+  GCedHeapHashMap<void*, Member<IntDeque>>* map2 =
+      MakeGarbageCollected<GCedHeapHashMap<void*, Member<IntDeque>>>();
   static_assert(WTF::IsTraceable<IntVector>::value,
                 "Failed to recognize HeapVector as traceable");
   static_assert(WTF::IsTraceable<IntDeque>::value,
@@ -2133,8 +2182,8 @@ TEST_F(HeapTest, CollectionNesting) {
   it2->value->push_back(MakeGarbageCollected<IntWrapper>(42));
   EXPECT_EQ(1u, map2->at(key)->size());
 
-  Persistent<HeapHashMap<void*, Member<IntVector>>> keep_alive(map);
-  Persistent<HeapHashMap<void*, Member<IntDeque>>> keep_alive2(map2);
+  Persistent<GCedHeapHashMap<void*, Member<IntVector>>> keep_alive(map);
+  Persistent<GCedHeapHashMap<void*, Member<IntDeque>>> keep_alive2(map2);
 
   for (int i = 0; i < 100; i++) {
     map->insert(key + 1 + i, MakeGarbageCollected<IntVector>());
@@ -2156,19 +2205,19 @@ TEST_F(HeapTest, CollectionNesting2) {
   ClearOutOldGarbage();
   void* key = &IntWrapper::destructor_calls_;
   IntWrapper::destructor_calls_ = 0;
-  typedef HeapHashSet<Member<IntWrapper>> IntSet;
-  HeapHashMap<void*, Member<IntSet>>* map =
-      MakeGarbageCollected<HeapHashMap<void*, Member<IntSet>>>();
+  using IntSet = GCedHeapHashSet<Member<IntWrapper>>;
+  GCedHeapHashMap<void*, Member<IntSet>>* map =
+      MakeGarbageCollected<GCedHeapHashMap<void*, Member<IntSet>>>();
 
   map->insert(key, MakeGarbageCollected<IntSet>());
 
-  HeapHashMap<void*, Member<IntSet>>::iterator it = map->find(key);
+  GCedHeapHashMap<void*, Member<IntSet>>::iterator it = map->find(key);
   EXPECT_EQ(0u, map->at(key)->size());
 
   it->value->insert(MakeGarbageCollected<IntWrapper>(42));
   EXPECT_EQ(1u, map->at(key)->size());
 
-  Persistent<HeapHashMap<void*, Member<IntSet>>> keep_alive(map);
+  Persistent<GCedHeapHashMap<void*, Member<IntSet>>> keep_alive(map);
   PreciselyCollectGarbage();
   EXPECT_EQ(1u, map->at(key)->size());
   EXPECT_EQ(0, IntWrapper::destructor_calls_);
@@ -2178,7 +2227,8 @@ TEST_F(HeapTest, CollectionNesting3) {
   ClearOutOldGarbage();
   IntWrapper::destructor_calls_ = 0;
   typedef HeapVector<Member<IntWrapper>> IntVector;
-  HeapVector<IntVector>* vector = MakeGarbageCollected<HeapVector<IntVector>>();
+  GCedHeapVector<IntVector>* vector =
+      MakeGarbageCollected<GCedHeapVector<IntVector>>();
 
   vector->push_back(IntVector());
 
@@ -2188,7 +2238,7 @@ TEST_F(HeapTest, CollectionNesting3) {
   it->push_back(MakeGarbageCollected<IntWrapper>(42));
   EXPECT_EQ(1u, it->size());
 
-  Persistent<HeapVector<IntVector>> keep_alive(vector);
+  Persistent<GCedHeapVector<IntVector>> keep_alive(vector);
   PreciselyCollectGarbage();
   EXPECT_EQ(1u, it->size());
   EXPECT_EQ(0, IntWrapper::destructor_calls_);
@@ -2234,10 +2284,10 @@ TEST_F(HeapTest, EmbeddedInVector) {
   ClearOutOldGarbage();
   SimpleFinalizedObject::destructor_calls_ = 0;
   {
-    Persistent<HeapVector<VectorObject, 2>> inline_vector =
-        MakeGarbageCollected<HeapVector<VectorObject, 2>>();
-    Persistent<HeapVector<VectorObject>> outline_vector =
-        MakeGarbageCollected<HeapVector<VectorObject>>();
+    Persistent<GCedHeapVector<VectorObject, 2>> inline_vector =
+        MakeGarbageCollected<GCedHeapVector<VectorObject, 2>>();
+    Persistent<GCedHeapVector<VectorObject>> outline_vector =
+        MakeGarbageCollected<GCedHeapVector<VectorObject>>();
     VectorObject i1, i2;
     inline_vector->push_back(i1);
     inline_vector->push_back(i2);
@@ -2246,8 +2296,9 @@ TEST_F(HeapTest, EmbeddedInVector) {
     outline_vector->push_back(o1);
     outline_vector->push_back(o2);
 
-    Persistent<HeapVector<VectorObjectInheritedTrace>> vector_inherited_trace =
-        MakeGarbageCollected<HeapVector<VectorObjectInheritedTrace>>();
+    Persistent<GCedHeapVector<VectorObjectInheritedTrace>>
+        vector_inherited_trace =
+            MakeGarbageCollected<GCedHeapVector<VectorObjectInheritedTrace>>();
     VectorObjectInheritedTrace it1, it2;
     vector_inherited_trace->push_back(it1);
     vector_inherited_trace->push_back(it2);
@@ -2463,7 +2514,7 @@ TEST_F(HeapTest, DestructorsCalled) {
 
 namespace {
 static void AddElementsToWeakMap(
-    HeapHashMap<int, WeakMember<IntWrapper>>* map) {
+    GCedHeapHashMap<int, WeakMember<IntWrapper>>* map) {
   // Key cannot be zero in hashmap.
   for (int i = 1; i < 11; i++)
     map->insert(i, MakeGarbageCollected<IntWrapper>(i));
@@ -2473,8 +2524,8 @@ static void AddElementsToWeakMap(
 // crbug.com/402426
 // If it doesn't assert a concurrent modification to the map, then it's passing.
 TEST_F(HeapTest, RegressNullIsStrongified) {
-  Persistent<HeapHashMap<int, WeakMember<IntWrapper>>> map =
-      MakeGarbageCollected<HeapHashMap<int, WeakMember<IntWrapper>>>();
+  Persistent<GCedHeapHashMap<int, WeakMember<IntWrapper>>> map =
+      MakeGarbageCollected<GCedHeapHashMap<int, WeakMember<IntWrapper>>>();
   AddElementsToWeakMap(map);
   HeapHashMap<int, WeakMember<IntWrapper>>::AddResult result =
       map->insert(800, nullptr);
@@ -2497,7 +2548,7 @@ class SimpleObject : public GarbageCollected<SimpleObject> {
   virtual void VirtualMethod() {}
 
  protected:
-  char payload[64];
+  std::array<char, 64> payload;
 };
 
 class Mixin : public GarbageCollectedMixin {
@@ -2507,7 +2558,7 @@ class Mixin : public GarbageCollectedMixin {
   virtual char GetPayload(int i) { return padding_[i]; }
 
  protected:
-  int padding_[8];
+  std::array<int, 8> padding_;
 };
 
 class UseMixin : public SimpleObject, public Mixin {
@@ -2602,8 +2653,8 @@ TEST_F(HeapTest, Bind) {
 }
 
 TEST_F(HeapTest, EphemeronsInEphemerons) {
-  typedef HeapHashMap<WeakMember<IntWrapper>, Member<IntWrapper>> InnerMap;
-  typedef HeapHashMap<WeakMember<IntWrapper>, Member<InnerMap>> OuterMap;
+  using InnerMap = GCedHeapHashMap<WeakMember<IntWrapper>, Member<IntWrapper>>;
+  using OuterMap = GCedHeapHashMap<WeakMember<IntWrapper>, Member<InnerMap>>;
 
   for (int keep_outer_alive = 0; keep_outer_alive <= 1; keep_outer_alive++) {
     for (int keep_inner_alive = 0; keep_inner_alive <= 1; keep_inner_alive++) {
@@ -2634,8 +2685,8 @@ TEST_F(HeapTest, EphemeronsInEphemerons) {
       Persistent<IntWrapper> deep = MakeGarbageCollected<IntWrapper>(42);
       Persistent<IntWrapper> home = MakeGarbageCollected<IntWrapper>(103);
       Persistent<IntWrapper> composite = MakeGarbageCollected<IntWrapper>(91);
-      Persistent<HeapVector<Member<IntWrapper>>> keep_alive =
-          MakeGarbageCollected<HeapVector<Member<IntWrapper>>>();
+      Persistent<GCedHeapVector<Member<IntWrapper>>> keep_alive =
+          MakeGarbageCollected<GCedHeapVector<Member<IntWrapper>>>();
       for (int i = 0; i < 10000; i++) {
         auto* value = MakeGarbageCollected<IntWrapper>(i);
         keep_alive->push_back(value);
@@ -2722,7 +2773,7 @@ TEST_F(HeapTest, EphemeronsPointToEphemerons) {
 }
 
 TEST_F(HeapTest, Ephemeron) {
-  typedef HeapHashSet<WeakMember<IntWrapper>> Set;
+  using Set = GCedHeapHashSet<WeakMember<IntWrapper>>;
 
   Persistent<Set> set = MakeGarbageCollected<Set>();
 
@@ -2764,7 +2815,7 @@ class Link1 : public GarbageCollected<Link1> {
 
   void Trace(Visitor* visitor) const { visitor->Trace(link_); }
 
-  IntWrapper* Link() { return link_; }
+  IntWrapper* Link() { return link_.Get(); }
 
  private:
   Member<IntWrapper> link_;
@@ -2772,7 +2823,7 @@ class Link1 : public GarbageCollected<Link1> {
 }  // namespace
 
 TEST_F(HeapTest, IndirectStrongToWeak) {
-  typedef HeapHashMap<WeakMember<IntWrapper>, Member<Link1>> Map;
+  using Map = GCedHeapHashMap<WeakMember<IntWrapper>, Member<Link1>>;
   Persistent<Map> map = MakeGarbageCollected<Map>();
   Persistent<IntWrapper> dead_object = MakeGarbageCollected<IntWrapper>(
       100);  // Named for "Drowning by Numbers" (1988).
@@ -2801,7 +2852,7 @@ class AllocatesOnAssignment : public GarbageCollected<AllocatesOnAssignment> {
   AllocatesOnAssignment(int x) : value_(MakeGarbageCollected<IntWrapper>(x)) {}
   AllocatesOnAssignment(IntWrapper* x) : value_(x) {}
 
-  AllocatesOnAssignment& operator=(const AllocatesOnAssignment x) {
+  AllocatesOnAssignment& operator=(const AllocatesOnAssignment& x) {
     value_ = x.value_;
     return *this;
   }
@@ -2844,9 +2895,8 @@ void swap(AllocatesOnAssignment& a, AllocatesOnAssignment& b) {
 }
 
 TEST_F(HeapTest, GCInHashMapOperations) {
-  typedef HeapHashMap<Member<AllocatesOnAssignment>,
-                      Member<AllocatesOnAssignment>>
-      Map;
+  using Map = GCedHeapHashMap<Member<AllocatesOnAssignment>,
+                              Member<AllocatesOnAssignment>>;
   Persistent<Map> map = MakeGarbageCollected<Map>();
   IntWrapper* key = MakeGarbageCollected<IntWrapper>(42);
   AllocatesOnAssignment* object =
@@ -2864,7 +2914,7 @@ TEST_F(HeapTest, GCInHashMapOperations) {
 TEST_F(HeapTest, DequeExpand) {
   // Test expansion of a HeapDeque<>'s buffer.
 
-  typedef HeapDeque<Member<IntWrapper>> IntDeque;
+  using IntDeque = GCedHeapDeque<Member<IntWrapper>>;
 
   Persistent<IntDeque> deque = MakeGarbageCollected<IntDeque>();
 
@@ -2998,11 +3048,11 @@ class ThreadedClearOnShutdownTester : public ThreadedTesterBase {
   class HeapObject;
   friend class HeapObject;
 
-  using WeakHeapObjectSet = HeapHashSet<WeakMember<HeapObject>>;
+  using WeakHeapObjectSet = GCedHeapHashSet<WeakMember<HeapObject>>;
 
   static WeakHeapObjectSet& GetWeakHeapObjectSet();
 
-  using HeapObjectSet = HeapHashSet<Member<HeapObject>>;
+  using HeapObjectSet = GCedHeapHashSet<Member<HeapObject>>;
   static HeapObjectSet& GetHeapObjectSet();
 
   static IntWrapper& ThreadSpecificIntWrapper() {
@@ -3192,8 +3242,8 @@ TEST_F(HeapTest, CollectNodeAndCssStatistics) {
         node_bytes_before = node_bytes;
         css_bytes_before = css_bytes;
       }));
-  auto* node = MakeGarbageCollected<FakeNode>();
-  auto* css = MakeGarbageCollected<FakeCSSValue>();
+  Persistent<FakeNode> node = MakeGarbageCollected<FakeNode>();
+  Persistent<FakeCSSValue> css = MakeGarbageCollected<FakeCSSValue>();
   ConservativelyCollectGarbage();
   size_t node_bytes_after, css_bytes_after;
   ThreadState::Current()->CollectNodeAndCssStatistics(

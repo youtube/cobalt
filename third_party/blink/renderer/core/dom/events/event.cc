@@ -38,12 +38,14 @@
 #include "third_party/blink/renderer/core/svg/svg_element.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
+#include "third_party/blink/renderer/core/timing/worker_global_scope_performance.h"
+#include "third_party/blink/renderer/core/workers/worker_global_scope.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 
 namespace blink {
 
-Event::Event() : Event("", Bubbles::kNo, Cancelable::kNo) {
+Event::Event() : Event(g_empty_atom, Bubbles::kNo, Cancelable::kNo) {
   was_initialized_ = false;
 }
 
@@ -289,25 +291,23 @@ void Event::InitEventPath(Node& node) {
   }
 }
 
-ScriptValue Event::path(ScriptState* script_state) const {
-  Deprecation::CountDeprecation(ExecutionContext::From(script_state),
-                                WebFeature::kEventPath);
-  return ScriptValue(
-      script_state->GetIsolate(),
-      ToV8(PathInternal(script_state, kNonEmptyAfterDispatch), script_state));
-}
-
-HeapVector<Member<EventTarget>> Event::composedPath(
-    ScriptState* script_state) const {
-  return PathInternal(script_state, kEmptyAfterDispatch);
+bool Event::IsFullyTrusted() const {
+  const Event* event = this;
+  while (event) {
+    if (!event->isTrusted()) {
+      return false;
+    }
+    event = event->UnderlyingEvent();
+  }
+  return true;
 }
 
 void Event::SetHandlingPassive(PassiveMode mode) {
   handling_passive_ = mode;
 }
 
-HeapVector<Member<EventTarget>> Event::PathInternal(ScriptState* script_state,
-                                                    EventPathMode mode) const {
+HeapVector<Member<EventTarget>> Event::composedPath(
+    ScriptState* script_state) const {
   if (!current_target_) {
     DCHECK_EQ(Event::PhaseType::kNone, event_phase_);
     if (!event_path_) {
@@ -316,26 +316,26 @@ HeapVector<Member<EventTarget>> Event::PathInternal(ScriptState* script_state,
     }
     DCHECK(!event_path_->IsEmpty());
     // After dispatching the event
-    if (mode == kEmptyAfterDispatch)
-      return HeapVector<Member<EventTarget>>();
-    return event_path_->Last().GetTreeScopeEventContext().EnsureEventPath(
-        *event_path_);
+    return HeapVector<Member<EventTarget>>();
   }
 
   if (Node* node = current_target_->ToNode()) {
     DCHECK(event_path_);
     for (auto& context : event_path_->NodeEventContexts()) {
-      if (node == context.GetNode())
-        return context.GetTreeScopeEventContext().EnsureEventPath(*event_path_);
+      if (node == context.GetNode()) {
+        return HeapVector<Member<EventTarget>>(
+            context.GetTreeScopeEventContext().EnsureEventPath(*event_path_));
+      }
     }
     NOTREACHED();
   }
 
   if (LocalDOMWindow* window = current_target_->ToLocalDOMWindow()) {
     if (event_path_ && !event_path_->IsEmpty()) {
-      return event_path_->TopNodeEventContext()
-          .GetTreeScopeEventContext()
-          .EnsureEventPath(*event_path_);
+      return HeapVector<Member<EventTarget>>(
+          event_path_->TopNodeEventContext()
+              .GetTreeScopeEventContext()
+              .EnsureEventPath(*event_path_));
     }
     return HeapVector<Member<EventTarget>>(1, window);
   }
@@ -355,15 +355,23 @@ EventTarget* Event::currentTarget() const {
 }
 
 double Event::timeStamp(ScriptState* script_state) const {
-  double time_stamp = 0;
-  if (script_state && LocalDOMWindow::From(script_state)) {
-    WindowPerformance* performance =
-        DOMWindowPerformance::performance(*LocalDOMWindow::From(script_state));
-    time_stamp =
-        performance->MonotonicTimeToDOMHighResTimeStamp(platform_time_stamp_);
+  if (!script_state) {
+    return 0;
   }
 
-  return time_stamp;
+  if (auto* window = LocalDOMWindow::From(script_state)) {
+    Performance* performance = DOMWindowPerformance::performance(*window);
+    return performance->MonotonicTimeToDOMHighResTimeStamp(
+        platform_time_stamp_);
+  } else if (auto* worker = DynamicTo<WorkerGlobalScope>(
+                 ExecutionContext::From(script_state))) {
+    Performance* performance =
+        WorkerGlobalScopePerformance::performance(*worker);
+    return performance->MonotonicTimeToDOMHighResTimeStamp(
+        platform_time_stamp_);
+  }
+
+  return 0;
 }
 
 void Event::setCancelBubble(ScriptState* script_state, bool cancel) {

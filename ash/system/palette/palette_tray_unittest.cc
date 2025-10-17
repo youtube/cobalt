@@ -16,6 +16,7 @@
 #include "ash/session/session_controller_impl.h"
 #include "ash/session/test_session_controller_client.h"
 #include "ash/shell.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "ash/system/palette/palette_tray_test_api.h"
 #include "ash/system/palette/palette_utils.h"
 #include "ash/system/palette/palette_welcome_bubble.h"
@@ -24,6 +25,7 @@
 #include "ash/test/ash_test_base.h"
 #include "ash/test_shell_delegate.h"
 #include "base/command_line.h"
+#include "base/files/safe_base_name.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
@@ -31,7 +33,9 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/session_manager_types.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/compositor/scoped_animation_duration_scale_mode.h"
+#include "ui/display/manager/display_manager.h"
 #include "ui/display/test/display_manager_test_api.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/devices/device_data_manager.h"
@@ -39,6 +43,7 @@
 #include "ui/events/devices/stylus_state.h"
 #include "ui/events/event.h"
 #include "ui/events/test/event_generator.h"
+#include "ui/views/accessibility/view_accessibility.h"
 
 namespace ash {
 
@@ -97,7 +102,7 @@ class PaletteTrayTest : public AshTestBase {
     return Shell::Get()->session_controller()->GetActivePrefService();
   }
 
-  raw_ptr<PaletteTray, ExperimentalAsh> palette_tray_ = nullptr;  // not owned
+  raw_ptr<PaletteTray, DanglingUntriaged> palette_tray_ = nullptr;  // not owned
 
   std::unique_ptr<PaletteTrayTestApi> test_api_;
 };
@@ -381,9 +386,12 @@ TEST_F(PaletteTrayTestWithInternalStylus, WelcomeBubbleShownOnEject) {
 
 // Verify if the pref which tracks if the welcome bubble has been shown before
 // is true, the welcome bubble is not shown when the stylus is removed.
-// TODO(crbug.com/1423035): Disabled due to flakiness.
-TEST_F(PaletteTrayTestWithInternalStylus,
-       DISABLED_WelcomeBubbleNotShownIfShownBefore) {
+//
+// This test used to be disabled due to flakiness (crbug.com/1423035). It was
+// then re-enabled in crbug.com/281717553 after local verification. Please feel
+// free to disable it again and leave a comment in crbug.com/281717553 if the
+// flake reappears.
+TEST_F(PaletteTrayTestWithInternalStylus, WelcomeBubbleNotShownIfShownBefore) {
   active_user_pref_service()->SetBoolean(prefs::kLaunchPaletteOnEjectEvent,
                                          false);
   active_user_pref_service()->SetBoolean(prefs::kShownPaletteWelcomeBubble,
@@ -477,6 +485,31 @@ TEST_F(PaletteTrayTestWithInternalStylus, PaletteBubbleShownOnEject) {
       PaletteToolId::LASER_POINTER));
 }
 
+// Verify that palette tray and bubble view have the correct accessible names.
+TEST_F(PaletteTrayTestWithInternalStylus, AccessibleNames) {
+  active_user_pref_service()->SetBoolean(prefs::kEnableStylusTools, true);
+
+  {
+    ui::AXNodeData node_data;
+    palette_tray_->GetViewAccessibility().GetAccessibleNodeData(&node_data);
+    EXPECT_EQ(node_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+              l10n_util::GetStringUTF16(IDS_ASH_STYLUS_TOOLS_TITLE));
+  }
+
+  // Removing the stylus shows the bubble.
+  EjectStylus();
+  ASSERT_TRUE(palette_tray_->GetBubbleView());
+
+  {
+    ui::AXNodeData node_data;
+    palette_tray_->GetBubbleView()
+        ->GetViewAccessibility()
+        .GetAccessibleNodeData(&node_data);
+    EXPECT_EQ(node_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+              test_api_->GetAccessibleNameForBubble());
+  }
+}
+
 // Base class for tests that need to simulate an internal stylus, and need to
 // start without an active session.
 class PaletteTrayNoSessionTestWithInternalStylus : public PaletteTrayTest {
@@ -523,7 +556,7 @@ TEST_F(PaletteTrayNoSessionTestWithInternalStylus,
   Shell::RootWindowControllerList controllers =
       Shell::GetAllRootWindowControllers();
   ASSERT_EQ(2u, controllers.size());
-  SimulateUserLogin("test@test.com");
+  SimulateUserLogin({"test@test.com"});
 
   base::CommandLine::ForCurrentProcess()->RemoveSwitch(
       switches::kAshEnablePaletteOnAllDisplays);
@@ -584,13 +617,6 @@ class PaletteTrayTestMultiDisplay : public PaletteTrayTest {
   PaletteTrayTestMultiDisplay& operator=(const PaletteTrayTestMultiDisplay&) =
       delete;
 
-  // Performs a tap on the palette tray button.
-  void PerformTap(PaletteTray* tray) {
-    ui::GestureEvent tap(0, 0, 0, base::TimeTicks(),
-                         ui::GestureEventDetails(ui::ET_GESTURE_TAP));
-    tray->PerformAction(tap);
-  }
-
   // Fake a stylus ejection.
   void EjectStylus() {
     test_api_->OnStylusStateChanged(ui::StylusState::REMOVED);
@@ -617,7 +643,7 @@ class PaletteTrayTestMultiDisplay : public PaletteTrayTest {
     Shell::RootWindowControllerList controllers =
         Shell::GetAllRootWindowControllers();
     ASSERT_EQ(2u, controllers.size());
-    SimulateUserLogin("test@test.com");
+    SimulateUserLogin({"test@test.com"});
 
     palette_tray_ = controllers[0]->GetStatusAreaWidget()->palette_tray();
     palette_tray_external_ =
@@ -631,7 +657,7 @@ class PaletteTrayTestMultiDisplay : public PaletteTrayTest {
   }
 
  protected:
-  raw_ptr<PaletteTray, ExperimentalAsh> palette_tray_external_ = nullptr;
+  raw_ptr<PaletteTray, DanglingUntriaged> palette_tray_external_ = nullptr;
 
   std::unique_ptr<PaletteTrayTestApi> test_api_external_;
 };
@@ -758,9 +784,7 @@ TEST_F(PaletteTrayTestMultiDisplay, MirrorModeEnable) {
 
 class PaletteTrayTestWithProjector : public PaletteTrayTest {
  public:
-  PaletteTrayTestWithProjector() {
-    scoped_feature_list_.InitWithFeatures({features::kProjector}, {});
-  }
+  PaletteTrayTestWithProjector() = default;
 
   PaletteTrayTestWithProjector(const PaletteTrayTestWithProjector&) = delete;
   PaletteTrayTestWithProjector& operator=(const PaletteTrayTestWithProjector&) =
@@ -775,10 +799,7 @@ class PaletteTrayTestWithProjector : public PaletteTrayTest {
   }
 
  protected:
-  raw_ptr<ProjectorSessionImpl, ExperimentalAsh> projector_session_;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
+  raw_ptr<ProjectorSessionImpl, DanglingUntriaged> projector_session_;
 };
 
 // Verify that the palette tray is hidden during a Projector session.
@@ -795,7 +816,8 @@ TEST_F(PaletteTrayTestWithProjector,
 
   // Verify palette tray is hidden and the active tool is deactivated during
   // Projector session.
-  projector_session_->Start("projector_data");
+  projector_session_->Start(
+      base::SafeBaseName::Create("projector_data").value());
   EXPECT_FALSE(palette_tray_->GetVisible());
   EXPECT_EQ(
       test_api_->palette_tool_manager()->GetActiveTool(PaletteGroup::MODE),

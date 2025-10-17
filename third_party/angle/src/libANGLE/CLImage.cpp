@@ -6,7 +6,7 @@
 // CLImage.cpp: Implements the cl::Image class.
 
 #include "libANGLE/CLImage.h"
-
+#include "libANGLE/CLContext.h"
 #include "libANGLE/cl_utils.h"
 
 #include <cstring>
@@ -31,7 +31,10 @@ bool Image::IsTypeValid(MemObjectType imageType)
     return true;
 }
 
-cl_int Image::getInfo(ImageInfo name, size_t valueSize, void *value, size_t *valueSizeRet) const
+angle::Result Image::getInfo(ImageInfo name,
+                             size_t valueSize,
+                             void *value,
+                             size_t *valueSizeRet) const
 {
     size_t valSizeT       = 0u;
     void *valPointer      = nullptr;
@@ -62,15 +65,15 @@ cl_int Image::getInfo(ImageInfo name, size_t valueSize, void *value, size_t *val
             copySize  = sizeof(mDesc.width);
             break;
         case ImageInfo::Height:
-            copyValue = &mDesc.height;
+            copyValue = Is1DImage(mDesc.type) ? &valSizeT : &mDesc.height;
             copySize  = sizeof(mDesc.height);
             break;
         case ImageInfo::Depth:
-            copyValue = &mDesc.depth;
+            copyValue = Is3DImage(mDesc.type) ? &mDesc.depth : &valSizeT;
             copySize  = sizeof(mDesc.depth);
             break;
         case ImageInfo::ArraySize:
-            copyValue = &mDesc.arraySize;
+            copyValue = IsArrayType(mDesc.type) ? &mDesc.arraySize : &valSizeT;
             copySize  = sizeof(mDesc.arraySize);
             break;
         case ImageInfo::Buffer:
@@ -87,7 +90,7 @@ cl_int Image::getInfo(ImageInfo name, size_t valueSize, void *value, size_t *val
             copySize  = sizeof(mDesc.numSamples);
             break;
         default:
-            return CL_INVALID_VALUE;
+            ANGLE_CL_RETURN_ERROR(CL_INVALID_VALUE);
     }
 
     if (value != nullptr)
@@ -96,7 +99,7 @@ cl_int Image::getInfo(ImageInfo name, size_t valueSize, void *value, size_t *val
         // as described in the Image Object Queries table and param_value is not NULL.
         if (valueSize < copySize)
         {
-            return CL_INVALID_VALUE;
+            ANGLE_CL_RETURN_ERROR(CL_INVALID_VALUE);
         }
         if (copyValue != nullptr)
         {
@@ -107,28 +110,28 @@ cl_int Image::getInfo(ImageInfo name, size_t valueSize, void *value, size_t *val
     {
         *valueSizeRet = copySize;
     }
-    return CL_SUCCESS;
+    return angle::Result::Continue;
 }
 
 Image::~Image() = default;
 
-bool Image::isRegionValid(const size_t origin[3], const size_t region[3]) const
+bool Image::isRegionValid(const cl::MemOffsets &origin, const cl::Coordinate &region) const
 {
     switch (getType())
     {
         case MemObjectType::Image1D:
         case MemObjectType::Image1D_Buffer:
-            return origin[0] + region[0] <= mDesc.width;
+            return origin.x + region.x <= mDesc.width;
         case MemObjectType::Image2D:
-            return origin[0] + region[0] <= mDesc.width && origin[1] + region[1] <= mDesc.height;
+            return origin.x + region.x <= mDesc.width && origin.y + region.y <= mDesc.height;
         case MemObjectType::Image3D:
-            return origin[0] + region[0] <= mDesc.width && origin[1] + region[1] <= mDesc.height &&
-                   origin[2] + region[2] <= mDesc.depth;
+            return origin.x + region.x <= mDesc.width && origin.y + region.y <= mDesc.height &&
+                   origin.z + region.z <= mDesc.depth;
         case MemObjectType::Image1D_Array:
-            return origin[0] + region[0] <= mDesc.width && origin[1] + region[1] <= mDesc.arraySize;
+            return origin.x + region.x <= mDesc.width && origin.y + region.y <= mDesc.arraySize;
         case MemObjectType::Image2D_Array:
-            return origin[0] + region[0] <= mDesc.width && origin[1] + region[1] <= mDesc.height &&
-                   origin[2] + region[2] <= mDesc.arraySize;
+            return origin.x + region.x <= mDesc.width && origin.y + region.y <= mDesc.height &&
+                   origin.z + region.z <= mDesc.arraySize;
         default:
             ASSERT(false);
             break;
@@ -142,19 +145,11 @@ Image::Image(Context &context,
              const cl_image_format &format,
              const ImageDescriptor &desc,
              Memory *parent,
-             void *hostPtr,
-             cl_int &errorCode)
-    : Memory(*this,
-             context,
-             std::move(properties),
-             flags,
-             format,
-             desc,
-             parent,
-             hostPtr,
-             errorCode),
-      mFormat(format),
-      mDesc(desc)
-{}
+             void *hostPtr)
+    : Memory(context, std::move(properties), flags, parent, hostPtr), mFormat(format), mDesc(desc)
+{
+    mSize = getSliceSize() * getDepth() * getArraySize();
+    ANGLE_CL_IMPL_TRY(context.getImpl().createImage(*this, hostPtr, &mImpl));
+}
 
 }  // namespace cl

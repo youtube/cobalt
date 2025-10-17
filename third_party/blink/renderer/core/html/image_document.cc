@@ -26,7 +26,10 @@
 
 #include <limits>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "third_party/blink/public/platform/web_content_settings_client.h"
+#include "third_party/blink/renderer/core/css/css_color.h"
 #include "third_party/blink/renderer/core/dom/events/native_event_listener.h"
 #include "third_party/blink/renderer/core/dom/raw_data_document_parser.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
@@ -102,15 +105,16 @@ class ImageDocumentParser : public RawDataDocumentParser {
 
   void Trace(Visitor* visitor) const override {
     visitor->Trace(image_resource_);
+    visitor->Trace(world_);
     RawDataDocumentParser::Trace(visitor);
   }
 
  private:
-  void AppendBytes(const char*, size_t) override;
+  void AppendBytes(base::span<const uint8_t>) override;
   void Finish() override;
 
   Member<ImageResource> image_resource_;
-  const scoped_refptr<const DOMWrapperWorld> world_;
+  const Member<const DOMWrapperWorld> world_;
 };
 
 // --------
@@ -128,20 +132,23 @@ static String ImageTitle(const String& filename, const gfx::Size& size) {
   return result.ToString();
 }
 
-void ImageDocumentParser::AppendBytes(const char* data, size_t length) {
-  if (!length)
+void ImageDocumentParser::AppendBytes(base::span<const uint8_t> data) {
+  if (data.empty()) {
     return;
+  }
 
   if (IsDetached())
     return;
 
   LocalFrame* frame = GetDocument()->GetFrame();
-  Settings* settings = frame->GetSettings();
-  bool allow_image = !settings || settings->GetImagesEnabled();
-  if (auto* client = frame->GetContentSettingsClient())
-    allow_image = client->AllowImage(allow_image, GetDocument()->Url());
-  if (!allow_image)
+  bool allow_image = frame->ImagesEnabled();
+  if (!allow_image) {
+    auto* client = frame->GetContentSettingsClient();
+    if (client) {
+      client->DidNotAllowImage();
+    }
     return;
+  }
 
   if (!image_resource_) {
     ResourceRequest request(GetDocument()->Url());
@@ -158,11 +165,12 @@ void ImageDocumentParser::AppendBytes(const char* data, size_t length) {
       image_resource_->ResponseReceived(loader->GetResponse());
   }
 
-  CHECK_LE(length, std::numeric_limits<unsigned>::max());
+  CHECK_LE(data.size(), std::numeric_limits<unsigned>::max());
   // If decoding has already failed, there's no point in sending additional
   // data to the ImageResource.
-  if (image_resource_->GetStatus() != ResourceStatus::kDecodeError)
-    image_resource_->AppendData(data, length);
+  if (image_resource_->GetStatus() != ResourceStatus::kDecodeError) {
+    image_resource_->AppendData(base::as_chars(data));
+  }
 
   if (!IsDetached())
     GetDocument()->ImageUpdated();
@@ -197,7 +205,7 @@ void ImageDocumentParser::Finish() {
 // --------
 
 ImageDocument::ImageDocument(const DocumentInit& initializer)
-    : HTMLDocument(initializer, kImageDocumentClass),
+    : HTMLDocument(initializer, {DocumentClass::kImage}),
       div_element_(nullptr),
       image_element_(nullptr),
       image_size_is_known_(false),
@@ -219,8 +227,7 @@ gfx::Size ImageDocument::ImageSize() const {
   DCHECK(image_element_);
   DCHECK(image_element_->CachedImage());
   return image_element_->CachedImage()->IntrinsicSize(
-      LayoutObject::ShouldRespectImageOrientation(
-          image_element_->GetLayoutObject()));
+      LayoutObject::GetImageOrientation(image_element_->GetLayoutObject()));
 }
 
 void ImageDocument::CreateDocumentStructure(
@@ -237,28 +244,39 @@ void ImageDocument::CreateDocumentStructure(
   auto* head = MakeGarbageCollected<HTMLHeadElement>(*this);
   auto* meta =
       MakeGarbageCollected<HTMLMetaElement>(*this, CreateElementFlags());
-  meta->setAttribute(html_names::kNameAttr, "viewport");
+  meta->setAttribute(html_names::kNameAttr, AtomicString("viewport"));
   meta->setAttribute(html_names::kContentAttr,
-                     "width=device-width, minimum-scale=0.1");
+                     AtomicString("width=device-width, minimum-scale=0.1"));
   head->AppendChild(meta);
 
   auto* body = MakeGarbageCollected<HTMLBodyElement>(*this);
 
+  body->SetInlineStyleProperty(CSSPropertyID::kMargin, 0.0,
+                               CSSPrimitiveValue::UnitType::kPixels);
+  body->SetInlineStyleProperty(CSSPropertyID::kHeight, 100.0,
+                               CSSPrimitiveValue::UnitType::kPercentage);
   if (ShouldShrinkToFit()) {
     // Display the image prominently centered in the frame.
-    body->setAttribute(html_names::kStyleAttr,
-                       "margin: 0px; background: #0e0e0e; height: 100%");
+    body->SetInlineStyleProperty(
+        CSSPropertyID::kBackgroundColor,
+        *cssvalue::CSSColor::Create(Color::FromRGB(14, 14, 14)));
 
     // See w3c example on how to center an element:
     // https://www.w3.org/Style/Examples/007/center.en.html
     div_element_ = MakeGarbageCollected<HTMLDivElement>(*this);
-    div_element_->setAttribute(html_names::kStyleAttr,
-                               "display: flex;"
-                               "flex-direction: column;"
-                               "align-items: flex-start;"
-                               "min-width: min-content;"
-                               "height: 100%;"
-                               "width: 100%;");
+    div_element_->SetInlineStyleProperty(CSSPropertyID::kDisplay,
+                                         CSSValueID::kFlex);
+    div_element_->SetInlineStyleProperty(CSSPropertyID::kFlexDirection,
+                                         CSSValueID::kColumn);
+    div_element_->SetInlineStyleProperty(CSSPropertyID::kAlignItems,
+                                         CSSValueID::kFlexStart);
+    div_element_->SetInlineStyleProperty(CSSPropertyID::kMinWidth,
+                                         CSSValueID::kMinContent);
+    div_element_->SetInlineStyleProperty(
+        CSSPropertyID::kHeight, 100.0,
+        CSSPrimitiveValue::UnitType::kPercentage);
+    div_element_->SetInlineStyleProperty(
+        CSSPropertyID::kWidth, 100.0, CSSPrimitiveValue::UnitType::kPercentage);
     HTMLSlotElement* slot = MakeGarbageCollected<HTMLSlotElement>(*this);
     div_element_->AppendChild(slot);
 
@@ -268,8 +286,6 @@ void ImageDocument::CreateDocumentStructure(
     // https://html.spec.whatwg.org/C/#read-media
     ShadowRoot& shadow_root = body->EnsureUserAgentShadowRoot();
     shadow_root.AppendChild(div_element_);
-  } else {
-    body->setAttribute(html_names::kStyleAttr, "margin: 0px; height: 100%");
   }
 
   WillInsertBody();
@@ -314,8 +330,9 @@ void ImageDocument::UpdateTitle() {
   // back on the (decoded) hostname if there is no path.
   String file_name = DecodeURLEscapeSequences(Url().LastPathComponent(),
                                               DecodeURLMode::kUTF8OrIsomorphic);
-  if (file_name.empty())
-    file_name = Url().Host();
+  if (file_name.empty()) {
+    file_name = Url().Host().ToString();
+  }
   setTitle(ImageTitle(file_name, size));
 }
 
@@ -489,7 +506,7 @@ int ImageDocument::CalculateDivWidth() {
   // * Images smaller in either dimension are centered along that axis.
   int viewport_width =
       GetFrame()->GetPage()->GetVisualViewport().Size().width() /
-      GetFrame()->PageZoomFactor();
+      GetFrame()->LayoutZoomFactor();
 
   // For huge images, minimum-scale=0.1 is still too big on small screens.
   // Set the <div> width so that the image will shrink to fit the width of the
@@ -562,7 +579,7 @@ bool ImageDocument::ShouldShrinkToFit() const {
   // loop as the contents then resize to match the window. To prevent this,
   // disallow images from shrinking to fit for WebViews.
   bool is_wrap_content_web_view =
-      GetPage() ? GetPage()->GetSettings().GetForceZeroLayoutHeight() : false;
+      GetPage() && GetPage()->GetSettings().GetForceZeroLayoutHeight();
   return GetFrame()->IsOutermostMainFrame() && !is_wrap_content_web_view;
 }
 

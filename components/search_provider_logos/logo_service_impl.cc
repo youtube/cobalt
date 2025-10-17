@@ -87,15 +87,12 @@ class ImageDecodedHandlerWithTimeout {
 void ObserverOnLogoAvailable(LogoObserver* observer,
                              bool from_cache,
                              LogoCallbackReason type,
-                             const absl::optional<Logo>& logo) {
+                             const std::optional<Logo>& logo) {
   switch (type) {
     case LogoCallbackReason::DISABLED:
     case LogoCallbackReason::CANCELED:
     case LogoCallbackReason::FAILED:
-      break;
-
     case LogoCallbackReason::REVALIDATED:
-      observer->OnCachedLogoRevalidated();
       break;
 
     case LogoCallbackReason::DETERMINED:
@@ -110,19 +107,19 @@ void ObserverOnLogoAvailable(LogoObserver* observer,
 void RunCallbacksWithDisabled(LogoCallbacks callbacks) {
   if (callbacks.on_cached_encoded_logo_available) {
     std::move(callbacks.on_cached_encoded_logo_available)
-        .Run(LogoCallbackReason::DISABLED, absl::nullopt);
+        .Run(LogoCallbackReason::DISABLED, std::nullopt);
   }
   if (callbacks.on_cached_decoded_logo_available) {
     std::move(callbacks.on_cached_decoded_logo_available)
-        .Run(LogoCallbackReason::DISABLED, absl::nullopt);
+        .Run(LogoCallbackReason::DISABLED, std::nullopt);
   }
   if (callbacks.on_fresh_encoded_logo_available) {
     std::move(callbacks.on_fresh_encoded_logo_available)
-        .Run(LogoCallbackReason::DISABLED, absl::nullopt);
+        .Run(LogoCallbackReason::DISABLED, std::nullopt);
   }
   if (callbacks.on_fresh_decoded_logo_available) {
     std::move(callbacks.on_fresh_decoded_logo_available)
-        .Run(LogoCallbackReason::DISABLED, absl::nullopt);
+        .Run(LogoCallbackReason::DISABLED, std::nullopt);
   }
 }
 
@@ -162,14 +159,14 @@ void NotifyAndClear(std::vector<EncodedLogoCallback>* encoded_callbacks,
                     const EncodedLogo* encoded_logo,
                     const Logo* decoded_logo) {
   auto opt_encoded_logo =
-      encoded_logo ? absl::optional<EncodedLogo>(*encoded_logo) : absl::nullopt;
+      encoded_logo ? std::optional<EncodedLogo>(*encoded_logo) : std::nullopt;
   for (EncodedLogoCallback& callback : *encoded_callbacks) {
     std::move(callback).Run(type, opt_encoded_logo);
   }
   encoded_callbacks->clear();
 
   auto opt_decoded_logo =
-      decoded_logo ? absl::optional<Logo>(*decoded_logo) : absl::nullopt;
+      decoded_logo ? std::optional<Logo>(*decoded_logo) : std::nullopt;
   for (LogoCallback& callback : *decoded_callbacks) {
     std::move(callback).Run(type, opt_decoded_logo);
   }
@@ -252,7 +249,9 @@ void LogoServiceImpl::GetLogo(LogoCallbacks callbacks, bool for_webui_ntp) {
   const bool is_google = template_url->url_ref().HasGoogleBaseURLs(
       template_url_service_->search_terms_data());
   if (is_google) {
-    // TODO(treib): Put the Google doodle URL into prepopulated_engines.json.
+    // Note: Ideally the Google doodle URL would be specified in
+    // prepopulated_engines.json, but there is some custom logic in
+    // `GetGoogleDoodleURL()` that can't be represented in the static file.
     base_url =
         GURL(template_url_service_->search_terms_data().GoogleBaseURLValue());
     doodle_url = search_provider_logos::GetGoogleDoodleURL(base_url);
@@ -394,13 +393,13 @@ void LogoServiceImpl::OnCachedLogoRead(
   DCHECK(!is_idle_);
 
   if (cached_logo && cached_logo->encoded_image) {
-    // Store the value of logo->encoded_image for use below. This ensures that
-    // logo->encoded_image is evaluated before base::Passed(&logo), which sets
-    // logo to NULL.
+    // Store the value of cached_logo->encoded_image for use below. This ensures
+    // that cached_logo->encoded_image is evaluated before
+    // std::move(cached_logo), which sets cached_logo to nullptr.
     scoped_refptr<base::RefCountedString> encoded_image =
         cached_logo->encoded_image;
     image_decoder_->DecodeImage(
-        encoded_image->data(), gfx::Size(),  // No particular size desired.
+        encoded_image->as_string(), gfx::Size(),  // No particular size desired.
         /*data_decoder=*/nullptr,
         ImageDecodedHandlerWithTimeout::Wrap(base::BindOnce(
             &LogoServiceImpl::OnLightCachedImageDecoded,
@@ -433,14 +432,15 @@ void LogoServiceImpl::OnLightCachedImageDecoded(
     return;
   }
 
-  // Store the value of logo->dark_encoded_image for use below. This ensures
-  // that logo->dark_encoded_image is evaluated before base::Passed(&logo),
-  // which sets logo to NULL.
+  // Store the value of cached_logo->dark_encoded_image for use below. This
+  // ensures that cached_logo->dark_encoded_image is evaluated before
+  // std::move(cached_logo), which sets cached_logo to nullptr.
   scoped_refptr<base::RefCountedString> dark_encoded_image =
       cached_logo->dark_encoded_image;
 
   image_decoder_->DecodeImage(
-      dark_encoded_image->data(), gfx::Size(),  // No particular size desired.
+      dark_encoded_image->as_string(),
+      gfx::Size(),  // No particular size desired.
       /*data_decoder=*/nullptr,
       ImageDecodedHandlerWithTimeout::Wrap(base::BindOnce(
           &LogoServiceImpl::OnCachedLogoAvailable,
@@ -505,6 +505,7 @@ void LogoServiceImpl::FetchLogo() {
         })");
   auto request = std::make_unique<network::ResourceRequest>();
   request->url = url;
+  request->site_for_cookies = net::SiteForCookies::FromUrl(url);
   loader_ =
       network::SimpleURLLoader::Create(std::move(request), traffic_annotation);
   loader_->DownloadToString(
@@ -530,12 +531,12 @@ void LogoServiceImpl::OnFreshLogoParsed(bool* parsing_failed,
                          SkBitmap());
   } else {
     // Store the value of logo->encoded_image for use below. This ensures that
-    // logo->encoded_image is evaluated before base::Passed(&logo), which sets
-    // logo to NULL.
+    // logo->encoded_image is evaluated before std::move(logo), which sets logo
+    // to nullptr.
     scoped_refptr<base::RefCountedString> encoded_image = logo->encoded_image;
 
     image_decoder_->DecodeImage(
-        encoded_image->data(), gfx::Size(),  // No particular size desired.
+        encoded_image->as_string(), gfx::Size(),  // No particular size desired.
         /*data_decoder=*/nullptr,
         ImageDecodedHandlerWithTimeout::Wrap(base::BindOnce(
             &LogoServiceImpl::OnLightFreshImageDecoded,
@@ -557,13 +558,14 @@ void LogoServiceImpl::OnLightFreshImageDecoded(
   }
 
   // Store the value of logo->dark_encoded_image for use below. This ensures
-  // that logo->encoded_image is evaluated before base::Passed(&logo), which
-  // sets logo to NULL.
+  // that logo->encoded_image is evaluated before std::move(logo), which sets
+  // logo to nullptr.
   scoped_refptr<base::RefCountedString> dark_encoded_image =
       logo->dark_encoded_image;
 
   image_decoder_->DecodeImage(
-      dark_encoded_image->data(), gfx::Size(),  // No particular size desired.
+      dark_encoded_image->as_string(),
+      gfx::Size(),  // No particular size desired.
       /*data_decoder=*/nullptr,
       ImageDecodedHandlerWithTimeout::Wrap(base::BindOnce(
           &LogoServiceImpl::OnFreshLogoAvailable,
@@ -680,7 +682,6 @@ void LogoServiceImpl::OnFreshLogoAvailable(
 
     case DOWNLOAD_OUTCOME_COUNT:
       NOTREACHED();
-      return;
   }
 
   NotifyAndClear(&on_fresh_encoded_logo_, &on_fresh_decoded_logo_,

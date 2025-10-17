@@ -15,6 +15,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "media/base/bitstream_buffer.h"
+#include "media/base/encoder_status.h"
 #include "media/base/media_export.h"
 #include "media/base/media_log.h"
 #include "media/fuchsia/common/stream_processor_helper.h"
@@ -38,13 +39,15 @@ class MEDIA_EXPORT FuchsiaVideoEncodeAccelerator final
 
   // VideoEncodeAccelerator implementation.
   SupportedProfiles GetSupportedProfiles() override;
-  bool Initialize(const Config& config,
-                  VideoEncodeAccelerator::Client* client,
-                  std::unique_ptr<MediaLog> media_log) override;
+  EncoderStatus Initialize(const Config& config,
+                           VideoEncodeAccelerator::Client* client,
+                           std::unique_ptr<MediaLog> media_log) override;
   void Encode(scoped_refptr<VideoFrame> frame, bool force_keyframe) override;
   void UseOutputBitstreamBuffer(BitstreamBuffer buffer) override;
-  void RequestEncodingParametersChange(const Bitrate& bitrate,
-                                       uint32_t framerate) override;
+  void RequestEncodingParametersChange(
+      const Bitrate& bitrate,
+      uint32_t framerate,
+      const std::optional<gfx::Size>& size) override;
   void Destroy() override;
   bool IsFlushSupported() override;
   bool IsGpuFrameResizeSupported() override;
@@ -72,14 +75,13 @@ class MEDIA_EXPORT FuchsiaVideoEncodeAccelerator final
   void OnStreamProcessorError() override;
 
   void ReleaseEncoder();
-  void OnError(VideoEncodeAccelerator::Error error_type,
-               const std::string& error_message);
+  void OnError(EncoderStatus status);
   void OnInputBuffersAcquired(
       std::vector<VmoBuffer> buffers,
-      const fuchsia::sysmem::SingleBufferSettings& buffer_settings);
+      const fuchsia::sysmem2::SingleBufferSettings& buffer_settings);
   void OnOutputBuffersAcquired(
       std::vector<VmoBuffer> buffers,
-      const fuchsia::sysmem::SingleBufferSettings& buffer_settings);
+      const fuchsia::sysmem2::SingleBufferSettings& buffer_settings);
   fuchsia::media::FormatDetails CreateFormatDetails(
       VideoEncodeAccelerator::Config& config);
 

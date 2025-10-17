@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/no_destructor.h"
 #include "base/values.h"
 #include "net/base/net_errors.h"
@@ -27,8 +28,9 @@ base::Value::Dict BytesTransferredParams(int byte_count,
                                          NetLogCaptureMode capture_mode) {
   base::Value::Dict dict;
   dict.Set("byte_count", byte_count);
-  if (NetLogCaptureIncludesSocketBytes(capture_mode) && byte_count > 0)
+  if (NetLogCaptureIncludesSocketBytes(capture_mode) && byte_count > 0) {
     dict.Set("bytes", NetLogBinaryValue(bytes, byte_count));
+  }
   return dict;
 }
 
@@ -48,8 +50,6 @@ NetLogWithSource::NetLogWithSource() {
   non_null_net_log_ = dummy.get();
 }
 
-NetLogWithSource::~NetLogWithSource() = default;
-
 void NetLogWithSource::AddEntry(NetLogEventType type,
                                 NetLogEventPhase phase) const {
   non_null_net_log_->AddEntry(type, source_, phase);
@@ -60,39 +60,39 @@ void NetLogWithSource::AddEvent(NetLogEventType type) const {
 }
 
 void NetLogWithSource::AddEventWithStringParams(NetLogEventType type,
-                                                base::StringPiece name,
-                                                base::StringPiece value) const {
+                                                std::string_view name,
+                                                std::string_view value) const {
   AddEvent(type, [&] { return NetLogParamsWithString(name, value); });
 }
 
 void NetLogWithSource::AddEventWithIntParams(NetLogEventType type,
-                                             base::StringPiece name,
+                                             std::string_view name,
                                              int value) const {
   AddEvent(type, [&] { return NetLogParamsWithInt(name, value); });
 }
 
 void NetLogWithSource::BeginEventWithIntParams(NetLogEventType type,
-                                               base::StringPiece name,
+                                               std::string_view name,
                                                int value) const {
   BeginEvent(type, [&] { return NetLogParamsWithInt(name, value); });
 }
 
 void NetLogWithSource::EndEventWithIntParams(NetLogEventType type,
-                                             base::StringPiece name,
+                                             std::string_view name,
                                              int value) const {
   EndEvent(type, [&] { return NetLogParamsWithInt(name, value); });
 }
 
 void NetLogWithSource::AddEventWithInt64Params(NetLogEventType type,
-                                               base::StringPiece name,
+                                               std::string_view name,
                                                int64_t value) const {
   AddEvent(type, [&] { return NetLogParamsWithInt64(name, value); });
 }
 
 void NetLogWithSource::BeginEventWithStringParams(
     NetLogEventType type,
-    base::StringPiece name,
-    base::StringPiece value) const {
+    std::string_view name,
+    std::string_view value) const {
   BeginEvent(type, [&] { return NetLogParamsWithString(name, value); });
 }
 
@@ -138,9 +138,16 @@ void NetLogWithSource::EndEventWithNetErrorCode(NetLogEventType event_type,
 
 void NetLogWithSource::AddEntryWithBoolParams(NetLogEventType type,
                                               NetLogEventPhase phase,
-                                              base::StringPiece name,
+                                              std::string_view name,
                                               bool value) const {
   AddEntry(type, phase, [&] { return NetLogParamsWithBool(name, value); });
+}
+
+void NetLogWithSource::AddByteTransferEvent(
+    NetLogEventType event_type,
+    base::span<const uint8_t> bytes) const {
+  AddByteTransferEvent(event_type, base::checked_cast<int>(bytes.size()),
+                       base::as_chars(bytes).data());
 }
 
 void NetLogWithSource::AddByteTransferEvent(NetLogEventType event_type,
@@ -154,8 +161,9 @@ void NetLogWithSource::AddByteTransferEvent(NetLogEventType event_type,
 // static
 NetLogWithSource NetLogWithSource::Make(NetLog* net_log,
                                         NetLogSourceType source_type) {
-  if (!net_log)
+  if (!net_log) {
     return NetLogWithSource();
+  }
 
   NetLogSource source(source_type, net_log->NextID());
   return NetLogWithSource(source, net_log);
@@ -169,8 +177,9 @@ NetLogWithSource NetLogWithSource::Make(NetLogSourceType source_type) {
 // static
 NetLogWithSource NetLogWithSource::Make(NetLog* net_log,
                                         const NetLogSource& source) {
-  if (!net_log || !source.IsValid())
+  if (!net_log || !source.IsValid()) {
     return NetLogWithSource();
+  }
   return NetLogWithSource(source, net_log);
 }
 
@@ -180,8 +189,9 @@ NetLogWithSource NetLogWithSource::Make(const NetLogSource& source) {
 }
 
 NetLog* NetLogWithSource::net_log() const {
-  if (source_.IsValid())
+  if (source_.IsValid()) {
     return non_null_net_log_;
+  }
   return nullptr;
 }
 

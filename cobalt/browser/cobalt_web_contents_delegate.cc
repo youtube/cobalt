@@ -48,19 +48,24 @@ bool RequestRecordAudioPermission() {
 
 const blink::MediaStreamDevice* GetRequestedDeviceOrDefault(
     const blink::MediaStreamDevices& devices,
-    const std::string& requested_device_id) {
-  if (devices.empty()) {
-    return nullptr;
+    const std::vector<std::string>& requested_device_ids) {
+  for (const auto& requested_device_id : requested_device_ids) {
+    if (requested_device_id.empty()) {
+      continue;
+    }
+
+    auto it = std::ranges::find(devices, requested_device_id,
+                                 &blink::MediaStreamDevice::id);
+    if (it != devices.end()) {
+      return &(*it);
+    }
   }
-  if (requested_device_id.empty()) {
+
+  if (!devices.empty()) {
     return &devices[0];
   }
-  auto it = base::ranges::find(devices, requested_device_id,
-                               &blink::MediaStreamDevice::id);
-  if (it != devices.end()) {
-    return &(*it);
-  }
-  return &devices[0];
+
+  return nullptr;
 }
 
 }  // namespace
@@ -88,7 +93,7 @@ void CobaltWebContentsDelegate::RequestMediaAccessPermission(
   auto audio_devices =
       content::MediaCaptureDevices::GetInstance()->GetAudioCaptureDevices();
   const blink::MediaStreamDevice* device = GetRequestedDeviceOrDefault(
-      audio_devices, request.requested_audio_device_id);
+      audio_devices, request.requested_audio_device_ids);
   if (!device) {
     std::move(callback).Run(blink::mojom::StreamDevicesSet(),
                             blink::mojom::MediaStreamRequestResult::NO_HARDWARE,
@@ -106,7 +111,7 @@ void CobaltWebContentsDelegate::RequestMediaAccessPermission(
 
 bool CobaltWebContentsDelegate::CheckMediaAccessPermission(
     content::RenderFrameHost*,
-    const GURL&,
+    const url::Origin&,
     blink::mojom::MediaStreamType) {
   return true;
 }

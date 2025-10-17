@@ -11,6 +11,7 @@
 
 #include "common/platform.h"
 #include "libANGLE/Display.h"
+#include "libANGLE/ErrorStrings.h"
 #include "libANGLE/Surface.h"
 #include "libANGLE/renderer/metal/ContextMtl.h"
 #include "libANGLE/renderer/metal/DisplayMtl.h"
@@ -24,7 +25,7 @@
 #if defined(NDEBUG) && !defined(ANGLE_METAL_FRAME_CAPTURE)
 #    define ANGLE_METAL_FRAME_CAPTURE_ENABLED 0
 #else
-#    define ANGLE_METAL_FRAME_CAPTURE_ENABLED ANGLE_WITH_MODERN_METAL_API
+#    define ANGLE_METAL_FRAME_CAPTURE_ENABLED 1
 #endif
 
 namespace rx
@@ -158,7 +159,7 @@ egl::Error SurfaceMtl::unMakeCurrent(const gl::Context *context)
     return egl::NoError();
 }
 
-egl::Error SurfaceMtl::swap(const gl::Context *context)
+egl::Error SurfaceMtl::swap(const gl::Context *context, SurfaceSwapFeedback *feedback)
 {
     return egl::NoError();
 }
@@ -170,40 +171,40 @@ egl::Error SurfaceMtl::postSubBuffer(const gl::Context *context,
                                      EGLint height)
 {
     UNIMPLEMENTED();
-    return egl::EglBadAccess();
+    return egl::Error(EGL_BAD_ACCESS);
 }
 
 egl::Error SurfaceMtl::querySurfacePointerANGLE(EGLint attribute, void **value)
 {
     UNIMPLEMENTED();
-    return egl::EglBadAccess();
+    return egl::Error(EGL_BAD_ACCESS);
 }
 
 egl::Error SurfaceMtl::bindTexImage(const gl::Context *context, gl::Texture *texture, EGLint buffer)
 {
     UNIMPLEMENTED();
-    return egl::EglBadAccess();
+    return egl::Error(EGL_BAD_ACCESS);
 }
 
 egl::Error SurfaceMtl::releaseTexImage(const gl::Context *context, EGLint buffer)
 {
     UNIMPLEMENTED();
-    return egl::EglBadAccess();
+    return egl::Error(EGL_BAD_ACCESS);
 }
 
 egl::Error SurfaceMtl::getSyncValues(EGLuint64KHR *ust, EGLuint64KHR *msc, EGLuint64KHR *sbc)
 {
     UNIMPLEMENTED();
-    return egl::EglBadAccess();
+    return egl::Error(EGL_BAD_ACCESS);
 }
 
 egl::Error SurfaceMtl::getMscRate(EGLint *numerator, EGLint *denominator)
 {
     UNIMPLEMENTED();
-    return egl::EglBadAccess();
+    return egl::Error(EGL_BAD_ACCESS);
 }
 
-void SurfaceMtl::setSwapInterval(EGLint interval) {}
+void SurfaceMtl::setSwapInterval(const egl::Display *display, EGLint interval) {}
 
 void SurfaceMtl::setFixedWidth(EGLint width)
 {
@@ -254,32 +255,36 @@ angle::Result SurfaceMtl::initializeContents(const gl::Context *context,
 {
     ASSERT(mColorTexture);
 
-    if (mContentInitialized)
-    {
-        return angle::Result::Continue;
-    }
-
     ContextMtl *contextMtl = mtl::GetImpl(context);
 
     // Use loadAction=clear
     mtl::RenderPassDesc rpDesc;
-    rpDesc.sampleCount = mColorTexture->samples();
+    rpDesc.rasterSampleCount = mColorTexture->samples();
 
     switch (binding)
     {
         case GL_BACK:
         {
+            if (mColorTextureInitialized)
+            {
+                return angle::Result::Continue;
+            }
             rpDesc.numColorAttachments = 1;
             mColorRenderTarget.toRenderPassAttachmentDesc(&rpDesc.colorAttachments[0]);
             rpDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
             MTLClearColor black                   = {};
             rpDesc.colorAttachments[0].clearColor =
                 mtl::EmulatedAlphaClearColor(black, mColorTexture->getColorWritableMask());
+            mColorTextureInitialized = true;
             break;
         }
         case GL_DEPTH:
         case GL_STENCIL:
         {
+            if (mDepthStencilTexturesInitialized)
+            {
+                return angle::Result::Continue;
+            }
             if (mDepthTexture)
             {
                 mDepthRenderTarget.toRenderPassAttachmentDesc(&rpDesc.depthAttachment);
@@ -290,6 +295,7 @@ angle::Result SurfaceMtl::initializeContents(const gl::Context *context,
                 mStencilRenderTarget.toRenderPassAttachmentDesc(&rpDesc.stencilAttachment);
                 rpDesc.stencilAttachment.loadAction = MTLLoadActionClear;
             }
+            mDepthStencilTexturesInitialized = true;
             break;
         }
         default:
@@ -298,7 +304,6 @@ angle::Result SurfaceMtl::initializeContents(const gl::Context *context,
     }
     mtl::RenderCommandEncoder *encoder = contextMtl->getRenderPassCommandEncoder(rpDesc);
     encoder->setStoreAction(MTLStoreActionStore);
-    mContentInitialized = true;
 
     return angle::Result::Continue;
 }
@@ -374,6 +379,8 @@ angle::Result SurfaceMtl::ensureCompanionTexturesSizeCorrect(const gl::Context *
                                         /** renderTargetOnly */ false, &mDepthTexture));
 
         mDepthRenderTarget.set(mDepthTexture, mtl::kZeroNativeMipLevel, 0, mDepthFormat);
+        // Robust resource init: should initialize depth to 1.0.
+        mDepthStencilTexturesInitialized = false;
     }
 
     if (mStencilFormat.valid() && (!mStencilTexture || mStencilTexture->sizeAt0() != size))
@@ -390,6 +397,8 @@ angle::Result SurfaceMtl::ensureCompanionTexturesSizeCorrect(const gl::Context *
         }
 
         mStencilRenderTarget.set(mStencilTexture, mtl::kZeroNativeMipLevel, 0, mStencilFormat);
+        // Robust resource init: should initialize stencil to zero.
+        mDepthStencilTexturesInitialized = false;
     }
 
     return angle::Result::Continue;
@@ -459,11 +468,11 @@ egl::Error WindowSurfaceMtl::initialize(const egl::Display *display)
     {
         if ([mLayer isKindOfClass:CAMetalLayer.class])
         {
-            mMetalLayer.retainAssign(static_cast<CAMetalLayer *>(mLayer));
+            mMetalLayer = static_cast<CAMetalLayer *>(mLayer);
         }
         else
         {
-            mMetalLayer             = [[[CAMetalLayer alloc] init] ANGLE_MTL_AUTORELEASE];
+            mMetalLayer             = angle::adoptObjCPtr([[CAMetalLayer alloc] init]);
             mMetalLayer.get().frame = mLayer.frame;
         }
 
@@ -471,7 +480,7 @@ egl::Error WindowSurfaceMtl::initialize(const egl::Display *display)
         mMetalLayer.get().pixelFormat     = mColorFormat.metalFormat;
         mMetalLayer.get().framebufferOnly = NO;  // Support blitting and glReadPixels
 
-#if ANGLE_PLATFORM_MACOS || ANGLE_PLATFORM_MACCATALYST
+#if TARGET_OS_OSX || TARGET_OS_MACCATALYST
         // Autoresize with parent layer.
         mMetalLayer.get().autoresizingMask = kCALayerWidthSizable | kCALayerHeightSizable;
 #endif
@@ -489,16 +498,16 @@ egl::Error WindowSurfaceMtl::initialize(const egl::Display *display)
     return egl::NoError();
 }
 
-egl::Error WindowSurfaceMtl::swap(const gl::Context *context)
+egl::Error WindowSurfaceMtl::swap(const gl::Context *context, SurfaceSwapFeedback *feedback)
 {
     ANGLE_TO_EGL_TRY(swapImpl(context));
 
     return egl::NoError();
 }
 
-void WindowSurfaceMtl::setSwapInterval(EGLint interval)
+void WindowSurfaceMtl::setSwapInterval(const egl::Display *display, EGLint interval)
 {
-#if ANGLE_PLATFORM_MACOS || ANGLE_PLATFORM_MACCATALYST
+#if TARGET_OS_OSX || TARGET_OS_MACCATALYST
     mMetalLayer.get().displaySyncEnabled = interval != 0;
 #endif
 }
@@ -616,7 +625,7 @@ bool WindowSurfaceMtl::checkIfLayerResized(const gl::Context *context)
             // Parent layer's content scale has changed, update Metal layer's scale factor.
             mMetalLayer.get().contentsScale = mLayer.contentsScale;
         }
-#if !ANGLE_PLATFORM_MACOS && !ANGLE_PLATFORM_MACCATALYST
+#if !TARGET_OS_OSX && !TARGET_OS_MACCATALYST
         // Only macOS supports autoresizing mask. Thus, the metal layer has to be manually
         // updated.
         if (!CGRectEqualToRect(mMetalLayer.get().bounds, mLayer.bounds))
@@ -653,8 +662,7 @@ angle::Result WindowSurfaceMtl::obtainNextDrawable(const gl::Context *context)
     ANGLE_MTL_OBJC_SCOPE
     {
         ContextMtl *contextMtl = mtl::GetImpl(context);
-
-        ANGLE_MTL_TRY(contextMtl, mMetalLayer);
+        ANGLE_CHECK(contextMtl, mMetalLayer, gl::err::kInternalError, GL_INVALID_OPERATION);
 
         // Check if layer was resized
         if (checkIfLayerResized(context))
@@ -662,16 +670,15 @@ angle::Result WindowSurfaceMtl::obtainNextDrawable(const gl::Context *context)
             contextMtl->onBackbufferResized(context, this);
         }
 
-        mCurrentDrawable.retainAssign([mMetalLayer nextDrawable]);
+        mCurrentDrawable = [mMetalLayer nextDrawable];
         if (!mCurrentDrawable)
         {
             // The GPU might be taking too long finishing its rendering to the previous frame.
             // Try again, indefinitely wait until the previous frame render finishes.
             // TODO: this may wait forever here
             mMetalLayer.get().allowsNextDrawableTimeout = NO;
-            mCurrentDrawable.retainAssign([mMetalLayer nextDrawable]);
+            mCurrentDrawable                            = [mMetalLayer nextDrawable];
             mMetalLayer.get().allowsNextDrawableTimeout = YES;
-            mContentInitialized                         = false;
         }
 
         if (!mColorTexture)
@@ -685,6 +692,7 @@ angle::Result WindowSurfaceMtl::obtainNextDrawable(const gl::Context *context)
         {
             mColorTexture->set(mCurrentDrawable.get().texture);
         }
+        mColorTextureInitialized = false;
 
         ANGLE_MTL_LOG("Current metal drawable size=%d,%d", mColorTexture->width(),
                       mColorTexture->height());
@@ -718,7 +726,11 @@ angle::Result WindowSurfaceMtl::swapImpl(const gl::Context *context)
         mColorTexture->set(nil);
         mCurrentDrawable = nil;
     }
-
+    // Robust resource init: should initialize stencil zero and depth to 1.0 after swap.
+    if (mDepthTexture || mStencilTexture)
+    {
+        mDepthStencilTexturesInitialized = false;
+    }
     return angle::Result::Continue;
 }
 
@@ -748,7 +760,7 @@ EGLint OffscreenSurfaceMtl::getHeight() const
     return mSize.height;
 }
 
-egl::Error OffscreenSurfaceMtl::swap(const gl::Context *context)
+egl::Error OffscreenSurfaceMtl::swap(const gl::Context *context, SurfaceSwapFeedback *feedback)
 {
     // Check for surface resize.
     ANGLE_TO_EGL_TRY(ensureTexturesSizeCorrect(context));
@@ -761,7 +773,7 @@ egl::Error OffscreenSurfaceMtl::bindTexImage(const gl::Context *context,
                                              EGLint buffer)
 {
     ContextMtl *contextMtl = mtl::GetImpl(context);
-    contextMtl->flushCommandBuffer(mtl::WaitUntilScheduled);
+    contextMtl->flushCommandBuffer(mtl::NoWait);
 
     // Initialize offscreen textures if needed:
     ANGLE_TO_EGL_TRY(ensureTexturesSizeCorrect(context));

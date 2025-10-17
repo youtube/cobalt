@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <memory>
 #include <utility>
 
@@ -22,19 +23,20 @@
 namespace safe_browsing {
 
 std::vector<base::FilePath> GetCriticalBinariesPath() {
-  static const base::FilePath::CharType* const kUnversionedFiles[] = {
+  static constexpr auto kUnversionedFiles = std::to_array({
       FILE_PATH_LITERAL("chrome.exe"),
-  };
-  static const base::FilePath::CharType* const kVersionedFiles[] = {
+  });
+  static constexpr auto kVersionedFiles = std::to_array({
       FILE_PATH_LITERAL("chrome.dll"),
       FILE_PATH_LITERAL("chrome_child.dll"),
       FILE_PATH_LITERAL("chrome_elf.dll"),
-  };
+  });
 
   // Find where chrome.exe is installed.
   base::FilePath chrome_exe_dir;
-  if (!base::PathService::Get(base::DIR_EXE, &chrome_exe_dir))
+  if (!base::PathService::Get(base::DIR_EXE, &chrome_exe_dir)) {
     NOTREACHED();
+  }
 
   std::vector<base::FilePath> critical_binaries;
   critical_binaries.reserve(std::size(kUnversionedFiles) +
@@ -67,9 +69,7 @@ void VerifyBinaryIntegrity(
     std::unique_ptr<ClientDownloadRequest_SignatureInfo> signature_info(
         new ClientDownloadRequest_SignatureInfo());
 
-    base::TimeTicks time_before = base::TimeTicks::Now();
     binary_feature_extractor->CheckSignature(binary_path, signature_info.get());
-    RecordSignatureVerificationTime(i, base::TimeTicks::Now() - time_before);
 
     // Only create a report if the signature is untrusted.
     if (!signature_info->trusted()) {

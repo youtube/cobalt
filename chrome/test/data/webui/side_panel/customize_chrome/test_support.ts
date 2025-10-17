@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {BackgroundImage, Theme, ThirdPartyThemeInfo} from 'chrome://customize-chrome-side-panel.top-chrome/customize_chrome.mojom-webui.js';
+import type {BackgroundImage, Theme, ThirdPartyThemeInfo} from 'chrome://customize-chrome-side-panel.top-chrome/customize_chrome.mojom-webui.js';
 import {assertEquals, assertNotEquals} from 'chrome://webui-test/chai_assert.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 
@@ -14,7 +14,7 @@ export function installMock<T extends object>(
   installer = installer ||
       (clazz as unknown as {setInstance: Installer<T>}).setInstance;
   const mock = TestMock.fromClass(clazz);
-  installer!(mock);
+  installer(mock);
   return mock;
 }
 
@@ -43,8 +43,8 @@ export function createBackgroundImage(url: string): BackgroundImage {
     url: {url},
     snapshotUrl: {url},
     isUploadedImage: false,
+    localBackgroundId: null,
     title: '',
-    mainColor: undefined,
     collectionId: '',
     dailyRefreshEnabled: false,
   };
@@ -58,17 +58,14 @@ export function createThirdPartyThemeInfo(
   };
 }
 
-export function createTheme(systemDarkMode = false): Theme {
+export function createTheme(): Theme {
   return {
-    backgroundImage: undefined,
-    thirdPartyThemeInfo: undefined,
-    systemDarkMode,
-    seedColor: {value: 0xff0000ff},
+    backgroundImage: null,
+    thirdPartyThemeInfo: null,
     backgroundColor: {value: 0xffff0000},
-    foregroundColor: undefined,
-    colorPickerIconColor: {value: 0xffff0000},
-    colorsManagedByPolicy: false,
+    foregroundColor: null,
     backgroundManagedByPolicy: false,
+    followDeviceTheme: false,
   };
 }
 

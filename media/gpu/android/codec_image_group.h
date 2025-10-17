@@ -7,6 +7,7 @@
 
 #include <unordered_set>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "media/gpu/android/codec_image.h"
@@ -39,6 +40,8 @@ class MEDIA_GPU_EXPORT CodecImageGroup
     : public base::RefCountedThreadSafe<CodecImageGroup>,
       public gpu::RefCountedLockHelperDrDc {
  public:
+  REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
+
   // NOTE: Construction happens on the correct thread to access |bundle| and
   // any overlay it contains.  All other access to this class will happen on
   // |task_runner|, including destruction.
@@ -51,9 +54,9 @@ class MEDIA_GPU_EXPORT CodecImageGroup
   void AddCodecImage(CodecImage* image);
 
  protected:
-  virtual ~CodecImageGroup();
-  friend class base::RefCountedThreadSafe<CodecImageGroup>;
   friend class base::DeleteHelper<CodecImageGroup>;
+  friend class base::RefCountedThreadSafe<CodecImageGroup>;
+  virtual ~CodecImageGroup();
 
   // Notify us that |image| is no longer in use.
   void OnCodecImageUnused(CodecImage* image);
@@ -66,7 +69,7 @@ class MEDIA_GPU_EXPORT CodecImageGroup
   scoped_refptr<CodecSurfaceBundle> surface_bundle_;
 
   // All the images that use |surface_bundle_|.
-  std::unordered_set<CodecImage*> images_;
+  std::unordered_set<raw_ptr<CodecImage, CtnExperimental>> images_;
 
   // Task runner for everything.
   scoped_refptr<base::SequencedTaskRunner> task_runner_;

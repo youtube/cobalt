@@ -21,17 +21,26 @@ crbug.com/145940 [ Linux ] plugins/iframe-shims.html [ Skip ]
 # ==17332== ERROR: AddressSanitizer: heap-use-after-free on address 0x7f48e8a05a58
 # WRITE of size 1 at 0x7f48e8a05a58 thread T0
 #    #0 0x7f48eb06f7c5 in DocumentOpenInDestroyStream::NPP_DestroyStream
-crbug.com/166932 [ Linux ] plugins/embed-attributes-setting.html [ Skip ]
+crbug.com/166932 [ Linux ] ppapi/plugins/embed-attributes-setting.html [ Skip ]
 crbug.com/166932 [ Linux ] plugins/embed-attributes-style.html [ Skip ]
 
 # Stack use-after-return detection
 
 # Flakily timeout on Linux ASAN bots.
 crbug.com/243871 [ Linux ] virtual/threaded-prefer-compositing/fast/scroll-behavior/* [ Skip ]
-crbug.com/700795 [ Linux ] http/tests/devtools/animation/animation-transition-setTiming-crash.js [ Skip ]
 
 # Memory allocation hooks are disabled on ASAN/MSAN
 crbug.com/803276 inspector-protocol/memory/sampling-native-profile.js [ Skip ]
 crbug.com/803276 inspector-protocol/memory/sampling-native-snapshot.js [ Skip ]
 
-crbug.com/1048597 [ Linux ] virtual/android/fullscreen/video-scrolled-iframe.html [ Pass Timeout ]
+# Gardener 2024-11-12
+crbug.com/378566920 [ Linux ] external/wpt/speculation-rules/prefetch/no-vary-search/prefetch-single-with-hint.https.html* [ Failure Pass ]
+
+# Gardener 2025-02-12
+crbug.com/396104415 [ Linux ] virtual/gpu-rasterization/images/yuv-decode-eligible/color-profile-image.html [ Slow ]
+
+# Gardener 2025-04-28.
+crbug.com/414243950 [ Linux ] virtual/webnn-service-on-cpu/external/wpt/webnn/conformance_tests/qdq_subgraph.https.any.html?cpu [ Crash ]
+crbug.com/414243950 [ Linux ] virtual/webnn-service-on-cpu/external/wpt/webnn/conformance_tests/qdq_subgraph.https.any.serviceworker.html?cpu [ Crash ]
+crbug.com/414243950 [ Linux ] virtual/webnn-service-on-cpu/external/wpt/webnn/conformance_tests/qdq_subgraph.https.any.sharedworker.html?cpu [ Crash ]
+crbug.com/414243950 [ Linux ] virtual/webnn-service-on-cpu/external/wpt/webnn/conformance_tests/qdq_subgraph.https.any.worker.html?cpu [ Crash ]

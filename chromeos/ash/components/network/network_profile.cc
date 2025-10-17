@@ -19,7 +19,6 @@ std::string NetworkProfile::ToDebugString() const {
                               userhash.c_str());
   }
   NOTREACHED();
-  return std::string();
 }
 
 }  // namespace ash

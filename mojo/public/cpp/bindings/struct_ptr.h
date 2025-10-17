@@ -9,12 +9,11 @@
 #include <functional>
 #include <memory>
 #include <new>
+#include <utility>
 
 #include "base/check.h"
-#include "base/template_util.h"
 #include "mojo/public/cpp/bindings/lib/hash_util.h"
 #include "mojo/public/cpp/bindings/type_converter.h"
-#include "third_party/abseil-cpp/absl/utility/utility.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 
 namespace mojo {
@@ -60,7 +59,7 @@ class StructPtr {
   }
 
   template <typename... Args>
-  StructPtr(absl::in_place_t, Args&&... args)
+  StructPtr(std::in_place_t, Args&&... args)
       : ptr_(new Struct(std::forward<Args>(args)...)) {}
 
   template <typename U>
@@ -95,7 +94,7 @@ class StructPtr {
   StructPtr Clone() const { return is_null() ? StructPtr() : ptr_->Clone(); }
 
   // Compares the pointees (which might both be null).
-  // TODO(crbug.com/735302): Get rid of Equals in favor of the operator. Same
+  // TODO(crbug.com/41326459): Get rid of Equals in favor of the operator. Same
   // for Hash.
   bool Equals(const StructPtr& other) const {
     if (is_null() || other.is_null())
@@ -159,7 +158,7 @@ class InlinedStructPtr {
   }
 
   template <typename... Args>
-  InlinedStructPtr(absl::in_place_t, Args&&... args)
+  InlinedStructPtr(std::in_place_t, Args&&... args)
       : value_(std::forward<Args>(args)...), state_(VALID) {}
 
   template <typename U>

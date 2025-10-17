@@ -12,12 +12,31 @@
 #define COMMON_FRAME_CAPTURE_UTILS_AUTOGEN_H_
 
 #include "common/PackedEnums.h"
+#ifdef ANGLE_ENABLE_CL
+#    include "common/PackedCLEnums_autogen.h"
+#    include "libANGLE/CLBitField.h"
+#endif
 
 namespace angle
 {
+
+#ifdef ANGLE_ENABLE_CL
+typedef void(CL_CALLBACK *cl_context_func_type)(const char *, const void *, size_t, void *);
+typedef void(CL_CALLBACK *cl_program_func_type)(cl_program, void *);
+typedef void(CL_CALLBACK *cl_void_func_type)(void *);
+typedef void(CL_CALLBACK *cl_callback_func_type)(cl_event, cl_int, void *);
+typedef void(CL_CALLBACK *cl_svm_free_callback_func_type)(cl_command_queue,
+                                                          cl_uint,
+                                                          void *[],
+                                                          void *);
+typedef void(CL_CALLBACK *cl_context_destructor_func_type)(cl_context, void *);
+typedef void(CL_CALLBACK *cl_mem_destructor_func_type)(cl_mem, void *);
+#endif
+
 enum class ParamType
 {
     TAHardwareBufferConstPointer,
+    TAddressingMode,
     TAlphaTestFunc,
     TBufferBinding,
     TBufferID,
@@ -27,9 +46,14 @@ enum class ParamType
     TClientVertexArrayType,
     TClipDepthMode,
     TClipOrigin,
+    TCommandQueueInfo,
+    TCommandQueueProperties,
     TCompositorTiming,
     TContextID,
+    TContextInfo,
     TCullFaceMode,
+    TDeviceInfo,
+    TDeviceType,
     TDrawElementsType,
     TEGLAttribConstPointer,
     TEGLAttribKHRPointer,
@@ -42,7 +66,6 @@ enum class ParamType
     TEGLDEBUGPROCKHR,
     TEGLDeviceEXT,
     TEGLDisplay,
-    TEGLFrameTokenANGLE,
     TEGLGetBlobFuncANDROID,
     TEGLImage,
     TEGLImageKHR,
@@ -66,27 +89,25 @@ enum class ParamType
     TEGLnsecsANDROIDPointer,
     TEGLuint64KHR,
     TEGLuint64KHRPointer,
+    TEventInfo,
     TFenceNVID,
     TFenceNVIDConstPointer,
     TFenceNVIDPointer,
+    TFilterMode,
     TFramebufferID,
     TFramebufferIDConstPointer,
     TFramebufferIDPointer,
     TGLDEBUGPROC,
     TGLDEBUGPROCKHR,
+    TGLGETBLOBPROCANGLE,
+    TGLSETBLOBPROCANGLE,
     TGLbitfield,
     TGLboolean,
-    TGLbooleanConstPointer,
     TGLbooleanPointer,
-    TGLbyte,
-    TGLbyteConstPointer,
     TGLcharConstPointer,
     TGLcharConstPointerPointer,
     TGLcharPointer,
     TGLclampx,
-    TGLdouble,
-    TGLdoubleConstPointer,
-    TGLdoublePointer,
     TGLeglClientBufferEXT,
     TGLenum,
     TGLenumConstPointer,
@@ -103,14 +124,12 @@ enum class ParamType
     TGLintConstPointer,
     TGLintPointer,
     TGLintptr,
-    TGLintptrConstPointer,
     TGLshort,
     TGLshortConstPointer,
     TGLsizei,
     TGLsizeiConstPointer,
     TGLsizeiPointer,
     TGLsizeiptr,
-    TGLsizeiptrConstPointer,
     TGLsync,
     TGLubyte,
     TGLubyteConstPointer,
@@ -121,24 +140,36 @@ enum class ParamType
     TGLuint64Pointer,
     TGLuintConstPointer,
     TGLuintPointer,
-    TGLushort,
-    TGLushortConstPointer,
-    TGLushortPointer,
-    TGLvoidConstPointer,
-    TGLvoidConstPointerPointer,
     TGraphicsResetStatus,
     THandleType,
     TImageID,
+    TImageInfo,
+    TKernelArgInfo,
+    TKernelExecInfo,
+    TKernelInfo,
+    TKernelSubGroupInfo,
+    TKernelWorkGroupInfo,
     TLightParameter,
     TLogicalOperation,
+    TMapFlags,
     TMaterialParameter,
     TMatrixType,
+    TMemFlags,
+    TMemInfo,
+    TMemMigrationFlags,
+    TMemObjectType,
     TMemoryObjectID,
     TMemoryObjectIDConstPointer,
     TMemoryObjectIDPointer,
     TObjectType,
+    TPipeInfo,
+    TPlatformInfo,
     TPointParameter,
+    TPolygonMode,
     TPrimitiveMode,
+    TProfilingInfo,
+    TProgramBuildInfo,
+    TProgramInfo,
     TProgramPipelineID,
     TProgramPipelineIDConstPointer,
     TProgramPipelineIDPointer,
@@ -150,9 +181,11 @@ enum class ParamType
     TRenderbufferID,
     TRenderbufferIDConstPointer,
     TRenderbufferIDPointer,
+    TSVM_MemFlags,
     TSamplerID,
     TSamplerIDConstPointer,
     TSamplerIDPointer,
+    TSamplerInfo,
     TSemaphoreID,
     TSemaphoreIDConstPointer,
     TSemaphoreIDPointer,
@@ -181,21 +214,69 @@ enum class ParamType
     TVertexArrayIDPointer,
     TVertexAttribType,
     TcharConstPointer,
+    TcharConstPointerPointer,
+    TcharUnsignedConstPointerPointer,
+    Tcl_bool,
+    Tcl_buffer_create_type,
+    Tcl_callback_func_type,
+    Tcl_command_queue,
+    Tcl_command_queue_propertiesPointer,
+    Tcl_context,
+    Tcl_context_destructor_func_type,
+    Tcl_context_func_type,
+    Tcl_context_propertiesConstPointer,
+    Tcl_device_id,
+    Tcl_device_idConstPointer,
+    Tcl_device_idPointer,
+    Tcl_device_partition_propertyConstPointer,
+    Tcl_event,
+    Tcl_eventConstPointer,
+    Tcl_eventPointer,
+    Tcl_image_descConstPointer,
+    Tcl_image_formatConstPointer,
+    Tcl_image_formatPointer,
+    Tcl_int,
+    Tcl_intPointer,
+    Tcl_kernel,
+    Tcl_kernelPointer,
+    Tcl_mem,
+    Tcl_memConstPointer,
+    Tcl_mem_destructor_func_type,
+    Tcl_mem_propertiesConstPointer,
+    Tcl_pipe_propertiesConstPointer,
+    Tcl_platform_id,
+    Tcl_platform_idPointer,
+    Tcl_program,
+    Tcl_programConstPointer,
+    Tcl_program_func_type,
+    Tcl_queue_propertiesConstPointer,
+    Tcl_sampler,
+    Tcl_sampler_propertiesConstPointer,
+    Tcl_svm_free_callback_func_type,
+    Tcl_uint,
+    Tcl_uintPointer,
+    Tcl_ulongPointer,
+    Tcl_void_func_type,
     Tegl_ConfigPointer,
     Tegl_DevicePointer,
     Tegl_DisplayPointer,
     Tegl_StreamPointer,
     Tegl_SyncID,
+    Tsize_t,
+    Tsize_tConstPointer,
+    Tsize_tPointer,
     TvoidConstPointer,
     TvoidConstPointerPointer,
     TvoidPointer,
     TvoidPointerPointer,
 };
 
-constexpr uint32_t kParamTypeCount = 173;
+constexpr uint32_t kParamTypeCount = 234;
 
 union ParamValue
 {
+    ParamValue() {}
+    ~ParamValue() {}
     const AHardwareBuffer *AHardwareBufferConstPointerVal;
     gl::AlphaTestFunc AlphaTestFuncVal;
     gl::BufferBinding BufferBindingVal;
@@ -221,7 +302,6 @@ union ParamValue
     EGLDEBUGPROCKHR EGLDEBUGPROCKHRVal;
     EGLDeviceEXT EGLDeviceEXTVal;
     EGLDisplay EGLDisplayVal;
-    EGLFrameTokenANGLE EGLFrameTokenANGLEVal;
     EGLGetBlobFuncANDROID EGLGetBlobFuncANDROIDVal;
     EGLImage EGLImageVal;
     EGLImageKHR EGLImageKHRVal;
@@ -253,19 +333,15 @@ union ParamValue
     gl::FramebufferID *FramebufferIDPointerVal;
     GLDEBUGPROC GLDEBUGPROCVal;
     GLDEBUGPROCKHR GLDEBUGPROCKHRVal;
+    GLGETBLOBPROCANGLE GLGETBLOBPROCANGLEVal;
+    GLSETBLOBPROCANGLE GLSETBLOBPROCANGLEVal;
     GLbitfield GLbitfieldVal;
     GLboolean GLbooleanVal;
-    const GLboolean *GLbooleanConstPointerVal;
     GLboolean *GLbooleanPointerVal;
-    GLbyte GLbyteVal;
-    const GLbyte *GLbyteConstPointerVal;
     const GLchar *GLcharConstPointerVal;
     const GLchar *const *GLcharConstPointerPointerVal;
     GLchar *GLcharPointerVal;
     GLclampx GLclampxVal;
-    GLdouble GLdoubleVal;
-    const GLdouble *GLdoubleConstPointerVal;
-    GLdouble *GLdoublePointerVal;
     GLeglClientBufferEXT GLeglClientBufferEXTVal;
     GLenum GLenumVal;
     const GLenum *GLenumConstPointerVal;
@@ -282,14 +358,12 @@ union ParamValue
     const GLint *GLintConstPointerVal;
     GLint *GLintPointerVal;
     GLintptr GLintptrVal;
-    const GLintptr *GLintptrConstPointerVal;
     GLshort GLshortVal;
     const GLshort *GLshortConstPointerVal;
     GLsizei GLsizeiVal;
     const GLsizei *GLsizeiConstPointerVal;
     GLsizei *GLsizeiPointerVal;
     GLsizeiptr GLsizeiptrVal;
-    const GLsizeiptr *GLsizeiptrConstPointerVal;
     GLsync GLsyncVal;
     GLubyte GLubyteVal;
     const GLubyte *GLubyteConstPointerVal;
@@ -300,11 +374,6 @@ union ParamValue
     GLuint64 *GLuint64PointerVal;
     const GLuint *GLuintConstPointerVal;
     GLuint *GLuintPointerVal;
-    GLushort GLushortVal;
-    const GLushort *GLushortConstPointerVal;
-    GLushort *GLushortPointerVal;
-    const GLvoid *GLvoidConstPointerVal;
-    const GLvoid *const *GLvoidConstPointerPointerVal;
     gl::GraphicsResetStatus GraphicsResetStatusVal;
     gl::HandleType HandleTypeVal;
     egl::ImageID ImageIDVal;
@@ -317,6 +386,7 @@ union ParamValue
     gl::MemoryObjectID *MemoryObjectIDPointerVal;
     egl::ObjectType ObjectTypeVal;
     gl::PointParameter PointParameterVal;
+    gl::PolygonMode PolygonModeVal;
     gl::PrimitiveMode PrimitiveModeVal;
     gl::ProgramPipelineID ProgramPipelineIDVal;
     const gl::ProgramPipelineID *ProgramPipelineIDConstPointerVal;
@@ -360,15 +430,89 @@ union ParamValue
     gl::VertexArrayID *VertexArrayIDPointerVal;
     gl::VertexAttribType VertexAttribTypeVal;
     const char *charConstPointerVal;
+    const char **charConstPointerPointerVal;
+    const unsigned char **charUnsignedConstPointerPointerVal;
     egl::Config *egl_ConfigPointerVal;
     egl::Device *egl_DevicePointerVal;
     egl::Display *egl_DisplayPointerVal;
     egl::Stream *egl_StreamPointerVal;
     egl::SyncID egl_SyncIDVal;
+    size_t size_tVal;
+    const size_t *size_tConstPointerVal;
+    size_t *size_tPointerVal;
     const void *voidConstPointerVal;
-    const void *const *voidConstPointerPointerVal;
+    const void **voidConstPointerPointerVal;
     void *voidPointerVal;
     void **voidPointerPointerVal;
+#ifdef ANGLE_ENABLE_CL
+    cl::AddressingMode AddressingModeVal;
+    cl::CommandQueueInfo CommandQueueInfoVal;
+    cl::CommandQueueProperties CommandQueuePropertiesVal;
+    cl::ContextInfo ContextInfoVal;
+    cl::DeviceInfo DeviceInfoVal;
+    cl::DeviceType DeviceTypeVal;
+    cl::EventInfo EventInfoVal;
+    cl::FilterMode FilterModeVal;
+    cl::ImageInfo ImageInfoVal;
+    cl::KernelArgInfo KernelArgInfoVal;
+    cl::KernelExecInfo KernelExecInfoVal;
+    cl::KernelInfo KernelInfoVal;
+    cl::KernelSubGroupInfo KernelSubGroupInfoVal;
+    cl::KernelWorkGroupInfo KernelWorkGroupInfoVal;
+    cl::MapFlags MapFlagsVal;
+    cl::MemFlags MemFlagsVal;
+    cl::MemInfo MemInfoVal;
+    cl::MemMigrationFlags MemMigrationFlagsVal;
+    cl::MemObjectType MemObjectTypeVal;
+    cl::PipeInfo PipeInfoVal;
+    cl::PlatformInfo PlatformInfoVal;
+    cl::ProfilingInfo ProfilingInfoVal;
+    cl::ProgramBuildInfo ProgramBuildInfoVal;
+    cl::ProgramInfo ProgramInfoVal;
+    cl::SVM_MemFlags SVM_MemFlagsVal;
+    cl::SamplerInfo SamplerInfoVal;
+    cl_bool cl_boolVal;
+    cl_buffer_create_type cl_buffer_create_typeVal;
+    cl_callback_func_type cl_callback_func_typeVal;
+    cl_command_queue cl_command_queueVal;
+    cl_command_queue_properties *cl_command_queue_propertiesPointerVal;
+    cl_context cl_contextVal;
+    cl_context_destructor_func_type cl_context_destructor_func_typeVal;
+    cl_context_func_type cl_context_func_typeVal;
+    const cl_context_properties *cl_context_propertiesConstPointerVal;
+    cl_device_id cl_device_idVal;
+    const cl_device_id *cl_device_idConstPointerVal;
+    cl_device_id *cl_device_idPointerVal;
+    const cl_device_partition_property *cl_device_partition_propertyConstPointerVal;
+    cl_event cl_eventVal;
+    const cl_event *cl_eventConstPointerVal;
+    cl_event *cl_eventPointerVal;
+    const cl_image_desc *cl_image_descConstPointerVal;
+    const cl_image_format *cl_image_formatConstPointerVal;
+    cl_image_format *cl_image_formatPointerVal;
+    cl_int cl_intVal;
+    cl_int *cl_intPointerVal;
+    cl_kernel cl_kernelVal;
+    cl_kernel *cl_kernelPointerVal;
+    cl_mem cl_memVal;
+    const cl_mem *cl_memConstPointerVal;
+    cl_mem_destructor_func_type cl_mem_destructor_func_typeVal;
+    const cl_mem_properties *cl_mem_propertiesConstPointerVal;
+    const cl_pipe_properties *cl_pipe_propertiesConstPointerVal;
+    cl_platform_id cl_platform_idVal;
+    cl_platform_id *cl_platform_idPointerVal;
+    cl_program cl_programVal;
+    const cl_program *cl_programConstPointerVal;
+    cl_program_func_type cl_program_func_typeVal;
+    const cl_queue_properties *cl_queue_propertiesConstPointerVal;
+    cl_sampler cl_samplerVal;
+    const cl_sampler_properties *cl_sampler_propertiesConstPointerVal;
+    cl_svm_free_callback_func_type cl_svm_free_callback_func_typeVal;
+    cl_uint cl_uintVal;
+    cl_uint *cl_uintPointerVal;
+    cl_ulong *cl_ulongPointerVal;
+    cl_void_func_type cl_void_func_typeVal;
+#endif
 };
 
 template <ParamType PType, typename T>
@@ -537,13 +681,6 @@ template <>
 inline EGLDisplay GetParamVal<ParamType::TEGLDisplay, EGLDisplay>(const ParamValue &value)
 {
     return value.EGLDisplayVal;
-}
-
-template <>
-inline EGLFrameTokenANGLE GetParamVal<ParamType::TEGLFrameTokenANGLE, EGLFrameTokenANGLE>(
-    const ParamValue &value)
-{
-    return value.EGLFrameTokenANGLEVal;
 }
 
 template <>
@@ -748,6 +885,20 @@ inline GLDEBUGPROCKHR GetParamVal<ParamType::TGLDEBUGPROCKHR, GLDEBUGPROCKHR>(
 }
 
 template <>
+inline GLGETBLOBPROCANGLE GetParamVal<ParamType::TGLGETBLOBPROCANGLE, GLGETBLOBPROCANGLE>(
+    const ParamValue &value)
+{
+    return value.GLGETBLOBPROCANGLEVal;
+}
+
+template <>
+inline GLSETBLOBPROCANGLE GetParamVal<ParamType::TGLSETBLOBPROCANGLE, GLSETBLOBPROCANGLE>(
+    const ParamValue &value)
+{
+    return value.GLSETBLOBPROCANGLEVal;
+}
+
+template <>
 inline GLbitfield GetParamVal<ParamType::TGLbitfield, GLbitfield>(const ParamValue &value)
 {
     return value.GLbitfieldVal;
@@ -760,29 +911,9 @@ inline GLboolean GetParamVal<ParamType::TGLboolean, GLboolean>(const ParamValue 
 }
 
 template <>
-inline const GLboolean *GetParamVal<ParamType::TGLbooleanConstPointer, const GLboolean *>(
-    const ParamValue &value)
-{
-    return value.GLbooleanConstPointerVal;
-}
-
-template <>
 inline GLboolean *GetParamVal<ParamType::TGLbooleanPointer, GLboolean *>(const ParamValue &value)
 {
     return value.GLbooleanPointerVal;
-}
-
-template <>
-inline GLbyte GetParamVal<ParamType::TGLbyte, GLbyte>(const ParamValue &value)
-{
-    return value.GLbyteVal;
-}
-
-template <>
-inline const GLbyte *GetParamVal<ParamType::TGLbyteConstPointer, const GLbyte *>(
-    const ParamValue &value)
-{
-    return value.GLbyteConstPointerVal;
 }
 
 template <>
@@ -809,25 +940,6 @@ template <>
 inline GLclampx GetParamVal<ParamType::TGLclampx, GLclampx>(const ParamValue &value)
 {
     return value.GLclampxVal;
-}
-
-template <>
-inline GLdouble GetParamVal<ParamType::TGLdouble, GLdouble>(const ParamValue &value)
-{
-    return value.GLdoubleVal;
-}
-
-template <>
-inline const GLdouble *GetParamVal<ParamType::TGLdoubleConstPointer, const GLdouble *>(
-    const ParamValue &value)
-{
-    return value.GLdoubleConstPointerVal;
-}
-
-template <>
-inline GLdouble *GetParamVal<ParamType::TGLdoublePointer, GLdouble *>(const ParamValue &value)
-{
-    return value.GLdoublePointerVal;
 }
 
 template <>
@@ -932,13 +1044,6 @@ inline GLintptr GetParamVal<ParamType::TGLintptr, GLintptr>(const ParamValue &va
 }
 
 template <>
-inline const GLintptr *GetParamVal<ParamType::TGLintptrConstPointer, const GLintptr *>(
-    const ParamValue &value)
-{
-    return value.GLintptrConstPointerVal;
-}
-
-template <>
 inline GLshort GetParamVal<ParamType::TGLshort, GLshort>(const ParamValue &value)
 {
     return value.GLshortVal;
@@ -974,13 +1079,6 @@ template <>
 inline GLsizeiptr GetParamVal<ParamType::TGLsizeiptr, GLsizeiptr>(const ParamValue &value)
 {
     return value.GLsizeiptrVal;
-}
-
-template <>
-inline const GLsizeiptr *GetParamVal<ParamType::TGLsizeiptrConstPointer, const GLsizeiptr *>(
-    const ParamValue &value)
-{
-    return value.GLsizeiptrConstPointerVal;
 }
 
 template <>
@@ -1044,39 +1142,6 @@ template <>
 inline GLuint *GetParamVal<ParamType::TGLuintPointer, GLuint *>(const ParamValue &value)
 {
     return value.GLuintPointerVal;
-}
-
-template <>
-inline GLushort GetParamVal<ParamType::TGLushort, GLushort>(const ParamValue &value)
-{
-    return value.GLushortVal;
-}
-
-template <>
-inline const GLushort *GetParamVal<ParamType::TGLushortConstPointer, const GLushort *>(
-    const ParamValue &value)
-{
-    return value.GLushortConstPointerVal;
-}
-
-template <>
-inline GLushort *GetParamVal<ParamType::TGLushortPointer, GLushort *>(const ParamValue &value)
-{
-    return value.GLushortPointerVal;
-}
-
-template <>
-inline const GLvoid *GetParamVal<ParamType::TGLvoidConstPointer, const GLvoid *>(
-    const ParamValue &value)
-{
-    return value.GLvoidConstPointerVal;
-}
-
-template <>
-inline const GLvoid *const *
-GetParamVal<ParamType::TGLvoidConstPointerPointer, const GLvoid *const *>(const ParamValue &value)
-{
-    return value.GLvoidConstPointerPointerVal;
 }
 
 template <>
@@ -1157,6 +1222,13 @@ inline gl::PointParameter GetParamVal<ParamType::TPointParameter, gl::PointParam
     const ParamValue &value)
 {
     return value.PointParameterVal;
+}
+
+template <>
+inline gl::PolygonMode GetParamVal<ParamType::TPolygonMode, gl::PolygonMode>(
+    const ParamValue &value)
+{
+    return value.PolygonModeVal;
 }
 
 template <>
@@ -1454,6 +1526,20 @@ inline const char *GetParamVal<ParamType::TcharConstPointer, const char *>(const
 }
 
 template <>
+inline const char **GetParamVal<ParamType::TcharConstPointerPointer, const char **>(
+    const ParamValue &value)
+{
+    return value.charConstPointerPointerVal;
+}
+
+template <>
+inline const unsigned char **GetParamVal<ParamType::TcharUnsignedConstPointerPointer,
+                                         const unsigned char **>(const ParamValue &value)
+{
+    return value.charUnsignedConstPointerPointerVal;
+}
+
+template <>
 inline egl::Config *GetParamVal<ParamType::Tegl_ConfigPointer, egl::Config *>(
     const ParamValue &value)
 {
@@ -1488,13 +1574,32 @@ inline egl::SyncID GetParamVal<ParamType::Tegl_SyncID, egl::SyncID>(const ParamV
 }
 
 template <>
+inline size_t GetParamVal<ParamType::Tsize_t, size_t>(const ParamValue &value)
+{
+    return value.size_tVal;
+}
+
+template <>
+inline const size_t *GetParamVal<ParamType::Tsize_tConstPointer, const size_t *>(
+    const ParamValue &value)
+{
+    return value.size_tConstPointerVal;
+}
+
+template <>
+inline size_t *GetParamVal<ParamType::Tsize_tPointer, size_t *>(const ParamValue &value)
+{
+    return value.size_tPointerVal;
+}
+
+template <>
 inline const void *GetParamVal<ParamType::TvoidConstPointer, const void *>(const ParamValue &value)
 {
     return value.voidConstPointerVal;
 }
 
 template <>
-inline const void *const *GetParamVal<ParamType::TvoidConstPointerPointer, const void *const *>(
+inline const void **GetParamVal<ParamType::TvoidConstPointerPointer, const void **>(
     const ParamValue &value)
 {
     return value.voidConstPointerPointerVal;
@@ -1512,6 +1617,458 @@ inline void **GetParamVal<ParamType::TvoidPointerPointer, void **>(const ParamVa
     return value.voidPointerPointerVal;
 }
 
+#ifdef ANGLE_ENABLE_CL
+template <>
+inline cl::AddressingMode GetParamVal<ParamType::TAddressingMode, cl::AddressingMode>(
+    const ParamValue &value)
+{
+    return value.AddressingModeVal;
+}
+
+template <>
+inline cl::CommandQueueInfo GetParamVal<ParamType::TCommandQueueInfo, cl::CommandQueueInfo>(
+    const ParamValue &value)
+{
+    return value.CommandQueueInfoVal;
+}
+
+template <>
+inline cl::CommandQueueProperties
+GetParamVal<ParamType::TCommandQueueProperties, cl::CommandQueueProperties>(const ParamValue &value)
+{
+    return value.CommandQueuePropertiesVal;
+}
+
+template <>
+inline cl::ContextInfo GetParamVal<ParamType::TContextInfo, cl::ContextInfo>(
+    const ParamValue &value)
+{
+    return value.ContextInfoVal;
+}
+
+template <>
+inline cl::DeviceInfo GetParamVal<ParamType::TDeviceInfo, cl::DeviceInfo>(const ParamValue &value)
+{
+    return value.DeviceInfoVal;
+}
+
+template <>
+inline cl::DeviceType GetParamVal<ParamType::TDeviceType, cl::DeviceType>(const ParamValue &value)
+{
+    return value.DeviceTypeVal;
+}
+
+template <>
+inline cl::EventInfo GetParamVal<ParamType::TEventInfo, cl::EventInfo>(const ParamValue &value)
+{
+    return value.EventInfoVal;
+}
+
+template <>
+inline cl::FilterMode GetParamVal<ParamType::TFilterMode, cl::FilterMode>(const ParamValue &value)
+{
+    return value.FilterModeVal;
+}
+
+template <>
+inline cl::ImageInfo GetParamVal<ParamType::TImageInfo, cl::ImageInfo>(const ParamValue &value)
+{
+    return value.ImageInfoVal;
+}
+
+template <>
+inline cl::KernelArgInfo GetParamVal<ParamType::TKernelArgInfo, cl::KernelArgInfo>(
+    const ParamValue &value)
+{
+    return value.KernelArgInfoVal;
+}
+
+template <>
+inline cl::KernelExecInfo GetParamVal<ParamType::TKernelExecInfo, cl::KernelExecInfo>(
+    const ParamValue &value)
+{
+    return value.KernelExecInfoVal;
+}
+
+template <>
+inline cl::KernelInfo GetParamVal<ParamType::TKernelInfo, cl::KernelInfo>(const ParamValue &value)
+{
+    return value.KernelInfoVal;
+}
+
+template <>
+inline cl::KernelSubGroupInfo GetParamVal<ParamType::TKernelSubGroupInfo, cl::KernelSubGroupInfo>(
+    const ParamValue &value)
+{
+    return value.KernelSubGroupInfoVal;
+}
+
+template <>
+inline cl::KernelWorkGroupInfo
+GetParamVal<ParamType::TKernelWorkGroupInfo, cl::KernelWorkGroupInfo>(const ParamValue &value)
+{
+    return value.KernelWorkGroupInfoVal;
+}
+
+template <>
+inline cl::MapFlags GetParamVal<ParamType::TMapFlags, cl::MapFlags>(const ParamValue &value)
+{
+    return value.MapFlagsVal;
+}
+
+template <>
+inline cl::MemFlags GetParamVal<ParamType::TMemFlags, cl::MemFlags>(const ParamValue &value)
+{
+    return value.MemFlagsVal;
+}
+
+template <>
+inline cl::MemInfo GetParamVal<ParamType::TMemInfo, cl::MemInfo>(const ParamValue &value)
+{
+    return value.MemInfoVal;
+}
+
+template <>
+inline cl::MemMigrationFlags GetParamVal<ParamType::TMemMigrationFlags, cl::MemMigrationFlags>(
+    const ParamValue &value)
+{
+    return value.MemMigrationFlagsVal;
+}
+
+template <>
+inline cl::MemObjectType GetParamVal<ParamType::TMemObjectType, cl::MemObjectType>(
+    const ParamValue &value)
+{
+    return value.MemObjectTypeVal;
+}
+
+template <>
+inline cl::PipeInfo GetParamVal<ParamType::TPipeInfo, cl::PipeInfo>(const ParamValue &value)
+{
+    return value.PipeInfoVal;
+}
+
+template <>
+inline cl::PlatformInfo GetParamVal<ParamType::TPlatformInfo, cl::PlatformInfo>(
+    const ParamValue &value)
+{
+    return value.PlatformInfoVal;
+}
+
+template <>
+inline cl::ProfilingInfo GetParamVal<ParamType::TProfilingInfo, cl::ProfilingInfo>(
+    const ParamValue &value)
+{
+    return value.ProfilingInfoVal;
+}
+
+template <>
+inline cl::ProgramBuildInfo GetParamVal<ParamType::TProgramBuildInfo, cl::ProgramBuildInfo>(
+    const ParamValue &value)
+{
+    return value.ProgramBuildInfoVal;
+}
+
+template <>
+inline cl::ProgramInfo GetParamVal<ParamType::TProgramInfo, cl::ProgramInfo>(
+    const ParamValue &value)
+{
+    return value.ProgramInfoVal;
+}
+
+template <>
+inline cl::SVM_MemFlags GetParamVal<ParamType::TSVM_MemFlags, cl::SVM_MemFlags>(
+    const ParamValue &value)
+{
+    return value.SVM_MemFlagsVal;
+}
+
+template <>
+inline cl::SamplerInfo GetParamVal<ParamType::TSamplerInfo, cl::SamplerInfo>(
+    const ParamValue &value)
+{
+    return value.SamplerInfoVal;
+}
+
+template <>
+inline cl_bool GetParamVal<ParamType::Tcl_bool, cl_bool>(const ParamValue &value)
+{
+    return value.cl_boolVal;
+}
+
+template <>
+inline cl_buffer_create_type GetParamVal<ParamType::Tcl_buffer_create_type, cl_buffer_create_type>(
+    const ParamValue &value)
+{
+    return value.cl_buffer_create_typeVal;
+}
+
+template <>
+inline cl_callback_func_type GetParamVal<ParamType::Tcl_callback_func_type, cl_callback_func_type>(
+    const ParamValue &value)
+{
+    return value.cl_callback_func_typeVal;
+}
+
+template <>
+inline cl_command_queue GetParamVal<ParamType::Tcl_command_queue, cl_command_queue>(
+    const ParamValue &value)
+{
+    return value.cl_command_queueVal;
+}
+
+template <>
+inline cl_command_queue_properties *
+GetParamVal<ParamType::Tcl_command_queue_propertiesPointer, cl_command_queue_properties *>(
+    const ParamValue &value)
+{
+    return value.cl_command_queue_propertiesPointerVal;
+}
+
+template <>
+inline cl_context GetParamVal<ParamType::Tcl_context, cl_context>(const ParamValue &value)
+{
+    return value.cl_contextVal;
+}
+
+template <>
+inline cl_context_destructor_func_type
+GetParamVal<ParamType::Tcl_context_destructor_func_type, cl_context_destructor_func_type>(
+    const ParamValue &value)
+{
+    return value.cl_context_destructor_func_typeVal;
+}
+
+template <>
+inline cl_context_func_type GetParamVal<ParamType::Tcl_context_func_type, cl_context_func_type>(
+    const ParamValue &value)
+{
+    return value.cl_context_func_typeVal;
+}
+
+template <>
+inline const cl_context_properties *
+GetParamVal<ParamType::Tcl_context_propertiesConstPointer, const cl_context_properties *>(
+    const ParamValue &value)
+{
+    return value.cl_context_propertiesConstPointerVal;
+}
+
+template <>
+inline cl_device_id GetParamVal<ParamType::Tcl_device_id, cl_device_id>(const ParamValue &value)
+{
+    return value.cl_device_idVal;
+}
+
+template <>
+inline const cl_device_id *GetParamVal<ParamType::Tcl_device_idConstPointer, const cl_device_id *>(
+    const ParamValue &value)
+{
+    return value.cl_device_idConstPointerVal;
+}
+
+template <>
+inline cl_device_id *GetParamVal<ParamType::Tcl_device_idPointer, cl_device_id *>(
+    const ParamValue &value)
+{
+    return value.cl_device_idPointerVal;
+}
+
+template <>
+inline const cl_device_partition_property *
+GetParamVal<ParamType::Tcl_device_partition_propertyConstPointer,
+            const cl_device_partition_property *>(const ParamValue &value)
+{
+    return value.cl_device_partition_propertyConstPointerVal;
+}
+
+template <>
+inline cl_event GetParamVal<ParamType::Tcl_event, cl_event>(const ParamValue &value)
+{
+    return value.cl_eventVal;
+}
+
+template <>
+inline const cl_event *GetParamVal<ParamType::Tcl_eventConstPointer, const cl_event *>(
+    const ParamValue &value)
+{
+    return value.cl_eventConstPointerVal;
+}
+
+template <>
+inline cl_event *GetParamVal<ParamType::Tcl_eventPointer, cl_event *>(const ParamValue &value)
+{
+    return value.cl_eventPointerVal;
+}
+
+template <>
+inline const cl_image_desc *
+GetParamVal<ParamType::Tcl_image_descConstPointer, const cl_image_desc *>(const ParamValue &value)
+{
+    return value.cl_image_descConstPointerVal;
+}
+
+template <>
+inline const cl_image_format *GetParamVal<ParamType::Tcl_image_formatConstPointer,
+                                          const cl_image_format *>(const ParamValue &value)
+{
+    return value.cl_image_formatConstPointerVal;
+}
+
+template <>
+inline cl_image_format *GetParamVal<ParamType::Tcl_image_formatPointer, cl_image_format *>(
+    const ParamValue &value)
+{
+    return value.cl_image_formatPointerVal;
+}
+
+template <>
+inline cl_int GetParamVal<ParamType::Tcl_int, cl_int>(const ParamValue &value)
+{
+    return value.cl_intVal;
+}
+
+template <>
+inline cl_int *GetParamVal<ParamType::Tcl_intPointer, cl_int *>(const ParamValue &value)
+{
+    return value.cl_intPointerVal;
+}
+
+template <>
+inline cl_kernel GetParamVal<ParamType::Tcl_kernel, cl_kernel>(const ParamValue &value)
+{
+    return value.cl_kernelVal;
+}
+
+template <>
+inline cl_kernel *GetParamVal<ParamType::Tcl_kernelPointer, cl_kernel *>(const ParamValue &value)
+{
+    return value.cl_kernelPointerVal;
+}
+
+template <>
+inline cl_mem GetParamVal<ParamType::Tcl_mem, cl_mem>(const ParamValue &value)
+{
+    return value.cl_memVal;
+}
+
+template <>
+inline const cl_mem *GetParamVal<ParamType::Tcl_memConstPointer, const cl_mem *>(
+    const ParamValue &value)
+{
+    return value.cl_memConstPointerVal;
+}
+
+template <>
+inline cl_mem_destructor_func_type GetParamVal<ParamType::Tcl_mem_destructor_func_type,
+                                               cl_mem_destructor_func_type>(const ParamValue &value)
+{
+    return value.cl_mem_destructor_func_typeVal;
+}
+
+template <>
+inline const cl_mem_properties *GetParamVal<ParamType::Tcl_mem_propertiesConstPointer,
+                                            const cl_mem_properties *>(const ParamValue &value)
+{
+    return value.cl_mem_propertiesConstPointerVal;
+}
+
+template <>
+inline const cl_pipe_properties *GetParamVal<ParamType::Tcl_pipe_propertiesConstPointer,
+                                             const cl_pipe_properties *>(const ParamValue &value)
+{
+    return value.cl_pipe_propertiesConstPointerVal;
+}
+
+template <>
+inline cl_platform_id GetParamVal<ParamType::Tcl_platform_id, cl_platform_id>(
+    const ParamValue &value)
+{
+    return value.cl_platform_idVal;
+}
+
+template <>
+inline cl_platform_id *GetParamVal<ParamType::Tcl_platform_idPointer, cl_platform_id *>(
+    const ParamValue &value)
+{
+    return value.cl_platform_idPointerVal;
+}
+
+template <>
+inline cl_program GetParamVal<ParamType::Tcl_program, cl_program>(const ParamValue &value)
+{
+    return value.cl_programVal;
+}
+
+template <>
+inline const cl_program *GetParamVal<ParamType::Tcl_programConstPointer, const cl_program *>(
+    const ParamValue &value)
+{
+    return value.cl_programConstPointerVal;
+}
+
+template <>
+inline cl_program_func_type GetParamVal<ParamType::Tcl_program_func_type, cl_program_func_type>(
+    const ParamValue &value)
+{
+    return value.cl_program_func_typeVal;
+}
+
+template <>
+inline const cl_queue_properties *GetParamVal<ParamType::Tcl_queue_propertiesConstPointer,
+                                              const cl_queue_properties *>(const ParamValue &value)
+{
+    return value.cl_queue_propertiesConstPointerVal;
+}
+
+template <>
+inline cl_sampler GetParamVal<ParamType::Tcl_sampler, cl_sampler>(const ParamValue &value)
+{
+    return value.cl_samplerVal;
+}
+
+template <>
+inline const cl_sampler_properties *
+GetParamVal<ParamType::Tcl_sampler_propertiesConstPointer, const cl_sampler_properties *>(
+    const ParamValue &value)
+{
+    return value.cl_sampler_propertiesConstPointerVal;
+}
+
+template <>
+inline cl_svm_free_callback_func_type
+GetParamVal<ParamType::Tcl_svm_free_callback_func_type, cl_svm_free_callback_func_type>(
+    const ParamValue &value)
+{
+    return value.cl_svm_free_callback_func_typeVal;
+}
+
+template <>
+inline cl_uint GetParamVal<ParamType::Tcl_uint, cl_uint>(const ParamValue &value)
+{
+    return value.cl_uintVal;
+}
+
+template <>
+inline cl_uint *GetParamVal<ParamType::Tcl_uintPointer, cl_uint *>(const ParamValue &value)
+{
+    return value.cl_uintPointerVal;
+}
+
+template <>
+inline cl_ulong *GetParamVal<ParamType::Tcl_ulongPointer, cl_ulong *>(const ParamValue &value)
+{
+    return value.cl_ulongPointerVal;
+}
+
+template <>
+inline cl_void_func_type GetParamVal<ParamType::Tcl_void_func_type, cl_void_func_type>(
+    const ParamValue &value)
+{
+    return value.cl_void_func_typeVal;
+}
+#endif
+
 template <ParamType PType, typename T>
 T GetParamVal(const ParamValue &value)
 {
@@ -1526,6 +2083,8 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
     {
         case ParamType::TAHardwareBufferConstPointer:
             return GetParamVal<ParamType::TAHardwareBufferConstPointer, T>(value);
+        case ParamType::TAddressingMode:
+            return GetParamVal<ParamType::TAddressingMode, T>(value);
         case ParamType::TAlphaTestFunc:
             return GetParamVal<ParamType::TAlphaTestFunc, T>(value);
         case ParamType::TBufferBinding:
@@ -1544,12 +2103,22 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::TClipDepthMode, T>(value);
         case ParamType::TClipOrigin:
             return GetParamVal<ParamType::TClipOrigin, T>(value);
+        case ParamType::TCommandQueueInfo:
+            return GetParamVal<ParamType::TCommandQueueInfo, T>(value);
+        case ParamType::TCommandQueueProperties:
+            return GetParamVal<ParamType::TCommandQueueProperties, T>(value);
         case ParamType::TCompositorTiming:
             return GetParamVal<ParamType::TCompositorTiming, T>(value);
         case ParamType::TContextID:
             return GetParamVal<ParamType::TContextID, T>(value);
+        case ParamType::TContextInfo:
+            return GetParamVal<ParamType::TContextInfo, T>(value);
         case ParamType::TCullFaceMode:
             return GetParamVal<ParamType::TCullFaceMode, T>(value);
+        case ParamType::TDeviceInfo:
+            return GetParamVal<ParamType::TDeviceInfo, T>(value);
+        case ParamType::TDeviceType:
+            return GetParamVal<ParamType::TDeviceType, T>(value);
         case ParamType::TDrawElementsType:
             return GetParamVal<ParamType::TDrawElementsType, T>(value);
         case ParamType::TEGLAttribConstPointer:
@@ -1574,8 +2143,6 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::TEGLDeviceEXT, T>(value);
         case ParamType::TEGLDisplay:
             return GetParamVal<ParamType::TEGLDisplay, T>(value);
-        case ParamType::TEGLFrameTokenANGLE:
-            return GetParamVal<ParamType::TEGLFrameTokenANGLE, T>(value);
         case ParamType::TEGLGetBlobFuncANDROID:
             return GetParamVal<ParamType::TEGLGetBlobFuncANDROID, T>(value);
         case ParamType::TEGLImage:
@@ -1622,12 +2189,16 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::TEGLuint64KHR, T>(value);
         case ParamType::TEGLuint64KHRPointer:
             return GetParamVal<ParamType::TEGLuint64KHRPointer, T>(value);
+        case ParamType::TEventInfo:
+            return GetParamVal<ParamType::TEventInfo, T>(value);
         case ParamType::TFenceNVID:
             return GetParamVal<ParamType::TFenceNVID, T>(value);
         case ParamType::TFenceNVIDConstPointer:
             return GetParamVal<ParamType::TFenceNVIDConstPointer, T>(value);
         case ParamType::TFenceNVIDPointer:
             return GetParamVal<ParamType::TFenceNVIDPointer, T>(value);
+        case ParamType::TFilterMode:
+            return GetParamVal<ParamType::TFilterMode, T>(value);
         case ParamType::TFramebufferID:
             return GetParamVal<ParamType::TFramebufferID, T>(value);
         case ParamType::TFramebufferIDConstPointer:
@@ -1638,18 +2209,16 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::TGLDEBUGPROC, T>(value);
         case ParamType::TGLDEBUGPROCKHR:
             return GetParamVal<ParamType::TGLDEBUGPROCKHR, T>(value);
+        case ParamType::TGLGETBLOBPROCANGLE:
+            return GetParamVal<ParamType::TGLGETBLOBPROCANGLE, T>(value);
+        case ParamType::TGLSETBLOBPROCANGLE:
+            return GetParamVal<ParamType::TGLSETBLOBPROCANGLE, T>(value);
         case ParamType::TGLbitfield:
             return GetParamVal<ParamType::TGLbitfield, T>(value);
         case ParamType::TGLboolean:
             return GetParamVal<ParamType::TGLboolean, T>(value);
-        case ParamType::TGLbooleanConstPointer:
-            return GetParamVal<ParamType::TGLbooleanConstPointer, T>(value);
         case ParamType::TGLbooleanPointer:
             return GetParamVal<ParamType::TGLbooleanPointer, T>(value);
-        case ParamType::TGLbyte:
-            return GetParamVal<ParamType::TGLbyte, T>(value);
-        case ParamType::TGLbyteConstPointer:
-            return GetParamVal<ParamType::TGLbyteConstPointer, T>(value);
         case ParamType::TGLcharConstPointer:
             return GetParamVal<ParamType::TGLcharConstPointer, T>(value);
         case ParamType::TGLcharConstPointerPointer:
@@ -1658,12 +2227,6 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::TGLcharPointer, T>(value);
         case ParamType::TGLclampx:
             return GetParamVal<ParamType::TGLclampx, T>(value);
-        case ParamType::TGLdouble:
-            return GetParamVal<ParamType::TGLdouble, T>(value);
-        case ParamType::TGLdoubleConstPointer:
-            return GetParamVal<ParamType::TGLdoubleConstPointer, T>(value);
-        case ParamType::TGLdoublePointer:
-            return GetParamVal<ParamType::TGLdoublePointer, T>(value);
         case ParamType::TGLeglClientBufferEXT:
             return GetParamVal<ParamType::TGLeglClientBufferEXT, T>(value);
         case ParamType::TGLenum:
@@ -1696,8 +2259,6 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::TGLintPointer, T>(value);
         case ParamType::TGLintptr:
             return GetParamVal<ParamType::TGLintptr, T>(value);
-        case ParamType::TGLintptrConstPointer:
-            return GetParamVal<ParamType::TGLintptrConstPointer, T>(value);
         case ParamType::TGLshort:
             return GetParamVal<ParamType::TGLshort, T>(value);
         case ParamType::TGLshortConstPointer:
@@ -1710,8 +2271,6 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::TGLsizeiPointer, T>(value);
         case ParamType::TGLsizeiptr:
             return GetParamVal<ParamType::TGLsizeiptr, T>(value);
-        case ParamType::TGLsizeiptrConstPointer:
-            return GetParamVal<ParamType::TGLsizeiptrConstPointer, T>(value);
         case ParamType::TGLsync:
             return GetParamVal<ParamType::TGLsync, T>(value);
         case ParamType::TGLubyte:
@@ -1732,30 +2291,42 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::TGLuintConstPointer, T>(value);
         case ParamType::TGLuintPointer:
             return GetParamVal<ParamType::TGLuintPointer, T>(value);
-        case ParamType::TGLushort:
-            return GetParamVal<ParamType::TGLushort, T>(value);
-        case ParamType::TGLushortConstPointer:
-            return GetParamVal<ParamType::TGLushortConstPointer, T>(value);
-        case ParamType::TGLushortPointer:
-            return GetParamVal<ParamType::TGLushortPointer, T>(value);
-        case ParamType::TGLvoidConstPointer:
-            return GetParamVal<ParamType::TGLvoidConstPointer, T>(value);
-        case ParamType::TGLvoidConstPointerPointer:
-            return GetParamVal<ParamType::TGLvoidConstPointerPointer, T>(value);
         case ParamType::TGraphicsResetStatus:
             return GetParamVal<ParamType::TGraphicsResetStatus, T>(value);
         case ParamType::THandleType:
             return GetParamVal<ParamType::THandleType, T>(value);
         case ParamType::TImageID:
             return GetParamVal<ParamType::TImageID, T>(value);
+        case ParamType::TImageInfo:
+            return GetParamVal<ParamType::TImageInfo, T>(value);
+        case ParamType::TKernelArgInfo:
+            return GetParamVal<ParamType::TKernelArgInfo, T>(value);
+        case ParamType::TKernelExecInfo:
+            return GetParamVal<ParamType::TKernelExecInfo, T>(value);
+        case ParamType::TKernelInfo:
+            return GetParamVal<ParamType::TKernelInfo, T>(value);
+        case ParamType::TKernelSubGroupInfo:
+            return GetParamVal<ParamType::TKernelSubGroupInfo, T>(value);
+        case ParamType::TKernelWorkGroupInfo:
+            return GetParamVal<ParamType::TKernelWorkGroupInfo, T>(value);
         case ParamType::TLightParameter:
             return GetParamVal<ParamType::TLightParameter, T>(value);
         case ParamType::TLogicalOperation:
             return GetParamVal<ParamType::TLogicalOperation, T>(value);
+        case ParamType::TMapFlags:
+            return GetParamVal<ParamType::TMapFlags, T>(value);
         case ParamType::TMaterialParameter:
             return GetParamVal<ParamType::TMaterialParameter, T>(value);
         case ParamType::TMatrixType:
             return GetParamVal<ParamType::TMatrixType, T>(value);
+        case ParamType::TMemFlags:
+            return GetParamVal<ParamType::TMemFlags, T>(value);
+        case ParamType::TMemInfo:
+            return GetParamVal<ParamType::TMemInfo, T>(value);
+        case ParamType::TMemMigrationFlags:
+            return GetParamVal<ParamType::TMemMigrationFlags, T>(value);
+        case ParamType::TMemObjectType:
+            return GetParamVal<ParamType::TMemObjectType, T>(value);
         case ParamType::TMemoryObjectID:
             return GetParamVal<ParamType::TMemoryObjectID, T>(value);
         case ParamType::TMemoryObjectIDConstPointer:
@@ -1764,10 +2335,22 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::TMemoryObjectIDPointer, T>(value);
         case ParamType::TObjectType:
             return GetParamVal<ParamType::TObjectType, T>(value);
+        case ParamType::TPipeInfo:
+            return GetParamVal<ParamType::TPipeInfo, T>(value);
+        case ParamType::TPlatformInfo:
+            return GetParamVal<ParamType::TPlatformInfo, T>(value);
         case ParamType::TPointParameter:
             return GetParamVal<ParamType::TPointParameter, T>(value);
+        case ParamType::TPolygonMode:
+            return GetParamVal<ParamType::TPolygonMode, T>(value);
         case ParamType::TPrimitiveMode:
             return GetParamVal<ParamType::TPrimitiveMode, T>(value);
+        case ParamType::TProfilingInfo:
+            return GetParamVal<ParamType::TProfilingInfo, T>(value);
+        case ParamType::TProgramBuildInfo:
+            return GetParamVal<ParamType::TProgramBuildInfo, T>(value);
+        case ParamType::TProgramInfo:
+            return GetParamVal<ParamType::TProgramInfo, T>(value);
         case ParamType::TProgramPipelineID:
             return GetParamVal<ParamType::TProgramPipelineID, T>(value);
         case ParamType::TProgramPipelineIDConstPointer:
@@ -1790,12 +2373,16 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::TRenderbufferIDConstPointer, T>(value);
         case ParamType::TRenderbufferIDPointer:
             return GetParamVal<ParamType::TRenderbufferIDPointer, T>(value);
+        case ParamType::TSVM_MemFlags:
+            return GetParamVal<ParamType::TSVM_MemFlags, T>(value);
         case ParamType::TSamplerID:
             return GetParamVal<ParamType::TSamplerID, T>(value);
         case ParamType::TSamplerIDConstPointer:
             return GetParamVal<ParamType::TSamplerIDConstPointer, T>(value);
         case ParamType::TSamplerIDPointer:
             return GetParamVal<ParamType::TSamplerIDPointer, T>(value);
+        case ParamType::TSamplerInfo:
+            return GetParamVal<ParamType::TSamplerInfo, T>(value);
         case ParamType::TSemaphoreID:
             return GetParamVal<ParamType::TSemaphoreID, T>(value);
         case ParamType::TSemaphoreIDConstPointer:
@@ -1852,6 +2439,92 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::TVertexAttribType, T>(value);
         case ParamType::TcharConstPointer:
             return GetParamVal<ParamType::TcharConstPointer, T>(value);
+        case ParamType::TcharConstPointerPointer:
+            return GetParamVal<ParamType::TcharConstPointerPointer, T>(value);
+        case ParamType::TcharUnsignedConstPointerPointer:
+            return GetParamVal<ParamType::TcharUnsignedConstPointerPointer, T>(value);
+        case ParamType::Tcl_bool:
+            return GetParamVal<ParamType::Tcl_bool, T>(value);
+        case ParamType::Tcl_buffer_create_type:
+            return GetParamVal<ParamType::Tcl_buffer_create_type, T>(value);
+        case ParamType::Tcl_callback_func_type:
+            return GetParamVal<ParamType::Tcl_callback_func_type, T>(value);
+        case ParamType::Tcl_command_queue:
+            return GetParamVal<ParamType::Tcl_command_queue, T>(value);
+        case ParamType::Tcl_command_queue_propertiesPointer:
+            return GetParamVal<ParamType::Tcl_command_queue_propertiesPointer, T>(value);
+        case ParamType::Tcl_context:
+            return GetParamVal<ParamType::Tcl_context, T>(value);
+        case ParamType::Tcl_context_destructor_func_type:
+            return GetParamVal<ParamType::Tcl_context_destructor_func_type, T>(value);
+        case ParamType::Tcl_context_func_type:
+            return GetParamVal<ParamType::Tcl_context_func_type, T>(value);
+        case ParamType::Tcl_context_propertiesConstPointer:
+            return GetParamVal<ParamType::Tcl_context_propertiesConstPointer, T>(value);
+        case ParamType::Tcl_device_id:
+            return GetParamVal<ParamType::Tcl_device_id, T>(value);
+        case ParamType::Tcl_device_idConstPointer:
+            return GetParamVal<ParamType::Tcl_device_idConstPointer, T>(value);
+        case ParamType::Tcl_device_idPointer:
+            return GetParamVal<ParamType::Tcl_device_idPointer, T>(value);
+        case ParamType::Tcl_device_partition_propertyConstPointer:
+            return GetParamVal<ParamType::Tcl_device_partition_propertyConstPointer, T>(value);
+        case ParamType::Tcl_event:
+            return GetParamVal<ParamType::Tcl_event, T>(value);
+        case ParamType::Tcl_eventConstPointer:
+            return GetParamVal<ParamType::Tcl_eventConstPointer, T>(value);
+        case ParamType::Tcl_eventPointer:
+            return GetParamVal<ParamType::Tcl_eventPointer, T>(value);
+        case ParamType::Tcl_image_descConstPointer:
+            return GetParamVal<ParamType::Tcl_image_descConstPointer, T>(value);
+        case ParamType::Tcl_image_formatConstPointer:
+            return GetParamVal<ParamType::Tcl_image_formatConstPointer, T>(value);
+        case ParamType::Tcl_image_formatPointer:
+            return GetParamVal<ParamType::Tcl_image_formatPointer, T>(value);
+        case ParamType::Tcl_int:
+            return GetParamVal<ParamType::Tcl_int, T>(value);
+        case ParamType::Tcl_intPointer:
+            return GetParamVal<ParamType::Tcl_intPointer, T>(value);
+        case ParamType::Tcl_kernel:
+            return GetParamVal<ParamType::Tcl_kernel, T>(value);
+        case ParamType::Tcl_kernelPointer:
+            return GetParamVal<ParamType::Tcl_kernelPointer, T>(value);
+        case ParamType::Tcl_mem:
+            return GetParamVal<ParamType::Tcl_mem, T>(value);
+        case ParamType::Tcl_memConstPointer:
+            return GetParamVal<ParamType::Tcl_memConstPointer, T>(value);
+        case ParamType::Tcl_mem_destructor_func_type:
+            return GetParamVal<ParamType::Tcl_mem_destructor_func_type, T>(value);
+        case ParamType::Tcl_mem_propertiesConstPointer:
+            return GetParamVal<ParamType::Tcl_mem_propertiesConstPointer, T>(value);
+        case ParamType::Tcl_pipe_propertiesConstPointer:
+            return GetParamVal<ParamType::Tcl_pipe_propertiesConstPointer, T>(value);
+        case ParamType::Tcl_platform_id:
+            return GetParamVal<ParamType::Tcl_platform_id, T>(value);
+        case ParamType::Tcl_platform_idPointer:
+            return GetParamVal<ParamType::Tcl_platform_idPointer, T>(value);
+        case ParamType::Tcl_program:
+            return GetParamVal<ParamType::Tcl_program, T>(value);
+        case ParamType::Tcl_programConstPointer:
+            return GetParamVal<ParamType::Tcl_programConstPointer, T>(value);
+        case ParamType::Tcl_program_func_type:
+            return GetParamVal<ParamType::Tcl_program_func_type, T>(value);
+        case ParamType::Tcl_queue_propertiesConstPointer:
+            return GetParamVal<ParamType::Tcl_queue_propertiesConstPointer, T>(value);
+        case ParamType::Tcl_sampler:
+            return GetParamVal<ParamType::Tcl_sampler, T>(value);
+        case ParamType::Tcl_sampler_propertiesConstPointer:
+            return GetParamVal<ParamType::Tcl_sampler_propertiesConstPointer, T>(value);
+        case ParamType::Tcl_svm_free_callback_func_type:
+            return GetParamVal<ParamType::Tcl_svm_free_callback_func_type, T>(value);
+        case ParamType::Tcl_uint:
+            return GetParamVal<ParamType::Tcl_uint, T>(value);
+        case ParamType::Tcl_uintPointer:
+            return GetParamVal<ParamType::Tcl_uintPointer, T>(value);
+        case ParamType::Tcl_ulongPointer:
+            return GetParamVal<ParamType::Tcl_ulongPointer, T>(value);
+        case ParamType::Tcl_void_func_type:
+            return GetParamVal<ParamType::Tcl_void_func_type, T>(value);
         case ParamType::Tegl_ConfigPointer:
             return GetParamVal<ParamType::Tegl_ConfigPointer, T>(value);
         case ParamType::Tegl_DevicePointer:
@@ -1862,6 +2535,12 @@ T AccessParamValue(ParamType paramType, const ParamValue &value)
             return GetParamVal<ParamType::Tegl_StreamPointer, T>(value);
         case ParamType::Tegl_SyncID:
             return GetParamVal<ParamType::Tegl_SyncID, T>(value);
+        case ParamType::Tsize_t:
+            return GetParamVal<ParamType::Tsize_t, T>(value);
+        case ParamType::Tsize_tConstPointer:
+            return GetParamVal<ParamType::Tsize_tConstPointer, T>(value);
+        case ParamType::Tsize_tPointer:
+            return GetParamVal<ParamType::Tsize_tPointer, T>(value);
         case ParamType::TvoidConstPointer:
             return GetParamVal<ParamType::TvoidConstPointer, T>(value);
         case ParamType::TvoidConstPointerPointer:
@@ -2033,13 +2712,6 @@ template <>
 inline void SetParamVal<ParamType::TEGLDisplay>(EGLDisplay valueIn, ParamValue *valueOut)
 {
     valueOut->EGLDisplayVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TEGLFrameTokenANGLE>(EGLFrameTokenANGLE valueIn,
-                                                        ParamValue *valueOut)
-{
-    valueOut->EGLFrameTokenANGLEVal = valueIn;
 }
 
 template <>
@@ -2239,6 +2911,20 @@ inline void SetParamVal<ParamType::TGLDEBUGPROCKHR>(GLDEBUGPROCKHR valueIn, Para
 }
 
 template <>
+inline void SetParamVal<ParamType::TGLGETBLOBPROCANGLE>(GLGETBLOBPROCANGLE valueIn,
+                                                        ParamValue *valueOut)
+{
+    valueOut->GLGETBLOBPROCANGLEVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TGLSETBLOBPROCANGLE>(GLSETBLOBPROCANGLE valueIn,
+                                                        ParamValue *valueOut)
+{
+    valueOut->GLSETBLOBPROCANGLEVal = valueIn;
+}
+
+template <>
 inline void SetParamVal<ParamType::TGLbitfield>(GLbitfield valueIn, ParamValue *valueOut)
 {
     valueOut->GLbitfieldVal = valueIn;
@@ -2251,28 +2937,9 @@ inline void SetParamVal<ParamType::TGLboolean>(GLboolean valueIn, ParamValue *va
 }
 
 template <>
-inline void SetParamVal<ParamType::TGLbooleanConstPointer>(const GLboolean *valueIn,
-                                                           ParamValue *valueOut)
-{
-    valueOut->GLbooleanConstPointerVal = valueIn;
-}
-
-template <>
 inline void SetParamVal<ParamType::TGLbooleanPointer>(GLboolean *valueIn, ParamValue *valueOut)
 {
     valueOut->GLbooleanPointerVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TGLbyte>(GLbyte valueIn, ParamValue *valueOut)
-{
-    valueOut->GLbyteVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TGLbyteConstPointer>(const GLbyte *valueIn, ParamValue *valueOut)
-{
-    valueOut->GLbyteConstPointerVal = valueIn;
 }
 
 template <>
@@ -2298,25 +2965,6 @@ template <>
 inline void SetParamVal<ParamType::TGLclampx>(GLclampx valueIn, ParamValue *valueOut)
 {
     valueOut->GLclampxVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TGLdouble>(GLdouble valueIn, ParamValue *valueOut)
-{
-    valueOut->GLdoubleVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TGLdoubleConstPointer>(const GLdouble *valueIn,
-                                                          ParamValue *valueOut)
-{
-    valueOut->GLdoubleConstPointerVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TGLdoublePointer>(GLdouble *valueIn, ParamValue *valueOut)
-{
-    valueOut->GLdoublePointerVal = valueIn;
 }
 
 template <>
@@ -2419,13 +3067,6 @@ inline void SetParamVal<ParamType::TGLintptr>(GLintptr valueIn, ParamValue *valu
 }
 
 template <>
-inline void SetParamVal<ParamType::TGLintptrConstPointer>(const GLintptr *valueIn,
-                                                          ParamValue *valueOut)
-{
-    valueOut->GLintptrConstPointerVal = valueIn;
-}
-
-template <>
 inline void SetParamVal<ParamType::TGLshort>(GLshort valueIn, ParamValue *valueOut)
 {
     valueOut->GLshortVal = valueIn;
@@ -2461,13 +3102,6 @@ template <>
 inline void SetParamVal<ParamType::TGLsizeiptr>(GLsizeiptr valueIn, ParamValue *valueOut)
 {
     valueOut->GLsizeiptrVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TGLsizeiptrConstPointer>(const GLsizeiptr *valueIn,
-                                                            ParamValue *valueOut)
-{
-    valueOut->GLsizeiptrConstPointerVal = valueIn;
 }
 
 template <>
@@ -2530,38 +3164,6 @@ template <>
 inline void SetParamVal<ParamType::TGLuintPointer>(GLuint *valueIn, ParamValue *valueOut)
 {
     valueOut->GLuintPointerVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TGLushort>(GLushort valueIn, ParamValue *valueOut)
-{
-    valueOut->GLushortVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TGLushortConstPointer>(const GLushort *valueIn,
-                                                          ParamValue *valueOut)
-{
-    valueOut->GLushortConstPointerVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TGLushortPointer>(GLushort *valueIn, ParamValue *valueOut)
-{
-    valueOut->GLushortPointerVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TGLvoidConstPointer>(const GLvoid *valueIn, ParamValue *valueOut)
-{
-    valueOut->GLvoidConstPointerVal = valueIn;
-}
-
-template <>
-inline void SetParamVal<ParamType::TGLvoidConstPointerPointer>(const GLvoid *const *valueIn,
-                                                               ParamValue *valueOut)
-{
-    valueOut->GLvoidConstPointerPointerVal = valueIn;
 }
 
 template <>
@@ -2642,6 +3244,12 @@ inline void SetParamVal<ParamType::TPointParameter>(gl::PointParameter valueIn,
                                                     ParamValue *valueOut)
 {
     valueOut->PointParameterVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TPolygonMode>(gl::PolygonMode valueIn, ParamValue *valueOut)
+{
+    valueOut->PolygonModeVal = valueIn;
 }
 
 template <>
@@ -2931,6 +3539,20 @@ inline void SetParamVal<ParamType::TcharConstPointer>(const char *valueIn, Param
 }
 
 template <>
+inline void SetParamVal<ParamType::TcharConstPointerPointer>(const char **valueIn,
+                                                             ParamValue *valueOut)
+{
+    valueOut->charConstPointerPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TcharUnsignedConstPointerPointer>(const unsigned char **valueIn,
+                                                                     ParamValue *valueOut)
+{
+    valueOut->charUnsignedConstPointerPointerVal = valueIn;
+}
+
+template <>
 inline void SetParamVal<ParamType::Tegl_ConfigPointer>(egl::Config *valueIn, ParamValue *valueOut)
 {
     valueOut->egl_ConfigPointerVal = valueIn;
@@ -2961,13 +3583,31 @@ inline void SetParamVal<ParamType::Tegl_SyncID>(egl::SyncID valueIn, ParamValue 
 }
 
 template <>
+inline void SetParamVal<ParamType::Tsize_t>(size_t valueIn, ParamValue *valueOut)
+{
+    valueOut->size_tVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tsize_tConstPointer>(const size_t *valueIn, ParamValue *valueOut)
+{
+    valueOut->size_tConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tsize_tPointer>(size_t *valueIn, ParamValue *valueOut)
+{
+    valueOut->size_tPointerVal = valueIn;
+}
+
+template <>
 inline void SetParamVal<ParamType::TvoidConstPointer>(const void *valueIn, ParamValue *valueOut)
 {
     valueOut->voidConstPointerVal = valueIn;
 }
 
 template <>
-inline void SetParamVal<ParamType::TvoidConstPointerPointer>(const void *const *valueIn,
+inline void SetParamVal<ParamType::TvoidConstPointerPointer>(const void **valueIn,
                                                              ParamValue *valueOut)
 {
     valueOut->voidConstPointerPointerVal = valueIn;
@@ -2985,6 +3625,451 @@ inline void SetParamVal<ParamType::TvoidPointerPointer>(void **valueIn, ParamVal
     valueOut->voidPointerPointerVal = valueIn;
 }
 
+#ifdef ANGLE_ENABLE_CL
+template <>
+inline void SetParamVal<ParamType::TAddressingMode>(cl::AddressingMode valueIn,
+                                                    ParamValue *valueOut)
+{
+    valueOut->AddressingModeVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TCommandQueueInfo>(cl::CommandQueueInfo valueIn,
+                                                      ParamValue *valueOut)
+{
+    valueOut->CommandQueueInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TCommandQueueProperties>(cl::CommandQueueProperties valueIn,
+                                                            ParamValue *valueOut)
+{
+    valueOut->CommandQueuePropertiesVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TContextInfo>(cl::ContextInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->ContextInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TDeviceInfo>(cl::DeviceInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->DeviceInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TDeviceType>(cl::DeviceType valueIn, ParamValue *valueOut)
+{
+    valueOut->DeviceTypeVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TEventInfo>(cl::EventInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->EventInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TFilterMode>(cl::FilterMode valueIn, ParamValue *valueOut)
+{
+    valueOut->FilterModeVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TImageInfo>(cl::ImageInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->ImageInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TKernelArgInfo>(cl::KernelArgInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->KernelArgInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TKernelExecInfo>(cl::KernelExecInfo valueIn,
+                                                    ParamValue *valueOut)
+{
+    valueOut->KernelExecInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TKernelInfo>(cl::KernelInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->KernelInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TKernelSubGroupInfo>(cl::KernelSubGroupInfo valueIn,
+                                                        ParamValue *valueOut)
+{
+    valueOut->KernelSubGroupInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TKernelWorkGroupInfo>(cl::KernelWorkGroupInfo valueIn,
+                                                         ParamValue *valueOut)
+{
+    valueOut->KernelWorkGroupInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TMapFlags>(cl::MapFlags valueIn, ParamValue *valueOut)
+{
+    valueOut->MapFlagsVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TMemFlags>(cl::MemFlags valueIn, ParamValue *valueOut)
+{
+    valueOut->MemFlagsVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TMemInfo>(cl::MemInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->MemInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TMemMigrationFlags>(cl::MemMigrationFlags valueIn,
+                                                       ParamValue *valueOut)
+{
+    valueOut->MemMigrationFlagsVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TMemObjectType>(cl::MemObjectType valueIn, ParamValue *valueOut)
+{
+    valueOut->MemObjectTypeVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TPipeInfo>(cl::PipeInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->PipeInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TPlatformInfo>(cl::PlatformInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->PlatformInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TProfilingInfo>(cl::ProfilingInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->ProfilingInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TProgramBuildInfo>(cl::ProgramBuildInfo valueIn,
+                                                      ParamValue *valueOut)
+{
+    valueOut->ProgramBuildInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TProgramInfo>(cl::ProgramInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->ProgramInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TSVM_MemFlags>(cl::SVM_MemFlags valueIn, ParamValue *valueOut)
+{
+    valueOut->SVM_MemFlagsVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::TSamplerInfo>(cl::SamplerInfo valueIn, ParamValue *valueOut)
+{
+    valueOut->SamplerInfoVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_bool>(cl_bool valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_boolVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_buffer_create_type>(cl_buffer_create_type valueIn,
+                                                           ParamValue *valueOut)
+{
+    valueOut->cl_buffer_create_typeVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_callback_func_type>(cl_callback_func_type valueIn,
+                                                           ParamValue *valueOut)
+{
+    valueOut->cl_callback_func_typeVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_command_queue>(cl_command_queue valueIn,
+                                                      ParamValue *valueOut)
+{
+    valueOut->cl_command_queueVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_command_queue_propertiesPointer>(
+    cl_command_queue_properties *valueIn,
+    ParamValue *valueOut)
+{
+    valueOut->cl_command_queue_propertiesPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_context>(cl_context valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_contextVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_context_destructor_func_type>(
+    cl_context_destructor_func_type valueIn,
+    ParamValue *valueOut)
+{
+    valueOut->cl_context_destructor_func_typeVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_context_func_type>(cl_context_func_type valueIn,
+                                                          ParamValue *valueOut)
+{
+    valueOut->cl_context_func_typeVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_context_propertiesConstPointer>(
+    const cl_context_properties *valueIn,
+    ParamValue *valueOut)
+{
+    valueOut->cl_context_propertiesConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_device_id>(cl_device_id valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_device_idVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_device_idConstPointer>(const cl_device_id *valueIn,
+                                                              ParamValue *valueOut)
+{
+    valueOut->cl_device_idConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_device_idPointer>(cl_device_id *valueIn,
+                                                         ParamValue *valueOut)
+{
+    valueOut->cl_device_idPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_device_partition_propertyConstPointer>(
+    const cl_device_partition_property *valueIn,
+    ParamValue *valueOut)
+{
+    valueOut->cl_device_partition_propertyConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_event>(cl_event valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_eventVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_eventConstPointer>(const cl_event *valueIn,
+                                                          ParamValue *valueOut)
+{
+    valueOut->cl_eventConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_eventPointer>(cl_event *valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_eventPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_image_descConstPointer>(const cl_image_desc *valueIn,
+                                                               ParamValue *valueOut)
+{
+    valueOut->cl_image_descConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_image_formatConstPointer>(const cl_image_format *valueIn,
+                                                                 ParamValue *valueOut)
+{
+    valueOut->cl_image_formatConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_image_formatPointer>(cl_image_format *valueIn,
+                                                            ParamValue *valueOut)
+{
+    valueOut->cl_image_formatPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_int>(cl_int valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_intVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_intPointer>(cl_int *valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_intPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_kernel>(cl_kernel valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_kernelVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_kernelPointer>(cl_kernel *valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_kernelPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_mem>(cl_mem valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_memVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_memConstPointer>(const cl_mem *valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_memConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_mem_destructor_func_type>(
+    cl_mem_destructor_func_type valueIn,
+    ParamValue *valueOut)
+{
+    valueOut->cl_mem_destructor_func_typeVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_mem_propertiesConstPointer>(const cl_mem_properties *valueIn,
+                                                                   ParamValue *valueOut)
+{
+    valueOut->cl_mem_propertiesConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_pipe_propertiesConstPointer>(
+    const cl_pipe_properties *valueIn,
+    ParamValue *valueOut)
+{
+    valueOut->cl_pipe_propertiesConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_platform_id>(cl_platform_id valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_platform_idVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_platform_idPointer>(cl_platform_id *valueIn,
+                                                           ParamValue *valueOut)
+{
+    valueOut->cl_platform_idPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_program>(cl_program valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_programVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_programConstPointer>(const cl_program *valueIn,
+                                                            ParamValue *valueOut)
+{
+    valueOut->cl_programConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_program_func_type>(cl_program_func_type valueIn,
+                                                          ParamValue *valueOut)
+{
+    valueOut->cl_program_func_typeVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_queue_propertiesConstPointer>(
+    const cl_queue_properties *valueIn,
+    ParamValue *valueOut)
+{
+    valueOut->cl_queue_propertiesConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_sampler>(cl_sampler valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_samplerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_sampler_propertiesConstPointer>(
+    const cl_sampler_properties *valueIn,
+    ParamValue *valueOut)
+{
+    valueOut->cl_sampler_propertiesConstPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_svm_free_callback_func_type>(
+    cl_svm_free_callback_func_type valueIn,
+    ParamValue *valueOut)
+{
+    valueOut->cl_svm_free_callback_func_typeVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_uint>(cl_uint valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_uintVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_uintPointer>(cl_uint *valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_uintPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_ulongPointer>(cl_ulong *valueIn, ParamValue *valueOut)
+{
+    valueOut->cl_ulongPointerVal = valueIn;
+}
+
+template <>
+inline void SetParamVal<ParamType::Tcl_void_func_type>(cl_void_func_type valueIn,
+                                                       ParamValue *valueOut)
+{
+    valueOut->cl_void_func_typeVal = valueIn;
+}
+#endif
+
 template <ParamType PType, typename T>
 void SetParamVal(T valueIn, ParamValue *valueOut)
 {
@@ -2998,6 +4083,9 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
     {
         case ParamType::TAHardwareBufferConstPointer:
             SetParamVal<ParamType::TAHardwareBufferConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::TAddressingMode:
+            SetParamVal<ParamType::TAddressingMode>(valueIn, valueOut);
             break;
         case ParamType::TAlphaTestFunc:
             SetParamVal<ParamType::TAlphaTestFunc>(valueIn, valueOut);
@@ -3026,14 +4114,29 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
         case ParamType::TClipOrigin:
             SetParamVal<ParamType::TClipOrigin>(valueIn, valueOut);
             break;
+        case ParamType::TCommandQueueInfo:
+            SetParamVal<ParamType::TCommandQueueInfo>(valueIn, valueOut);
+            break;
+        case ParamType::TCommandQueueProperties:
+            SetParamVal<ParamType::TCommandQueueProperties>(valueIn, valueOut);
+            break;
         case ParamType::TCompositorTiming:
             SetParamVal<ParamType::TCompositorTiming>(valueIn, valueOut);
             break;
         case ParamType::TContextID:
             SetParamVal<ParamType::TContextID>(valueIn, valueOut);
             break;
+        case ParamType::TContextInfo:
+            SetParamVal<ParamType::TContextInfo>(valueIn, valueOut);
+            break;
         case ParamType::TCullFaceMode:
             SetParamVal<ParamType::TCullFaceMode>(valueIn, valueOut);
+            break;
+        case ParamType::TDeviceInfo:
+            SetParamVal<ParamType::TDeviceInfo>(valueIn, valueOut);
+            break;
+        case ParamType::TDeviceType:
+            SetParamVal<ParamType::TDeviceType>(valueIn, valueOut);
             break;
         case ParamType::TDrawElementsType:
             SetParamVal<ParamType::TDrawElementsType>(valueIn, valueOut);
@@ -3070,9 +4173,6 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
             break;
         case ParamType::TEGLDisplay:
             SetParamVal<ParamType::TEGLDisplay>(valueIn, valueOut);
-            break;
-        case ParamType::TEGLFrameTokenANGLE:
-            SetParamVal<ParamType::TEGLFrameTokenANGLE>(valueIn, valueOut);
             break;
         case ParamType::TEGLGetBlobFuncANDROID:
             SetParamVal<ParamType::TEGLGetBlobFuncANDROID>(valueIn, valueOut);
@@ -3143,6 +4243,9 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
         case ParamType::TEGLuint64KHRPointer:
             SetParamVal<ParamType::TEGLuint64KHRPointer>(valueIn, valueOut);
             break;
+        case ParamType::TEventInfo:
+            SetParamVal<ParamType::TEventInfo>(valueIn, valueOut);
+            break;
         case ParamType::TFenceNVID:
             SetParamVal<ParamType::TFenceNVID>(valueIn, valueOut);
             break;
@@ -3151,6 +4254,9 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
             break;
         case ParamType::TFenceNVIDPointer:
             SetParamVal<ParamType::TFenceNVIDPointer>(valueIn, valueOut);
+            break;
+        case ParamType::TFilterMode:
+            SetParamVal<ParamType::TFilterMode>(valueIn, valueOut);
             break;
         case ParamType::TFramebufferID:
             SetParamVal<ParamType::TFramebufferID>(valueIn, valueOut);
@@ -3167,23 +4273,20 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
         case ParamType::TGLDEBUGPROCKHR:
             SetParamVal<ParamType::TGLDEBUGPROCKHR>(valueIn, valueOut);
             break;
+        case ParamType::TGLGETBLOBPROCANGLE:
+            SetParamVal<ParamType::TGLGETBLOBPROCANGLE>(valueIn, valueOut);
+            break;
+        case ParamType::TGLSETBLOBPROCANGLE:
+            SetParamVal<ParamType::TGLSETBLOBPROCANGLE>(valueIn, valueOut);
+            break;
         case ParamType::TGLbitfield:
             SetParamVal<ParamType::TGLbitfield>(valueIn, valueOut);
             break;
         case ParamType::TGLboolean:
             SetParamVal<ParamType::TGLboolean>(valueIn, valueOut);
             break;
-        case ParamType::TGLbooleanConstPointer:
-            SetParamVal<ParamType::TGLbooleanConstPointer>(valueIn, valueOut);
-            break;
         case ParamType::TGLbooleanPointer:
             SetParamVal<ParamType::TGLbooleanPointer>(valueIn, valueOut);
-            break;
-        case ParamType::TGLbyte:
-            SetParamVal<ParamType::TGLbyte>(valueIn, valueOut);
-            break;
-        case ParamType::TGLbyteConstPointer:
-            SetParamVal<ParamType::TGLbyteConstPointer>(valueIn, valueOut);
             break;
         case ParamType::TGLcharConstPointer:
             SetParamVal<ParamType::TGLcharConstPointer>(valueIn, valueOut);
@@ -3196,15 +4299,6 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
             break;
         case ParamType::TGLclampx:
             SetParamVal<ParamType::TGLclampx>(valueIn, valueOut);
-            break;
-        case ParamType::TGLdouble:
-            SetParamVal<ParamType::TGLdouble>(valueIn, valueOut);
-            break;
-        case ParamType::TGLdoubleConstPointer:
-            SetParamVal<ParamType::TGLdoubleConstPointer>(valueIn, valueOut);
-            break;
-        case ParamType::TGLdoublePointer:
-            SetParamVal<ParamType::TGLdoublePointer>(valueIn, valueOut);
             break;
         case ParamType::TGLeglClientBufferEXT:
             SetParamVal<ParamType::TGLeglClientBufferEXT>(valueIn, valueOut);
@@ -3254,9 +4348,6 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
         case ParamType::TGLintptr:
             SetParamVal<ParamType::TGLintptr>(valueIn, valueOut);
             break;
-        case ParamType::TGLintptrConstPointer:
-            SetParamVal<ParamType::TGLintptrConstPointer>(valueIn, valueOut);
-            break;
         case ParamType::TGLshort:
             SetParamVal<ParamType::TGLshort>(valueIn, valueOut);
             break;
@@ -3274,9 +4365,6 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
             break;
         case ParamType::TGLsizeiptr:
             SetParamVal<ParamType::TGLsizeiptr>(valueIn, valueOut);
-            break;
-        case ParamType::TGLsizeiptrConstPointer:
-            SetParamVal<ParamType::TGLsizeiptrConstPointer>(valueIn, valueOut);
             break;
         case ParamType::TGLsync:
             SetParamVal<ParamType::TGLsync>(valueIn, valueOut);
@@ -3308,21 +4396,6 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
         case ParamType::TGLuintPointer:
             SetParamVal<ParamType::TGLuintPointer>(valueIn, valueOut);
             break;
-        case ParamType::TGLushort:
-            SetParamVal<ParamType::TGLushort>(valueIn, valueOut);
-            break;
-        case ParamType::TGLushortConstPointer:
-            SetParamVal<ParamType::TGLushortConstPointer>(valueIn, valueOut);
-            break;
-        case ParamType::TGLushortPointer:
-            SetParamVal<ParamType::TGLushortPointer>(valueIn, valueOut);
-            break;
-        case ParamType::TGLvoidConstPointer:
-            SetParamVal<ParamType::TGLvoidConstPointer>(valueIn, valueOut);
-            break;
-        case ParamType::TGLvoidConstPointerPointer:
-            SetParamVal<ParamType::TGLvoidConstPointerPointer>(valueIn, valueOut);
-            break;
         case ParamType::TGraphicsResetStatus:
             SetParamVal<ParamType::TGraphicsResetStatus>(valueIn, valueOut);
             break;
@@ -3332,17 +4405,50 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
         case ParamType::TImageID:
             SetParamVal<ParamType::TImageID>(valueIn, valueOut);
             break;
+        case ParamType::TImageInfo:
+            SetParamVal<ParamType::TImageInfo>(valueIn, valueOut);
+            break;
+        case ParamType::TKernelArgInfo:
+            SetParamVal<ParamType::TKernelArgInfo>(valueIn, valueOut);
+            break;
+        case ParamType::TKernelExecInfo:
+            SetParamVal<ParamType::TKernelExecInfo>(valueIn, valueOut);
+            break;
+        case ParamType::TKernelInfo:
+            SetParamVal<ParamType::TKernelInfo>(valueIn, valueOut);
+            break;
+        case ParamType::TKernelSubGroupInfo:
+            SetParamVal<ParamType::TKernelSubGroupInfo>(valueIn, valueOut);
+            break;
+        case ParamType::TKernelWorkGroupInfo:
+            SetParamVal<ParamType::TKernelWorkGroupInfo>(valueIn, valueOut);
+            break;
         case ParamType::TLightParameter:
             SetParamVal<ParamType::TLightParameter>(valueIn, valueOut);
             break;
         case ParamType::TLogicalOperation:
             SetParamVal<ParamType::TLogicalOperation>(valueIn, valueOut);
             break;
+        case ParamType::TMapFlags:
+            SetParamVal<ParamType::TMapFlags>(valueIn, valueOut);
+            break;
         case ParamType::TMaterialParameter:
             SetParamVal<ParamType::TMaterialParameter>(valueIn, valueOut);
             break;
         case ParamType::TMatrixType:
             SetParamVal<ParamType::TMatrixType>(valueIn, valueOut);
+            break;
+        case ParamType::TMemFlags:
+            SetParamVal<ParamType::TMemFlags>(valueIn, valueOut);
+            break;
+        case ParamType::TMemInfo:
+            SetParamVal<ParamType::TMemInfo>(valueIn, valueOut);
+            break;
+        case ParamType::TMemMigrationFlags:
+            SetParamVal<ParamType::TMemMigrationFlags>(valueIn, valueOut);
+            break;
+        case ParamType::TMemObjectType:
+            SetParamVal<ParamType::TMemObjectType>(valueIn, valueOut);
             break;
         case ParamType::TMemoryObjectID:
             SetParamVal<ParamType::TMemoryObjectID>(valueIn, valueOut);
@@ -3356,11 +4462,29 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
         case ParamType::TObjectType:
             SetParamVal<ParamType::TObjectType>(valueIn, valueOut);
             break;
+        case ParamType::TPipeInfo:
+            SetParamVal<ParamType::TPipeInfo>(valueIn, valueOut);
+            break;
+        case ParamType::TPlatformInfo:
+            SetParamVal<ParamType::TPlatformInfo>(valueIn, valueOut);
+            break;
         case ParamType::TPointParameter:
             SetParamVal<ParamType::TPointParameter>(valueIn, valueOut);
             break;
+        case ParamType::TPolygonMode:
+            SetParamVal<ParamType::TPolygonMode>(valueIn, valueOut);
+            break;
         case ParamType::TPrimitiveMode:
             SetParamVal<ParamType::TPrimitiveMode>(valueIn, valueOut);
+            break;
+        case ParamType::TProfilingInfo:
+            SetParamVal<ParamType::TProfilingInfo>(valueIn, valueOut);
+            break;
+        case ParamType::TProgramBuildInfo:
+            SetParamVal<ParamType::TProgramBuildInfo>(valueIn, valueOut);
+            break;
+        case ParamType::TProgramInfo:
+            SetParamVal<ParamType::TProgramInfo>(valueIn, valueOut);
             break;
         case ParamType::TProgramPipelineID:
             SetParamVal<ParamType::TProgramPipelineID>(valueIn, valueOut);
@@ -3395,6 +4519,9 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
         case ParamType::TRenderbufferIDPointer:
             SetParamVal<ParamType::TRenderbufferIDPointer>(valueIn, valueOut);
             break;
+        case ParamType::TSVM_MemFlags:
+            SetParamVal<ParamType::TSVM_MemFlags>(valueIn, valueOut);
+            break;
         case ParamType::TSamplerID:
             SetParamVal<ParamType::TSamplerID>(valueIn, valueOut);
             break;
@@ -3403,6 +4530,9 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
             break;
         case ParamType::TSamplerIDPointer:
             SetParamVal<ParamType::TSamplerIDPointer>(valueIn, valueOut);
+            break;
+        case ParamType::TSamplerInfo:
+            SetParamVal<ParamType::TSamplerInfo>(valueIn, valueOut);
             break;
         case ParamType::TSemaphoreID:
             SetParamVal<ParamType::TSemaphoreID>(valueIn, valueOut);
@@ -3488,6 +4618,135 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
         case ParamType::TcharConstPointer:
             SetParamVal<ParamType::TcharConstPointer>(valueIn, valueOut);
             break;
+        case ParamType::TcharConstPointerPointer:
+            SetParamVal<ParamType::TcharConstPointerPointer>(valueIn, valueOut);
+            break;
+        case ParamType::TcharUnsignedConstPointerPointer:
+            SetParamVal<ParamType::TcharUnsignedConstPointerPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_bool:
+            SetParamVal<ParamType::Tcl_bool>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_buffer_create_type:
+            SetParamVal<ParamType::Tcl_buffer_create_type>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_callback_func_type:
+            SetParamVal<ParamType::Tcl_callback_func_type>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_command_queue:
+            SetParamVal<ParamType::Tcl_command_queue>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_command_queue_propertiesPointer:
+            SetParamVal<ParamType::Tcl_command_queue_propertiesPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_context:
+            SetParamVal<ParamType::Tcl_context>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_context_destructor_func_type:
+            SetParamVal<ParamType::Tcl_context_destructor_func_type>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_context_func_type:
+            SetParamVal<ParamType::Tcl_context_func_type>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_context_propertiesConstPointer:
+            SetParamVal<ParamType::Tcl_context_propertiesConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_device_id:
+            SetParamVal<ParamType::Tcl_device_id>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_device_idConstPointer:
+            SetParamVal<ParamType::Tcl_device_idConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_device_idPointer:
+            SetParamVal<ParamType::Tcl_device_idPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_device_partition_propertyConstPointer:
+            SetParamVal<ParamType::Tcl_device_partition_propertyConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_event:
+            SetParamVal<ParamType::Tcl_event>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_eventConstPointer:
+            SetParamVal<ParamType::Tcl_eventConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_eventPointer:
+            SetParamVal<ParamType::Tcl_eventPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_image_descConstPointer:
+            SetParamVal<ParamType::Tcl_image_descConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_image_formatConstPointer:
+            SetParamVal<ParamType::Tcl_image_formatConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_image_formatPointer:
+            SetParamVal<ParamType::Tcl_image_formatPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_int:
+            SetParamVal<ParamType::Tcl_int>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_intPointer:
+            SetParamVal<ParamType::Tcl_intPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_kernel:
+            SetParamVal<ParamType::Tcl_kernel>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_kernelPointer:
+            SetParamVal<ParamType::Tcl_kernelPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_mem:
+            SetParamVal<ParamType::Tcl_mem>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_memConstPointer:
+            SetParamVal<ParamType::Tcl_memConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_mem_destructor_func_type:
+            SetParamVal<ParamType::Tcl_mem_destructor_func_type>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_mem_propertiesConstPointer:
+            SetParamVal<ParamType::Tcl_mem_propertiesConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_pipe_propertiesConstPointer:
+            SetParamVal<ParamType::Tcl_pipe_propertiesConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_platform_id:
+            SetParamVal<ParamType::Tcl_platform_id>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_platform_idPointer:
+            SetParamVal<ParamType::Tcl_platform_idPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_program:
+            SetParamVal<ParamType::Tcl_program>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_programConstPointer:
+            SetParamVal<ParamType::Tcl_programConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_program_func_type:
+            SetParamVal<ParamType::Tcl_program_func_type>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_queue_propertiesConstPointer:
+            SetParamVal<ParamType::Tcl_queue_propertiesConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_sampler:
+            SetParamVal<ParamType::Tcl_sampler>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_sampler_propertiesConstPointer:
+            SetParamVal<ParamType::Tcl_sampler_propertiesConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_svm_free_callback_func_type:
+            SetParamVal<ParamType::Tcl_svm_free_callback_func_type>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_uint:
+            SetParamVal<ParamType::Tcl_uint>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_uintPointer:
+            SetParamVal<ParamType::Tcl_uintPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_ulongPointer:
+            SetParamVal<ParamType::Tcl_ulongPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tcl_void_func_type:
+            SetParamVal<ParamType::Tcl_void_func_type>(valueIn, valueOut);
+            break;
         case ParamType::Tegl_ConfigPointer:
             SetParamVal<ParamType::Tegl_ConfigPointer>(valueIn, valueOut);
             break;
@@ -3502,6 +4761,15 @@ void InitParamValue(ParamType paramType, T valueIn, ParamValue *valueOut)
             break;
         case ParamType::Tegl_SyncID:
             SetParamVal<ParamType::Tegl_SyncID>(valueIn, valueOut);
+            break;
+        case ParamType::Tsize_t:
+            SetParamVal<ParamType::Tsize_t>(valueIn, valueOut);
+            break;
+        case ParamType::Tsize_tConstPointer:
+            SetParamVal<ParamType::Tsize_tConstPointer>(valueIn, valueOut);
+            break;
+        case ParamType::Tsize_tPointer:
+            SetParamVal<ParamType::Tsize_tPointer>(valueIn, valueOut);
             break;
         case ParamType::TvoidConstPointer:
             SetParamVal<ParamType::TvoidConstPointer>(valueIn, valueOut);

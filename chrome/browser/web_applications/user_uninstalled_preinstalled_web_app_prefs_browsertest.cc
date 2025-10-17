@@ -10,29 +10,32 @@
 #include "base/test/metrics/user_action_tester.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/web_applications/preinstalled_web_app_manager.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
+#include "chrome/browser/web_applications/web_app_management_type.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/test/browser_test.h"
 #include "url/gurl.h"
 
 namespace web_app {
 
 class UserUninstalledPreinstalledWebAppPrefsBrowserTest
-    : public WebAppControllerBrowserTest {
+    : public WebAppBrowserTestBase {
  public:
-  UserUninstalledPreinstalledWebAppPrefsBrowserTest() = default;
+  UserUninstalledPreinstalledWebAppPrefsBrowserTest()
+      : skip_preinstalled_web_app_startup_(
+            PreinstalledWebAppManager::SkipStartupForTesting()) {}
   ~UserUninstalledPreinstalledWebAppPrefsBrowserTest() override = default;
 
-  void SetUp() override {
-    PreinstalledWebAppManager::SkipStartupForTesting();
-    WebAppControllerBrowserTest::SetUp();
-  }
+  void SetUp() override { WebAppBrowserTestBase::SetUp(); }
+
+ private:
+  base::AutoReset<bool> skip_preinstalled_web_app_startup_;
 };
 
 IN_PROC_BROWSER_TEST_F(UserUninstalledPreinstalledWebAppPrefsBrowserTest,
@@ -41,8 +44,8 @@ IN_PROC_BROWSER_TEST_F(UserUninstalledPreinstalledWebAppPrefsBrowserTest,
   GURL url1("https://foo.com");
   GURL url2("https://bar1.com");
   GURL url3("https://bar2.com");
-  AppId app_id1 = "foo";
-  AppId app_id2 = "bar";
+  webapps::AppId app_id1 = "foo";
+  webapps::AppId app_id2 = "bar";
   UserUninstalledPreinstalledWebAppPrefs preinstalled_prefs(
       profile()->GetPrefs());
 
@@ -73,9 +76,9 @@ IN_PROC_BROWSER_TEST_F(UserUninstalledPreinstalledWebAppPrefsBrowserTest,
   EXPECT_EQ(app_id2, preinstalled_prefs.LookUpAppIdByInstallUrl(url2));
   EXPECT_EQ(app_id2, preinstalled_prefs.LookUpAppIdByInstallUrl(url3));
   EXPECT_NE(app_id1, preinstalled_prefs.LookUpAppIdByInstallUrl(url3));
-  EXPECT_EQ(absl::nullopt, preinstalled_prefs.LookUpAppIdByInstallUrl(GURL()));
-  EXPECT_EQ(absl::nullopt, preinstalled_prefs.LookUpAppIdByInstallUrl(
-                               GURL("https://baz.com")));
+  EXPECT_EQ(std::nullopt, preinstalled_prefs.LookUpAppIdByInstallUrl(GURL()));
+  EXPECT_EQ(std::nullopt, preinstalled_prefs.LookUpAppIdByInstallUrl(
+                              GURL("https://baz.com")));
 }
 
 IN_PROC_BROWSER_TEST_F(UserUninstalledPreinstalledWebAppPrefsBrowserTest,
@@ -83,9 +86,9 @@ IN_PROC_BROWSER_TEST_F(UserUninstalledPreinstalledWebAppPrefsBrowserTest,
   GURL url1("https://foo.com");
   GURL url2("https://bar1.com");
   GURL url3("https://bar2.com");
-  AppId app_id1 = "foo";
-  AppId app_id2 = "bar";
-  AppId app_id3 = "baz";
+  webapps::AppId app_id1 = "foo";
+  webapps::AppId app_id2 = "bar";
+  webapps::AppId app_id3 = "baz";
 
   UserUninstalledPreinstalledWebAppPrefs preinstalled_prefs(
       profile()->GetPrefs());
@@ -108,25 +111,25 @@ IN_PROC_BROWSER_TEST_F(UserUninstalledPreinstalledWebAppPrefsBrowserTest,
   EXPECT_EQ(app_id2, preinstalled_prefs.LookUpAppIdByInstallUrl(url3));
   // url1 has been deleted, so app_id1 has been wiped from the prefs, and url2
   // has been plain deleted.
-  EXPECT_EQ(absl::nullopt, preinstalled_prefs.LookUpAppIdByInstallUrl(url1));
-  EXPECT_EQ(absl::nullopt, preinstalled_prefs.LookUpAppIdByInstallUrl(url2));
+  EXPECT_EQ(std::nullopt, preinstalled_prefs.LookUpAppIdByInstallUrl(url1));
+  EXPECT_EQ(std::nullopt, preinstalled_prefs.LookUpAppIdByInstallUrl(url2));
 }
 
 IN_PROC_BROWSER_TEST_F(UserUninstalledPreinstalledWebAppPrefsBrowserTest,
                        PrefsPropagateProperlyOnDefaultUninstall) {
-  auto app_info1 = std::make_unique<WebAppInstallInfo>();
-  app_info1->start_url = GURL("https://example_url1.com/");
+  auto app_info1 = WebAppInstallInfo::CreateWithStartUrlForTesting(
+      GURL("https://example_url1.com/"));
   app_info1->title = u"Example App1";
   app_info1->install_url = GURL("https://example_url1.com/install");
-  auto app_info2 = std::make_unique<WebAppInstallInfo>();
-  app_info2->start_url = GURL("https://example_url2.com/");
+  auto app_info2 = WebAppInstallInfo::CreateWithStartUrlForTesting(
+      GURL("https://example_url2.com/"));
   app_info2->title = u"Example App2";
   app_info2->install_url = GURL("https://example_url2.com/install");
-  AppId app_id1 =
+  webapps::AppId app_id1 =
       test::InstallWebApp(profile(), std::move(app_info1),
                           /*overwrite_existing_manifest_fields=*/false,
                           webapps::WebappInstallSource::EXTERNAL_DEFAULT);
-  AppId app_id2 =
+  webapps::AppId app_id2 =
       test::InstallWebApp(profile(), std::move(app_info2),
                           /*overwrite_existing_manifest_fields=*/false,
                           webapps::WebappInstallSource::OMNIBOX_INSTALL_ICON);

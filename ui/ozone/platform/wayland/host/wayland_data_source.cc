@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "ui/ozone/platform/wayland/host/wayland_data_source.h"
 
 #include <gtk-primary-selection-client-protocol.h>
@@ -13,6 +14,7 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
+#include "ui/events/base_event_utils.h"
 #include "ui/ozone/platform/wayland/host/wayland_connection.h"
 
 namespace wl {
@@ -27,11 +29,26 @@ DataSource<T>::DataSource(T* data_source,
   DCHECK(delegate_);
 
   Initialize();
+  VLOG(1) << "DataSoure created:" << this;
+}
+
+template <typename T>
+DataSource<T>::~DataSource() {
+  VLOG(1) << "DataSoure deleted:" << this;
+}
+
+template <typename T>
+void DataSource<T>::HandleDropEvent() {
+  VLOG(1) << "OnDataSourceDropPerformed in WaylandDataSource";
+  // No timestamp for these events. Use EventTimeForNow(), for now.
+  delegate_->OnDataSourceDropPerformed(this, ui::EventTimeForNow());
 }
 
 template <typename T>
 void DataSource<T>::HandleFinishEvent(bool completed) {
-  delegate_->OnDataSourceFinish(completed);
+  VLOG(1) << "OnDataSourceFinish in WaylandDataSource";
+  // No timestamp for these events. Use EventTimeForNow(), for now.
+  delegate_->OnDataSourceFinish(this, ui::EventTimeForNow(), completed);
 }
 
 // Writes |data_str| to file descriptor |fd| assuming it is flagged as
@@ -40,17 +57,16 @@ void DataSource<T>::HandleFinishEvent(bool completed) {
 // for more details about non-blocking behavior for 'write' syscall.
 // https://pubs.opengroup.org/onlinepubs/007904975/functions/write.html
 bool WriteDataNonBlocking(int fd, const std::string& data_str) {
-  const char* data = data_str.data();
-  const ssize_t size = base::checked_cast<ssize_t>(data_str.size());
-  ssize_t written = 0;
-  while (written < size) {
-    ssize_t result = write(fd, data + written, size - written);
-    if (result == -1) {
-      if (errno == EINTR || errno == EAGAIN)
-        continue;
+  const auto data_span = base::as_byte_span(data_str);
+  for (size_t written = 0; written < data_span.size();) {
+    const auto remaining_span = data_span.subspan(written);
+    const ssize_t result =
+        write(fd, remaining_span.data(), remaining_span.size());
+    if (result >= 0) {
+      written += static_cast<size_t>(result);
+    } else if (errno != EINTR && errno != EAGAIN) {
       return false;
     }
-    written += result;
   }
   return true;
 }
@@ -58,7 +74,7 @@ bool WriteDataNonBlocking(int fd, const std::string& data_str) {
 template <typename T>
 void DataSource<T>::HandleSendEvent(const std::string& mime_type, int32_t fd) {
   std::string contents;
-  delegate_->OnDataSourceSend(mime_type, &contents);
+  delegate_->OnDataSourceSend(this, mime_type, &contents);
   bool done = WriteDataNonBlocking(fd, contents);
   VPLOG_IF(1, !done) << "Failed to write";
   close(fd);
@@ -75,13 +91,13 @@ void DataSource<T>::OnSend(void* data,
 }
 
 template <typename T>
-void DataSource<T>::OnCancel(void* data, T* source) {
+void DataSource<T>::OnCancelled(void* data, T* source) {
   auto* self = static_cast<DataSource<T>*>(data);
   self->HandleFinishEvent(/*completed=*/false);
 }
 
 template <typename T>
-void DataSource<T>::OnDnDFinished(void* data, T* source) {
+void DataSource<T>::OnDndFinished(void* data, T* source) {
   auto* self = static_cast<DataSource<T>*>(data);
   self->HandleFinishEvent(/*completed=*/true);
 }
@@ -98,8 +114,9 @@ void DataSource<T>::OnTarget(void* data, T* source, const char* mime_type) {
 }
 
 template <typename T>
-void DataSource<T>::OnDnDDropPerformed(void* data, T* source) {
-  NOTIMPLEMENTED_LOG_ONCE();
+void DataSource<T>::OnDndDropPerformed(void* data, T* source) {
+  auto* self = static_cast<DataSource<T>*>(data);
+  self->HandleDropEvent();
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -109,8 +126,12 @@ void DataSource<T>::OnDnDDropPerformed(void* data, T* source) {
 template <>
 void DataSource<wl_data_source>::Initialize() {
   static constexpr wl_data_source_listener kDataSourceListener = {
-      &OnTarget,           &OnSend,        &OnCancel,
-      &OnDnDDropPerformed, &OnDnDFinished, &OnAction};
+      .target = &OnTarget,
+      .send = &OnSend,
+      .cancelled = &OnCancelled,
+      .dnd_drop_performed = &OnDndDropPerformed,
+      .dnd_finished = &OnDndFinished,
+      .action = &OnAction};
   wl_data_source_add_listener(data_source_.get(), &kDataSourceListener, this);
 }
 
@@ -144,7 +165,7 @@ template class DataSource<wl_data_source>;
 template <>
 void DataSource<gtk_primary_selection_source>::Initialize() {
   static constexpr gtk_primary_selection_source_listener kDataSourceListener = {
-      &OnSend, &OnCancel};
+      .send = &OnSend, .cancelled = &OnCancelled};
   gtk_primary_selection_source_add_listener(data_source_.get(),
                                             &kDataSourceListener, this);
 }
@@ -161,8 +182,9 @@ template <>
 void DataSource<zwp_primary_selection_source_v1>::Initialize() {
   static constexpr zwp_primary_selection_source_v1_listener
       kDataSourceListener = {
-          DataSource<zwp_primary_selection_source_v1>::OnSend,
-          DataSource<zwp_primary_selection_source_v1>::OnCancel};
+          .send = DataSource<zwp_primary_selection_source_v1>::OnSend,
+          .cancelled =
+              DataSource<zwp_primary_selection_source_v1>::OnCancelled};
   zwp_primary_selection_source_v1_add_listener(data_source_.get(),
                                                &kDataSourceListener, this);
 }

@@ -1,5 +1,6 @@
+# Placeholder: load py_binary
+
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],  # Apache 2.0
 )
@@ -7,7 +8,6 @@ package(
 py_binary(
     name = "zip_files",
     srcs = ["zip_files.py"],
-    python_version = "PY3",
     visibility = ["//visibility:public"],
     deps = [
         "@absl_py//absl:app",

@@ -13,11 +13,9 @@ import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.DirectoryOption;
-import org.chromium.chrome.browser.download.DownloadDialogBridge;
 import org.chromium.chrome.browser.download.DownloadDirectoryProvider;
 import org.chromium.chrome.browser.download.R;
 import org.chromium.chrome.browser.download.StringUtils;
@@ -29,10 +27,9 @@ import java.util.List;
  * Custom adapter that populates the list of which directories the user can choose as their default
  * download location.
  */
+@NullMarked
 public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
-    /**
-     * Delegate to handle directory options results and observe data changes.
-     */
+    /** Delegate to handle directory options results and observe data changes. */
     public interface Delegate {
         /**
          * Called when available download directories are changed, like SD card removal. App level
@@ -40,10 +37,20 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
          */
         void onDirectoryOptionsUpdated();
 
-        /**
-         * Called after the user selected another download directory option.
-         */
+        /** Called after the user selected another download directory option. */
         void onDirectorySelectionChanged();
+
+        /** Get the helper to access and update the default download directory. */
+        DownloadLocationHelper getDownloadLocationHelper();
+    }
+
+    /** Allows accessing and updating the default download directory information. */
+    public interface DownloadLocationHelper {
+        /** Get the current default download directory. */
+        String getDownloadDefaultDirectory();
+
+        /** Update the default download directory. */
+        void setDownloadAndSaveFileDefaultDirectory(@Nullable String directory);
     }
 
     public static int NO_SELECTED_ITEM_ID = -1;
@@ -51,15 +58,15 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
 
     protected int mSelectedPosition = SELECTED_ITEM_NOT_INITIALIZED;
 
-    private Context mContext;
-    private LayoutInflater mLayoutInflater;
+    private final Context mContext;
+    private final LayoutInflater mLayoutInflater;
     protected Delegate mDelegate;
 
-    private List<DirectoryOption> mCanonicalOptions = new ArrayList<>();
-    private List<DirectoryOption> mAdditionalOptions = new ArrayList<>();
-    private List<DirectoryOption> mErrorOptions = new ArrayList<>();
+    private final List<DirectoryOption> mCanonicalOptions = new ArrayList<>();
+    private final List<DirectoryOption> mAdditionalOptions = new ArrayList<>();
+    private final List<DirectoryOption> mErrorOptions = new ArrayList<>();
 
-    public DownloadDirectoryAdapter(@NonNull Context context, Delegate delegate) {
+    public DownloadDirectoryAdapter(Context context, Delegate delegate) {
         super(context, android.R.layout.simple_spinner_item);
 
         mContext = context;
@@ -72,9 +79,8 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
         return mCanonicalOptions.size() + mAdditionalOptions.size() + mErrorOptions.size();
     }
 
-    @Nullable
     @Override
-    public Object getItem(int position) {
+    public @Nullable Object getItem(int position) {
         if (!mErrorOptions.isEmpty()) {
             assert position == 0;
             assert getCount() == 1;
@@ -91,12 +97,12 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
         return position;
     }
 
-    @NonNull
     @Override
-    public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-        View view = convertView != null
-                ? convertView
-                : mLayoutInflater.inflate(R.layout.download_location_spinner_item, null);
+    public View getView(int position, @Nullable View convertView, ViewGroup parent) {
+        View view =
+                convertView != null
+                        ? convertView
+                        : mLayoutInflater.inflate(R.layout.download_location_spinner_item, null);
 
         view.setTag(position);
 
@@ -116,11 +122,12 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
     }
 
     @Override
-    public View getDropDownView(
-            int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-        View view = convertView != null
-                ? convertView
-                : mLayoutInflater.inflate(R.layout.download_location_spinner_dropdown_item, null);
+    public View getDropDownView(int position, @Nullable View convertView, ViewGroup parent) {
+        View view =
+                convertView != null
+                        ? convertView
+                        : mLayoutInflater.inflate(
+                                R.layout.download_location_spinner_dropdown_item, null);
 
         view.setTag(position);
 
@@ -158,7 +165,7 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
     }
 
     /**
-     * @return  ID of the directory option that matches the default download location.
+     * @return ID of the directory option that matches the default download location.
      */
     public int getSelectedItemId() {
         return mSelectedPosition;
@@ -169,7 +176,8 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
 
         int selectedId = NO_SELECTED_ITEM_ID;
 
-        String defaultLocation = DownloadDialogBridge.getDownloadDefaultDirectory();
+        String defaultLocation =
+                mDelegate.getDownloadLocationHelper().getDownloadDefaultDirectory();
         for (int i = 0; i < getCount(); i++) {
             DirectoryOption option = (DirectoryOption) getItem(i);
             if (option == null) continue;
@@ -193,7 +201,9 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
             DirectoryOption option = (DirectoryOption) getItem(i);
             if (option == null) continue;
             if (option.availableSpace > 0) {
-                DownloadDialogBridge.setDownloadAndSaveFileDefaultDirectory(option.location);
+                mDelegate
+                        .getDownloadLocationHelper()
+                        .setDownloadAndSaveFileDefaultDirectory(option.location);
                 mSelectedPosition = i;
                 return i;
             }
@@ -212,7 +222,8 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
     public int useSuggestedItemId(long totalBytes) {
         double maxSpaceLeft = 0;
         int suggestedId = NO_SELECTED_ITEM_ID;
-        String defaultLocation = DownloadDialogBridge.getDownloadDefaultDirectory();
+        String defaultLocation =
+                mDelegate.getDownloadLocationHelper().getDownloadDefaultDirectory();
 
         for (int i = 0; i < getCount(); i++) {
             DirectoryOption option = (DirectoryOption) getItem(i);
@@ -229,7 +240,6 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
 
         // If there is a suggested option, set it as default directory and return its position.
         if (suggestedId != NO_SELECTED_ITEM_ID) {
-            DirectoryOption suggestedOption = (DirectoryOption) getItem(suggestedId);
             mSelectedPosition = suggestedId;
             return suggestedId;
         }
@@ -243,17 +253,18 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
         return mErrorOptions.isEmpty();
     }
 
-    /**
-     * Update the list of items.
-     */
+    /** Update the list of items. */
     public void update() {
         mCanonicalOptions.clear();
         mAdditionalOptions.clear();
         mErrorOptions.clear();
 
         // Retrieve all download directories.
-        DownloadDirectoryProvider.getInstance().getAllDirectoriesOptions(
-                (ArrayList<DirectoryOption> dirs) -> { onDirectoryOptionsRetrieved(dirs); });
+        DownloadDirectoryProvider.getInstance()
+                .getAllDirectoriesOptions(
+                        (ArrayList<DirectoryOption> dirs) -> {
+                            onDirectoryOptionsRetrieved(dirs);
+                        });
     }
 
     private void onDirectoryOptionsRetrieved(ArrayList<DirectoryOption> dirs) {
@@ -266,10 +277,12 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
                     mCanonicalOptions.add(directory);
                     break;
                 case DirectoryOption.DownloadLocationDirectoryType.ADDITIONAL:
-                    String directoryName = (numOtherAdditionalDirectories > 0)
-                            ? mContext.getString(R.string.downloads_location_sd_card_number,
-                                    numOtherAdditionalDirectories + 1)
-                            : mContext.getString(R.string.downloads_location_sd_card);
+                    String directoryName =
+                            (numOtherAdditionalDirectories > 0)
+                                    ? mContext.getString(
+                                            R.string.downloads_location_sd_card_number,
+                                            numOtherAdditionalDirectories + 1)
+                                    : mContext.getString(R.string.downloads_location_sd_card);
                     directory.name = directoryName;
                     mAdditionalOptions.add(directory);
                     numOtherAdditionalDirectories++;
@@ -291,16 +304,20 @@ public class DownloadDirectoryAdapter extends ArrayAdapter<Object> {
         notifyDataSetChanged();
 
         // Update higher app level UI logic.
-        if (mDelegate != null) mDelegate.onDirectoryOptionsUpdated();
+        mDelegate.onDirectoryOptionsUpdated();
     }
 
     private void adjustErrorDirectoryOption() {
         if ((mCanonicalOptions.size() + mAdditionalOptions.size()) > 0) {
             mErrorOptions.clear();
         } else {
-            mErrorOptions.add(new DirectoryOption(
-                    mContext.getString(R.string.download_location_no_available_locations), null, 0,
-                    0, DirectoryOption.DownloadLocationDirectoryType.ERROR));
+            mErrorOptions.add(
+                    new DirectoryOption(
+                            mContext.getString(R.string.download_location_no_available_locations),
+                            null,
+                            0,
+                            0,
+                            DirectoryOption.DownloadLocationDirectoryType.ERROR));
         }
     }
 }

@@ -2,8 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
+#include "mojo/public/c/system/trap.h"
+
 #include <stdint.h>
 
+#include <array>
 #include <map>
 #include <memory>
 #include <set>
@@ -20,7 +28,6 @@
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/core/test/mojo_test_base.h"
 #include "mojo/public/c/system/data_pipe.h"
-#include "mojo/public/c/system/trap.h"
 #include "mojo/public/c/system/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -1610,7 +1617,7 @@ TEST_F(TrapTest, ArmFailureCirculation) {
 
   constexpr size_t kNumTestPipes = 100;
   constexpr size_t kNumTestHandles = kNumTestPipes * 2;
-  MojoHandle handles[kNumTestHandles];
+  std::array<MojoHandle, kNumTestHandles> handles;
 
   // Create a bunch of pipes and make sure they're all readable.
   for (size_t i = 0; i < kNumTestPipes; ++i) {
@@ -1747,6 +1754,111 @@ TEST_F(TrapTest, TriggerDuringDestruction) {
   MojoClose(b);
 }
 
+TEST_F(TrapTest, RaceDispatchAndBlockedCancel) {
+  // Regression test for https://crbug.com/1508753. This bug was caused by
+  // reordering of a MOJO_RESULT_CANCELLED event to before some other event for
+  // the same trap context, violating an API constraint that must be upheld for
+  // memory safety in application code. The scenario which could elicit the bug
+  // was as follows:
+  //
+  //   1. A single trap is watching two pipes, P and Q.
+  //   2. Thread A closes pipe P, triggering a CANCELLED event.
+  //   3. Thread A re-arms the trap from within the CANCELLED event handler.
+  //   4. Thread B changes Q's state to elicit a event for Q (not CANCELLED).
+  //   5. Thread B dispatch is blocked because thread A is still dispatching.
+  //   6. Before thread B gets a chance to be scheduled, thread A closes Q.
+  //   7. Thread A dispatches a CANCELLED event for Q.
+  //   8. Thread B is scheduled and proceeds to dispatch its Q event. [BAD]
+
+  struct State;
+
+  struct Pipe {
+    explicit Pipe(State* state) : state(state) { CreateMessagePipe(&a, &b); }
+
+    uintptr_t context() const { return reinterpret_cast<uintptr_t>(this); }
+
+    MojoHandle a;
+    MojoHandle b;
+    bool trigger_cancelled = false;
+
+    // Back-reference to common state so it's reachable from the event handler.
+    const raw_ptr<State> state;
+  };
+
+  struct State {
+    Pipe pipe0{this};
+    Pipe pipe1{this};
+    MojoHandle trap;
+    base::WaitableEvent event;
+  };
+  State state;
+
+  // NOTE: + to turn the lambda into a function pointer.
+  const MojoTrapEventHandler event_handler = +[](const MojoTrapEvent* event) {
+    auto& pipe = *reinterpret_cast<Pipe*>(event->trigger_context);
+    auto& state = *pipe.state;
+
+    // If the bug is present, this expectation can fail flakily. No event should
+    // fire for a pipe after its watch has been cancelled.
+    EXPECT_FALSE(pipe.trigger_cancelled);
+
+    if (event->result == MOJO_RESULT_CANCELLED) {
+      pipe.trigger_cancelled = true;
+
+      if (&pipe == &state.pipe0) {
+        // When pipe0's watch is cancelled (on the main thread by closure down
+        // below) we re-arm the trap immediately. This must succeed because
+        // `pipe1.a` is now the only handle being watched, and it's still in an
+        // uninteresting state.
+        EXPECT_EQ(MOJO_RESULT_OK,
+                  MojoArmTrap(state.trap, nullptr, nullptr, nullptr));
+
+        // Unblock the other thread so it can elicit a trap event on pipe1 now
+        // that the trap is re-armed. It will still block just before
+        // dispatching as long as we're still in this event handler on the main
+        // thread.
+        state.event.Signal();
+
+        // A nice long delay to make it very likely for the waiting
+        // ThreadedRunner to progress right up to its event dispatch.
+        base::PlatformThread::Sleep(base::Milliseconds(10));
+
+        // Trigger cancellation for pipe1 by closing its `a`. This will queue a
+        // CANCELLED event to fire on the same thread immediately after we
+        // return from this handler.
+        MojoClose(state.pipe1.a);
+      }
+    }
+  };
+
+  EXPECT_EQ(MOJO_RESULT_OK,
+            MojoCreateTrap(event_handler, nullptr, &state.trap));
+  EXPECT_EQ(
+      MOJO_RESULT_OK,
+      MojoAddTrigger(state.trap, state.pipe0.a, MOJO_HANDLE_SIGNAL_READABLE,
+                     MOJO_TRIGGER_CONDITION_SIGNALS_SATISFIED,
+                     state.pipe0.context(), nullptr));
+  EXPECT_EQ(
+      MOJO_RESULT_OK,
+      MojoAddTrigger(state.trap, state.pipe1.a, MOJO_HANDLE_SIGNAL_READABLE,
+                     MOJO_TRIGGER_CONDITION_SIGNALS_SATISFIED,
+                     state.pipe1.context(), nullptr));
+  EXPECT_EQ(MOJO_RESULT_OK, MojoArmTrap(state.trap, nullptr, nullptr, nullptr));
+
+  ThreadedRunner close_pipe1_b(base::BindLambdaForTesting([&] {
+    state.event.Wait();
+    MojoClose(state.pipe1.b);
+  }));
+  close_pipe1_b.Start();
+
+  // Trigger cancellation of the watch on `pipe0.a`. See event_handler above.
+  MojoClose(state.pipe0.a);
+
+  close_pipe1_b.Join();
+  MojoClose(state.pipe0.b);
+  MojoClose(state.trap);
+}
+
 base::RepeatingClosure g_do_random_thing_callback;
 
 void ReadAllMessages(const MojoTrapEvent* event) {
@@ -1818,7 +1930,6 @@ void DoRandomThing(MojoHandle* traps,
     }
     default:
       NOTREACHED();
-      break;
   }
 }
 
@@ -1848,7 +1959,7 @@ TEST_F(TrapTest, ConcurrencyStressTest) {
   for (size_t i = 0; i < kNumWatchedHandles; i += 2)
     CreateMessagePipe(&watched_handles[i], &watched_handles[i + 1]);
 
-  std::unique_ptr<ThreadedRunner> threads[kNumThreads];
+  std::array<std::unique_ptr<ThreadedRunner>, kNumThreads> threads;
   for (size_t i = 0; i < kNumThreads; ++i) {
     threads[i] = std::make_unique<ThreadedRunner>(base::BindOnce([] {
       for (size_t i = 0; i < kNumOperationsPerThread; ++i)

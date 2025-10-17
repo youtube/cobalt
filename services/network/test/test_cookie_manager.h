@@ -9,6 +9,8 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
+#include "components/content_settings/core/common/content_settings.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 
@@ -39,9 +41,11 @@ class TestCookieManager : public network::mojom::CookieManager {
                      DeleteCookiesCallback callback) override {}
   void DeleteSessionOnlyCookies(
       DeleteSessionOnlyCookiesCallback callback) override {}
+  void DeleteStaleSessionOnlyCookies(
+      DeleteStaleSessionOnlyCookiesCallback callback) override {}
   void AddCookieChangeListener(
       const GURL& url,
-      const absl::optional<std::string>& name,
+      const std::optional<std::string>& name,
       mojo::PendingRemote<network::mojom::CookieChangeListener> listener)
       override;
   void AddGlobalChangeListener(
@@ -54,20 +58,16 @@ class TestCookieManager : public network::mojom::CookieManager {
       bool allow,
       AllowFileSchemeCookiesCallback callback) override {}
   void SetContentSettings(
-      const std::vector<::ContentSettingPatternSource>& settings) override {}
+      ContentSettingsType type,
+      const std::vector<::ContentSettingPatternSource>& settings,
+      SetContentSettingsCallback callback) override {}
   void SetForceKeepSessionState() override {}
   void BlockThirdPartyCookies(bool block) override {}
-  void SetContentSettingsForLegacyCookieAccess(
-      const std::vector<::ContentSettingPatternSource>& settings) override {}
-  void SetStorageAccessGrantSettings(
-      const std::vector<::ContentSettingPatternSource>& settings,
-      SetStorageAccessGrantSettingsCallback callback) override {}
-  void SetAllStorageAccessSettings(
-      const std::vector<::ContentSettingPatternSource>& standard_settings,
-      const std::vector<::ContentSettingPatternSource>& top_level_settings,
-      SetAllStorageAccessSettingsCallback callback) override {}
+  void SetMitigationsEnabledFor3pcd(bool enable) override {}
+  void SetTrackingProtectionEnabledFor3pcd(bool enable) override {}
+  void SetPreCommitCallbackDelayForTesting(base::TimeDelta delay) override {}
 
-  void DispatchCookieChange(const net::CookieChangeInfo& change);
+  virtual void DispatchCookieChange(const net::CookieChangeInfo& change);
 
  private:
   // List of observers receiving cookie change notifications.

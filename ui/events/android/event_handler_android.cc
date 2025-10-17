@@ -52,7 +52,7 @@ bool EventHandlerAndroid::ScrollTo(float x, float y) {
 void EventHandlerAndroid::OnSizeChanged() {}
 
 void EventHandlerAndroid::OnPhysicalBackingSizeChanged(
-    absl::optional<base::TimeDelta> deadline_override) {}
+    std::optional<base::TimeDelta> deadline_override) {}
 
 void EventHandlerAndroid::OnBrowserControlsHeightChanged() {}
 
@@ -60,4 +60,10 @@ void EventHandlerAndroid::OnControlsResizeViewChanged() {}
 
 void EventHandlerAndroid::NotifyVirtualKeyboardOverlayRect(
     const gfx::Rect& keyboard_rect) {}
+
+void EventHandlerAndroid::NotifyContextMenuInsetsObservers(const gfx::Rect&) {}
+
+void EventHandlerAndroid::ShowInterestInElement(int) {}
+
+void EventHandlerAndroid::OnPointerLockRelease() {}
 }  // namespace ui

@@ -8,10 +8,11 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/qpack/qpack_decoder.h"
 #include "quiche/quic/core/qpack/qpack_encoder.h"
+#include "quiche/quic/core/qpack/value_splitting_header_list.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 using ::testing::Values;
 
@@ -24,11 +25,12 @@ class QpackRoundTripTest : public QuicTestWithParam<FragmentMode> {
   QpackRoundTripTest() = default;
   ~QpackRoundTripTest() override = default;
 
-  spdy::Http2HeaderBlock EncodeThenDecode(
-      const spdy::Http2HeaderBlock& header_list) {
+  quiche::HttpHeaderBlock EncodeThenDecode(
+      const quiche::HttpHeaderBlock& header_list) {
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
-    QpackEncoder encoder(&decoder_stream_error_delegate);
+    QpackEncoder encoder(&decoder_stream_error_delegate,
+                         HuffmanEncoding::kEnabled, CookieCrumbling::kEnabled);
     encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate);
     std::string encoded_header_block =
         encoder.EncodeHeaderList(/* stream_id = */ 1, header_list, nullptr);
@@ -55,80 +57,80 @@ INSTANTIATE_TEST_SUITE_P(All, QpackRoundTripTest,
                                 FragmentMode::kOctetByOctet));
 
 TEST_P(QpackRoundTripTest, Empty) {
-  spdy::Http2HeaderBlock header_list;
-  spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
+  quiche::HttpHeaderBlock header_list;
+  quiche::HttpHeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);
 }
 
 TEST_P(QpackRoundTripTest, EmptyName) {
-  spdy::Http2HeaderBlock header_list;
+  quiche::HttpHeaderBlock header_list;
   header_list["foo"] = "bar";
   header_list[""] = "bar";
 
-  spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
+  quiche::HttpHeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);
 }
 
 TEST_P(QpackRoundTripTest, EmptyValue) {
-  spdy::Http2HeaderBlock header_list;
+  quiche::HttpHeaderBlock header_list;
   header_list["foo"] = "";
   header_list[""] = "";
 
-  spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
+  quiche::HttpHeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);
 }
 
 TEST_P(QpackRoundTripTest, MultipleWithLongEntries) {
-  spdy::Http2HeaderBlock header_list;
+  quiche::HttpHeaderBlock header_list;
   header_list["foo"] = "bar";
   header_list[":path"] = "/";
   header_list["foobaar"] = std::string(127, 'Z');
   header_list[std::string(1000, 'b')] = std::string(1000, 'c');
 
-  spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
+  quiche::HttpHeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);
 }
 
 TEST_P(QpackRoundTripTest, StaticTable) {
   {
-    spdy::Http2HeaderBlock header_list;
+    quiche::HttpHeaderBlock header_list;
     header_list[":method"] = "GET";
     header_list["accept-encoding"] = "gzip, deflate";
     header_list["cache-control"] = "";
     header_list["foo"] = "bar";
     header_list[":path"] = "/";
 
-    spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
+    quiche::HttpHeaderBlock output = EncodeThenDecode(header_list);
     EXPECT_EQ(header_list, output);
   }
   {
-    spdy::Http2HeaderBlock header_list;
+    quiche::HttpHeaderBlock header_list;
     header_list[":method"] = "POST";
     header_list["accept-encoding"] = "brotli";
     header_list["cache-control"] = "foo";
     header_list["foo"] = "bar";
     header_list[":path"] = "/";
 
-    spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
+    quiche::HttpHeaderBlock output = EncodeThenDecode(header_list);
     EXPECT_EQ(header_list, output);
   }
   {
-    spdy::Http2HeaderBlock header_list;
+    quiche::HttpHeaderBlock header_list;
     header_list[":method"] = "CONNECT";
     header_list["accept-encoding"] = "";
     header_list["foo"] = "bar";
     header_list[":path"] = "/";
 
-    spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
+    quiche::HttpHeaderBlock output = EncodeThenDecode(header_list);
     EXPECT_EQ(header_list, output);
   }
 }
 
 TEST_P(QpackRoundTripTest, ValueHasNullCharacter) {
-  spdy::Http2HeaderBlock header_list;
+  quiche::HttpHeaderBlock header_list;
   header_list["foo"] = absl::string_view("bar\0bar\0baz", 11);
 
-  spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
+  quiche::HttpHeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);
 }
 

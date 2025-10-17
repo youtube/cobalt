@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/filters/ffmpeg_video_decoder.h"
 
 #include <stddef.h>
@@ -20,12 +25,15 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/limits.h"
 #include "media/base/media_log.h"
+#include "media/base/media_switches.h"
+#include "media/base/supported_types.h"
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_aspect_ratio.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/ffmpeg/ffmpeg_decoding_loop.h"
+#include "media/filters/ffmpeg_glue.h"
 
 namespace media {
 
@@ -78,16 +86,13 @@ static int GetFFmpegVideoDecoderThreadCount(const VideoDecoderConfig& config) {
     case VideoCodec::kVP9:
     case VideoCodec::kAV1:
     case VideoCodec::kDolbyVision:
-      // We do not compile ffmpeg with support for any of these codecs.
-      break;
-
     case VideoCodec::kTheora:
     case VideoCodec::kMPEG4:
-      // No extra threads for these codecs.
-      break;
+    case VideoCodec::kVP8:
+      // We do not compile ffmpeg with support for any of these codecs.
+      NOTREACHED();
 
     case VideoCodec::kH264:
-    case VideoCodec::kVP8:
       // Normalize to three threads for 1080p content, then scale linearly
       // with number of pixels.
       // Examples:
@@ -121,11 +126,12 @@ static void ReleaseVideoBufferImpl(void* opaque, uint8_t* data) {
 
 // static
 bool FFmpegVideoDecoder::IsCodecSupported(VideoCodec codec) {
-  return avcodec_find_decoder(VideoCodecToCodecID(codec)) != nullptr;
+  // We only build support for H.264.
+  return codec == VideoCodec::kH264 && IsDecoderBuiltInVideoCodec(codec);
 }
 
 FFmpegVideoDecoder::FFmpegVideoDecoder(MediaLog* media_log)
-    : media_log_(media_log) {
+    : media_log_(media_log), timestamp_map_(128) {
   DVLOG(1) << __func__;
   DETACH_FROM_SEQUENCE(sequence_checker_);
 }
@@ -147,11 +153,10 @@ int FFmpegVideoDecoder::GetVideoBuffer(struct AVCodecContext* codec_context,
   if (format == PIXEL_FORMAT_UNKNOWN)
     return AVERROR(EINVAL);
   DCHECK(format == PIXEL_FORMAT_I420 || format == PIXEL_FORMAT_I422 ||
-         format == PIXEL_FORMAT_I444 || format == PIXEL_FORMAT_YUV420P9 ||
-         format == PIXEL_FORMAT_YUV420P10 || format == PIXEL_FORMAT_YUV422P9 ||
-         format == PIXEL_FORMAT_YUV422P10 || format == PIXEL_FORMAT_YUV444P9 ||
-         format == PIXEL_FORMAT_YUV444P10 || format == PIXEL_FORMAT_YUV420P12 ||
-         format == PIXEL_FORMAT_YUV422P12 || format == PIXEL_FORMAT_YUV444P12);
+         format == PIXEL_FORMAT_I444 || format == PIXEL_FORMAT_YUV420P10 ||
+         format == PIXEL_FORMAT_YUV422P10 || format == PIXEL_FORMAT_YUV444P10 ||
+         format == PIXEL_FORMAT_YUV420P12 || format == PIXEL_FORMAT_YUV422P12 ||
+         format == PIXEL_FORMAT_YUV444P12);
 
   // Do not trust `codec_context` sizes either.  Use whatever `frame` requests.
   gfx::Size coded_size(frame->width, frame->height);
@@ -172,7 +177,7 @@ int FFmpegVideoDecoder::GetVideoBuffer(struct AVCodecContext* codec_context,
   DCHECK_EQ(codec_context->lowres, 0);
 
   if (force_allocation_error_)
-    return AVERROR(EINVAL);
+    return AVERROR(ENOMEM);
 
   // FFmpeg has specific requirements on the allocation size of the frame.  The
   // following logic replicates FFmpeg's allocation strategy to ensure buffers
@@ -192,21 +197,17 @@ int FFmpegVideoDecoder::GetVideoBuffer(struct AVCodecContext* codec_context,
   // Round up the allocation, but keep `allocation_size` as the usable
   // allocation after aligning `data`.
   void* fb_priv = nullptr;
-  uint8_t* data = frame_pool_->GetFrameBuffer(allocation_size, &fb_priv);
-  if (!data) {
-    return AVERROR(EINVAL);
+  auto span = frame_pool_->GetFrameBuffer(allocation_size, &fb_priv);
+  if (span.empty() || !fb_priv) {
+    return AVERROR(ENOMEM);
   }
 
-  data = base::bits::AlignUp(data, layout->buffer_addr_align());
+  uint8_t* data = base::bits::AlignUp(span.data(), layout->buffer_addr_align());
 
   for (size_t plane = 0; plane < num_planes; ++plane) {
     frame->data[plane] = data + layout->planes()[plane].offset;
     frame->linesize[plane] = layout->planes()[plane].stride;
   }
-
-  // This seems unsafe, given threaded decoding.  However, `reordered_opaque` is
-  // also going away upstream, so we need a whole new mechanism either way.
-  frame->reordered_opaque = codec_context->reordered_opaque;
 
   // This will be freed by `ReleaseVideoBufferImpl`.
   auto* opaque = new OpaqueData(fb_priv, frame_pool_, data, allocation_size,
@@ -242,14 +243,14 @@ void FFmpegVideoDecoder::Initialize(const VideoDecoderConfig& config,
   }
 
   InitCB bound_init_cb = base::BindPostTaskToCurrentDefault(std::move(init_cb));
-
   if (config.is_encrypted()) {
     std::move(bound_init_cb)
         .Run(DecoderStatus::Codes::kUnsupportedEncryptionMode);
     return;
   }
 
-  if (!ConfigureDecoder(config, low_delay)) {
+  if (!IsCodecSupported(config.codec()) ||
+      !ConfigureDecoder(config, low_delay)) {
     std::move(bound_init_cb).Run(DecoderStatus::Codes::kUnsupportedConfig);
     return;
   }
@@ -273,7 +274,7 @@ void FFmpegVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
       base::BindPostTaskToCurrentDefault(std::move(decode_cb));
 
   if (state_ == DecoderState::kError) {
-    std::move(decode_cb_bound).Run(DecoderStatus::Codes::kFailed);
+    std::move(decode_cb_bound).Run(error_status_);
     return;
   }
 
@@ -304,7 +305,10 @@ void FFmpegVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
 
   if (!FFmpegDecode(*buffer)) {
     state_ = DecoderState::kError;
-    std::move(decode_cb_bound).Run(DecoderStatus::Codes::kFailed);
+    error_status_ = decoding_loop_->last_averror_code() == AVERROR(ENOMEM)
+                        ? DecoderStatus::Codes::kOutOfMemory
+                        : DecoderStatus::Codes::kFailed;
+    std::move(decode_cb_bound).Run(error_status_);
     return;
   }
 
@@ -322,6 +326,8 @@ void FFmpegVideoDecoder::Reset(base::OnceClosure closure) {
 
   avcodec_flush_buffers(codec_context_.get());
   state_ = DecoderState::kNormal;
+  error_status_ = DecoderStatus::Codes::kFailed;
+
   // PostTask() to avoid calling |closure| immediately.
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(FROM_HERE,
                                                            std::move(closure));
@@ -345,17 +351,20 @@ bool FFmpegVideoDecoder::FFmpegDecode(const DecoderBuffer& buffer) {
   // not want to allow on-stack allocation of AVPackets.
   AVPacket* packet = av_packet_alloc();
   if (buffer.end_of_stream()) {
-    packet->data = NULL;
+    packet->data = nullptr;
     packet->size = 0;
   } else {
-    packet->data = const_cast<uint8_t*>(buffer.data());
-    packet->size = buffer.data_size();
+    auto buffer_span = base::span(buffer);
+    packet->data = const_cast<uint8_t*>(buffer_span.data());
+    packet->size = buffer_span.size();
 
     DCHECK(packet->data);
     DCHECK_GT(packet->size, 0);
 
-    // Let FFmpeg handle presentation timestamp reordering.
-    codec_context_->reordered_opaque = buffer.timestamp().InMicroseconds();
+    const int64_t timestamp = buffer.timestamp().InMicroseconds();
+    const TimestampId timestamp_id = timestamp_id_generator_.GenerateNextId();
+    timestamp_map_.Put(std::make_pair(timestamp_id, timestamp));
+    packet->opaque = reinterpret_cast<void*>(timestamp_id.GetUnsafeValue());
   }
   FFmpegDecodingLoop::DecodeStatus decode_status = decoding_loop_->DecodePacket(
       packet, base::BindRepeating(&FFmpegVideoDecoder::OnNewFrame,
@@ -387,8 +396,9 @@ bool FFmpegVideoDecoder::OnNewFrame(AVFrame* frame) {
   // TODO(fbarchard): Work around for FFmpeg http://crbug.com/27675
   // The decoder is in a bad state and not decoding correctly.
   // Checking for NULL avoids a crash in CopyPlane().
-  if (!frame->data[VideoFrame::kYPlane] || !frame->data[VideoFrame::kUPlane] ||
-      !frame->data[VideoFrame::kVPlane]) {
+  if (!frame->data[VideoFrame::Plane::kY] ||
+      !frame->data[VideoFrame::Plane::kU] ||
+      !frame->data[VideoFrame::Plane::kV]) {
     DLOG(ERROR) << "Video frame was produced yet has invalid frame data.";
     return false;
   }
@@ -414,7 +424,12 @@ bool FFmpegVideoDecoder::OnNewFrame(AVFrame* frame) {
   }
   gfx::Size natural_size = aspect_ratio.GetNaturalSize(visible_rect);
 
-  const auto pts = base::Microseconds(frame->reordered_opaque);
+  const auto ts_id = TimestampId(reinterpret_cast<size_t>(frame->opaque));
+  const auto ts_lookup = timestamp_map_.Get(ts_id);
+  if (ts_lookup == timestamp_map_.end()) {
+    return false;
+  }
+  const auto pts = base::Microseconds(std::get<1>(*ts_lookup));
   auto video_frame = VideoFrame::WrapExternalDataWithLayout(
       opaque->layout, visible_rect, natural_size, opaque->data, opaque->size,
       pts);
@@ -422,48 +437,35 @@ bool FFmpegVideoDecoder::OnNewFrame(AVFrame* frame) {
     return false;
   }
 
-  // Prefer the color space from the codec context. If it's not specified (or is
-  // set to an unsupported value), fall back on the value from the config.
-  auto color_space =
-      AVColorSpaceToColorSpace(frame->colorspace, frame->color_range);
-  if (!color_space.IsSpecified()) {
-    color_space = config_.color_space_info();
-  }
-  video_frame->set_color_space(color_space.ToGfxColorSpace());
+  auto config_cs = config_.color_space_info().ToGfxColorSpace();
 
-  if (codec_context_->codec_id == AV_CODEC_ID_VP8 &&
-      frame->color_primaries == AVCOL_PRI_UNSPECIFIED &&
-      frame->color_trc == AVCOL_TRC_UNSPECIFIED &&
-      frame->colorspace == AVCOL_SPC_BT470BG) {
-    // vp8 has no colorspace information, except for the color range, so prefer
-    // the config color space if it exists.
-    //
-    // However, because of a comment in the vp8 spec, ffmpeg sets the
-    // colorspace to BT470BG. We detect this and treat it as unset.
-    // If the color range is set to full range, we use the jpeg color space.
-    if (config_.color_space_info().IsSpecified()) {
-      video_frame->set_color_space(
-          config_.color_space_info().ToGfxColorSpace());
-    } else if (codec_context_->color_range == AVCOL_RANGE_JPEG) {
-      video_frame->set_color_space(gfx::ColorSpace::CreateJpeg());
-    }
-  } else if (codec_context_->codec_id == AV_CODEC_ID_H264 &&
-             frame->colorspace == AVCOL_SPC_RGB &&
-             video_frame->format() == PIXEL_FORMAT_I420) {
+  gfx::ColorSpace color_space;
+  if (codec_context_->codec_id == AV_CODEC_ID_H264 &&
+      frame->colorspace == AVCOL_SPC_RGB &&
+      VideoPixelFormatToChromaSampling(video_frame->format()) !=
+          VideoChromaSampling::k444) {
     // Some H.264 videos contain a VUI that specifies a color matrix of GBR,
-    // when they are actually ordinary YUV. Only 4:2:0 formats are checked,
-    // because GBR is reasonable for 4:4:4 content. See crbug.com/1067377.
-    video_frame->set_color_space(gfx::ColorSpace::CreateREC709());
+    // when they are actually ordinary YUV. Default to BT.709 if the format is
+    // not 4:4:4 as GBR is reasonable for 4:4:4 content. See crbug.com/1067377
+    // and crbug.com/341266991.
+    color_space = gfx::ColorSpace::CreateREC709();
   } else if (frame->color_primaries != AVCOL_PRI_UNSPECIFIED ||
              frame->color_trc != AVCOL_TRC_UNSPECIFIED ||
              frame->colorspace != AVCOL_SPC_UNSPECIFIED) {
-    media::VideoColorSpace video_color_space = media::VideoColorSpace(
-        frame->color_primaries, frame->color_trc, frame->colorspace,
-        frame->color_range != AVCOL_RANGE_MPEG
-            ? gfx::ColorSpace::RangeID::FULL
-            : gfx::ColorSpace::RangeID::LIMITED);
-    video_frame->set_color_space(video_color_space.ToGfxColorSpace());
+    color_space = VideoColorSpace(frame->color_primaries, frame->color_trc,
+                                  frame->colorspace,
+                                  frame->color_range != AVCOL_RANGE_MPEG
+                                      ? gfx::ColorSpace::RangeID::FULL
+                                      : gfx::ColorSpace::RangeID::LIMITED)
+                      .ToGfxColorSpace();
+  } else if (frame->color_range == AVCOL_RANGE_JPEG) {
+    // None of primaries, transfer, or colorspace are specified at this point,
+    // so guess BT.709 full range for historical reasons.
+    color_space = gfx::ColorSpace::CreateJpeg();
   }
+
+  // Prefer the frame color space over what's in the config.
+  video_frame->set_color_space(color_space.IsValid() ? color_space : config_cs);
 
   video_frame->metadata().power_efficient = false;
   video_frame->AddDestructionObserver(
@@ -486,20 +488,23 @@ bool FFmpegVideoDecoder::ConfigureDecoder(const VideoDecoderConfig& config,
   ReleaseFFmpegResources();
 
   // Initialize AVCodecContext structure.
-  codec_context_.reset(avcodec_alloc_context3(NULL));
+  codec_context_.reset(avcodec_alloc_context3(nullptr));
   VideoDecoderConfigToAVCodecContext(config, codec_context_.get());
 
   codec_context_->thread_count = GetFFmpegVideoDecoderThreadCount(config);
   codec_context_->thread_type =
       FF_THREAD_SLICE | (low_delay ? 0 : FF_THREAD_FRAME);
+
   codec_context_->opaque = this;
   codec_context_->get_buffer2 = GetVideoBufferImpl;
+  codec_context_->flags |= AV_CODEC_FLAG_COPY_OPAQUE;
 
-  if (decode_nalus_)
+  if (decode_nalus_) {
     codec_context_->flags2 |= AV_CODEC_FLAG2_CHUNKS;
+  }
 
   const AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
-  if (!codec || avcodec_open2(codec_context_.get(), codec, NULL) < 0) {
+  if (!codec || avcodec_open2(codec_context_.get(), codec, nullptr) < 0) {
     ReleaseFFmpegResources();
     return false;
   }

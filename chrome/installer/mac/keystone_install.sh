@@ -25,7 +25,6 @@
 #  1  Unknown failure
 #  2  Basic sanity check source failure (e.g. no app on disk image)
 #  3  Basic sanity check destination failure (e.g. ticket points to nothing)
-#  4  Update driven by user ticket when a system ticket is also present
 #  5  Could not prepare existing installed version to receive update
 #  6  Patch sanity check failure
 #  7  rsync failed (could not copy new versioned directory to Versions)
@@ -36,6 +35,9 @@
 # 12  dirpatcher failed for versioned directory
 # 13  dirpatcher failed for outer .app bundle
 # 14  The update is incompatible with the system (presently unused)
+#
+# The following exit codes were formerly used and shouldn't be reassigned:
+#  4  Update driven by user ticket when a system ticket is also present
 #
 # The following exit codes can be used to convey special meaning to Keystone.
 # KeystoneRegistration will present these codes to Chrome as "success."
@@ -300,8 +302,9 @@ is_version_ge() {
   local right="${2}"
 
   local -a left_array right_array
-  IFS=. left_array=(${left})
-  IFS=. right_array=(${right})
+  local IFS=.
+  left_array=(${left})
+  right_array=(${right})
 
   local left_count=${#left_array[@]}
   local right_count=${#right_array[@]}
@@ -365,7 +368,7 @@ ksadmin_version() {
       # This isn't very special, it's just what happens to be current as this is
       # written. It's new enough that all of the feature checks
       # (ksadmin_supports_*) pass.
-      g_ksadmin_version="1.2.13.41"
+      g_ksadmin_version="137.0.7106.0"
     else
       g_ksadmin_version="$(ksadmin --ksadmin-version || true)"
     fi
@@ -432,6 +435,11 @@ ksadmin_supports_versionpath_versionkey() {
   # return value.
 }
 
+# Returns 0 (true) if ksadmin supports --print_xattr_tag_brand.
+ksadmin_supports_print_xattr_tag_brand() {
+  is_ksadmin_version_ge 137.0.7106.0
+}
+
 # Runs "defaults read" to obtain the value of a key in a property list. As
 # with "defaults read", an absolute path to a plist is supplied, without the
 # ".plist" extension.
@@ -479,10 +487,9 @@ infoplist_read() {
 # provide a full update package.
 mark_failed_patch_update() {
   local product_id="${1}"
-  local want_full_installer_path="${2}"
-  local old_ks_plist="${3}"
-  local old_version_app="${4}"
-  local system_ticket="${5}"
+  local old_ks_plist="${2}"
+  local old_version_app="${3}"
+  local system_ticket="${4}"
 
   # This step isn't critical.
   local set_e=
@@ -517,34 +524,6 @@ mark_failed_patch_update() {
     fi
     return 0
   fi
-
-  # Chrome can't easily read its Keystone ticket prior to registration, and
-  # when Chrome registers with Keystone, it obliterates old tag values in its
-  # ticket. Therefore, an alternative mechanism is provided to signal to
-  # Chrome that a full installer is desired. If the .want_full_installer file
-  # is present and it contains Chrome's current version number, Chrome will
-  # include "-full" in its tag when it registers with Keystone. This allows
-  # "-full" to persist in the tag even after Chrome is relaunched, which on a
-  # user ticket, triggers a re-registration.
-  #
-  # .want_full_installer is placed immediately inside the .app bundle as a
-  # sibling to the Contents directory. In this location, it's outside of the
-  # view of the code signing and code signature verification machinery. This
-  # file can safely be added, modified, and removed without affecting the
-  # signature.
-  rm -f "${want_full_installer_path}" 2> /dev/null
-  echo "${old_version_app}" > "${want_full_installer_path}"
-
-  # See the comment below in the "setting permissions" section for an
-  # explanation of the groups and modes selected here.
-  local chmod_mode="644"
-  if [[ -z "${system_ticket}" ]] &&
-     [[ "${want_full_installer_path:0:14}" = "/Applications/" ]] &&
-     chgrp admin "${want_full_installer_path}" 2> /dev/null; then
-    chmod_mode="664"
-  fi
-  note "chmod_mode = ${chmod_mode}"
-  chmod "${chmod_mode}" "${want_full_installer_path}" 2> /dev/null
 
   local old_ks_plist_path="${old_ks_plist}.plist"
 
@@ -630,7 +609,17 @@ main() {
   # --ignore-times, which is desirable, as it forces rsync to copy files even
   # when their sizes and modification times are identical, as their content
   # still may be different.
-  readonly RSYNC_FLAGS="--ignore-times --links --perms --recursive --times"
+  if [[ ${EUID} -eq 0 ]]; then
+    readonly RSYNC_FLAGS="--ignore-times --links --perms --recursive --times"
+  else
+    # When non-root, omit link and dir times, since rsync can't update them if
+    # the directories are owned by a different user. Also avoid --perms, since
+    # in some cases users can't change the permissions of files owned by other
+    # users.
+    readonly RSYNC_FLAGS=\
+"--ignore-times --links --no-perms --executability --chmod=u=rwX,go=rX\
+ --recursive"
+  fi
 
   # It's difficult to get GOOGLE_CHROME_UPDATER_DEBUG set in the environment
   # when this script is called from Keystone.  If a "debug file" exists in
@@ -862,9 +851,6 @@ framework_${update_version_app_old}_${update_version_app}.dirpatch"
   fi
   note "installed_app = ${installed_app}"
 
-  local want_full_installer_path="${installed_app}/.want_full_installer"
-  note "want_full_installer_path = ${want_full_installer_path}"
-
   if [[ "${installed_app:0:1}" != "/" ]] ||
      ! [[ -d "${installed_app}" ]]; then
     err "installed_app must be an absolute path to a directory"
@@ -878,31 +864,6 @@ framework_${update_version_app_old}_${update_version_app}.dirpatch"
     system_ticket="y"
   fi
   note "system_ticket = ${system_ticket}"
-
-  # If this script is being driven by a user ticket, but a system ticket is also
-  # present and system Keystone is installed, there's a potential for the two
-  # tickets to collide.  Both ticket types might be present if another user on
-  # the system promoted the ticket to system: the other user could not have
-  # removed this user's user ticket.  Handle that case here by deleting the user
-  # ticket and exiting early with a discrete exit code.
-  #
-  # Current versions of ksadmin will exit 1 (false) when asked to print tickets
-  # and given a specific product ID to print.  Older versions of ksadmin would
-  # exit 0 (true), but those same versions did not support -S (meaning to check
-  # the system ticket store) and would exit 1 (false) with this invocation due
-  # to not understanding the question.  Therefore, the usage here will only
-  # delete the existing user ticket when running as non-root with access to a
-  # sufficiently recent ksadmin.  Older ksadmins are tolerated: the update will
-  # likely fail for another reason and the user ticket will hang around until
-  # something is eventually able to remove it.
-  if [[ -z "${GOOGLE_CHROME_UPDATER_TEST_PATH}" ]] &&
-     [[ -z "${system_ticket}" ]] &&
-     [[ -d "/${UNROOTED_KS_BUNDLE_DIR}" ]] &&
-     ksadmin -S --print-tickets --productid "${product_id}" >& /dev/null; then
-    ksadmin --delete --productid "${product_id}" || true
-    err "can't update on a user ticket when a system ticket is also present"
-    exit 4
-  fi
 
   # Figure out what the existing installed application is using for its
   # versioned directory.  This will be used later, to avoid removing the
@@ -965,10 +926,20 @@ framework_${update_version_app_old}_${update_version_app}.dirpatch"
   local old_ks_plist="${installed_app_plist}"
   note "old_ks_plist = ${old_ks_plist}"
   local old_brand
-  old_brand="$(infoplist_read "${old_ks_plist}" \
-                              "${KS_BRAND_KEY}" 2> /dev/null ||
-               true)"
-  note "old_brand = ${old_brand}"
+  if ksadmin_supports_print_xattr_tag_brand; then
+    old_brand="$(ksadmin --print-xattr-tag-brand "${KS_TICKET_XC_PATH}" \
+                         2> /dev/null ||
+                 true)"
+    if [[ -n "${old_brand}" ]] ; then
+      note "old_brand (from extended attribute tag) = ${old_brand}"
+    fi
+  fi
+  if [[ -z "${old_brand}" ]] ; then
+    old_brand="$(infoplist_read "${old_ks_plist}" \
+                                "${KS_BRAND_KEY}" 2> /dev/null ||
+                true)"
+    note "old_brand (from app Info.plist) = ${old_brand}"
+  fi
 
   local update_versioned_dir=
   if [[ -z "${is_patch}" ]]; then
@@ -1051,7 +1022,6 @@ framework_${update_version_app_old}_${update_version_app}.dirpatch"
                          "${versioned_dir_target}"; then
       err "dirpatcher of versioned directory failed, status ${PIPESTATUS[0]}"
       mark_failed_patch_update "${product_id}" \
-                               "${want_full_installer_path}" \
                                "${old_ks_plist}" \
                                "${old_version_app}" \
                                "${system_ticket}"
@@ -1135,7 +1105,6 @@ framework_${update_version_app_old}_${update_version_app}.dirpatch"
                          "${update_app}"; then
       err "dirpatcher of app directory failed, status ${PIPESTATUS[0]}"
       mark_failed_patch_update "${product_id}" \
-                               "${want_full_installer_path}" \
                                "${old_ks_plist}" \
                                "${old_version_app}" \
                                "${system_ticket}"
@@ -1191,10 +1160,13 @@ framework_${update_version_app_old}_${update_version_app}.dirpatch"
     note "g_temp_dir = ${g_temp_dir}"
   fi
 
-  # Clean up any old .want_full_installer files from previous dirpatcher
-  # failures. This is not considered a critical step, because this file
-  # normally does not exist at all.
-  rm -f "${want_full_installer_path}" || true
+  # Previous versions may have left a .want_full_installer file to hint to
+  # Chrome that it should append "-full" to its tag in order to avoid a
+  # differential update. These files are no longer needed (tag updates in this
+  # script are sufficient), but the file should be cleaned up to fix
+  # codesigning failures if it exists. This is not considered a critical step,
+  # because this file normally does not exist at all.
+  rm -f "${installed_app}/.want_full_installer" || true
 
   # If necessary, touch the outermost .app so that it appears to the outside
   # world that something was done to the bundle.  This will cause
@@ -1284,18 +1256,51 @@ framework_${update_version_app_old}_${update_version_app}.dirpatch"
 
   local set_brand_file_access=
   local brand_plist
+  local cbcm_path
   if [[ -n "${system_ticket}" ]]; then
     # System ticket.
     set_brand_file_access="y"
     brand_plist="/${UNROOTED_BRAND_PLIST}"
+    cbcm_path="/Library/Application Support/Google/CloudManagement"
   else
     # User ticket.
     brand_plist=~/"${UNROOTED_BRAND_PLIST}"
+    cbcm_path=~"/Library/Application Support/Google/Chrome/Cloud Enrollment"
   fi
   local brand_plist_path="${brand_plist}.plist"
   note "set_brand_file_access = ${set_brand_file_access}"
   note "brand_plist = ${brand_plist}"
   note "brand_plist_path = ${brand_plist_path}"
+
+  # If there is no brand plist in the old browser installation, read the brand
+  # from the keystone file.
+  if [[ ! -n "${old_brand}" ]]; then
+    old_brand=$(defaults read "${brand_plist}" "${KS_BRAND_KEY}" || echo -n "")
+    note "old_brand (from brand plist) = ${old_brand}"
+  fi
+
+  # Rewrite the brand code according to CBCM enrollment.
+  local new_brand
+  if [[ "${old_brand}" == "GCEA" && -e "${cbcm_path}" ]]; then
+    new_brand="GCCA"
+  elif [[ "${old_brand}" == "GCCA" && ! -e "${cbcm_path}" ]]; then
+    new_brand="GCEA"
+  elif [[ "${old_brand}" == "GCEM" && -e "${cbcm_path}" ]]; then
+    new_brand="GCCM"
+  elif [[ "${old_brand}" == "GCCM" && ! -e "${cbcm_path}" ]]; then
+    new_brand="GCEM"
+  elif [[ "${old_brand}" == "FPAB" && -e "${cbcm_path}" ]]; then
+    new_brand="FPJB"
+  elif [[ "${old_brand}" == "FPJB" && ! -e "${cbcm_path}" ]]; then
+    new_brand="FPAB"
+  elif [[ "${old_brand}" == "FPAC" && -e "${cbcm_path}" ]]; then
+    new_brand="FPJC"
+  elif [[ "${old_brand}" == "FPJC" && ! -e "${cbcm_path}" ]]; then
+    new_brand="FPAC"
+  else
+    new_brand="${old_brand}"
+  fi
+  note "new_brand = ${new_brand}"
 
   local ksadmin_brand_plist_path
   local ksadmin_brand_key
@@ -1311,14 +1316,14 @@ framework_${update_version_app_old}_${update_version_app}.dirpatch"
     # Side-by-side capable Chrome.
     note "skipping brand code on side-by-side channel ${channel}"
   elif [[ "${channel}" = "beta" ]] || [[ "${channel}" = "dev" ]]; then
-    note "defeating brand code on channel ${channel}"
+    note "deleting brand code on channel ${channel}"
     rm -f "${brand_plist_path}" 2>/dev/null || true
   else
     # Stable channel.
     # If the user manually updated their copy of Chrome, there might be new
     # brand information in the app bundle, and that needs to be copied out
     # into the file Keystone looks at.
-    if [[ -n "${old_brand}" ]]; then
+    if [[ -n "${new_brand}" ]]; then
       local brand_dir
       brand_dir="$(dirname "${brand_plist_path}")"
       note "brand_dir = ${brand_dir}"
@@ -1326,7 +1331,7 @@ framework_${update_version_app_old}_${update_version_app}.dirpatch"
         err "couldn't mkdir brand_dir, continuing"
       else
         if ! defaults write "${brand_plist}" "${KS_BRAND_KEY}" \
-                            -string "${old_brand}"; then
+                            -string "${new_brand}"; then
           err "couldn't write brand_plist, continuing"
         elif [[ -n "${set_brand_file_access}" ]]; then
           if ! chown "root:wheel" "${brand_plist_path}"; then

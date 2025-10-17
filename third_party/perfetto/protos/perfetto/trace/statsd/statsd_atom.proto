@@ -20,13 +20,13 @@ package perfetto.protos;
 // Deliberate empty message. See comment on StatsdAtom#atom below.
 message Atom {}
 
-// One or more statsd atoms. Ideally this should continue to match:
+// One or more statsd atoms. This must continue to match:
 // perfetto/protos/third_party/statsd/shell_data.proto
 // So that we can efficiently add data from statsd directly to the
 // trace.
 message StatsdAtom {
   // Atom should be filled with an Atom proto from:
-  // https://cs.android.com/android/platform/superproject/+/master:frameworks/proto_logging/stats/atoms.proto?q=f:stats%2Fatoms.proto$%20message%5C%20Atom
+  // https://cs.android.com/android/platform/superproject/main/+/main:frameworks/proto_logging/stats/atoms.proto?q=f:stats%2Fatoms.proto$%20message%5C%20Atom
   // We don't reference Atom directly here since we don't want to import
   // Atom.proto and all its transitive dependencies into Perfetto.
   // atom and timestamp_nanos have the same cardinality

@@ -4,13 +4,14 @@
 
 #include "content/browser/bluetooth/bluetooth_blocklist.h"
 
+#include <string_view>
+
 #include "base/check.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_split.h"
 #include "content/browser/bluetooth/bluetooth_util.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/bluetooth/web_bluetooth.mojom.h"
 
 using device::BluetoothUUID;
@@ -43,9 +44,9 @@ void BluetoothBlocklist::Add(const BluetoothUUID& uuid, Value value) {
   }
 }
 
-// TODO(crbug.com/1348063): Support |blocklist_string| for manufacturer data
+// TODO(crbug.com/40855069): Support |blocklist_string| for manufacturer data
 // prefix.
-void BluetoothBlocklist::Add(base::StringPiece blocklist_string) {
+void BluetoothBlocklist::Add(std::string_view blocklist_string) {
   if (blocklist_string.empty())
     return;
   base::StringPairs kv_pairs;
@@ -258,7 +259,7 @@ void BluetoothBlocklist::PopulateWithDefaultValues() {
   Add(BluetoothUUID("bad3ec61-3cc3-4954-9702-7977df514114"),
       Value::EXCLUDE_READS);
 
-  // TODO(crbug.com/1163207): To fill below when manufacturer blocklist spec
+  // TODO(crbug.com/40740004): To fill below when manufacturer blocklist spec
   // patch is done.
   // Blocklist manufacturer data prefix updated [TBD date] from: [TBD
   // blocklist link].

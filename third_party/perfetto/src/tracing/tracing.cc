@@ -20,6 +20,7 @@
 #include <condition_variable>
 #include <mutex>
 
+#include "perfetto/base/time.h"
 #include "perfetto/ext/base/no_destructor.h"
 #include "perfetto/ext/base/waitable_event.h"
 #include "perfetto/tracing/internal/track_event_internal.h"
@@ -38,6 +39,7 @@ std::mutex& InitializedMutex() {
 
 // static
 void Tracing::InitializeInternal(const TracingInitArgs& args) {
+  base::InitializeTime();
   std::unique_lock<std::mutex> lock(InitializedMutex());
   // If it's the first time Initialize is called, set some global params.
   if (!g_was_initialized) {
@@ -123,6 +125,8 @@ void Tracing::ActivateTriggers(const std::vector<std::string>& triggers,
 }
 
 TracingSession::~TracingSession() = default;
+
+void TracingSession::CloneTrace(CloneTraceArgs, CloneTraceCallback) {}
 
 // Can be called from any thread.
 bool TracingSession::FlushBlocking(uint32_t timeout_ms) {

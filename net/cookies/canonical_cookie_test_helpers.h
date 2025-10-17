@@ -11,10 +11,26 @@
 
 #include "base/strings/string_split.h"
 #include "net/cookies/canonical_cookie.h"
+#include "net/cookies/cookie_inclusion_status.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace net {
+
+namespace internal {
+MATCHER_P(HasExactlyExclusionReasonsForTesting, reasons, "") {
+  const CookieInclusionStatus status = arg;
+  return testing::ExplainMatchResult(
+      true, status.HasExactlyExclusionReasonsForTesting(reasons),
+      result_listener);
+}
+MATCHER_P(HasExactlyWarningReasonsForTesting, reasons, "") {
+  const CookieInclusionStatus status = arg;
+  return testing::ExplainMatchResult(
+      true, status.HasExactlyWarningReasonsForTesting(reasons),
+      result_listener);
+}
+}  // namespace internal
 
 MATCHER_P(MatchesCookieLine, cookie_line, "") {
   std::string argument_line = CanonicalCookie::BuildCookieLine(arg);
@@ -34,6 +50,12 @@ MATCHER_P2(MatchesCookieNameValue, name, value, "") {
   const CanonicalCookie& cookie = arg;
   return testing::ExplainMatchResult(name, cookie.Name(), result_listener) &&
          testing::ExplainMatchResult(value, cookie.Value(), result_listener);
+}
+
+MATCHER_P2(MatchesCookieWithNameSourceType, name, source_type, "") {
+  return testing::ExplainMatchResult(name, arg.Name(), result_listener) &&
+         testing::ExplainMatchResult(source_type, arg.SourceType(),
+                                     result_listener);
 }
 
 MATCHER_P(MatchesCookieAccessWithName, name, "") {
@@ -103,23 +125,24 @@ MATCHER_P(HasExclusionReason, reason, "") {
                                      result_listener);
 }
 
+// Helper for checking that status.exemption_reason() == reason.
+MATCHER_P(HasExactlyExemptionReason, reason, "") {
+  CookieInclusionStatus status = arg;
+  return testing::ExplainMatchResult(true, status.exemption_reason() == reason,
+                                     result_listener);
+}
+
 // Helper for checking that status.HasExactlyExclusionReasonsForTesting(reasons)
 // == true.
-MATCHER_P(HasExactlyExclusionReasonsForTesting, reasons, "") {
-  const CookieInclusionStatus status = arg;
-  return testing::ExplainMatchResult(
-      true, status.HasExactlyExclusionReasonsForTesting(reasons),
-      result_listener);
-}
+inline constexpr auto& HasExactlyExclusionReasonsForTesting =
+    internal::HasExactlyExclusionReasonsForTesting<
+        CookieInclusionStatus::ExclusionReasonBitset>;
 
 // Helper for checking that status.HasExactlyWarningReasonsForTesting(reasons)
 // == true.
-MATCHER_P(HasExactlyWarningReasonsForTesting, reasons, "") {
-  const CookieInclusionStatus status = arg;
-  return testing::ExplainMatchResult(
-      true, status.HasExactlyWarningReasonsForTesting(reasons),
-      result_listener);
-}
+inline constexpr auto& HasExactlyWarningReasonsForTesting =
+    internal::HasExactlyWarningReasonsForTesting<
+        CookieInclusionStatus::WarningReasonBitset>;
 
 MATCHER(ShouldWarn, "") {
   net::CookieInclusionStatus status = arg;

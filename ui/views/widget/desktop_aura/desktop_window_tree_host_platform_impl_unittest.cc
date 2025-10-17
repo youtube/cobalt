@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/views/widget/desktop_aura/desktop_window_tree_host_platform.h"
-
 #include <utility>
 
 #include "base/command_line.h"
+#include "ui/aura/native_window_occlusion_tracker.h"
+#include "ui/aura/window_tree_host.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/ui_base_types.h"
+#include "ui/compositor/compositor.h"
 #include "ui/display/display_switches.h"
 #include "ui/platform_window/platform_window.h"
 #include "ui/views/test/views_test_base.h"
 #include "ui/views/widget/desktop_aura/desktop_native_widget_aura.h"
+#include "ui/views/widget/desktop_aura/desktop_window_tree_host_platform.h"
 #include "ui/views/widget/widget_delegate.h"
 
 namespace views {
@@ -39,8 +41,9 @@ class ShapedNonClientFrameView : public NonClientFrameView {
   }
   int NonClientHitTest(const gfx::Point& point) override {
     // Fake bottom for non client event test.
-    if (point == gfx::Point(500, 500))
+    if (point == gfx::Point(500, 500)) {
       return HTBOTTOM;
+    }
     return HTNOWHERE;
   }
   void GetWindowMask(const gfx::Size& size, SkPath* window_mask) override {
@@ -67,25 +70,9 @@ class ShapedNonClientFrameView : public NonClientFrameView {
   }
 
  private:
-  void Layout() override { layout_requested_ = true; }
+  void Layout(PassKey) override { layout_requested_ = true; }
 
   bool layout_requested_ = false;
-};
-
-class ShapedWidgetDelegate : public WidgetDelegateView {
- public:
-  ShapedWidgetDelegate() = default;
-
-  ShapedWidgetDelegate(const ShapedWidgetDelegate&) = delete;
-  ShapedWidgetDelegate& operator=(const ShapedWidgetDelegate&) = delete;
-
-  ~ShapedWidgetDelegate() override = default;
-
-  // WidgetDelegateView:
-  std::unique_ptr<NonClientFrameView> CreateNonClientFrameView(
-      Widget* widget) override {
-    return std::make_unique<ShapedNonClientFrameView>();
-  }
 };
 
 class MouseEventRecorder : public ui::EventHandler {
@@ -114,6 +101,22 @@ class MouseEventRecorder : public ui::EventHandler {
 
 }  // namespace
 
+class ShapedWidgetDelegate : public WidgetDelegateView {
+ public:
+  ShapedWidgetDelegate() = default;
+
+  ShapedWidgetDelegate(const ShapedWidgetDelegate&) = delete;
+  ShapedWidgetDelegate& operator=(const ShapedWidgetDelegate&) = delete;
+
+  ~ShapedWidgetDelegate() override = default;
+
+  // WidgetDelegateView:
+  std::unique_ptr<NonClientFrameView> CreateNonClientFrameView(
+      Widget* widget) override {
+    return std::make_unique<ShapedNonClientFrameView>();
+  }
+};
+
 class DesktopWindowTreeHostPlatformImplTest : public ViewsTestBase {
  public:
   DesktopWindowTreeHostPlatformImplTest() = default;
@@ -132,10 +135,10 @@ class DesktopWindowTreeHostPlatformImplTest : public ViewsTestBase {
  protected:
   // Creates a widget of size 100x100.
   std::unique_ptr<Widget> CreateWidget(WidgetDelegate* delegate) {
-    std::unique_ptr<Widget> widget(new Widget);
-    Widget::InitParams params(Widget::InitParams::TYPE_WINDOW);
+    auto widget = std::make_unique<Widget>();
+    Widget::InitParams params(Widget::InitParams::CLIENT_OWNS_WIDGET,
+                              Widget::InitParams::TYPE_WINDOW);
     params.delegate = delegate;
-    params.ownership = Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
     params.remove_standard_frame = true;
     params.bounds = gfx::Rect(100, 100, 100, 100);
     widget->Init(std::move(params));
@@ -146,16 +149,14 @@ class DesktopWindowTreeHostPlatformImplTest : public ViewsTestBase {
 TEST_F(DesktopWindowTreeHostPlatformImplTest,
        ChildWindowDestructionDuringTearDown) {
   Widget parent_widget;
-  Widget::InitParams parent_params =
-      CreateParams(Widget::InitParams::TYPE_WINDOW);
-  parent_params.ownership = Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
+  Widget::InitParams parent_params = CreateParams(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_WINDOW);
   parent_widget.Init(std::move(parent_params));
   parent_widget.Show();
 
   Widget child_widget;
-  Widget::InitParams child_params =
-      CreateParams(Widget::InitParams::TYPE_WINDOW);
-  child_params.ownership = Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
+  Widget::InitParams child_params = CreateParams(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_WINDOW);
   child_params.parent = parent_widget.GetNativeWindow();
   child_widget.Init(std::move(child_params));
   child_widget.Show();
@@ -184,15 +185,57 @@ TEST_F(DesktopWindowTreeHostPlatformImplTest, MouseNCEvents) {
       widget->GetNativeWindow()->GetHost());
   ASSERT_TRUE(host_platform);
 
-  ui::MouseEvent event(ui::ET_MOUSE_PRESSED, gfx::PointF(500, 500),
+  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::PointF(500, 500),
                        gfx::PointF(500, 500), base::TimeTicks::Now(), 0, 0, {});
   host_platform->DispatchEvent(&event);
 
   ASSERT_EQ(1u, recorder.mouse_events().size());
-  EXPECT_EQ(ui::ET_MOUSE_PRESSED, recorder.mouse_events()[0].type());
+  EXPECT_EQ(ui::EventType::kMousePressed, recorder.mouse_events()[0].type());
   EXPECT_TRUE(recorder.mouse_events()[0].flags() & ui::EF_IS_NON_CLIENT);
 
   widget->GetNativeWindow()->RemovePreTargetHandler(&recorder);
+}
+
+// Checks that the visibility of the content window of
+// `DesktopWindowTreeHostPlatform` matches the visibility of the ui compositor.
+TEST_F(DesktopWindowTreeHostPlatformImplTest,
+       ContentWindowVisibilityMatchesCompositorVisibility) {
+  std::unique_ptr<Widget> widget = CreateWidget(new ShapedWidgetDelegate());
+  // Disable native occlusion tracking so it doesn't interfere with visibility
+  // for this test.
+  aura::NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(
+      widget->GetNativeWindow()->GetHost());
+  widget->Show();
+  base::RunLoop().RunUntilIdle();
+
+  auto* host_platform = static_cast<DesktopWindowTreeHostPlatform*>(
+      widget->GetNativeWindow()->GetHost());
+  ASSERT_TRUE(host_platform);
+  auto* compositor = host_platform->compositor();
+  ASSERT_TRUE(compositor);
+
+  EXPECT_TRUE(compositor->IsVisible());
+  EXPECT_TRUE(host_platform->GetContentWindow()->IsVisible());
+
+  // Mark as not visible via `WindowTreeHost`.
+  host_platform->Hide();
+  EXPECT_FALSE(compositor->IsVisible());
+  EXPECT_FALSE(host_platform->GetContentWindow()->IsVisible());
+
+  // Mark as visible via `WindowTreeHost`.
+  static_cast<aura::WindowTreeHost*>(host_platform)->Show();
+  EXPECT_TRUE(compositor->IsVisible());
+  EXPECT_TRUE(host_platform->GetContentWindow()->IsVisible());
+
+  // Mark compositor directly as not visible.
+  compositor->SetVisible(false);
+  EXPECT_FALSE(compositor->IsVisible());
+  EXPECT_FALSE(host_platform->GetContentWindow()->IsVisible());
+
+  // Mark compositor directly as visible.
+  compositor->SetVisible(true);
+  EXPECT_TRUE(compositor->IsVisible());
+  EXPECT_TRUE(host_platform->GetContentWindow()->IsVisible());
 }
 
 // Checks that a call to `SetZOrderLevel` on a `PlatformWindow` sets the z order
@@ -202,9 +245,9 @@ TEST_F(DesktopWindowTreeHostPlatformImplTest,
   // We want the widget to be initialized with a non-default z order to check
   // that it gets initialized with the correct z order.
   Widget widget;
-  Widget::InitParams params = CreateParams(Widget::InitParams::TYPE_WINDOW);
+  Widget::InitParams params = CreateParams(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_WINDOW);
   params.z_order = ui::ZOrderLevel::kFloatingWindow;
-  params.ownership = Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
   widget.Init(std::move(params));
   widget.Show();
 
@@ -251,14 +294,14 @@ TEST_F(DesktopWindowTreeHostPlatformImplHighDPITest, MouseNCEvents) {
       widget->GetNativeWindow()->GetHost());
   ASSERT_TRUE(host_platform);
 
-  ui::MouseEvent event(ui::ET_MOUSE_PRESSED, gfx::PointF(1001, 1001),
+  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::PointF(1001, 1001),
                        gfx::PointF(1001, 1001), base::TimeTicks::Now(), 0, 0,
                        {});
   host_platform->DispatchEvent(&event);
 
   EXPECT_EQ(1u, recorder.mouse_events().size());
   EXPECT_EQ(gfx::Point(500, 500), recorder.mouse_events()[0].location());
-  EXPECT_EQ(ui::ET_MOUSE_PRESSED, recorder.mouse_events()[0].type());
+  EXPECT_EQ(ui::EventType::kMousePressed, recorder.mouse_events()[0].type());
   EXPECT_TRUE(recorder.mouse_events()[0].flags() & ui::EF_IS_NON_CLIENT);
 
   widget->GetNativeWindow()->RemovePreTargetHandler(&recorder);

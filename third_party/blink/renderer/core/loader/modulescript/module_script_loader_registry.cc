@@ -23,7 +23,7 @@ void ModuleScriptLoaderRegistry::ReleaseFinishedLoader(
   DCHECK(loader->HasFinished());
 
   auto it = active_loaders_.find(loader);
-  DCHECK_NE(it, active_loaders_.end());
+  CHECK_NE(it, active_loaders_.end());
   active_loaders_.erase(it);
 }
 

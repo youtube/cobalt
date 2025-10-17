@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 // Tests the MetricsService stat recording to make sure that the numbers are
 // what we expect.
 
@@ -33,9 +34,11 @@
 #include "components/metrics/enabled_state_provider.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_reporting_default_state.h"
+#include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_switches.h"
 #include "components/metrics/persistent_histograms.h"
 #include "components/metrics/stability_metrics_helper.h"
+#include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/common/content_switches.h"
@@ -56,8 +59,18 @@
 #include "sandbox/win/src/sandbox_types.h"
 #endif
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 namespace {
+
+#if BUILDFLAG(IS_WIN)
+
+void VerifyRendererExitCodeIsSignal(
+    const base::HistogramTester& histogram_tester,
+    int signal) {
+  histogram_tester.ExpectUniqueSample(
+      "CrashExitCodes.Renderer", std::abs(static_cast<int32_t>(signal)), 1);
+}
+
+#elif BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 // Check CrashExitCodes.Renderer histogram for a single bucket entry and then
 // verify that the bucket entry contains a signal and the signal is |signal|.
@@ -73,8 +86,9 @@ void VerifyRendererExitCodeIsSignal(
   EXPECT_EQ(signal, WTERMSIG(exit_code));
 }
 
-}  // namespace
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+
+}  // namespace
 
 // This test class verifies that metrics reporting works correctly for various
 // renderer behaviors such as page loads, recording crashed tabs, and browser
@@ -87,7 +101,7 @@ void VerifyRendererExitCodeIsSignal(
 // clear to me how to test that.
 class MetricsServiceBrowserTest : public InProcessBrowserTest {
  public:
-  MetricsServiceBrowserTest() {}
+  MetricsServiceBrowserTest() = default;
 
   MetricsServiceBrowserTest(const MetricsServiceBrowserTest&) = delete;
   MetricsServiceBrowserTest& operator=(const MetricsServiceBrowserTest&) =
@@ -193,9 +207,7 @@ IN_PROC_BROWSER_TEST_F(MetricsServiceBrowserTest, MAYBE_CrashRenderers) {
 #if BUILDFLAG(IS_WIN)
   // Consult Stability Team before changing this test as it's recorded to
   // histograms and used for stability measurement.
-  histogram_tester.ExpectUniqueSample(
-      "CrashExitCodes.Renderer",
-      std::abs(static_cast<int32_t>(STATUS_ACCESS_VIOLATION)), 1);
+  VerifyRendererExitCodeIsSignal(histogram_tester, STATUS_ACCESS_VIOLATION);
 #elif BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   VerifyRendererExitCodeIsSignal(histogram_tester, SIGSEGV);
 #endif
@@ -205,13 +217,10 @@ IN_PROC_BROWSER_TEST_F(MetricsServiceBrowserTest, MAYBE_CrashRenderers) {
 // TerminateWithHeapCorruption() isn't expected to work there.
 // See: https://crbug.com/1054423
 #if BUILDFLAG(IS_WIN)
-#if defined(ARCH_CPU_ARM64)
-#define MAYBE_HeapCorruptionInRenderer DISABLED_HeapCorruptionInRenderer
-#else
-#define MAYBE_HeapCorruptionInRenderer HeapCorruptionInRenderer
-#endif
+// TODO(crbug.com/380550755): Unfortuntely, it's flaky on non-arm64.
+// Previously, this was turned off only if defined(ARCH_CPU_ARM64).
 IN_PROC_BROWSER_TEST_F(MetricsServiceBrowserTest,
-                       MAYBE_HeapCorruptionInRenderer) {
+                       DISABLED_HeapCorruptionInRenderer) {
   base::HistogramTester histogram_tester;
 
   OpenTabsAndNavigateToCrashyUrl(blink::kChromeUIHeapCorruptionCrashURL);
@@ -246,9 +255,7 @@ IN_PROC_BROWSER_TEST_F(MetricsServiceBrowserTest, MAYBE_CheckCrashRenderers) {
 #if BUILDFLAG(IS_WIN)
   // Consult Stability Team before changing this test as it's recorded to
   // histograms and used for stability measurement.
-  histogram_tester.ExpectUniqueSample(
-      "CrashExitCodes.Renderer",
-      std::abs(static_cast<int32_t>(STATUS_BREAKPOINT)), 1);
+  VerifyRendererExitCodeIsSignal(histogram_tester, STATUS_BREAKPOINT);
 #elif BUILDFLAG(IS_MAC)
   VerifyRendererExitCodeIsSignal(histogram_tester, SIGTRAP);
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -258,6 +265,20 @@ IN_PROC_BROWSER_TEST_F(MetricsServiceBrowserTest, MAYBE_CheckCrashRenderers) {
   VerifyRendererExitCodeIsSignal(histogram_tester, SIGSEGV);
 #endif  // defined(OFFICIAL_BUILD)
 #endif
+}
+
+IN_PROC_BROWSER_TEST_F(MetricsServiceBrowserTest, CrashRenderersInRust) {
+  base::HistogramTester histogram_tester;
+
+  OpenTabsAndNavigateToCrashyUrl(blink::kChromeUICrashRustURL);
+
+  // Verify that the expected stability metrics were recorded.
+  // The three tabs from OpenTabs() and the one tab to open
+  // chrome://crash/rust/.
+  histogram_tester.ExpectBucketCount("Stability.Counts2",
+                                     metrics::StabilityEventType::kPageLoad, 3);
+  histogram_tester.ExpectBucketCount(
+      "Stability.Counts2", metrics::StabilityEventType::kRendererCrash, 1);
 }
 
 // OOM code only works on Windows.
@@ -309,7 +330,7 @@ class MetricsServiceBrowserFilesTest : public InProcessBrowserTest {
   using super = InProcessBrowserTest;
 
  public:
-  MetricsServiceBrowserFilesTest() {}
+  MetricsServiceBrowserFilesTest() = default;
 
   MetricsServiceBrowserFilesTest(const MetricsServiceBrowserFilesTest&) =
       delete;
@@ -317,8 +338,9 @@ class MetricsServiceBrowserFilesTest : public InProcessBrowserTest {
       const MetricsServiceBrowserFilesTest&) = delete;
 
   bool SetUpUserDataDirectory() override {
-    if (!super::SetUpUserDataDirectory())
+    if (!super::SetUpUserDataDirectory()) {
       return false;
+    }
 
     base::ScopedAllowBlockingForTesting allow_blocking;
     base::FilePath user_dir;
@@ -348,7 +370,8 @@ class MetricsServiceBrowserFilesTest : public InProcessBrowserTest {
     base::File upload_file(
         upload_dir().AppendASCII("foo.bar"),
         base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
-    CHECK_EQ(6, upload_file.WriteAtCurrentPos("foobar", 6));
+    CHECK(upload_file.WriteAtCurrentPosAndCheck(
+        base::byte_span_from_cstring("foobar")));
 
     return true;
   }
@@ -360,24 +383,30 @@ class MetricsServiceBrowserFilesTest : public InProcessBrowserTest {
     super::SetUp();
   }
 
-  // Check for the existence of any non-pma files that were created as part
-  // of the test. PMA files may be created as part of the browser setup and
-  // cannot be deleted while open on all operating systems.
-  bool HasNonPMAFiles() {
+  // Finds any non-pma files that were created as part of the test. PMA files
+  // may be created as part of the browser setup and cannot be deleted while
+  // open on all operating systems.
+  std::vector<base::FilePath> FindNonPMAFiles() {
     base::ScopedAllowBlockingForTesting allow_blocking;
 
-    if (!base::PathExists(upload_dir_))
-      return false;
+    std::vector<base::FilePath> files;
+    if (!base::PathExists(upload_dir_)) {
+      return files;
+    }
 
     base::FileEnumerator file_iter(upload_dir_, true,
                                    base::FileEnumerator::FILES);
     while (!file_iter.Next().empty()) {
-      if (file_iter.GetInfo().GetName().Extension() !=
-          FILE_PATH_LITERAL(".pma")) {
-        return true;
+      base::FilePath name = file_iter.GetInfo().GetName();
+      if (name.Extension() != FILE_PATH_LITERAL(".pma")) {
+        files.push_back(std::move(name));
       }
     }
-    return false;
+    return files;
+  }
+
+  bool HasNonPMAFiles() {
+    return !FindNonPMAFiles().empty();
   }
 
   base::FilePath& upload_dir() { return upload_dir_; }
@@ -392,7 +421,7 @@ class MetricsServiceBrowserFilesTest : public InProcessBrowserTest {
 class MetricsServiceBrowserDoUploadTest
     : public MetricsServiceBrowserFilesTest {
  public:
-  MetricsServiceBrowserDoUploadTest() {}
+  MetricsServiceBrowserDoUploadTest() = default;
 
   MetricsServiceBrowserDoUploadTest(const MetricsServiceBrowserDoUploadTest&) =
       delete;
@@ -419,7 +448,7 @@ IN_PROC_BROWSER_TEST_F(MetricsServiceBrowserDoUploadTest, FilesRemain) {
 class MetricsServiceBrowserNoUploadTest
     : public MetricsServiceBrowserFilesTest {
  public:
-  MetricsServiceBrowserNoUploadTest() {}
+  MetricsServiceBrowserNoUploadTest() = default;
 
   MetricsServiceBrowserNoUploadTest(const MetricsServiceBrowserNoUploadTest&) =
       delete;
@@ -437,18 +466,20 @@ class MetricsServiceBrowserNoUploadTest
   base::test::ScopedFeatureList feature_list_;
 };
 
-// TODO(crbug.com/1378228): Fix flakiness.
-IN_PROC_BROWSER_TEST_F(MetricsServiceBrowserNoUploadTest,
-                       DISABLED_FilesRemoved) {
+IN_PROC_BROWSER_TEST_F(MetricsServiceBrowserNoUploadTest, FilesRemoved) {
   // SetUp() has removed consent and made metrics "sampled-in" (enabled).
-  EXPECT_FALSE(HasNonPMAFiles());
+  auto non_pma_files = FindNonPMAFiles();
+  for (const auto& file : non_pma_files) {
+    LOG(INFO) << "Found non-PMA file:" << file;
+  }
+  EXPECT_TRUE(non_pma_files.empty());
 }
 
 // Specific class for testing when metrics upload is disabled by sampling.
 class MetricsServiceBrowserSampledOutTest
     : public MetricsServiceBrowserFilesTest {
  public:
-  MetricsServiceBrowserSampledOutTest() {}
+  MetricsServiceBrowserSampledOutTest() = default;
 
   MetricsServiceBrowserSampledOutTest(
       const MetricsServiceBrowserSampledOutTest&) = delete;
@@ -466,14 +497,11 @@ class MetricsServiceBrowserSampledOutTest
   base::test::ScopedFeatureList feature_list_;
 };
 
-// TODO(crbug.com/1380375): Flaky on Mac, fix flakiness and re-enable the test.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_FilesRemoved DISABLED_FilesRemoved
-#else
-#define MAYBE_FilesRemoved FilesRemoved
-#endif
-IN_PROC_BROWSER_TEST_F(MetricsServiceBrowserSampledOutTest,
-                       MAYBE_FilesRemoved) {
+IN_PROC_BROWSER_TEST_F(MetricsServiceBrowserSampledOutTest, FilesRemoved) {
   // SetUp() has provided consent and made metrics "sampled-out" (disabled).
-  EXPECT_FALSE(HasNonPMAFiles());
+  auto non_pma_files = FindNonPMAFiles();
+  for (const auto& file : non_pma_files) {
+    LOG(INFO) << "Found non-PMA file:" << file;
+  }
+  EXPECT_TRUE(non_pma_files.empty());
 }

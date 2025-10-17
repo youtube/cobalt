@@ -4,8 +4,9 @@
 
 #include "content/common/font_list.h"
 
-#include <dwrite.h>
 #include <windows.h>
+
+#include <dwrite.h>
 #include <wrl/client.h>
 
 #include <string>
@@ -47,7 +48,7 @@ base::Value::List GetFontList_SlowBlocking() {
 
     // Retrieve the native font family name. Try the "en-us" locale and if it's
     // not present, used the first available localized name.
-    absl::optional<std::string> native_name =
+    std::optional<std::string> native_name =
         gfx::win::RetrieveLocalizedString(family_names.Get(), "en-us");
     if (!native_name) {
       native_name = gfx::win::RetrieveLocalizedString(family_names.Get(), "");
@@ -55,7 +56,7 @@ base::Value::List GetFontList_SlowBlocking() {
         continue;
     }
 
-    absl::optional<std::string> localized_name =
+    std::optional<std::string> localized_name =
         gfx::win::RetrieveLocalizedString(family_names.Get(), locale);
     if (!localized_name)
       localized_name = native_name;
@@ -65,7 +66,7 @@ base::Value::List GetFontList_SlowBlocking() {
     font_item.Append(localized_name.value());
     font_list.Append(std::move(font_item));
   }
-
+  std::sort(font_list.begin(), font_list.end());
   return font_list;
 }
 

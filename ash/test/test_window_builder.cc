@@ -89,7 +89,8 @@ TestWindowBuilder& TestWindowBuilder::SetTestWindowDelegate() {
 TestWindowBuilder& TestWindowBuilder::AllowAllWindowStates() {
   DCHECK(!built_);
   init_properties_.SetProperty(aura::client::kResizeBehaviorKey,
-                               aura::client::kResizeBehaviorCanMaximize |
+                               aura::client::kResizeBehaviorCanFullscreen |
+                                   aura::client::kResizeBehaviorCanMaximize |
                                    aura::client::kResizeBehaviorCanMinimize |
                                    aura::client::kResizeBehaviorCanResize);
   return *this;
@@ -133,7 +134,8 @@ std::unique_ptr<aura::Window> TestWindowBuilder::Build() {
     }
 
     DCHECK(context_);
-    aura::client::ParentWindowWithContext(window.get(), context_, bounds_);
+    aura::client::ParentWindowWithContext(window.get(), context_, bounds_,
+                                          display::kInvalidDisplayId);
   }
   if (show_)
     window->Show();

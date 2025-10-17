@@ -5,9 +5,9 @@
 #ifndef COMPONENTS_SYNC_ENGINE_SYNC_ENGINE_HOST_H_
 #define COMPONENTS_SYNC_ENGINE_SYNC_ENGINE_HOST_H_
 
-#include "components/sync/base/model_type.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/engine/sync_manager.h"
-#include "components/sync/protocol/sync_protocol_error.h"
+#include "components/sync/engine/sync_protocol_error.h"
 
 namespace syncer {
 
@@ -25,8 +25,8 @@ class SyncEngineHost {
   // process changes. If success is false, initialization wasn't able to be
   // completed and should be retried.
   //
-  // |js_backend| is what chrome://sync-internals interacts with. It is
-  // initialized only if |success| is true.
+  // `js_backend` is what chrome://sync-internals interacts with. It is
+  // initialized only if `success` is true.
 
   virtual void OnEngineInitialized(bool success,
                                    bool is_first_time_sync_configure) = 0;
@@ -44,8 +44,8 @@ class SyncEngineHost {
   // The status of the connection to the sync server has changed.
   virtual void OnConnectionStatusChange(ConnectionStatus status) = 0;
 
-  // Called to perform migration of |types|.
-  virtual void OnMigrationNeededForTypes(ModelTypeSet types) = 0;
+  // Called to perform migration of `types`.
+  virtual void OnMigrationNeededForTypes(DataTypeSet types) = 0;
 
   // Called when the sync cycle returns there is an user actionable error.
   virtual void OnActionableProtocolError(const SyncProtocolError& error) = 0;
@@ -55,6 +55,9 @@ class SyncEngineHost {
 
   // Called when invalidations are enabled or disabled.
   virtual void OnInvalidationStatusChanged() = 0;
+
+  // Called when there are new data types with pending invalidations.
+  virtual void OnNewInvalidatedDataTypes() = 0;
 };
 
 }  // namespace syncer

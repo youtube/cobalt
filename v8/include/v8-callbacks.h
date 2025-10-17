@@ -129,7 +129,9 @@ struct JitCodeEvent {
 enum JitCodeEventOptions {
   kJitCodeEventDefault = 0,
   // Generate callbacks for already existent code.
-  kJitCodeEventEnumExisting = 1
+  kJitCodeEventEnumExisting = 1,
+
+  kLastJitCodeEventOption = kJitCodeEventEnumExisting
 };
 
 /**
@@ -147,14 +149,15 @@ using JitCodeEventHandler = void (*)(const JitCodeEvent* event);
  * the callback functions, you therefore cannot manipulate objects (set or
  * delete properties for example) since it is possible such operations will
  * result in the allocation of objects.
+ * TODO(v8:12612): Deprecate kGCTypeMinorMarkSweep after updating blink.
  */
 enum GCType {
   kGCTypeScavenge = 1 << 0,
-  kGCTypeMinorMarkCompact = 1 << 1,
+  kGCTypeMinorMarkSweep = 1 << 1,
   kGCTypeMarkSweepCompact = 1 << 2,
   kGCTypeIncrementalMarking = 1 << 3,
   kGCTypeProcessWeakCallbacks = 1 << 4,
-  kGCTypeAll = kGCTypeScavenge | kGCTypeMinorMarkCompact |
+  kGCTypeAll = kGCTypeScavenge | kGCTypeMinorMarkSweep |
                kGCTypeMarkSweepCompact | kGCTypeIncrementalMarking |
                kGCTypeProcessWeakCallbacks
 };
@@ -186,6 +189,9 @@ enum GCCallbackFlags {
 using GCCallback = void (*)(GCType type, GCCallbackFlags flags);
 
 using InterruptCallback = void (*)(Isolate* isolate, void* data);
+
+using PrintCurrentStackTraceFilterCallback =
+    bool (*)(Isolate* isolate, Local<String> script_name);
 
 /**
  * This callback is invoked when the heap size is close to the heap limit and
@@ -230,7 +236,7 @@ using MessageCallback = void (*)(Local<Message> message, Local<Value> data);
 
 // --- Tracing ---
 
-enum LogEventStatus : int { kStart = 0, kEnd = 1, kStamp = 2 };
+enum LogEventStatus : int { kStart = 0, kEnd = 1, kLog = 2 };
 using LogEventCallback = void (*)(const char* name,
                                   int /* LogEventStatus */ status);
 
@@ -253,15 +259,7 @@ using AddCrashKeyCallback = void (*)(CrashKeyId id, const std::string& value);
 using BeforeCallEnteredCallback = void (*)(Isolate*);
 using CallCompletedCallback = void (*)(Isolate*);
 
-// --- AllowCodeGenerationFromStrings callbacks ---
-
-/**
- * Callback to check if code generation from strings is allowed. See
- * Context::AllowCodeGenerationFromStrings.
- */
-using AllowCodeGenerationFromStringsCallback = bool (*)(Local<Context> context,
-                                                        Local<String> source);
-
+// --- Modify Code Generation From Strings Callback ---
 struct ModifyCodeGenerationFromStringsResult {
   // If true, proceed with the codegen algorithm. Otherwise, block it.
   bool codegen_allowed = false;
@@ -270,22 +268,6 @@ struct ModifyCodeGenerationFromStringsResult {
   // This field is considered only if codegen_allowed is true.
   MaybeLocal<String> modified_source;
 };
-
-/**
- * Access type specification.
- */
-enum AccessType {
-  ACCESS_GET,
-  ACCESS_SET,
-  ACCESS_HAS,
-  ACCESS_DELETE,
-  ACCESS_KEYS
-};
-
-// --- Failed Access Check Callback ---
-
-using FailedAccessCheckCallback = void (*)(Local<Object> target,
-                                           AccessType type, Local<Value> data);
 
 /**
  * Callback to check if codegen is allowed from a source object, and convert
@@ -298,6 +280,22 @@ using ModifyCodeGenerationFromStringsCallback2 =
     ModifyCodeGenerationFromStringsResult (*)(Local<Context> context,
                                               Local<Value> source,
                                               bool is_code_like);
+
+// --- Failed Access Check Callback ---
+
+/**
+ * Access type specification.
+ */
+enum AccessType {
+  ACCESS_GET,
+  ACCESS_SET,
+  ACCESS_HAS,
+  ACCESS_DELETE,
+  ACCESS_KEYS
+};
+
+using FailedAccessCheckCallback = void (*)(Local<Object> target,
+                                           AccessType type, Local<Value> data);
 
 // --- WebAssembly compilation callbacks ---
 using ExtensionCallback = bool (*)(const FunctionCallbackInfo<Value>&);
@@ -323,13 +321,23 @@ using WasmAsyncResolvePromiseCallback = void (*)(
 using WasmLoadSourceMapCallback = Local<String> (*)(Isolate* isolate,
                                                     const char* name);
 
-// --- Callback for checking if WebAssembly GC is enabled ---
-// If the callback returns true, it will also enable Wasm stringrefs.
-using WasmGCEnabledCallback = bool (*)(Local<Context> context);
+// --- Callback for checking if WebAssembly imported strings are enabled ---
+using WasmImportedStringsEnabledCallback = bool (*)(Local<Context> context);
 
 // --- Callback for checking if the SharedArrayBuffer constructor is enabled ---
 using SharedArrayBufferConstructorEnabledCallback =
     bool (*)(Local<Context> context);
+
+// --- Callback for checking if WebAssembly JSPI is enabled ---
+using WasmJSPIEnabledCallback = bool (*)(Local<Context> context);
+
+/**
+ * Import phases in import requests.
+ */
+enum class ModuleImportPhase {
+  kSource,
+  kEvaluation,
+};
 
 /**
  * HostImportModuleDynamicallyCallback is called when we
@@ -341,11 +349,11 @@ using SharedArrayBufferConstructorEnabledCallback =
  *
  * The specifier is the name of the module that should be imported.
  *
- * The import_assertions are import assertions for this request in the form:
+ * The import_attributes are import attributes for this request in the form:
  * [key1, value1, key2, value2, ...] where the keys and values are of type
  * v8::String. Note, unlike the FixedArray passed to ResolveModuleCallback and
- * returned from ModuleRequest::GetImportAssertions(), this array does not
- * contain the source Locations of the assertions.
+ * returned from ModuleRequest::GetImportAttributes(), this array does not
+ * contain the source Locations of the attributes.
  *
  * The embedder must compile, instantiate, evaluate the Module, and
  * obtain its namespace object.
@@ -357,15 +365,51 @@ using SharedArrayBufferConstructorEnabledCallback =
  * fails (e.g. due to stack overflow), the embedder must propagate
  * that exception by returning an empty MaybeLocal.
  */
-using HostImportModuleDynamicallyWithImportAssertionsCallback =
-    MaybeLocal<Promise> (*)(Local<Context> context,
-                            Local<ScriptOrModule> referrer,
-                            Local<String> specifier,
-                            Local<FixedArray> import_assertions);
 using HostImportModuleDynamicallyCallback = MaybeLocal<Promise> (*)(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
-    Local<FixedArray> import_assertions);
+    Local<FixedArray> import_attributes);
+
+/**
+ * HostImportModuleWithPhaseDynamicallyCallback is called when we
+ * require the embedder to load a module with a specific phase. This is used
+ * as part of the dynamic import syntax.
+ *
+ * The referrer contains metadata about the script/module that calls
+ * import.
+ *
+ * The specifier is the name of the module that should be imported.
+ *
+ * The phase is the phase of the import requested.
+ *
+ * The import_attributes are import attributes for this request in the form:
+ * [key1, value1, key2, value2, ...] where the keys and values are of type
+ * v8::String. Note, unlike the FixedArray passed to ResolveModuleCallback and
+ * returned from ModuleRequest::GetImportAttributes(), this array does not
+ * contain the source Locations of the attributes.
+ *
+ * The Promise returned from this function is forwarded to userland
+ * JavaScript. The embedder must resolve this promise according to the phase
+ * requested:
+ * - For ModuleImportPhase::kSource, the promise must be resolved with a
+ *   compiled ModuleSource object, or rejected with a SyntaxError if the
+ *   module does not support source representation.
+ * - For ModuleImportPhase::kEvaluation, the promise must be resolved with a
+ *   ModuleNamespace object of a module that has been compiled, instantiated,
+ *   and evaluated.
+ *
+ * In case of an exception, the embedder must reject this promise with the
+ * exception. If the promise creation itself fails (e.g. due to stack
+ * overflow), the embedder must propagate that exception by returning an empty
+ * MaybeLocal.
+ *
+ * This callback is still experimental and is only invoked for source phase
+ * imports.
+ */
+using HostImportModuleWithPhaseDynamicallyCallback = MaybeLocal<Promise> (*)(
+    Local<Context> context, Local<Data> host_defined_options,
+    Local<Value> resource_name, Local<String> specifier,
+    ModuleImportPhase phase, Local<FixedArray> import_attributes);
 
 /**
  * Callback for requesting a compile hint for a function from the embedder. The
@@ -403,6 +447,14 @@ using HostCreateShadowRealmContextCallback =
     MaybeLocal<Context> (*)(Local<Context> initiator_context);
 
 /**
+ * IsJSApiWrapperNativeErrorCallback is called on an JSApiWrapper object to
+ * determine if Error.isError should return true or false. For instance, in an
+ * HTML embedder, DOMExceptions return true when passed to Error.isError.
+ */
+using IsJSApiWrapperNativeErrorCallback = bool (*)(Isolate* isolate,
+                                                   Local<Object> obj);
+
+/**
  * PrepareStackTraceCallback is called when the stack property of an error is
  * first accessed. The return value will be used as the stack value. If this
  * callback is registed, the |Error.prepareStackTrace| API will be disabled.
@@ -412,6 +464,57 @@ using HostCreateShadowRealmContextCallback =
 using PrepareStackTraceCallback = MaybeLocal<Value> (*)(Local<Context> context,
                                                         Local<Value> error,
                                                         Local<Array> sites);
+
+#if defined(V8_OS_WIN)
+/**
+ * Callback to selectively enable ETW tracing based on the document URL.
+ * Implemented by the embedder, it should never call back into V8.
+ *
+ * Windows allows passing additional data to the ETW EnableCallback:
+ * https://learn.microsoft.com/en-us/windows/win32/api/evntprov/nc-evntprov-penablecallback
+ *
+ * This data can be configured in a WPR (Windows Performance Recorder)
+ * profile, adding a CustomFilter to an EventProvider like the following:
+ *
+ * <EventProvider Id=".." Name="57277741-3638-4A4B-BDBA-0AC6E45DA56C" Level="5">
+ *   <CustomFilter Type="0x80000000" Value="AQABAAAAAAA..." />
+ * </EventProvider>
+ *
+ * Where:
+ * - Name="57277741-3638-4A4B-BDBA-0AC6E45DA56C" is the GUID of the V8
+ *     ETW provider, (see src/libplatform/etw/etw-provider-win.h),
+ * - Type="0x80000000" is EVENT_FILTER_TYPE_SCHEMATIZED,
+ * - Value="AQABAAAAAA..." is a base64-encoded byte array that is
+ *     base64-decoded by Windows and passed to the ETW enable callback in
+ *     the 'PEVENT_FILTER_DESCRIPTOR FilterData' argument; see:
+ * https://learn.microsoft.com/en-us/windows/win32/api/evntprov/ns-evntprov-event_filter_descriptor.
+ *
+ * This array contains a struct EVENT_FILTER_HEADER followed by a
+ * variable length payload, and as payload we pass a string in JSON format,
+ * with a list of regular expressions that should match the document URL
+ * in order to enable ETW tracing:
+ *   {
+ *     "version": "2.0",
+ *     "filtered_urls": [
+ *         "https:\/\/.*\.chromium\.org\/.*", "https://v8.dev/";, "..."
+ *     ],
+ *     "trace_interpreter_frames": true
+ *  }
+ */
+
+using FilterETWSessionByURLCallback =
+    bool (*)(Local<Context> context, const std::string& etw_filter_payload);
+
+struct FilterETWSessionByURLResult {
+  // If true, enable ETW tracing for the current isolate.
+  bool enable_etw_tracing;
+
+  // If true, also enables ETW tracing for interpreter stack frames.
+  bool trace_interpreter_frames;
+};
+using FilterETWSessionByURL2Callback = FilterETWSessionByURLResult (*)(
+    Local<Context> context, const std::string& etw_filter_payload);
+#endif  // V8_OS_WIN
 
 }  // namespace v8
 

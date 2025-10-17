@@ -7,9 +7,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -44,7 +44,7 @@ enum HelloType {
 
 // An abstract base class that stores a value that can be sent in CHLO/SHLO
 // message. These values can be OPTIONAL or REQUIRED, depending on |presence_|.
-class QUIC_EXPORT_PRIVATE QuicConfigValue {
+class QUICHE_EXPORT QuicConfigValue {
  public:
   QuicConfigValue(QuicTag tag, QuicConfigPresence presence);
   virtual ~QuicConfigValue();
@@ -64,7 +64,7 @@ class QUIC_EXPORT_PRIVATE QuicConfigValue {
 };
 
 // Stores uint32_t from CHLO or SHLO messages that are not negotiated.
-class QUIC_EXPORT_PRIVATE QuicFixedUint32 : public QuicConfigValue {
+class QUICHE_EXPORT QuicFixedUint32 : public QuicConfigValue {
  public:
   QuicFixedUint32(QuicTag tag, QuicConfigPresence presence);
   ~QuicFixedUint32() override;
@@ -99,7 +99,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedUint32 : public QuicConfigValue {
 // Stores 62bit numbers from handshake messages that unilaterally shared by each
 // endpoint. IMPORTANT: these are serialized as 32-bit unsigned integers when
 // using QUIC_CRYPTO versions and CryptoHandshakeMessage.
-class QUIC_EXPORT_PRIVATE QuicFixedUint62 : public QuicConfigValue {
+class QUICHE_EXPORT QuicFixedUint62 : public QuicConfigValue {
  public:
   QuicFixedUint62(QuicTag name, QuicConfigPresence presence);
   ~QuicFixedUint62() override;
@@ -135,8 +135,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedUint62 : public QuicConfigValue {
 
 // Stores StatelessResetToken from CHLO or SHLO messages that are not
 // negotiated.
-class QUIC_EXPORT_PRIVATE QuicFixedStatelessResetToken
-    : public QuicConfigValue {
+class QUICHE_EXPORT QuicFixedStatelessResetToken : public QuicConfigValue {
  public:
   QuicFixedStatelessResetToken(QuicTag tag, QuicConfigPresence presence);
   ~QuicFixedStatelessResetToken() override;
@@ -169,7 +168,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedStatelessResetToken
 };
 
 // Stores tag from CHLO or SHLO messages that are not negotiated.
-class QUIC_EXPORT_PRIVATE QuicFixedTagVector : public QuicConfigValue {
+class QUICHE_EXPORT QuicFixedTagVector : public QuicConfigValue {
  public:
   QuicFixedTagVector(QuicTag name, QuicConfigPresence presence);
   QuicFixedTagVector(const QuicFixedTagVector& other);
@@ -205,7 +204,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedTagVector : public QuicConfigValue {
 };
 
 // Stores QuicSocketAddress from CHLO or SHLO messages that are not negotiated.
-class QUIC_EXPORT_PRIVATE QuicFixedSocketAddress : public QuicConfigValue {
+class QUICHE_EXPORT QuicFixedSocketAddress : public QuicConfigValue {
  public:
   QuicFixedSocketAddress(QuicTag tag, QuicConfigPresence presence);
   ~QuicFixedSocketAddress() override;
@@ -239,7 +238,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedSocketAddress : public QuicConfigValue {
 
 // QuicConfig contains non-crypto configuration options that are negotiated in
 // the crypto handshake.
-class QUIC_EXPORT_PRIVATE QuicConfig {
+class QUICHE_EXPORT QuicConfig {
  public:
   QuicConfig();
   QuicConfig(const QuicConfig& other);
@@ -247,11 +246,20 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   void SetConnectionOptionsToSend(const QuicTagVector& connection_options);
 
+  void AddConnectionOptionsToSend(const QuicTagVector& connection_options);
+
   bool HasReceivedConnectionOptions() const;
+
+  // Sets the data length to be sent for transport parameter 'discard'. The data
+  // to send in the transport parameter will be all zeros. Negative values means
+  // do not send.
+  void SetDiscardLengthToSend(int32_t discard_length);
+
+  int32_t GetDiscardLengthReceived() const { return discard_length_received_; }
 
   void SetGoogleHandshakeMessageToSend(std::string message);
 
-  const absl::optional<std::string>& GetReceivedGoogleHandshakeMessage() const;
+  const std::optional<std::string>& GetReceivedGoogleHandshakeMessage() const;
 
   // Sets initial received connection options.  All received connection options
   // will be initialized with these fields. Initial received options may only be
@@ -414,10 +422,35 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasReceivedPreferredAddressConnectionIdAndToken() const;
   const std::pair<QuicConnectionId, StatelessResetToken>&
   ReceivedPreferredAddressConnectionIdAndToken() const;
-  absl::optional<QuicSocketAddress> GetPreferredAddressToSend(
+  std::optional<QuicSocketAddress> GetPreferredAddressToSend(
       quiche::IpAddressFamily address_family) const;
   void ClearAlternateServerAddressToSend(
       quiche::IpAddressFamily address_family);
+
+  // Sets the alternate server addresses to be used for a server behind a
+  // DNAT. The `to_send` address will be sent to the client, and the
+  // `mapped` address will be the corresponding internal address. Server-only.
+  void SetIPv4AlternateServerAddressForDNat(
+      const QuicSocketAddress& alternate_server_address_ipv4_to_send,
+      const QuicSocketAddress& mapped_alternate_server_address_ipv4);
+  void SetIPv6AlternateServerAddressForDNat(
+      const QuicSocketAddress& alternate_server_address_ipv6_to_send,
+      const QuicSocketAddress& mapped_alternate_server_address_ipv6);
+
+  // Returns the address the the server will receive packest from
+  // when the client is sending to the preferred address. Will be
+  // the mapped address, if present, or the alternate address otherwise.
+  std::optional<QuicSocketAddress> GetMappedAlternativeServerAddress(
+      quiche::IpAddressFamily address_family) const;
+
+  // Returns true if this config supports server preferred address,
+  // either via the kSPAD connection option or the QUIC protocol flag
+  // quic_always_support_server_preferred_address.
+  bool SupportsServerPreferredAddress(Perspective perspective) const;
+
+  // Returns true if this config supports reliable stream reset.
+  void SetReliableStreamReset(bool reliable_stream_reset);
+  bool SupportsReliableStreamReset() const;
 
   // Original destination connection ID.
   void SetOriginalConnectionIdToSend(
@@ -443,12 +476,13 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   uint32_t ReceivedMaxAckDelayMs() const;
 
   // Manage the IETF QUIC extension Min Ack Delay transport parameter.
-  // An endpoint uses min_ack_delay to advsertise its support for
+  // An endpoint uses min_ack_delay to advertise its support for
   // AckFrequencyFrame sent by peer.
-  void SetMinAckDelayMs(uint32_t min_ack_delay_ms);
-  uint32_t GetMinAckDelayToSendMs() const;
-  bool HasReceivedMinAckDelayMs() const;
-  uint32_t ReceivedMinAckDelayMs() const;
+  void SetMinAckDelayDraft10Ms(uint64_t min_ack_delay_ms);
+  bool HasMinAckDelayDraft10ToSend() const;
+  uint64_t GetMinAckDelayDraft10ToSendMs() const;
+  bool HasReceivedMinAckDelayDraft10Ms() const;
+  uint32_t ReceivedMinAckDelayDraft10Ms() const;
 
   void SetAckDelayExponentToSend(uint32_t exponent);
   uint32_t GetAckDelayExponentToSend() const;
@@ -553,7 +587,7 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Note that received_max_idle_timeout_ is only populated if we receive the
   // peer's value, which isn't guaranteed in IETF QUIC as sending is optional.
   QuicTime::Delta max_idle_timeout_to_send_;
-  absl::optional<QuicTime::Delta> received_max_idle_timeout_;
+  std::optional<QuicTime::Delta> received_max_idle_timeout_;
   // Maximum number of dynamic streams that a Google QUIC connection
   // can support or the maximum number of bidirectional streams that
   // an IETF QUIC connection can support.
@@ -606,9 +640,17 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Note that when QUIC_CRYPTO is in use, only one of the addresses is sent.
   QuicFixedSocketAddress alternate_server_address_ipv6_;
   QuicFixedSocketAddress alternate_server_address_ipv4_;
+
+  // When a server is behind DNAT, the addresses it sends to the client will
+  // not be the source address recevied in packets from the client. These
+  // two optional members capture the internal addresses which map to
+  // the addresses sent on the wire.
+  std::optional<QuicSocketAddress> mapped_alternate_server_address_ipv6_;
+  std::optional<QuicSocketAddress> mapped_alternate_server_address_ipv4_;
+
   // Connection Id data to send from the server or receive at the client as part
   // of the preferred address transport parameter.
-  absl::optional<std::pair<QuicConnectionId, StatelessResetToken>>
+  std::optional<std::pair<QuicConnectionId, StatelessResetToken>>
       preferred_address_connection_id_and_token_;
 
   // Stateless reset token used in IETF public reset packet.
@@ -626,9 +668,10 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Uses the max_ack_delay transport parameter in IETF QUIC.
   QuicFixedUint32 max_ack_delay_ms_;
 
-  // Minimum ack delay. Used to enable sender control of max_ack_delay.
-  // Uses the min_ack_delay transport parameter in IETF QUIC extension.
-  QuicFixedUint32 min_ack_delay_ms_;
+  // Minimum ack delay. Used to enable sender control of min_ack_delay.
+  // Uses the min_ack_delay transport parameter in IETF QUIC extension,
+  // draft-10 through -11.
+  QuicFixedUint62 min_ack_delay_ms_draft10_;
 
   // The sent exponent is the exponent that this node uses when serializing an
   // ACK frame (and the peer should use when deserializing the frame);
@@ -653,29 +696,40 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Initial packet sent by the client.
   // Uses the original_destination_connection_id transport parameter in
   // IETF QUIC.
-  absl::optional<QuicConnectionId> original_destination_connection_id_to_send_;
-  absl::optional<QuicConnectionId> received_original_destination_connection_id_;
+  std::optional<QuicConnectionId> original_destination_connection_id_to_send_;
+  std::optional<QuicConnectionId> received_original_destination_connection_id_;
 
   // The value that the endpoint included in the Source Connection ID field of
   // the first Initial packet it sent.
   // Uses the initial_source_connection_id transport parameter in IETF QUIC.
-  absl::optional<QuicConnectionId> initial_source_connection_id_to_send_;
-  absl::optional<QuicConnectionId> received_initial_source_connection_id_;
+  std::optional<QuicConnectionId> initial_source_connection_id_to_send_;
+  std::optional<QuicConnectionId> received_initial_source_connection_id_;
 
   // The value that the server included in the Source Connection ID field of a
   // Retry packet it sent.
   // Uses the retry_source_connection_id transport parameter in IETF QUIC.
-  absl::optional<QuicConnectionId> retry_source_connection_id_to_send_;
-  absl::optional<QuicConnectionId> received_retry_source_connection_id_;
+  std::optional<QuicConnectionId> retry_source_connection_id_to_send_;
+  std::optional<QuicConnectionId> received_retry_source_connection_id_;
 
   // Custom transport parameters that can be sent and received in the TLS
   // handshake.
   TransportParameters::ParameterMap custom_transport_parameters_to_send_;
   TransportParameters::ParameterMap received_custom_transport_parameters_;
 
+  // Length of the data to send in the 'discard' transport parameter. Negative
+  // values means do not send.
+  int32_t discard_length_to_send_ = -1;
+
+  // Length of the receive data in the 'discard' transport parameter. Negative
+  // values means 'discard' data not received.
+  int32_t discard_length_received_ = -1;
+
   // Google internal handshake message.
-  absl::optional<std::string> google_handshake_message_to_send_;
-  absl::optional<std::string> received_google_handshake_message_;
+  std::optional<std::string> google_handshake_message_to_send_;
+  std::optional<std::string> received_google_handshake_message_;
+
+  // Support for RESET_STREAM_AT frame.
+  bool reliable_stream_reset_;
 };
 
 }  // namespace quic

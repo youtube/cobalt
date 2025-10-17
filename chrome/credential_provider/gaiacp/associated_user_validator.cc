@@ -8,6 +8,7 @@
 #include <process.h>
 
 #include <string>
+#include <string_view>
 
 #include "base/json/json_reader.h"
 #include "base/logging.h"
@@ -15,6 +16,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+#include "base/win/ntsecapi_shim.h"
 #include "base/win/win_util.h"
 #include "chrome/credential_provider/common/gcp_strings.h"
 #include "chrome/credential_provider/gaiacp/gaia_credential_provider.h"
@@ -78,16 +80,16 @@ unsigned __stdcall CheckReauthStatus(void* param) {
       return 1;
     }
 
-    base::StringPiece response_string(response.data(), response.size());
-    absl::optional<base::Value> properties(base::JSONReader::Read(
-        response_string, base::JSON_ALLOW_TRAILING_COMMAS));
-    if (!properties || !properties->is_dict()) {
-      LOGFN(ERROR) << "base::JSONReader::Read failed forcing reauth";
+    std::string_view response_string(response.data(), response.size());
+    std::optional<base::Value::Dict> properties = base::JSONReader::ReadDict(
+        response_string, base::JSON_ALLOW_TRAILING_COMMAS);
+    if (!properties) {
+      LOGFN(ERROR) << "base::JSONReader::ReadDict failed forcing reauth";
       return 0;
     }
 
-    absl::optional<int> expires_in = properties->FindIntKey("expires_in");
-    if (properties->GetDict().contains("error") || !expires_in ||
+    std::optional<int> expires_in = properties->FindInt("expires_in");
+    if (properties->contains("error") || !expires_in ||
         expires_in.value() < 0) {
       LOGFN(VERBOSE) << "Needs reauth sid=" << reauth_info->sid;
       return 0;
@@ -130,6 +132,11 @@ bool WaitForQueryResult(const base::win::ScopedHandle& thread_handle,
 HRESULT ModifyUserAccess(const std::unique_ptr<ScopedLsaPolicy>& policy,
                          const std::wstring& sid,
                          bool allow) {
+  if (!policy) {
+    LOGFN(ERROR) << "Invalid pointer to ScopedLsaPolicy";
+    return E_INVALIDARG;
+  }
+
   OSUserManager* manager = OSUserManager::Get();
   wchar_t username[kWindowsUsernameBufferLength];
   wchar_t domain[kWindowsDomainBufferLength];
@@ -360,6 +367,11 @@ bool AssociatedUserValidator::DenySigninForUsersWithInvalidTokenHandles(
   }
 
   auto policy = ScopedLsaPolicy::Create(POLICY_ALL_ACCESS);
+  if (!policy) {
+    hr = HRESULT_FROM_WIN32(::GetLastError());
+    LOGFN(ERROR) << "ScopedLsaPolicy::Create hr=" << putHR(hr);
+    return false;
+  }
 
   bool user_denied_signin = false;
   OSUserManager* manager = OSUserManager::Get();
@@ -379,7 +391,7 @@ bool AssociatedUserValidator::DenySigninForUsersWithInvalidTokenHandles(
         user_denied_signin = true;
       }
     } else if (manager->IsUserDomainJoined(sid)) {
-      // TODO(crbug.com/973160): Description provided in the bug.
+      // TODO(crbug.com/40631676): Description provided in the bug.
       LOGFN(VERBOSE) << "Not denying signin for AD user accounts.";
     }
   }
@@ -392,6 +404,11 @@ HRESULT AssociatedUserValidator::RestoreUserAccess(const std::wstring& sid) {
 
   if (locked_user_sids_.erase(sid)) {
     auto policy = ScopedLsaPolicy::Create(POLICY_ALL_ACCESS);
+    if (!policy) {
+      HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());
+      LOGFN(ERROR) << "ScopedLsaPolicy::Create hr=" << putHR(hr);
+      return hr;
+    }
     return ModifyUserAccess(policy, sid, true);
   }
 
@@ -413,8 +430,17 @@ void AssociatedUserValidator::AllowSigninForAllAssociatedUsers(
   }
 
   auto policy = ScopedLsaPolicy::Create(POLICY_ALL_ACCESS);
-  for (const auto& sid_to_handle : sids_to_handle)
-    ModifyUserAccess(policy, sid_to_handle.first, true);
+  if (!policy) {
+    hr = HRESULT_FROM_WIN32(::GetLastError());
+    LOGFN(ERROR) << "ScopedLsaPolicy::Create hr=" << putHR(hr);
+    return;
+  }
+  for (const auto& sid_to_handle : sids_to_handle) {
+    hr = ModifyUserAccess(policy, sid_to_handle.first, true);
+    if (FAILED(hr)) {
+      LOGFN(ERROR) << "ModifyUserAccess hr=" << putHR(hr);
+    }
+  }
 
   locked_user_sids_.clear();
 }
@@ -424,6 +450,11 @@ void AssociatedUserValidator::AllowSigninForUsersWithInvalidTokenHandles() {
 
   LOGFN(VERBOSE);
   auto policy = ScopedLsaPolicy::Create(POLICY_ALL_ACCESS);
+  if (!policy) {
+    HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());
+    LOGFN(ERROR) << "ScopedLsaPolicy::Create hr=" << putHR(hr);
+    return;
+  }
   for (auto& sid : locked_user_sids_) {
     HRESULT hr = ModifyUserAccess(policy, sid, true);
     if (FAILED(hr))
@@ -539,18 +570,26 @@ AssociatedUserValidator::GetAuthEnforceReason(const std::wstring& sid) {
   LOGFN(VERBOSE);
 
   // Is user not associated, then we shouldn't have any auth enforcement.
-  if (!IsUserAssociated(sid))
+  if (!IsUserAssociated(sid)) {
+    LOGFN(VERBOSE) << "IsUserAssociated is false, not forcing auth";
     return AssociatedUserValidator::EnforceAuthReason::NOT_ENFORCED;
+  }
 
   // Check if online sign in is enforced.
-  if (IsOnlineLoginEnforced(sid))
+  if (IsOnlineLoginEnforced(sid)) {
+    LOGFN(VERBOSE) << "IsOnlineLoginEnforced is true, forcing auth";
     return AssociatedUserValidator::EnforceAuthReason::ONLINE_LOGIN_ENFORCED;
+  }
 
   // All token handles are valid when no internet connection is available.
   if (!HasInternetConnection()) {
     if (!IsOnlineLoginStale(sid)) {
+      LOGFN(VERBOSE) << "HasInternetConnectionis false and IsOnlineLoginStale "
+                        "is false - not forcing auth";
       return AssociatedUserValidator::EnforceAuthReason::NOT_ENFORCED;
     }
+    LOGFN(VERBOSE) << "HasInternetConnectionis false and IsOnlineLoginStale is "
+                      "true - forcing auth";
     return AssociatedUserValidator::EnforceAuthReason::ONLINE_LOGIN_STALE;
   }
 
@@ -559,18 +598,27 @@ AssociatedUserValidator::GetAuthEnforceReason(const std::wstring& sid) {
   // user.
   if (UserPoliciesManager::Get()->CloudPoliciesEnabled() &&
       UserPoliciesManager::Get()->IsUserPolicyStaleOrMissing(sid)) {
+    LOGFN(VERBOSE) << "CloudPolicies enabled and  >IsUserPolicyStaleOrMissing "
+                      "is true - forcing auth";
     return AssociatedUserValidator::EnforceAuthReason::
         MISSING_OR_STALE_USER_POLICIES;
   }
 
   // Force a reauth only for this user if mdm enrollment is needed, so that they
   // enroll.
-  if (NeedsToEnrollWithMdm(sid))
+  if (NeedsToEnrollWithMdm(sid)) {
+    LOGFN(VERBOSE) << "NeedsToEnrollWithMdm is true, forcing auth";
     return AssociatedUserValidator::EnforceAuthReason::NOT_ENROLLED_WITH_MDM;
+  }
 
   if (PasswordRecoveryEnabled()) {
     std::wstring store_key = GetUserPasswordLsaStoreKey(sid);
     auto policy = ScopedLsaPolicy::Create(POLICY_ALL_ACCESS);
+    if (!policy) {
+      HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());
+      LOGFN(ERROR) << "ScopedLsaPolicy::Create hr=" << putHR(hr);
+      return AssociatedUserValidator::EnforceAuthReason::NOT_ENFORCED;
+    }
     if (!policy->PrivateDataExists(store_key.c_str())) {
       LOGFN(VERBOSE) << "Enforcing re-auth due to missing password lsa store "
                         "data for user "
@@ -580,10 +628,13 @@ AssociatedUserValidator::GetAuthEnforceReason(const std::wstring& sid) {
     }
   }
 
-  if (!IsTokenHandleValidForUser(sid))
+  if (!IsTokenHandleValidForUser(sid)) {
+    LOGFN(VERBOSE) << "IsTokenHandleValidForUser is false, forcing auth";
     return AssociatedUserValidator::EnforceAuthReason::INVALID_TOKEN_HANDLE;
+  }
 
   if (UploadDeviceDetailsNeeded(sid)) {
+    LOGFN(VERBOSE) << "UploadDeviceDetailsNeeded is true, forcing auth";
     return AssociatedUserValidator::EnforceAuthReason::
         UPLOAD_DEVICE_DETAILS_FAILED;
   }

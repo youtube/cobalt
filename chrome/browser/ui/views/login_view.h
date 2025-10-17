@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_LOGIN_VIEW_H_
 
 #include <string>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/login/login_handler.h"
@@ -25,8 +26,9 @@ class HttpAuthManager;
 // for HTTP/FTP authentication.
 class LoginView : public views::View,
                   public password_manager::HttpAuthObserver {
+  METADATA_HEADER(LoginView, views::View)
+
  public:
-  METADATA_HEADER(LoginView);
   // |login_model_data->model| is observed for the entire lifetime of the
   // LoginView. Therefore |login_model_data->model| should not be destroyed
   // before the LoginView object. |login_model_data| may be null.
@@ -38,12 +40,12 @@ class LoginView : public views::View,
   ~LoginView() override;
 
   // Access the data in the username/password text fields.
-  const std::u16string& GetUsername() const;
-  const std::u16string& GetPassword() const;
+  std::u16string_view GetUsername() const;
+  std::u16string_view GetPassword() const;
 
   // password_manager::HttpAuthObserver:
-  void OnAutofillDataAvailable(const std::u16string& username,
-                               const std::u16string& password) override;
+  void OnAutofillDataAvailable(std::u16string_view username,
+                               std::u16string_view password) override;
   void OnLoginModelDestroying() override;
 
   // Used by LoginHandlerViews to set the initial focus.

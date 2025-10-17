@@ -15,17 +15,18 @@
 #include "base/scoped_clear_last_error.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "net/base/features.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_interfaces.h"
+#include "net/base/port_util.h"
 #include "net/base/test_completion_callback.h"
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_source.h"
@@ -90,6 +91,12 @@ class UDPSocketTest : public PlatformTest, public WithTaskEnvironment {
 
   // Blocks until data is read from the socket.
   std::string RecvFromSocket(UDPServerSocket* socket) {
+    return RecvFromSocket(socket, DSCP_DEFAULT, ECN_DEFAULT);
+  }
+
+  std::string RecvFromSocket(UDPServerSocket* socket,
+                             DiffServCodePoint dscp,
+                             EcnCodePoint ecn) {
     TestCompletionCallback callback;
 
     int rv = socket->RecvFrom(buffer_.get(), kMaxRead, &recv_from_address_,
@@ -97,6 +104,14 @@ class UDPSocketTest : public PlatformTest, public WithTaskEnvironment {
     rv = callback.GetResult(rv);
     if (rv < 0)
       return std::string();
+#if BUILDFLAG(IS_WIN)
+    // The DSCP value is not populated on Windows, in order to avoid incurring
+    // an extra system call.
+    EXPECT_EQ(socket->GetLastTos().dscp, DSCP_DEFAULT);
+#else
+    EXPECT_EQ(socket->GetLastTos().dscp, dscp);
+#endif
+    EXPECT_EQ(socket->GetLastTos().ecn, ecn);
     return std::string(buffer_->data(), rv);
   }
 
@@ -120,12 +135,26 @@ class UDPSocketTest : public PlatformTest, public WithTaskEnvironment {
   }
 
   std::string ReadSocket(UDPClientSocket* socket) {
+    return ReadSocket(socket, DSCP_DEFAULT, ECN_DEFAULT);
+  }
+
+  std::string ReadSocket(UDPClientSocket* socket,
+                         DiffServCodePoint dscp,
+                         EcnCodePoint ecn) {
     TestCompletionCallback callback;
 
     int rv = socket->Read(buffer_.get(), kMaxRead, callback.callback());
     rv = callback.GetResult(rv);
     if (rv < 0)
       return std::string();
+#if BUILDFLAG(IS_WIN)
+    // The DSCP value is not populated on Windows, in order to avoid incurring
+    // an extra system call.
+    EXPECT_EQ(socket->GetLastTos().dscp, DSCP_DEFAULT);
+#else
+    EXPECT_EQ(socket->GetLastTos().dscp, dscp);
+#endif
+    EXPECT_EQ(socket->GetLastTos().ecn, ecn);
     return std::string(buffer_->data(), rv);
   }
 
@@ -299,6 +328,30 @@ TEST_F(UDPSocketTest, Connect) {
   ConnectTest(false, true);
 }
 
+TEST_F(UDPSocketTest, ConnectRestrictedPort) {
+  base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList feature_list;
+  // Setup the server to listen.
+  UDPServerSocket server(NetLog::Get(), NetLogSource());
+  server.AllowAddressReuse();
+  ASSERT_THAT(server.Listen(IPEndPoint(IPAddress::IPv4Localhost(), 0)), IsOk());
+  // Get bound port.
+  IPEndPoint server_address;
+  ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kRestrictAbusePortsOnLocalhost,
+      {{"localhost_restrict_ports",
+        base::NumberToString(server_address.port())}});
+  ReloadLocalhostRestrictedPortsForTesting();
+  // Setup the client.
+  auto client = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  EXPECT_THAT(client->Connect(server_address), IsError(ERR_UNSAFE_PORT));
+  histogram_tester.ExpectTotalCount("Net.RestrictedLocalhostPorts", 1);
+  histogram_tester.ExpectBucketCount("Net.RestrictedLocalhostPorts",
+                                     server_address.port(), 1);
+}
+
 #if BUILDFLAG(IS_WIN)
 TEST_F(UDPSocketTest, ConnectNonBlocking) {
   ConnectTest(true, false);
@@ -326,8 +379,7 @@ TEST_F(UDPSocketTest, PartialRecv) {
   // Read just 2 bytes. Read() is expected to return the first 2 bytes from the
   // packet and discard the rest.
   const int kPartialReadSize = 2;
-  scoped_refptr<IOBuffer> buffer =
-      base::MakeRefCounted<IOBuffer>(kPartialReadSize);
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(kPartialReadSize);
   int rv =
       server_socket.RecvFrom(buffer.get(), kPartialReadSize,
                              &recv_from_address_, recv_callback.callback());
@@ -657,14 +709,8 @@ TEST_F(UDPSocketTest, ClientSetDoNotFragment) {
 
     rv = client.SetDoNotFragment();
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_FUCHSIA)
-    // TODO(crbug.com/945590): IP_MTU_DISCOVER is not implemented on Fuchsia.
+    // TODO(crbug.com/42050633): IP_MTU_DISCOVER is not implemented on Fuchsia.
     EXPECT_THAT(rv, IsError(ERR_NOT_IMPLEMENTED));
-#elif BUILDFLAG(IS_MAC)
-    if (base::mac::IsAtLeastOS11()) {
-      EXPECT_THAT(rv, IsOk());
-    } else {
-      EXPECT_THAT(rv, IsError(ERR_NOT_IMPLEMENTED));
-    }
 #else
     EXPECT_THAT(rv, IsOk());
 #endif
@@ -685,14 +731,8 @@ TEST_F(UDPSocketTest, ServerSetDoNotFragment) {
 
     rv = server.SetDoNotFragment();
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_FUCHSIA)
-    // TODO(crbug.com/945590): IP_MTU_DISCOVER is not implemented on Fuchsia.
+    // TODO(crbug.com/42050633): IP_MTU_DISCOVER is not implemented on Fuchsia.
     EXPECT_THAT(rv, IsError(ERR_NOT_IMPLEMENTED));
-#elif BUILDFLAG(IS_MAC)
-    if (base::mac::IsAtLeastOS11()) {
-      EXPECT_THAT(rv, IsOk());
-    } else {
-      EXPECT_THAT(rv, IsError(ERR_NOT_IMPLEMENTED));
-    }
 #else
     EXPECT_THAT(rv, IsOk());
 #endif
@@ -721,6 +761,13 @@ TEST_F(UDPSocketTest, CloseWithPendingRead) {
 // http://goo.gl/jjAk9
 #if !BUILDFLAG(IS_ANDROID)
 TEST_F(UDPSocketTest, JoinMulticastGroup) {
+#if BUILDFLAG(IS_MAC)
+  // See https://crbug.com/354933441
+  if (base::mac::MacOSMajorVersion() == 15) {
+    GTEST_SKIP() << "Disabled on macOS Sequoia.";
+  }
+#endif
+
   const char kGroup[] = "237.132.100.17";
 
   IPAddress group_ip;
@@ -747,8 +794,8 @@ TEST_F(UDPSocketTest, JoinMulticastGroup) {
   socket.Close();
 }
 
-// TODO(https://crbug.com/947115): failing on device on iOS 12.2.
-// TODO(https://crbug.com/1227554): flaky on Mac 11.
+// TODO(crbug.com/40620614): failing on device on iOS 12.2.
+// TODO(crbug.com/40189274): flaky on Mac 11.
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_MAC)
 #define MAYBE_SharedMulticastAddress DISABLED_SharedMulticastAddress
 #else
@@ -803,7 +850,7 @@ TEST_F(UDPSocketTest, MAYBE_SharedMulticastAddress) {
                                 NetLogSource());
   ASSERT_THAT(client_socket.Connect(send_address), IsOk());
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   // Send a message via the multicast group. That message is expected be be
   // received by both receving sockets.
   //
@@ -813,7 +860,7 @@ TEST_F(UDPSocketTest, MAYBE_SharedMulticastAddress) {
   ASSERT_GE(WriteSocket(&client_socket, kMessage), 0);
   EXPECT_EQ(kMessage, RecvFromSocket(&socket1));
   EXPECT_EQ(kMessage, RecvFromSocket(&socket2));
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -865,6 +912,341 @@ TEST_F(UDPSocketTest, SetDSCP) {
   client.SetDiffServCodePoint(DSCP_CS2);
   client.SetDiffServCodePoint(DSCP_NO_CHANGE);
   client.SetDiffServCodePoint(DSCP_DEFAULT);
+  client.Close();
+}
+
+// Send DSCP + ECN marked packets from server to client and verify the TOS
+// bytes that arrive.
+TEST_F(UDPSocketTest, VerifyDscpAndEcnExchangeV4) {
+  IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+  UDPServerSocket server(nullptr, NetLogSource());
+  server.AllowAddressReuse();
+  ASSERT_THAT(server.Listen(server_address), IsOk());
+  // Get bound port.
+  ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  client.Connect(server_address);
+  EXPECT_EQ(client.SetRecvTos(), 0);
+  EXPECT_EQ(server.SetRecvTos(), 0);
+
+#if BUILDFLAG(IS_WIN)
+  // Do not exercise the DSCP code because it requires a mock Qwave API.
+  EXPECT_EQ(client.SetTos(DSCP_NO_CHANGE, ECN_ECT1), 0);
+#else
+  EXPECT_EQ(client.SetTos(DSCP_AF41, ECN_ECT1), 0);
+#endif
+  std::string client_message = "hello";
+  EXPECT_EQ(WriteSocket(&client, client_message),
+            static_cast<int>(client_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_AF41, ECN_ECT1),
+            client_message.data());
+
+  // Server messages
+  EXPECT_EQ(server.SetTos(DSCP_AF41, ECN_ECT1), 0);
+  std::string first_message = "foobar";
+  EXPECT_EQ(SendToSocket(&server, first_message),
+            static_cast<int>(first_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_AF41, ECN_ECT1), first_message.data());
+
+  std::string second_message = "foo";
+  EXPECT_EQ(server.SetTos(DSCP_CS2, ECN_ECT0), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_CS2, ECN_ECT0), second_message.data());
+
+#if BUILDFLAG(IS_WIN)
+  // The Windows sendmsg API does not allow setting ECN_CE as the outgoing mark.
+  EcnCodePoint final_ecn = ECN_ECT1;
+#else
+  EcnCodePoint final_ecn = ECN_CE;
+#endif
+
+  EXPECT_EQ(server.SetTos(DSCP_NO_CHANGE, final_ecn), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_CS2, final_ecn), second_message.data());
+
+  EXPECT_EQ(server.SetTos(DSCP_AF41, ECN_NO_CHANGE), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_AF41, final_ecn), second_message.data());
+
+  EXPECT_EQ(server.SetTos(DSCP_NO_CHANGE, ECN_NO_CHANGE), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_AF41, final_ecn), second_message.data());
+
+  server.Close();
+  client.Close();
+}
+
+// Send DSCP + ECN marked packets from server to client and verify the TOS
+// bytes that arrive.
+TEST_F(UDPSocketTest, VerifyDscpAndEcnExchangeV6) {
+  IPEndPoint server_address(IPAddress::IPv6Localhost(), 0);
+  UDPServerSocket server(nullptr, NetLogSource());
+  server.AllowAddressReuse();
+  ASSERT_THAT(server.Listen(server_address), IsOk());
+  // Get bound port.
+  ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  EXPECT_THAT(client.Connect(server_address), IsOk());
+  EXPECT_EQ(client.SetRecvTos(), 0);
+  EXPECT_EQ(server.SetRecvTos(), 0);
+
+#if BUILDFLAG(IS_WIN)
+  // Do not exercise the DSCP code because it requires a mock Qwave API.
+  EXPECT_EQ(client.SetTos(DSCP_NO_CHANGE, ECN_ECT1), 0);
+#else
+  EXPECT_EQ(client.SetTos(DSCP_AF41, ECN_ECT1), 0);
+#endif
+  std::string client_message = "hello";
+  EXPECT_EQ(WriteSocket(&client, client_message),
+            static_cast<int>(client_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_AF41, ECN_ECT1),
+            client_message.data());
+
+  // Server messages
+  EXPECT_EQ(server.SetTos(DSCP_AF41, ECN_ECT1), 0);
+  std::string first_message = "foobar";
+  EXPECT_EQ(SendToSocket(&server, first_message),
+            static_cast<int>(first_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_AF41, ECN_ECT1), first_message.data());
+
+  std::string second_message = "foo";
+  EXPECT_EQ(server.SetTos(DSCP_CS2, ECN_ECT0), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_CS2, ECN_ECT0), second_message.data());
+
+#if BUILDFLAG(IS_WIN)
+  // The Windows sendmsg API does not allow setting ECN_CE as the outgoing mark.
+  EcnCodePoint final_ecn = ECN_ECT1;
+#else
+  EcnCodePoint final_ecn = ECN_CE;
+#endif
+
+  EXPECT_EQ(server.SetTos(DSCP_NO_CHANGE, final_ecn), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_CS2, final_ecn), second_message.data());
+
+  EXPECT_EQ(server.SetTos(DSCP_AF41, ECN_NO_CHANGE), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_AF41, final_ecn), second_message.data());
+
+  EXPECT_EQ(server.SetTos(DSCP_NO_CHANGE, ECN_NO_CHANGE), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_AF41, final_ecn), second_message.data());
+
+  server.Close();
+  client.Close();
+}
+
+// Send DSCP + ECN marked packets from client to a dual-stack server and verify
+// the TOS bytes that arrive.
+TEST_F(UDPSocketTest, VerifyDscpAndEcnExchangeDualStack) {
+  IPEndPoint server_v6_address(IPAddress::IPv6AllZeros(), 0);
+  UDPServerSocket server(nullptr, NetLogSource());
+  server.AllowAddressReuse();
+  ASSERT_THAT(server.Listen(server_v6_address), IsOk());
+  // Get bound port.
+  ASSERT_THAT(server.GetLocalAddress(&server_v6_address), IsOk());
+  // The server is bound to IPV6_ANY, so it will receive IPv4 packets addressed
+  // to localhost.
+  IPEndPoint server_v4_address(IPAddress::IPv4Localhost(),
+                               server_v6_address.port());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  EXPECT_THAT(client.Connect(server_v4_address), IsOk());
+  EXPECT_EQ(server.SetRecvTos(), 0);
+
+#if BUILDFLAG(IS_WIN)
+  // Windows requires a Mock QWave API to allow the client to set the DSCP. For
+  // efficiency reasons, Chromium windows UDP sockets do not provide access to
+  // incoming DSCP anyway. To avoid all the mocking, don't set the DSCP at all
+  // for Windows. RecvFromSocket() doesn't check the DSCP for Windows.
+  EXPECT_EQ(client.SetTos(DSCP_NO_CHANGE, ECN_ECT1), 0);
+#else
+  EXPECT_EQ(client.SetTos(DSCP_AF41, ECN_ECT1), 0);
+#endif  //! BUILDFLAG(IS_WIN)
+  std::string first_message = "foobar";
+  EXPECT_EQ(WriteSocket(&client, first_message),
+            static_cast<int>(first_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_AF41, ECN_ECT1), first_message.data());
+
+  std::string second_message = "foo";
+#if BUILDFLAG(IS_WIN)
+  EXPECT_EQ(client.SetTos(DSCP_NO_CHANGE, ECN_ECT0), 0);
+#else
+  EXPECT_EQ(client.SetTos(DSCP_CS2, ECN_ECT0), 0);
+#endif
+  EXPECT_EQ(WriteSocket(&client, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_CS2, ECN_ECT0), second_message.data());
+
+#if BUILDFLAG(IS_WIN)
+  // The Windows sendmsg API does not allow setting ECN_CE as the outgoing mark.
+  EcnCodePoint final_ecn = ECN_ECT1;
+#else
+  EcnCodePoint final_ecn = ECN_CE;
+#endif
+  EXPECT_EQ(client.SetTos(DSCP_NO_CHANGE, final_ecn), 0);
+  EXPECT_EQ(WriteSocket(&client, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_CS2, final_ecn),
+            second_message.data());
+
+#if !BUILDFLAG(IS_WIN)
+  EXPECT_EQ(client.SetTos(DSCP_AF41, ECN_NO_CHANGE), 0);
+#endif
+  EXPECT_EQ(WriteSocket(&client, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_AF41, final_ecn),
+            second_message.data());
+
+  EXPECT_EQ(client.SetTos(DSCP_NO_CHANGE, ECN_NO_CHANGE), 0);
+  EXPECT_EQ(WriteSocket(&client, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_AF41, final_ecn),
+            second_message.data());
+
+  server.Close();
+  client.Close();
+}
+
+// Send DSCP + ECN marked packets from client to a dual-stack server and verify
+// the TOS bytes that arrive.
+TEST_F(UDPSocketTest, VerifyDscpAndEcnExchangeDualStackV4Mapped) {
+  // Bind to a v4-mapped localhost address
+  IPEndPoint server_v6_address(*IPAddress::FromIPLiteral("::ffff:7f00:0001"),
+                               0);
+  UDPServerSocket server(nullptr, NetLogSource());
+  server.AllowAddressReuse();
+  ASSERT_THAT(server.Listen(server_v6_address), IsOk());
+  // Get bound port.
+  ASSERT_THAT(server.GetLocalAddress(&server_v6_address), IsOk());
+  IPEndPoint server_v4_address(IPAddress::IPv4Localhost(),
+                               server_v6_address.port());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  EXPECT_THAT(client.Connect(server_v4_address), IsOk());
+  EXPECT_EQ(server.SetRecvTos(), 0);
+
+#if BUILDFLAG(IS_WIN)
+  // Windows requires a Mock QWave API to allow the client to set the DSCP. For
+  // efficiency reasons, Chromium windows UDP sockets do not provide access to
+  // incoming DSCP anyway. To avoid all the mocking, don't set the DSCP at all
+  // for Windows. RecvFromSocket() doesn't check the DSCP for Windows.
+  EXPECT_EQ(client.SetTos(DSCP_NO_CHANGE, ECN_ECT1), 0);
+#else
+  EXPECT_EQ(client.SetTos(DSCP_AF41, ECN_ECT1), 0);
+#endif
+  std::string first_message = "foobar";
+  EXPECT_EQ(WriteSocket(&client, first_message),
+            static_cast<int>(first_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_AF41, ECN_ECT1), first_message.data());
+
+  std::string second_message = "foo";
+#if BUILDFLAG(IS_WIN)
+  EXPECT_EQ(client.SetTos(DSCP_NO_CHANGE, ECN_ECT0), 0);
+#else
+  EXPECT_EQ(client.SetTos(DSCP_CS2, ECN_ECT0), 0);
+#endif
+  EXPECT_EQ(WriteSocket(&client, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_CS2, ECN_ECT0), second_message.data());
+
+#if BUILDFLAG(IS_WIN)
+  // The Windows sendmsg API does not allow setting ECN_CE as the outgoing mark.
+  EcnCodePoint final_ecn = ECN_ECT1;
+#else
+  EcnCodePoint final_ecn = ECN_CE;
+#endif
+  EXPECT_EQ(client.SetTos(DSCP_NO_CHANGE, final_ecn), 0);
+  EXPECT_EQ(WriteSocket(&client, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_CS2, final_ecn),
+            second_message.data());
+
+#if !BUILDFLAG(IS_WIN)
+  EXPECT_EQ(client.SetTos(DSCP_AF41, ECN_NO_CHANGE), 0);
+#endif
+  EXPECT_EQ(WriteSocket(&client, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_AF41, final_ecn),
+            second_message.data());
+
+  EXPECT_EQ(client.SetTos(DSCP_NO_CHANGE, ECN_NO_CHANGE), 0);
+  EXPECT_EQ(WriteSocket(&client, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_AF41, final_ecn),
+            second_message.data());
+
+  server.Close();
+  client.Close();
+}
+
+// For windows, test with Nonblocking sockets. For other platforms, this test
+// is identical to VerifyDscpAndEcnExchange, above.
+TEST_F(UDPSocketTest, VerifyDscpAndEcnExchangeNonBlocking) {
+  IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+  UDPServerSocket server(nullptr, NetLogSource());
+  server.UseNonBlockingIO();
+  server.AllowAddressReuse();
+  ASSERT_THAT(server.Listen(server_address), IsOk());
+  // Get bound port.
+  ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  client.UseNonBlockingIO();
+  client.Connect(server_address);
+  EXPECT_EQ(client.SetRecvTos(), 0);
+  EXPECT_EQ(server.SetRecvTos(), 0);
+
+#if BUILDFLAG(IS_WIN)
+  // Do not exercise the DSCP code because it requires a mock Qwave API.
+  EXPECT_EQ(client.SetTos(DSCP_NO_CHANGE, ECN_ECT1), 0);
+#else
+  EXPECT_EQ(client.SetTos(DSCP_AF41, ECN_ECT1), 0);
+#endif
+  std::string client_message = "hello";
+  EXPECT_EQ(WriteSocket(&client, client_message),
+            static_cast<int>(client_message.length()));
+  EXPECT_EQ(RecvFromSocket(&server, DSCP_AF41, ECN_ECT1),
+            client_message.data());
+
+  // Server messages
+  EXPECT_EQ(server.SetTos(DSCP_AF41, ECN_ECT1), 0);
+  std::string first_message = "foobar";
+  EXPECT_EQ(SendToSocket(&server, first_message),
+            static_cast<int>(first_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_AF41, ECN_ECT1), first_message.data());
+
+  std::string second_message = "foo";
+  EXPECT_EQ(server.SetTos(DSCP_CS2, ECN_ECT0), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_CS2, ECN_ECT0), second_message.data());
+
+  // The Windows sendmsg API does not allow setting ECN_CE as the outgoing mark.
+  EcnCodePoint final_ecn = ECN_ECT1;
+
+  EXPECT_EQ(server.SetTos(DSCP_NO_CHANGE, final_ecn), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_CS2, final_ecn), second_message.data());
+
+  EXPECT_EQ(server.SetTos(DSCP_AF41, ECN_NO_CHANGE), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_AF41, final_ecn), second_message.data());
+
+  EXPECT_EQ(server.SetTos(DSCP_NO_CHANGE, ECN_NO_CHANGE), 0);
+  EXPECT_EQ(SendToSocket(&server, second_message),
+            static_cast<int>(second_message.length()));
+  EXPECT_EQ(ReadSocket(&client, DSCP_AF41, final_ecn), second_message.data());
+
+  server.Close();
   client.Close();
 }
 
@@ -1339,7 +1721,6 @@ TEST_F(DscpManagerTest, SocketReAddedOnRecreateHandle) {
   EXPECT_CALL(api_, RemoveSocketFromFlow(_, _, kFakeFlowId2, _));
   EXPECT_CALL(api_, CloseHandle(kFakeHandle2));
 }
-
 #endif
 
 TEST_F(UDPSocketTest, ReadWithSocketOptimization) {
@@ -1423,6 +1804,8 @@ TEST_F(UDPSocketTest, ReadWithSocketOptimizationTruncation) {
   TestCompletionCallback callback;
   int rv = client.Read(buffer_.get(), kMaxRead, callback.callback());
   EXPECT_EQ(ERR_MSG_TOO_BIG, callback.GetResult(rv));
+  EXPECT_EQ(client.GetLastTos().dscp, DSCP_DEFAULT);
+  EXPECT_EQ(client.GetLastTos().ecn, ECN_DEFAULT);
 
   // 2. The second message is |right_length_message|. Its size is
   // one byte smaller than the size of the buffer. In that case, the client
@@ -1431,6 +1814,8 @@ TEST_F(UDPSocketTest, ReadWithSocketOptimizationTruncation) {
   rv = callback.GetResult(rv);
   EXPECT_EQ(static_cast<int>(right_length_message.length()), rv);
   EXPECT_EQ(right_length_message, std::string(buffer_->data(), rv));
+  EXPECT_EQ(client.GetLastTos().dscp, DSCP_DEFAULT);
+  EXPECT_EQ(client.GetLastTos().ecn, ECN_DEFAULT);
 
   // 3. The third message is |exact_length_message|. Its size is equal to
   // the read buffer size. In that case, the client expects to get
@@ -1444,6 +1829,8 @@ TEST_F(UDPSocketTest, ReadWithSocketOptimizationTruncation) {
   // |ERR_MSG_TOO_BIG|.
   rv = client.Read(buffer_.get(), kMaxRead, callback.callback());
   rv = callback.GetResult(rv);
+  EXPECT_EQ(client.GetLastTos().dscp, DSCP_DEFAULT);
+  EXPECT_EQ(client.GetLastTos().ecn, ECN_DEFAULT);
 #if BUILDFLAG(IS_POSIX)
   EXPECT_EQ(ERR_MSG_TOO_BIG, rv);
 #else

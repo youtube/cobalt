@@ -5,11 +5,11 @@
 #ifndef ANDROID_WEBVIEW_BROWSER_NETWORK_SERVICE_AW_WEB_RESOURCE_REQUEST_H_
 #define ANDROID_WEBVIEW_BROWSER_NETWORK_SERVICE_AW_WEB_RESOURCE_REQUEST_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/android/scoped_java_ref.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 class HttpRequestHeaders;
@@ -40,31 +40,22 @@ struct AwWebResourceRequest final {
   AwWebResourceRequest& operator=(AwWebResourceRequest&& other);
   ~AwWebResourceRequest();
 
-  // The java equivalent
-  struct AwJavaWebResourceRequest {
-    AwJavaWebResourceRequest();
-    ~AwJavaWebResourceRequest();
-
-    base::android::ScopedJavaLocalRef<jstring> jurl;
-    base::android::ScopedJavaLocalRef<jstring> jmethod;
-    base::android::ScopedJavaLocalRef<jobjectArray> jheader_names;
-    base::android::ScopedJavaLocalRef<jobjectArray> jheader_values;
-  };
-
-  // Convenience method to convert AwWebResourceRequest to Java equivalent.
-  static void ConvertToJava(JNIEnv* env,
-                            const AwWebResourceRequest& request,
-                            AwJavaWebResourceRequest* jRequest);
-
   std::string url;
   std::string method;
   bool is_outermost_main_frame;
   bool has_user_gesture;
   std::vector<std::string> header_names;
   std::vector<std::string> header_values;
-  absl::optional<bool> is_renderer_initiated;
+  std::optional<bool> is_renderer_initiated;
 };
 
 }  // namespace android_webview
+
+namespace jni_zero {
+template <>
+ScopedJavaLocalRef<jobject> ToJniType(
+    JNIEnv* env,
+    const android_webview::AwWebResourceRequest& request);
+}
 
 #endif  // ANDROID_WEBVIEW_BROWSER_NETWORK_SERVICE_AW_WEB_RESOURCE_REQUEST_H_

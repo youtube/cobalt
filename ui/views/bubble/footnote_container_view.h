@@ -14,31 +14,27 @@ namespace views {
 // A container that changes visibility with its contents, and draws a solid
 // background with rounded corners at the bottom.
 class FootnoteContainerView : public View {
- public:
-  METADATA_HEADER(FootnoteContainerView);
+  METADATA_HEADER(FootnoteContainerView, View)
 
+ public:
   FootnoteContainerView() = delete;
 
   FootnoteContainerView(const gfx::Insets& margins,
                         std::unique_ptr<View> child_view,
-                        float corner_radius);
+                        float lower_left_radius,
+                        float lower_right_radius);
 
   FootnoteContainerView(const FootnoteContainerView&) = delete;
   FootnoteContainerView& operator=(const FootnoteContainerView&) = delete;
 
   ~FootnoteContainerView() override;
 
-  void SetCornerRadius(float corner_radius);
+  void SetRoundedCorners(float lower_left_radius, float lower_right_radius);
 
-  // View:
-  void OnThemeChanged() override;
   void ChildVisibilityChanged(View* child) override;
 
  private:
-  void ResetBackground();
-  void ResetBorder();
-
-  float corner_radius_;
+  void SetRoundedBackground(float lower_left_radius, float lower_right_radius);
 };
 
 }  // namespace views

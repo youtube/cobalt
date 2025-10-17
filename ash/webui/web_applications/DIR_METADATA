@@ -1,4 +1,4 @@
 mixins: "//chrome/browser/web_applications/COMMON_METADATA"
-monorail {
-  component: "Platform>Apps>SystemWebApps"
+buganizer: {
+  component_id: 1389907
 }

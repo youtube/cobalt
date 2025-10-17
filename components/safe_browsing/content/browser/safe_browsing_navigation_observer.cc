@@ -19,6 +19,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/ip_endpoint.h"
+#include "url/url_constants.h"
 
 using content::WebContents;
 
@@ -109,8 +110,6 @@ void SafeBrowsingNavigationObserver::DidStartNavigation(
     return;
   }
 
-  MaybeRecordNewWebContentsForPortalContents(navigation_handle);
-
   std::unique_ptr<NavigationEvent> nav_event =
       std::make_unique<NavigationEvent>();
   SetNavigationInitiationAndRecordUserGesture(navigation_handle,
@@ -135,6 +134,10 @@ void SafeBrowsingNavigationObserver::DidStartNavigation(
 
 void SafeBrowsingNavigationObserver::DidRedirectNavigation(
     content::NavigationHandle* navigation_handle) {
+  // Log whether a tel scheme was observed.
+  base::UmaHistogramBoolean(
+      "SafeBrowsing.NavigationObserver.RedirectForTelScheme",
+      navigation_handle->GetURL().SchemeIs(url::kTelScheme));
   // We should have already seen this navigation_handle in DidStartNavigation.
   if (navigation_handle_map_.find(navigation_handle) ==
       navigation_handle_map_.end()) {
@@ -178,14 +181,7 @@ void SafeBrowsingNavigationObserver::DidFinishNavigation(
   nav_event->target_tab_id =
       sessions::SessionTabHelper::IdForTab(navigation_handle->GetWebContents());
 
-  // TODO(crbug.com/1254770) Non-MPArch portals cause issues for the outermost
-  // main frame logic. Since they do not create navigation events for
-  // activation, there is a an unaccounted-for shift in outermost main frame at
-  // that point. For now, we will not set outermost main frame ids for portals
-  // so they will continue to match. In future, once portals have been converted
-  // to MPArch, this will not be necessary.
-  if (!web_contents()->IsPortal() && nav_event->is_outermost_main_frame &&
-      nav_event->has_committed) {
+  if (nav_event->is_outermost_main_frame && nav_event->has_committed) {
     auto* rfh = navigation_handle->GetRenderFrameHost();
     // We set the outermost main frame id here rather than in DidStartNavigation
     // because in that function, we don't yet have a RenderFrameHost, so if
@@ -193,8 +189,7 @@ void SafeBrowsingNavigationObserver::DidFinishNavigation(
     nav_event->outermost_main_frame_id =
         rfh->GetOutermostMainFrame()->GetGlobalId();
   }
-  DCHECK(web_contents()->IsPortal() || !nav_event->has_committed ||
-         nav_event->outermost_main_frame_id);
+  DCHECK(!nav_event->has_committed || nav_event->outermost_main_frame_id);
 
   nav_event->last_updated = base::Time::Now();
 
@@ -239,38 +234,6 @@ void SafeBrowsingNavigationObserver::OnContentSettingChanged(
       (content_type_set.ContainsAllTypes() ||
        PageInfoUI::ContentSettingsTypeInPageInfo(content_type_set.GetType()))) {
     OnUserInteraction();
-  }
-}
-
-void SafeBrowsingNavigationObserver::MaybeRecordNewWebContentsForPortalContents(
-    content::NavigationHandle* navigation_handle) {
-  // When navigating a newly created portal contents, establish an association
-  // with its creator, so we can track the referrer chain across portal
-  // activations.
-  content::NavigationEntry* current_entry =
-      web_contents()->GetController().GetLastCommittedEntry();
-  if (web_contents()->IsPortal() && current_entry->IsInitialEntry()) {
-    content::RenderFrameHost* initiator_frame_host =
-        navigation_handle->GetInitiatorFrameToken().has_value()
-            ? content::RenderFrameHost::FromFrameToken(
-                  navigation_handle->GetInitiatorProcessID(),
-                  navigation_handle->GetInitiatorFrameToken().value())
-            : nullptr;
-
-    base::UmaHistogramBoolean(
-        "SafeBrowsing.NavigationObserver.MissingInitiatorRenderFrameHostPortal",
-        !initiator_frame_host);
-
-    // TODO(https://crbug.com/1074422): Handle the case where the initiator
-    // RenderFrameHost is gone.
-    if (initiator_frame_host) {
-      content::WebContents* initiator_contents =
-          content::WebContents::FromRenderFrameHost(initiator_frame_host);
-      GetObserverManager()->RecordNewWebContents(
-          initiator_contents, initiator_frame_host, navigation_handle->GetURL(),
-          navigation_handle->GetPageTransition(), web_contents(),
-          navigation_handle->IsRendererInitiated());
-    }
   }
 }
 
@@ -356,15 +319,6 @@ void SafeBrowsingNavigationObserver::SetNavigationSourceMainFrameUrl(
 void SafeBrowsingNavigationObserver::SetNavigationOutermostMainFrameIds(
     content::NavigationHandle* navigation_handle,
     NavigationEvent* nav_event) {
-  // TODO(crbug.com/1254770) Non-MPArch portals cause issues for the outermost
-  // main frame logic. Since they do not create navigation events for
-  // activation, there is a an unaccounted-for shift in outermost main frame at
-  // that point. For now, we will not set outermost main frame ids for portals
-  // so they will continue to match. In future, once portals have been converted
-  // to MPArch, this will not be necessary.
-  if (web_contents()->IsPortal())
-    return;
-
   auto* outer_rfh = navigation_handle->GetParentFrameOrOuterDocument();
   nav_event->is_outermost_main_frame = !outer_rfh;
 
@@ -377,8 +331,9 @@ void SafeBrowsingNavigationObserver::SetNavigationOutermostMainFrameIds(
     auto* initiator_frame_host =
         navigation_handle->GetInitiatorFrameToken().has_value()
             ? content::RenderFrameHost::FromFrameToken(
-                  navigation_handle->GetInitiatorProcessID(),
-                  navigation_handle->GetInitiatorFrameToken().value())
+                  content::GlobalRenderFrameHostToken(
+                      navigation_handle->GetInitiatorProcessId(),
+                      navigation_handle->GetInitiatorFrameToken().value()))
             : nullptr;
     if (initiator_frame_host) {
       nav_event->initiator_outermost_main_frame_id =

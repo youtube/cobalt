@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import {loadTimeData} from './i18n_setup.js';
-import {getTemplate} from './lens_form.html.js';
+import type {ProcessedFile} from './image_processor.js';
+import {processFile, SUPPORTED_FILE_TYPES} from './image_processor.js';
+import {getCss} from './lens_form.css.js';
+import {getHtml} from './lens_form.html.js';
 
 /** Lens service endpoint for the Upload by File action. */
-const UPLOAD_FILE_ACTION: string = 'https://lens.google.com/upload';
+const SCOTTY_UPLOAD_FILE_ACTION: string = 'https://lens.google.com/upload';
+const DIRECT_UPLOAD_FILE_ACTION: string = 'https://lens.google.com/v3/upload';
 
 /** Entrypoint for the upload by file action. */
 const UPLOAD_FILE_ENTRYPOINT: string = 'cntpubb';
@@ -27,17 +31,6 @@ const CHROMIUM_SURFACE: string = '4';
 
 /** Max length for encoded input URL. */
 const MAX_URL_LENGTH: number = 2000;
-
-const SUPPORTED_FILE_TYPES: string[] = [
-  'image/bmp',
-  'image/heic',
-  'image/heif',
-  'image/jpeg',
-  'image/png',
-  'image/tiff',
-  'image/webp',
-  'image/x-icon',
-];
 
 /** Maximum file size support by Lens in bytes. */
 const MAX_FILE_SIZE_BYTES: number = 20 * 1024 * 1024;  // 20MB
@@ -72,68 +65,52 @@ export interface LensFormElement {
   };
 }
 
-export class LensFormElement extends PolymerElement {
+export class LensFormElement extends CrLitElement {
   static get is() {
     return 'ntp-lens-form';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      supportedFileTypes_: {
-        type: String,
-        readOnly: true,
-        value: SUPPORTED_FILE_TYPES.join(','),
-      },
-      renderingEnvironment_: {
-        type: String,
-        readOnly: true,
-        value: RENDERING_ENVIRONMENT,
-      },
-      chromiumSurface_: {
-        type: String,
-        readOnly: true,
-        value: CHROMIUM_SURFACE,
-      },
-      uploadFileAction_: String,
-      uploadUrlAction_: {
-        type: String,
-        readOnly: true,
-        value: UPLOAD_BY_URL_ACTION,
-      },
-      uploadUrl_: String,
-      uploadUrlEntrypoint_: {
-        type: String,
-        readOnly: true,
-        value: UPLOAD_URL_ENTRYPOINT,
-      },
-      language_: {
-        type: String,
-        readOnly: true,
-        value: window.navigator.language,
-      },
-      clientData_: {
-        type: String,
-        readOnly: true,
-        value: loadTimeData.getString('realboxLensVariations'),
-      },
+      supportedFileTypes_: {type: String},
+      renderingEnvironment_: {type: String},
+      chromiumSurface_: {type: String},
+      uploadFileAction_: {type: String},
+      uploadUrlAction_: {type: String},
+      uploadUrl_: {type: String},
+      uploadUrlEntrypoint_: {type: String},
+      language_: {type: String},
+      clientData_: {type: String},
+      startTime_: {type: String},
     };
   }
 
-  private language_: string;
-  private uploadFileAction_: string = UPLOAD_FILE_ACTION;
-  private uploadUrl_: string = '';
-  private startTime_: string|null = null;
-  private clientData_: string;
+  protected accessor supportedFileTypes_: string =
+      SUPPORTED_FILE_TYPES.join(',');
+  protected accessor renderingEnvironment_: string = RENDERING_ENVIRONMENT;
+  protected accessor chromiumSurface_: string = CHROMIUM_SURFACE;
+  protected accessor language_: string = window.navigator.language;
+  protected accessor uploadFileAction_: string = SCOTTY_UPLOAD_FILE_ACTION;
+  protected accessor uploadUrlAction_: string = UPLOAD_BY_URL_ACTION;
+  protected accessor uploadUrl_: string = '';
+  protected accessor uploadUrlEntrypoint_: string = UPLOAD_URL_ENTRYPOINT;
+  protected accessor startTime_: string|null = null;
+  protected accessor clientData_: string =
+      loadTimeData.getString('searchboxLensVariations');
 
   openSystemFilePicker() {
     this.$.fileInput.click();
   }
 
-  private handleFileInputChange_() {
+  protected handleFileInputChange_() {
     const fileList = this.$.fileInput.files;
     if (fileList) {
       this.submitFileList(fileList);
@@ -154,7 +131,7 @@ export class LensFormElement extends PolymerElement {
     return this.submitFile_(file);
   }
 
-  private submitFile_(file: File) {
+  private async submitFile_(file: File) {
     if (!SUPPORTED_FILE_TYPES.includes(file.type)) {
       this.dispatchError_(LensErrorType.FILE_TYPE);
       return;
@@ -165,26 +142,39 @@ export class LensFormElement extends PolymerElement {
       return;
     }
 
-    const dataTransfer = new DataTransfer();
-    dataTransfer.items.add(file);
-    this.$.fileInput.files = dataTransfer.files;
+    this.uploadFileAction_ = DIRECT_UPLOAD_FILE_ACTION;
 
     this.startTime_ = Date.now().toString();
 
-    const action = new URL(UPLOAD_FILE_ACTION);
+    let processedFile: ProcessedFile = {processedFile: file};
+
+    processedFile = await processFile(file);
+
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(processedFile.processedFile);
+    this.$.fileInput.files = dataTransfer.files;
+
+    const action = new URL(this.uploadFileAction_);
     action.searchParams.set('ep', UPLOAD_FILE_ENTRYPOINT);
     action.searchParams.set('hl', this.language_);
     action.searchParams.set('st', this.startTime_.toString());
     action.searchParams.set('cd', this.clientData_);
     action.searchParams.set('re', RENDERING_ENVIRONMENT);
     action.searchParams.set('s', CHROMIUM_SURFACE);
+    action.searchParams.set(
+        'vph',
+        processedFile.imageHeight ? processedFile.imageHeight.toString() : '');
+    action.searchParams.set(
+        'vpw',
+        processedFile.imageWidth ? processedFile.imageWidth.toString() : '');
     this.uploadFileAction_ = action.toString();
 
+    await this.updateComplete;
     this.dispatchLoading_(LensSubmitType.FILE);
     this.$.fileForm.submit();
   }
 
-  submitUrl(urlString: string) {
+  async submitUrl(urlString: string) {
     if (!urlString.startsWith('http://') && !urlString.startsWith('https://')) {
       this.dispatchError_(LensErrorType.INVALID_SCHEME);
       return;
@@ -206,6 +196,7 @@ export class LensFormElement extends PolymerElement {
 
     this.uploadUrl_ = encodedUri;
     this.startTime_ = Date.now().toString();
+    await this.updateComplete;
     this.dispatchLoading_(LensSubmitType.URL);
     this.$.urlForm.submit();
   }

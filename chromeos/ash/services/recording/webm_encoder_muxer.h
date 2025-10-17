@@ -6,13 +6,13 @@
 #define CHROMEOS_ASH_SERVICES_RECORDING_WEBM_ENCODER_MUXER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/containers/circular_deque.h"
 #include "base/containers/queue.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
 #include "base/threading/sequence_bound.h"
@@ -22,10 +22,9 @@
 #include "media/audio/audio_opus_encoder.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_parameters.h"
-#include "media/muxers/webm_muxer.h"
+#include "media/muxers/muxer_timestamp_adapter.h"
 #include "media/video/vpx_video_encoder.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace base {
@@ -94,8 +93,8 @@ class WebmEncoderMuxer : public RecordingEncoder {
   void InitializeVideoEncoder(
       const media::VideoEncoder::Options& video_encoder_options) override;
   void EncodeVideo(scoped_refptr<media::VideoFrame> frame) override;
-  void EncodeAudio(std::unique_ptr<media::AudioBus> audio_bus,
-                   base::TimeTicks capture_time) override;
+  void EncodeRgbVideo(RgbVideoFrame rgb_video_frame) override;
+  EncodeAudioCallback GetEncodeAudioCallback() override;
   void FlushAndFinalize(base::OnceClosure on_done) override;
 
  private:
@@ -134,6 +133,13 @@ class WebmEncoderMuxer : public RecordingEncoder {
   void OnVideoEncoderInitialized(media::VpxVideoEncoder* encoder,
                                  media::EncoderStatus status);
 
+  // Encodes and muxes the given audio frames in `audio_bus` captured at
+  // `capture_time`. If `did_failure_occur()` is true, all `audio_bus`s will be
+  // ignored.
+  // It is bound to the callback returned by `GetEncodeAudioCallback()`.
+  void EncodeAudio(std::unique_ptr<media::AudioBus> audio_bus,
+                   base::TimeTicks capture_time);
+
   // Performs the actual encoding of the given audio |frame|. It should never be
   // called before the audio encoder is initialized. Audio frames received
   // before initialization should be added to |pending_audio_frames_| and
@@ -150,12 +156,12 @@ class WebmEncoderMuxer : public RecordingEncoder {
   // which will then be sent to the muxer.
   void OnVideoEncoderOutput(
       media::VideoEncoderOutput output,
-      absl::optional<media::VideoEncoder::CodecDescription> codec_description);
+      std::optional<media::VideoEncoder::CodecDescription> codec_description);
 
   // Called by the audio encoder to provide the |encoded_audio|.
   void OnAudioEncoded(
       media::EncodedAudioBuffer encoded_audio,
-      absl::optional<media::AudioEncoder::CodecDescription> codec_description);
+      std::optional<media::AudioEncoder::CodecDescription> codec_description);
 
   // Called when the audio encoder flushes all its buffered frames, at which
   // point we can flush the video encoder. |on_done| will be passed to
@@ -175,7 +181,8 @@ class WebmEncoderMuxer : public RecordingEncoder {
   std::unique_ptr<media::AudioOpusEncoder> audio_encoder_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
-  media::WebmMuxer webm_muxer_ GUARDED_BY_CONTEXT(sequence_checker_);
+  media::MuxerTimestampAdapter muxer_adapter_
+      GUARDED_BY_CONTEXT(sequence_checker_);
 
   // Holds video frames that were received before the video encoder is
   // initialized, so that they can be processed once initialization is complete.

@@ -9,6 +9,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_param_associator.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_clock.h"
 #include "base/time/time.h"
@@ -29,19 +30,13 @@ namespace {
 using ::testing::Optional;
 
 base::Time GetReferenceTime() {
-  base::Time::Exploded exploded_reference_time;
-  exploded_reference_time.year = 2015;
-  exploded_reference_time.month = 1;
-  exploded_reference_time.day_of_month = 30;
-  exploded_reference_time.day_of_week = 5;
-  exploded_reference_time.hour = 11;
-  exploded_reference_time.minute = 0;
-  exploded_reference_time.second = 0;
-  exploded_reference_time.millisecond = 0;
-
+  static constexpr base::Time::Exploded kReferenceTime = {.year = 2015,
+                                                          .month = 1,
+                                                          .day_of_week = 5,
+                                                          .day_of_month = 30,
+                                                          .hour = 11};
   base::Time out_time;
-  EXPECT_TRUE(
-      base::Time::FromLocalExploded(exploded_reference_time, &out_time));
+  EXPECT_TRUE(base::Time::FromLocalExploded(kReferenceTime, &out_time));
   return out_time;
 }
 
@@ -123,7 +118,7 @@ class MediaEngagementScoreTest : public ChromeRenderViewHostTestHarness {
     EXPECT_EQ(details->visits, score.visits());
     EXPECT_EQ(details->media_playbacks, score.media_playbacks());
     EXPECT_EQ(details->last_media_playback_time,
-              score.last_media_playback_time().ToJsTime());
+              score.last_media_playback_time().InMillisecondsFSinceUnixEpoch());
   }
 };
 
@@ -145,11 +140,11 @@ class MediaEngagementScoreWithOverrideFieldTrialsTest
 
     std::map<std::string, std::string> params;
     params[MediaEngagementScore::kScoreMinVisitsParamName] =
-        std::to_string(min_visits);
+        base::NumberToString(min_visits);
     params[MediaEngagementScore::kHighScoreLowerThresholdParamName] =
-        std::to_string(lower_threshold);
+        base::NumberToString(lower_threshold);
     params[MediaEngagementScore::kHighScoreUpperThresholdParamName] =
-        std::to_string(upper_threshold);
+        base::NumberToString(upper_threshold);
 
     scoped_feature_list_ = std::make_unique<base::test::ScopedFeatureList>();
     scoped_feature_list_->InitAndEnableFeatureWithParameters(
@@ -277,11 +272,11 @@ TEST_F(MediaEngagementScoreTest, ContentSettings) {
           ->GetWebsiteSetting(origin.GetURL(), GURL(),
                               ContentSettingsType::MEDIA_ENGAGEMENT, nullptr)
           .TakeDict();
-  absl::optional<int> stored_visits =
+  std::optional<int> stored_visits =
       values.FindInt(MediaEngagementScore::kVisitsKey);
-  absl::optional<int> stored_media_playbacks =
+  std::optional<int> stored_media_playbacks =
       values.FindInt(MediaEngagementScore::kMediaPlaybacksKey);
-  absl::optional<double> stored_last_media_playback_time =
+  std::optional<double> stored_last_media_playback_time =
       values.FindDouble(MediaEngagementScore::kLastMediaPlaybackTimeKey);
   EXPECT_TRUE(stored_visits);
   EXPECT_TRUE(stored_media_playbacks);

@@ -13,6 +13,7 @@
 #include "common/system_utils.h"
 #include "libANGLE/ErrorStrings.h"
 #include "libANGLE/Thread.h"
+#include "libGLESv2/egl_stubs_autogen.h"
 #include "libGLESv2/resource.h"
 
 #include <atomic>
@@ -27,25 +28,37 @@ ANGLE_REQUIRE_CONSTANT_INIT gl::Context *g_LastContext(nullptr);
 static_assert(std::is_trivially_destructible<decltype(g_LastContext)>::value,
               "global last context is not trivially destructible");
 
+bool g_EGLValidationEnabled = true;
+
 // Called only on Android platform
 [[maybe_unused]] void ThreadCleanupCallback(void *ptr)
 {
-    ANGLE_SCOPED_GLOBAL_LOCK();
-    angle::PthreadKeyDestructorCallback(ptr);
+    egl::Thread *thread = static_cast<egl::Thread *>(ptr);
+    ASSERT(thread);
+    ANGLE_SCOPED_GLOBAL_EGL_AND_EGL_SYNC_LOCK();
+    // ReleaseThread() and makeCurrent() inside will perform:
+    // - destroy Context if it was already marked for destruction;
+    // - invalidate Context if Display was already terminated by app;
+    // - perform Display termination when no active threads (and current Contexts);
+    // - release any invalid objects in case if Display was not terminated.
+    (void)ReleaseThread(thread);
 }
 
 Thread *AllocateCurrentThread()
 {
     Thread *thread;
     {
-        // Global thread intentionally leaked
+        // Global thread intentionally leaked.
+        // Display TLS data is also intentionally leaked.
         ANGLE_SCOPED_DISABLE_LSAN();
         thread = new Thread();
-#if defined(ANGLE_PLATFORM_APPLE)
+#if defined(ANGLE_PLATFORM_APPLE) || defined(ANGLE_USE_STATIC_THREAD_LOCAL_VARIABLES)
         SetCurrentThreadTLS(thread);
 #else
         gCurrentThread = thread;
 #endif
+
+        Display::InitTLS();
     }
 
     // Initialize current-context TLS slot
@@ -100,6 +113,16 @@ void SetCurrentThreadTLS(Thread *thread)
     ASSERT(CurrentThreadIndex != TLS_INVALID_INDEX);
     angle::SetTLSValue(CurrentThreadIndex, thread);
 }
+#elif defined(ANGLE_USE_STATIC_THREAD_LOCAL_VARIABLES)
+static thread_local Thread *gCurrentThread = nullptr;
+Thread *GetCurrentThreadTLS()
+{
+    return gCurrentThread;
+}
+void SetCurrentThreadTLS(Thread *thread)
+{
+    gCurrentThread = thread;
+}
 #else
 thread_local Thread *gCurrentThread = nullptr;
 #endif
@@ -118,17 +141,17 @@ void SetGlobalLastContext(gl::Context *context)
 // It also causes a flaky false positive in TSAN. http://crbug.com/1223970
 ANGLE_NO_SANITIZE_MEMORY ANGLE_NO_SANITIZE_THREAD Thread *GetCurrentThread()
 {
-#if defined(ANGLE_PLATFORM_APPLE)
+#if defined(ANGLE_PLATFORM_APPLE) || defined(ANGLE_USE_STATIC_THREAD_LOCAL_VARIABLES)
     Thread *current = GetCurrentThreadTLS();
 #else
-    Thread *current       = gCurrentThread;
+    Thread *current = gCurrentThread;
 #endif
     return (current ? current : AllocateCurrentThread());
 }
 
 void SetContextCurrent(Thread *thread, gl::Context *context)
 {
-#if defined(ANGLE_PLATFORM_APPLE)
+#if defined(ANGLE_PLATFORM_APPLE) || defined(ANGLE_USE_STATIC_THREAD_LOCAL_VARIABLES)
     Thread *currentThread = GetCurrentThreadTLS();
 #else
     Thread *currentThread = gCurrentThread;
@@ -154,26 +177,33 @@ ScopedSyncCurrentContextFromThread::~ScopedSyncCurrentContextFromThread()
     SetContextCurrent(mThread, mThread->getContext());
 }
 
+void SetEGLValidationEnabled(bool enabled)
+{
+    g_EGLValidationEnabled = enabled;
+}
+
+bool IsEGLValidationEnabled()
+{
+    return g_EGLValidationEnabled;
+}
+
 }  // namespace egl
 
 namespace gl
 {
-void GenerateContextLostErrorOnContext(Context *context)
-{
-    if (context && context->isContextLost())
-    {
-        context->validationError(angle::EntryPoint::Invalid, GL_CONTEXT_LOST, err::kContextLost);
-    }
-}
-
-void GenerateContextLostErrorOnCurrentGlobalContext()
+void GenerateContextLostErrorOnCurrentGlobalContext(angle::EntryPoint entryPoint)
 {
     // If the client starts issuing GL calls before ANGLE has had a chance to initialize,
     // GenerateContextLostErrorOnCurrentGlobalContext can be called before AllocateCurrentThread has
     // had a chance to run. Calling GetCurrentThread() ensures that TLS thread state is set up.
     egl::GetCurrentThread();
 
-    GenerateContextLostErrorOnContext(GetGlobalContext());
+    Context *context = GetGlobalContext();
+    if (context != nullptr && context->isContextLost())
+    {
+        context->getMutableErrorSetForValidation()->validationError(entryPoint, GL_CONTEXT_LOST,
+                                                                    err::kContextLost);
+    }
 }
 }  // namespace gl
 
@@ -264,7 +294,7 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID)
     switch (reason)
     {
         case DLL_PROCESS_ATTACH:
-            if (angle::GetEnvironmentVar("ANGLE_WAIT_FOR_DEBUGGER") == "1")
+            if (angle::GetBoolEnvironmentVar("ANGLE_WAIT_FOR_DEBUGGER"))
             {
                 WaitForDebugger(instance);
             }

@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.xsurface;
 
+import org.jspecify.annotations.NullMarked;
+
 /**
  * Implemented internally.
  *
@@ -11,6 +13,7 @@ package org.chromium.chrome.browser.xsurface;
  * native code to call to the image loader across the
  * xsurface.
  */
+@NullMarked
 public interface ImageCacheHelper {
     /**
      * Prefetches the image from the given URL and stores
@@ -20,8 +23,6 @@ public interface ImageCacheHelper {
      */
     default void prefetchImage(String url) {}
 
-    /**
-     * Clears the image memory cache.
-     */
+    /** Clears the image memory cache. */
     default void clearMemoryCache() {}
 }

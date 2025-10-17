@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_window_update_frame.h"
 
+#include <ostream>
+
 #include "quiche/quic/core/quic_types.h"
 
 namespace quic {
@@ -25,6 +27,15 @@ std::ostream& operator<<(std::ostream& os,
      << ", stream_id: " << window_update_frame.stream_id
      << ", max_data: " << window_update_frame.max_data << " }\n";
   return os;
+}
+
+bool QuicWindowUpdateFrame::operator==(const QuicWindowUpdateFrame& rhs) const {
+  return control_frame_id == rhs.control_frame_id &&
+         stream_id == rhs.stream_id && max_data == rhs.max_data;
+}
+
+bool QuicWindowUpdateFrame::operator!=(const QuicWindowUpdateFrame& rhs) const {
+  return !(*this == rhs);
 }
 
 }  // namespace quic

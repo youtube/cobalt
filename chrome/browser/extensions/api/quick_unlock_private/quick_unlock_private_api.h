@@ -12,6 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "chrome/browser/extensions/chrome_extension_function_details.h"
 #include "chrome/common/extensions/api/quick_unlock_private.h"
+#include "chromeos/ash/components/cryptohome/auth_factor.h"
 #include "extensions/browser/extension_function.h"
 
 namespace ash {
@@ -39,8 +40,8 @@ class QuickUnlockPrivateGetAuthTokenFunction : public ExtensionFunction {
   // ExtensionFunction overrides.
   ResponseAction Run() override;
 
-  void OnResult(absl::optional<api::quick_unlock_private::TokenInfo> token_info,
-                absl::optional<ash::AuthenticationError> error);
+  void OnResult(std::optional<api::quick_unlock_private::TokenInfo> token_info,
+                std::optional<ash::AuthenticationError> error);
 
  private:
   ChromeExtensionFunctionDetails chrome_details_;
@@ -111,7 +112,9 @@ class QuickUnlockPrivateCanAuthenticatePinFunction : public ExtensionFunction {
   ResponseAction Run() override;
 
  private:
-  void HandleCanAuthenticateResult(bool result);
+  void HandleCanAuthenticateResult(
+      bool result,
+      cryptohome::PinLockAvailability available_at);
 
   ChromeExtensionFunctionDetails chrome_details_;
 };
@@ -239,7 +242,7 @@ class QuickUnlockPrivateSetModesFunction : public ExtensionFunction {
   void FireEvent(const std::vector<QuickUnlockMode>& modes);
 
   ChromeExtensionFunctionDetails chrome_details_;
-  absl::optional<api::quick_unlock_private::SetModes::Params> params_;
+  std::optional<api::quick_unlock_private::SetModes::Params> params_;
 
   std::vector<QuickUnlockMode> initial_modes_;
 

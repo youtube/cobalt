@@ -4,10 +4,11 @@
 
 package org.chromium.chrome.browser.creator;
 
+import org.chromium.build.annotations.NullMarked;
+
 /** Interface for showing sign-in insterstitial. */
+@NullMarked
 public interface SignInInterstitialInitiator {
-    /**
-     * Shows a sign-in interstitial.
-     */
+    /** Shows a sign-in interstitial. */
     void showSignInInterstitial();
 }

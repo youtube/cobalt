@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/values.h"
 
@@ -102,7 +103,7 @@ class DeviceCapabilities {
                                   base::Value new_value) const;
 
    private:
-    DeviceCapabilities* const capabilities_;
+    const raw_ptr<DeviceCapabilities> capabilities_;
   };
 
   // Class used to store/own capabilities-related data. It is immutable and
@@ -222,9 +223,9 @@ class DeviceCapabilities {
   virtual void SetCapability(const std::string& path,
                              base::Value proposed_value) = 0;
 
-  // Iterates through entries in |dict_value| and calls SetCapability() for
-  // each one. This method is asynchronous.
-  virtual void MergeDictionary(const base::Value& dict_value) = 0;
+  // Iterates through entries in |dict| and calls SetCapability() for each one.
+  // This method is asynchronous.
+  virtual void MergeDictionary(const base::Value::Dict& dict) = 0;
 
   // Adds/removes an observer. It doesn't take the ownership of |observer|.
   virtual void AddCapabilitiesObserver(Observer* observer) = 0;

@@ -7,8 +7,10 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
 #include "third_party/blink/renderer/core/animation/animation_input_helpers.h"
 #include "third_party/blink/renderer/core/animation/css/css_animations.h"
-#include "third_party/blink/renderer/core/css/css_custom_property_declaration.h"
+#include "third_party/blink/renderer/core/animation/keyframe.h"
+#include "third_party/blink/renderer/core/animation/property_handle.h"
 #include "third_party/blink/renderer/core/css/css_keyframe_shorthand_value.h"
+#include "third_party/blink/renderer/core/css/css_unparsed_declaration_value.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/style_property_shorthand.h"
@@ -21,8 +23,8 @@ namespace {
 
 bool IsLogicalProperty(CSSPropertyID property_id) {
   const CSSProperty& property = CSSProperty::Get(property_id);
-  const CSSProperty& resolved_property = property.ResolveDirectionAwareProperty(
-      TextDirection::kLtr, WritingMode::kHorizontalTb);
+  const CSSProperty& resolved_property =
+      property.ToPhysical({WritingMode::kHorizontalTb, TextDirection::kLtr});
   return resolved_property.PropertyID() != property_id;
 }
 
@@ -34,19 +36,48 @@ MutableCSSPropertyValueSet* CreateCssPropertyValueSet() {
 
 using PropertyResolver = StringKeyframe::PropertyResolver;
 
+StringKeyframe::PropertyIterator::PropertyIterator(
+    const StringKeyframe* keyframe)
+    : css_properties_(keyframe->css_property_map_->Properties()) {}
+
+void StringKeyframe::PropertyIterator::Advance(const Keyframe* keyframe) {
+  css_properties_.take_first_elem();
+}
+
+PropertyHandle StringKeyframe::PropertyIterator::Deref(
+    const Keyframe* keyframe) const {
+  DCHECK(
+      To<StringKeyframe>(keyframe)->css_property_map_->Properties().end() ==
+      css_properties_.end());
+  return PropertyHandle(css_properties_.front().Name());
+}
+
+bool StringKeyframe::PropertyIterator::AtEnd(const Keyframe* keyframe) const {
+  return css_properties_.empty();
+}
+
+Keyframe::PropertyIteratorWrapper
+StringKeyframe::IterableStringKeyframeProperties::begin() const {
+  keyframe_->EnsureCssPropertyMap();
+  return Keyframe::PropertyIteratorWrapper(
+      keyframe_, std::make_unique<PropertyIterator>(keyframe_));
+}
+
+size_t StringKeyframe::IterableStringKeyframeProperties::size() const {
+  keyframe_->EnsureCssPropertyMap();
+  return keyframe_->css_property_map_->Properties().size();
+}
+
 StringKeyframe::StringKeyframe(const StringKeyframe& copy_from)
-    : Keyframe(copy_from.offset_,
+    : Keyframe(MakeGarbageCollected<IterableStringKeyframeProperties>(this),
+               copy_from.offset_,
                copy_from.timeline_offset_,
                copy_from.composite_,
                copy_from.easing_),
       tree_scope_(copy_from.tree_scope_),
       input_properties_(copy_from.input_properties_),
-      presentation_attribute_map_(
-          copy_from.presentation_attribute_map_->MutableCopy()),
-      svg_attribute_map_(copy_from.svg_attribute_map_),
       has_logical_property_(copy_from.has_logical_property_),
-      text_direction_(copy_from.text_direction_),
-      writing_mode_(copy_from.writing_mode_) {
+      writing_direction_(copy_from.writing_direction_) {
   if (copy_from.css_property_map_)
     css_property_map_ = copy_from.css_property_map_->MutableCopy();
 }
@@ -102,11 +133,11 @@ MutableCSSPropertyValueSet::SetResult StringKeyframe::SetCSSPropertyValue(
     // Logical shorthands to not directly map to physical shorthands. Determine
     // if the shorthand is for a logical property by checking the first
     // longhand.
-    if (property_value_set->PropertyCount()) {
-      CSSPropertyValueSet::PropertyReference reference =
-          property_value_set->PropertyAt(0);
-      if (IsLogicalProperty(reference.Id()))
+    if (!property_value_set->IsEmpty()) {
+      const CSSPropertyValue& reference = property_value_set->PropertyAt(0);
+      if (IsLogicalProperty(reference.PropertyID())) {
         is_logical = true;
+      }
     }
   } else {
     is_logical = IsLogicalProperty(property_id);
@@ -147,65 +178,10 @@ void StringKeyframe::SetCSSPropertyValue(const CSSPropertyName& name,
 
 void StringKeyframe::RemoveCustomCSSProperty(const PropertyHandle& property) {
   DCHECK(property.IsCSSCustomProperty());
-  if (css_property_map_)
+  if (css_property_map_) {
     css_property_map_->RemoveProperty(property.CustomPropertyName());
+  }
   input_properties_.erase(property);
-}
-
-void StringKeyframe::SetPresentationAttributeValue(
-    const CSSProperty& property,
-    const String& value,
-    SecureContextMode secure_context_mode,
-    StyleSheetContents* style_sheet_contents) {
-  DCHECK_NE(property.PropertyID(), CSSPropertyID::kInvalid);
-  if (!CSSAnimations::IsAnimationAffectingProperty(property)) {
-    presentation_attribute_map_->ParseAndSetProperty(
-        property.PropertyID(), value, false, secure_context_mode,
-        style_sheet_contents);
-  }
-}
-
-void StringKeyframe::SetSVGAttributeValue(const QualifiedName& attribute_name,
-                                          const String& value) {
-  svg_attribute_map_.Set(&attribute_name, value);
-}
-
-PropertyHandleSet StringKeyframe::Properties() const {
-  // This is not used in time-critical code, so we probably don't need to
-  // worry about caching this result.
-  EnsureCssPropertyMap();
-  PropertyHandleSet properties;
-
-  for (unsigned i = 0; i < css_property_map_->PropertyCount(); ++i) {
-    CSSPropertyValueSet::PropertyReference property_reference =
-        css_property_map_->PropertyAt(i);
-    const CSSPropertyName& name = property_reference.Name();
-    DCHECK(!name.IsCustomProperty() ||
-           !CSSProperty::Get(name.Id()).IsShorthand())
-        << "Web Animations: Encountered unexpanded shorthand CSS property ("
-        << static_cast<int>(name.Id()) << ").";
-    properties.insert(PropertyHandle(name));
-  }
-
-  for (unsigned i = 0; i < presentation_attribute_map_->PropertyCount(); ++i) {
-    properties.insert(PropertyHandle(
-        CSSProperty::Get(presentation_attribute_map_->PropertyAt(i).Id()),
-        true));
-  }
-
-  for (auto* const key : svg_attribute_map_.Keys())
-    properties.insert(PropertyHandle(*key));
-
-  return properties;
-}
-
-bool StringKeyframe::HasCssProperty() const {
-  PropertyHandleSet properties = Properties();
-  for (const PropertyHandle& property : properties) {
-    if (property.IsCSSProperty())
-      return true;
-  }
-  return false;
 }
 
 void StringKeyframe::AddKeyframePropertiesToV8Object(
@@ -219,29 +195,7 @@ void StringKeyframe::AddKeyframePropertiesToV8Object(
         AnimationInputHelpers::PropertyHandleToKeyframeAttribute(
             property_handle);
 
-    object_builder.Add(property_name, property_value->CssText());
-  }
-
-  // Legacy code path for SVG and Presentation attributes.
-  //
-  // TODO(816956): Move these to input_properties_ and remove this. Note that
-  // this code path is not well tested given that removing it didn't cause any
-  // test failures.
-  for (const PropertyHandle& property : Properties()) {
-    if (property.IsCSSProperty())
-      continue;
-
-    String property_name =
-        AnimationInputHelpers::PropertyHandleToKeyframeAttribute(property);
-    String property_value;
-    if (property.IsPresentationAttribute()) {
-      const auto& attribute = property.PresentationAttribute();
-      property_value = PresentationAttributeValue(attribute).CssText();
-    } else {
-      DCHECK(property.IsSVGAttribute());
-      property_value = SvgPropertyValue(property.SvgAttribute());
-    }
-    object_builder.Add(property_name, property_value);
+    object_builder.AddString(property_name, property_value->CssText());
   }
 }
 
@@ -249,7 +203,6 @@ void StringKeyframe::Trace(Visitor* visitor) const {
   visitor->Trace(tree_scope_);
   visitor->Trace(input_properties_);
   visitor->Trace(css_property_map_);
-  visitor->Trace(presentation_attribute_map_);
   Keyframe::Trace(visitor);
 }
 
@@ -258,11 +211,9 @@ Keyframe* StringKeyframe::Clone() const {
 }
 
 bool StringKeyframe::SetLogicalPropertyResolutionContext(
-    TextDirection text_direction,
-    WritingMode writing_mode) {
-  if (text_direction != text_direction_ || writing_mode != writing_mode_) {
-    text_direction_ = text_direction;
-    writing_mode_ = writing_mode;
+    WritingDirectionMode writing_direction) {
+  if (writing_direction != writing_direction_) {
+    writing_direction_ = writing_direction;
     if (has_logical_property_) {
       // force a rebuild of the property map on the next property fetch.
       InvalidateCssPropertyMap();
@@ -305,7 +256,7 @@ void StringKeyframe::EnsureCssPropertyMap() const {
   }
 
   for (const auto& resolver : resolvers) {
-    resolver->AppendTo(css_property_map_, text_direction_, writing_mode_);
+    resolver->AppendTo(css_property_map_, writing_direction_);
   }
 }
 
@@ -316,21 +267,10 @@ StringKeyframe::CreatePropertySpecificKeyframe(
     double offset) const {
   EffectModel::CompositeOperation composite =
       composite_.value_or(effect_composite);
-  if (property.IsCSSProperty()) {
-    return MakeGarbageCollected<CSSPropertySpecificKeyframe>(
-        offset, &Easing(), &CssPropertyValue(property), composite);
-  }
-
-  if (property.IsPresentationAttribute()) {
-    return MakeGarbageCollected<CSSPropertySpecificKeyframe>(
-        offset, &Easing(),
-        &PresentationAttributeValue(property.PresentationAttribute()),
-        composite);
-  }
-
-  DCHECK(property.IsSVGAttribute());
-  return MakeGarbageCollected<SVGPropertySpecificKeyframe>(
-      offset, &Easing(), SvgPropertyValue(property.SvgAttribute()), composite);
+  DCHECK(property.IsCSSProperty());
+  return MakeGarbageCollected<CSSPropertySpecificKeyframe>(
+      offset, &Easing(), &CssPropertyValue(property), tree_scope_.Get(),
+      composite);
 }
 
 bool StringKeyframe::CSSPropertySpecificKeyframe::
@@ -357,37 +297,16 @@ StringKeyframe::CSSPropertySpecificKeyframe::NeutralKeyframe(
     double offset,
     scoped_refptr<TimingFunction> easing) const {
   return MakeGarbageCollected<CSSPropertySpecificKeyframe>(
-      offset, std::move(easing), nullptr, EffectModel::kCompositeAdd);
+      offset, std::move(easing), /*value=*/nullptr, /*tree_scope=*/nullptr,
+      EffectModel::kCompositeAdd);
 }
 
 void StringKeyframe::CSSPropertySpecificKeyframe::Trace(
     Visitor* visitor) const {
   visitor->Trace(value_);
+  visitor->Trace(tree_scope_);
   visitor->Trace(compositor_keyframe_value_cache_);
   Keyframe::PropertySpecificKeyframe::Trace(visitor);
-}
-
-Keyframe::PropertySpecificKeyframe*
-StringKeyframe::CSSPropertySpecificKeyframe::CloneWithOffset(
-    double offset) const {
-  auto* clone = MakeGarbageCollected<CSSPropertySpecificKeyframe>(
-      offset, easing_, value_.Get(), composite_);
-  clone->compositor_keyframe_value_cache_ = compositor_keyframe_value_cache_;
-  return clone;
-}
-
-Keyframe::PropertySpecificKeyframe*
-SVGPropertySpecificKeyframe::CloneWithOffset(double offset) const {
-  return MakeGarbageCollected<SVGPropertySpecificKeyframe>(offset, easing_,
-                                                           value_, composite_);
-}
-
-Keyframe::PropertySpecificKeyframe*
-SVGPropertySpecificKeyframe::NeutralKeyframe(
-    double offset,
-    scoped_refptr<TimingFunction> easing) const {
-  return MakeGarbageCollected<SVGPropertySpecificKeyframe>(
-      offset, std::move(easing), String(), EffectModel::kCompositeAdd);
 }
 
 // ----- Property Resolver -----
@@ -417,19 +336,18 @@ const CSSValue* PropertyResolver::CssValue() {
   DCHECK(IsValid());
 
   if (css_value_)
-    return css_value_;
+    return css_value_.Get();
 
   // For shorthands create a special wrapper value, |CSSKeyframeShorthandValue|,
   // which can be used to correctly serialize it given longhands that are
   // present in this set.
   css_value_ = MakeGarbageCollected<CSSKeyframeShorthandValue>(
       property_id_, css_property_value_set_);
-  return css_value_;
+  return css_value_.Get();
 }
 
 void PropertyResolver::AppendTo(MutableCSSPropertyValueSet* property_value_set,
-                                TextDirection text_direction,
-                                WritingMode writing_mode) {
+                                WritingDirectionMode writing_direction) {
   DCHECK(property_id_ != CSSPropertyID::kInvalid);
   DCHECK(property_id_ != CSSPropertyID::kVariable);
 
@@ -438,18 +356,17 @@ void PropertyResolver::AppendTo(MutableCSSPropertyValueSet* property_value_set,
     if (is_logical_) {
       // Walk set of properties converting each property name to its
       // corresponding physical property.
-      for (unsigned i = 0; i < css_property_value_set_->PropertyCount(); i++) {
-        CSSPropertyValueSet::PropertyReference reference =
-            css_property_value_set_->PropertyAt(i);
-        SetProperty(property_value_set, reference.Id(), reference.Value(),
-                    text_direction, writing_mode);
+      for (const CSSPropertyValue& reference :
+           css_property_value_set_->Properties()) {
+        SetProperty(property_value_set, reference.PropertyID(),
+                    reference.Value(), writing_direction);
       }
     } else {
       property_value_set->MergeAndOverrideOnConflict(css_property_value_set_);
     }
   } else {
-    SetProperty(property_value_set, property_id_, *css_value_, text_direction,
-                writing_mode);
+    SetProperty(property_value_set, property_id_, *css_value_,
+                writing_direction);
   }
 }
 
@@ -457,11 +374,9 @@ void PropertyResolver::SetProperty(
     MutableCSSPropertyValueSet* property_value_set,
     CSSPropertyID property_id,
     const CSSValue& value,
-    TextDirection text_direction,
-    WritingMode writing_mode) {
+    WritingDirectionMode writing_direction) {
   const CSSProperty& physical_property =
-      CSSProperty::Get(property_id)
-          .ResolveDirectionAwareProperty(text_direction, writing_mode);
+      CSSProperty::Get(property_id).ToPhysical(writing_direction);
   property_value_set->SetProperty(physical_property.PropertyID(), value);
 }
 

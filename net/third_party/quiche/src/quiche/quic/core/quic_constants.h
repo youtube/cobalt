@@ -30,6 +30,12 @@ inline constexpr uint64_t kNumMicrosPerSecond =
 inline constexpr uint32_t kDefaultNumConnections = 2;
 // Default initial maximum size in bytes of a QUIC packet.
 inline constexpr QuicByteCount kDefaultMaxPacketSize = 1250;
+// Tunnels (such as MASQUE and QBONE) reduce the inner MTU so they work best
+// with a higher outer MTU. This means that outer connections could fail on some
+// networks where the UDP MTU is between 1250 and 1350, but allows inner QUIC
+// connections to still have 1200 bytes of UDP MTU, even if we apply two nested
+// levels of connect-udp proxying, as we do for IP Protection.
+inline constexpr QuicByteCount kDefaultMaxPacketSizeForTunnels = 1350;
 // Default initial maximum size in bytes of a QUIC packet for servers.
 inline constexpr QuicByteCount kDefaultServerMaxPacketSize = 1000;
 // Maximum transmission unit on Ethernet.
@@ -129,12 +135,14 @@ inline constexpr bool kIncludeDiversificationNonce = true;
 
 // Header key used to identify final offset on data stream when sending HTTP/2
 // trailing headers over QUIC.
-QUIC_EXPORT_PRIVATE extern const char* const kFinalOffsetHeaderKey;
+QUICHE_EXPORT extern const char* const kFinalOffsetHeaderKey;
 
-// Default maximum delayed ack time, in ms.
-// Uses a 25ms delayed ack timer. Helps with better signaling
-// in low-bandwidth (< ~384 kbps), where an ack is sent per packet.
-inline constexpr int64_t kDefaultDelayedAckTimeMs = 25;
+// Returns the local default delayed ack time, in ms.
+QUICHE_EXPORT int64_t GetDefaultDelayedAckTimeMs();
+
+// Delayed ack time that we assume the peer will use by default, in ms. This
+// should be equal to the default value of --quic_default_delayed_ack_time_ms.
+inline constexpr int64_t kDefaultPeerDelayedAckTimeMs = 25;
 
 // Default minimum delayed ack time, in ms (used only for sender control of ack
 // frequency).
@@ -183,13 +191,6 @@ inline constexpr int kMaxStreamsMinimumIncrement = 10;
 // of available streams is 10 times the limit on the number of open streams.
 inline constexpr int kMaxAvailableStreamsMultiplier = 10;
 
-// Track the number of promises that are not yet claimed by a
-// corresponding get.  This must be smaller than
-// kMaxAvailableStreamsMultiplier, because RST on a promised stream my
-// create available streams entries.
-inline constexpr int kMaxPromisedStreamsMultiplier =
-    kMaxAvailableStreamsMultiplier - 1;
-
 // The 1st PTO is armed with max of earliest in flight sent time + PTO
 // delay and kFirstPtoSrttMultiplier * srtt from last in flight packet.
 inline constexpr float kFirstPtoSrttMultiplier = 1.5;
@@ -201,9 +202,6 @@ inline constexpr int kPtoRttvarMultiplier = 2;
 // define the minimum RTO to 200ms, we will use the same until we have data to
 // support a higher or lower value.
 inline constexpr const int64_t kMinRetransmissionTimeMs = 200;
-// The delayed ack time must not be greater than half the min RTO.
-static_assert(kDefaultDelayedAckTimeMs <= kMinRetransmissionTimeMs / 2,
-              "Delayed ack time must be less than or equal half the MinRTO");
 
 // We define an unsigned 16-bit floating point value, inspired by IEEE floats
 // (http://en.wikipedia.org/wiki/Half_precision_floating-point_format),
@@ -247,7 +245,7 @@ inline constexpr QuicByteCount kQuicStreamSendBufferSliceSize = 4 * 1024;
 
 // For When using Random Initial Packet Numbers, they can start
 // anyplace in the range 1...((2^31)-1) or 0x7fffffff
-QUIC_EXPORT_PRIVATE QuicPacketNumber MaxRandomInitialPacketNumber();
+QUICHE_EXPORT QuicPacketNumber MaxRandomInitialPacketNumber();
 
 // Used to represent an invalid or no control frame id.
 inline constexpr QuicControlFrameId kInvalidControlFrameId = 0;
@@ -305,8 +303,8 @@ inline constexpr QuicPacketCount kMaxRetransmittablePacketsBeforeAck = 10;
 // This intends to avoid the beginning of slow start, when CWNDs may be
 // rapidly increasing.
 inline constexpr QuicPacketCount kMinReceivedBeforeAckDecimation = 100;
-// One quarter RTT delay when doing ack decimation.
-inline constexpr float kAckDecimationDelay = 0.25;
+// Ask peer to use one quarter RTT delay when doing ack decimation.
+inline constexpr float kPeerAckDecimationDelay = 0.25;
 
 // The default alarm granularity assumed by QUIC code.
 inline constexpr QuicTime::Delta kAlarmGranularity =
@@ -318,11 +316,11 @@ inline constexpr size_t kMaxNumConnectonIdsInUse = 10u;
 // Packet number of first sending packet of a connection. Please note, this
 // cannot be used as first received packet because peer can choose its starting
 // packet number.
-QUIC_EXPORT_PRIVATE QuicPacketNumber FirstSendingPacketNumber();
+QUICHE_EXPORT QuicPacketNumber FirstSendingPacketNumber();
 
 // Used by clients to tell if a public reset is sent from a Google frontend.
-QUIC_EXPORT_PRIVATE extern const char* const kEPIDGoogleFrontEnd;
-QUIC_EXPORT_PRIVATE extern const char* const kEPIDGoogleFrontEnd0;
+QUICHE_EXPORT extern const char* const kEPIDGoogleFrontEnd;
+QUICHE_EXPORT extern const char* const kEPIDGoogleFrontEnd0;
 
 inline constexpr uint64_t kHttpDatagramStreamIdDivisor = 4;
 
@@ -332,6 +330,9 @@ inline constexpr QuicTime::Delta kDefaultMultiPortProbingInterval =
 inline constexpr size_t kMaxNumMultiPortPaths = 5;
 
 inline constexpr size_t kMaxDuplicatedPacketsSentToServerPreferredAddress = 5;
+
+// Explicit Congestion Notification is the last two bits of the TOS byte.
+constexpr uint8_t kEcnMask = 0x03;
 
 }  // namespace quic
 

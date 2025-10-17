@@ -8,7 +8,9 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "base/sys_byteorder.h"
+#include <string_view>
+
+#include "base/numerics/byte_conversions.h"
 
 namespace base {
 // Implementation of SHA-1. Only handles data in byte-sized blocks,
@@ -29,12 +31,15 @@ namespace base {
 // to reuse the instance of sha, call sha.Init();
 
 static inline uint32_t f(uint32_t t, uint32_t B, uint32_t C, uint32_t D) {
-  if (t < 20)
+  if (t < 20) {
     return (B & C) | ((~B) & D);
-  if (t < 40)
+  }
+  if (t < 40) {
     return B ^ C ^ D;
-  if (t < 60)
+  }
+  if (t < 60) {
     return (B & C) | (B & D) | (C & D);
+  }
   return B ^ C ^ D;
 }
 
@@ -43,12 +48,15 @@ static inline uint32_t S(uint32_t n, uint32_t X) {
 }
 
 static inline uint32_t K(uint32_t t) {
-  if (t < 20)
+  if (t < 20) {
     return 0x5a827999;
-  if (t < 40)
+  }
+  if (t < 40) {
     return 0x6ed9eba1;
-  if (t < 60)
+  }
+  if (t < 60) {
     return 0x8f1bbcdc;
+  }
   return 0xca62c1d6;
 }
 
@@ -167,7 +175,7 @@ void SHA1Init(SHA1Context& context) {
   context.Init();
 }
 
-void SHA1Update(const StringPiece data, SHA1Context& context) {
+void SHA1Update(std::string_view data, SHA1Context& context) {
   context.Update(data.data(), data.size());
 }
 
@@ -176,26 +184,19 @@ void SHA1Final(SHA1Context& context, SHA1Digest& digest) {
   memcpy(digest.data(), context.GetDigest(), kSHA1Length);
 }
 
-SHA1Digest SHA1HashSpan(span<const uint8_t> data) {
-  SHA1Digest hash;
-  SHA1HashBytes(data.data(), data.size(), hash.data());
-  return hash;
-}
-
-std::string SHA1HashString(StringPiece str) {
-  char hash[kSHA1Length];
-  SHA1HashBytes(reinterpret_cast<const unsigned char*>(str.data()),
-                str.length(), reinterpret_cast<unsigned char*>(hash));
-  return std::string(hash, kSHA1Length);
-}
-
-void SHA1HashBytes(const unsigned char* data, size_t len, unsigned char* hash) {
+SHA1Digest SHA1Hash(span<const uint8_t> data) {
   SHA1Context context;
   context.Init();
-  context.Update(data, len);
+  context.Update(data.data(), data.size());
   context.Final();
 
-  memcpy(hash, context.GetDigest(), kSHA1Length);
+  SHA1Digest digest;
+  memcpy(digest.data(), context.GetDigest(), kSHA1Length);
+  return digest;
+}
+
+std::string SHA1HashString(std::string_view str) {
+  return std::string(as_string_view(SHA1Hash(base::as_byte_span(str))));
 }
 
 }  // namespace base

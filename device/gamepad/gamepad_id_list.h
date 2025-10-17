@@ -8,12 +8,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <string_view>
 #include <tuple>
 #include <unordered_set>
 #include <vector>
 
 #include "base/lazy_instance.h"
-#include "base/strings/string_piece.h"
 #include "device/gamepad/gamepad_export.h"
 
 namespace device {
@@ -42,6 +42,8 @@ enum class GamepadId : uint32_t {
   // Fake IDs for devices which report as 0x0000 0x0000
   kPowerALicPro = 0x0000ff00,
   // ID values for supported devices.
+  k8BitDoProduct301b = 0x2dc8301b,
+  k8BitDoProduct3106 = 0x2dc83106,
   kAcerProduct1304 = 0x05021304,
   kAcerProduct1305 = 0x05021305,
   kAcerProduct1316 = 0x05021316,
@@ -114,6 +116,7 @@ enum class GamepadId : uint32_t {
   kSonyProduct0ba0 = 0x054c0ba0,
   kSonyProduct0ce6 = 0x054c0ce6,
   kSonyProduct0df2 = 0x054c0df2,
+  kSonyProduct0e5f = 0x054c0e5f,
   kSteelSeriesBtProduct1419 = 0x01111419,
   kSteelSeriesBtProduct1431 = 0x01111431,
   kSteelSeriesBtProduct1434 = 0x01111434,
@@ -135,7 +138,7 @@ class DEVICE_GAMEPAD_EXPORT GamepadIdList {
   // Returns a GamepadId value suitable for identifying a specific model of
   // gamepad. If the gamepad is not contained in the list of known gamepads,
   // returns kUnknownGamepad.
-  GamepadId GetGamepadId(base::StringPiece product_name,
+  GamepadId GetGamepadId(std::string_view product_name,
                          uint16_t vendor_id,
                          uint16_t product_id) const;
 
@@ -147,13 +150,17 @@ class DEVICE_GAMEPAD_EXPORT GamepadIdList {
   // device is not XInput or the XInput flavor is unknown.
   XInputType GetXInputType(uint16_t vendor_id, uint16_t product_id) const;
 
+  // Returns true if the gamepad device identified by |gamepad_id| has haptic
+  // actuators on its triggers. Returns false otherwise.
+  bool HasTriggerRumbleSupport(GamepadId gamepad_id) const;
+
   // Returns the internal list of gamepad info for testing purposes.
   std::vector<std::tuple<uint16_t, uint16_t, XInputType>>
   GetGamepadListForTesting() const;
 
  private:
   friend base::LazyInstanceTraitsBase<GamepadIdList>;
-  GamepadIdList();
+  GamepadIdList() = default;
 };
 
 }  // namespace device

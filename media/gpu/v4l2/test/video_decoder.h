@@ -23,6 +23,10 @@ static_assert(kNumberOfBuffersInOutputQueue == 1,
 uint32_t FileFourccToDriverFourcc(uint32_t header_fourcc);
 
 // VideoDecoder decodes encoded video streams using v4l2 ioctl calls.
+// To implement a decoder, implement the following:
+// 1. A factory function, such as:
+//   std::unique_ptr<VideoDecoder> Create(const base::MemoryMappedFile& stream)
+// 2. DecodeNextFrame
 class VideoDecoder {
  public:
   // Result of decoding the current frame.
@@ -31,6 +35,8 @@ class VideoDecoder {
     kError,
     kEOStream,
   };
+
+  enum BitDepth { Depth8, Depth16 };
 
   VideoDecoder(std::unique_ptr<V4L2IoctlShim> v4l2_ioctl,
                gfx::Size display_resolution);
@@ -45,11 +51,15 @@ class VideoDecoder {
   void CreateOUTPUTQueue(uint32_t compressed_fourcc);
   void CreateCAPTUREQueue(uint32_t num_buffers);
 
-  virtual Result DecodeNextFrame(std::vector<uint8_t>& y_plane,
+  // Decoders implement this. The function writes the next displayed picture
+  // into the output plane buffers |y_plane|, |u_plane|, and |v_plane|. |size|
+  // is the visible picture size.
+  virtual Result DecodeNextFrame(const int frame_number,
+                                 std::vector<uint8_t>& y_plane,
                                  std::vector<uint8_t>& u_plane,
                                  std::vector<uint8_t>& v_plane,
                                  gfx::Size& size,
-                                 const int frame_number) = 0;
+                                 BitDepth& bit_depth) = 0;
 
   // Handles dynamic resolution change with new resolution parsed from frame
   // header.
@@ -62,19 +72,21 @@ class VideoDecoder {
   static std::vector<uint8_t> ConvertYUVToPNG(uint8_t* y_plane,
                                               uint8_t* u_plane,
                                               uint8_t* v_plane,
-                                              const gfx::Size& size);
+                                              const gfx::Size& size,
+                                              BitDepth bit_depth);
 
  protected:
   void NegotiateCAPTUREFormat();
 
-  // Helper method for converting frames to YUV.
-  static void ConvertToYUV(std::vector<uint8_t>& dest_y,
-                           std::vector<uint8_t>& dest_u,
-                           std::vector<uint8_t>& dest_v,
-                           const gfx::Size& dest_size,
-                           const MmappedBuffer::MmappedPlanes& planes,
-                           const gfx::Size& src_size,
-                           uint32_t fourcc);
+  // Helper method for converting frames to YUV. Returns the bit depth of
+  // the converted frame.
+  static BitDepth ConvertToYUV(std::vector<uint8_t>& dest_y,
+                               std::vector<uint8_t>& dest_u,
+                               std::vector<uint8_t>& dest_v,
+                               const gfx::Size& dest_size,
+                               const MmappedBuffer::MmappedPlanes& planes,
+                               const gfx::Size& src_size,
+                               uint32_t fourcc);
 
   // Wrapper for V4L2 ioctl requests.
   const std::unique_ptr<V4L2IoctlShim> v4l2_ioctl_;
@@ -90,9 +102,6 @@ class VideoDecoder {
 
   // resolution from the bitstream header
   gfx::Size display_resolution_;
-
-  // Whether V4L2_CTRL_WHICH_CUR_VAL is implemented correctly
-  bool cur_val_is_supported_ = true;
 };
 
 }  // namespace v4l2_test

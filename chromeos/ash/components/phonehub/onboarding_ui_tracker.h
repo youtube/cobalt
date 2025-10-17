@@ -8,8 +8,7 @@
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 // Tracks whether Phone Hub should show a UI to ask users to opt into the multi-
 // device feature suite. Note that this UI is not the setup flow itself; rather,
@@ -43,7 +42,7 @@ class OnboardingUiTracker {
   virtual void DismissSetupUi() = 0;
 
   // Handle for when the user clicks the get started button.
-  virtual void HandleGetStarted() = 0;
+  virtual void HandleGetStarted(bool is_icon_clicked_when_nudge_visible) = 0;
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -57,7 +56,6 @@ class OnboardingUiTracker {
   base::ObserverList<Observer> observer_list_;
 };
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_ONBOARDING_UI_TRACKER_H_

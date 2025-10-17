@@ -49,10 +49,10 @@ void VirtualKeyboardLogSource::Fetch(SysLogsSourceCallback callback) {
         base::NumberToString(touchscreen_count);
     log_data += base::StrCat({"Touchscreen ", touchscreen_count_converted,
                               " Product ID"}) +
-                ": " + base::StringPrintf("%#06x", device.product_id) + "\n";
+                ": " + base::StringPrintf("0x%04x", device.product_id) + "\n";
     log_data += base::StrCat({"Touchscreen ", touchscreen_count_converted,
                               " Vendor ID"}) +
-                ": " + base::StringPrintf("%#06x", device.vendor_id) + "\n";
+                ": " + base::StringPrintf("0x%04x", device.vendor_id) + "\n";
     ++touchscreen_count;
   }
 
@@ -68,18 +68,22 @@ void VirtualKeyboardLogSource::Fetch(SysLogsSourceCallback callback) {
               "\n";
 
   int external_keyboard_count = 1;
-  for (const ui::InputDevice& device :
-       virtual_keyboard_controller->GetExternalKeyboards()) {
+  std::vector<ui::InputDevice> external_keyboards =
+      virtual_keyboard_controller->GetExternalKeyboards();
+  if (external_keyboards.size() == 0) {
+    log_data += "No External Keyboard Detected\n";
+  }
+  for (const ui::InputDevice& device : external_keyboards) {
     const std::string external_keyboard_count_converted =
         base::NumberToString(external_keyboard_count);
     log_data +=
         base::StrCat({"External Keyboard ", external_keyboard_count_converted,
                       " Product ID"}) +
-        ": " + base::StringPrintf("%#06x", device.product_id) + "\n";
+        ": " + base::StringPrintf("0x%04x", device.product_id) + "\n";
     log_data +=
         base::StrCat({"External Keyboard ", external_keyboard_count_converted,
                       " Vendor ID"}) +
-        ": " + base::StringPrintf("%#06x", device.vendor_id) + "\n";
+        ": " + base::StringPrintf("0x%04x", device.vendor_id) + "\n";
     ++external_keyboard_count;
   }
 

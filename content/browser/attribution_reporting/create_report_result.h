@@ -7,52 +7,147 @@
 
 #include <stdint.h>
 
+#include <optional>
+#include <string>
+#include <utility>
+#include <variant>
+
 #include "base/time/time.h"
 #include "content/browser/attribution_reporting/attribution_report.h"
 #include "content/browser/attribution_reporting/attribution_trigger.h"
 #include "content/browser/attribution_reporting/stored_source.h"
 #include "content/common/content_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
 class CONTENT_EXPORT CreateReportResult {
  public:
-  struct Limits {
-    // `absl::nullopt` unless `event_level_status_` or `aggregatable_status_` is
-    // `kExcessiveAttributions`.
-    absl::optional<int64_t> rate_limits_max_attributions;
+  struct CONTENT_EXPORT EventLevelSuccess {
+    AttributionReport new_report;
+    std::optional<AttributionReport> replaced_report;
 
-    // `absl::nullopt` unless `aggregatable_status_` is `kInsufficientBudget`.
-    absl::optional<int64_t> aggregatable_budget_per_source;
+    EventLevelSuccess(AttributionReport new_report,
+                      std::optional<AttributionReport> replaced_report);
 
-    // `absl::nullopt` unless `event_level_status_` or `aggregatable_status_` is
-    // `kExcessiveReportingOrigins`.
-    absl::optional<int64_t> rate_limits_max_attribution_reporting_origins;
+    ~EventLevelSuccess();
 
-    // `absl::nullopt` unless `event_level_status_` is
-    // `kNoCapacityForConversionDestination`.
-    absl::optional<int> max_event_level_reports_per_destination;
+    EventLevelSuccess(const EventLevelSuccess&);
+    EventLevelSuccess& operator=(const EventLevelSuccess&);
 
-    // `absl::nullopt` unless `aggregatable_status_` is
-    // `kNoCapacityForConversionDestination`.
-    absl::optional<int> max_aggregatable_reports_per_destination;
+    EventLevelSuccess(EventLevelSuccess&&);
+    EventLevelSuccess& operator=(EventLevelSuccess&&);
   };
+
+  struct InternalError {};
+
+  struct NoCapacityForConversionDestination {
+    int max;
+    explicit NoCapacityForConversionDestination(int max) : max(max) {}
+  };
+
+  struct NoMatchingImpressions {};
+
+  struct Deduplicated {};
+
+  struct ExcessiveAttributions {
+    int64_t max;
+    explicit ExcessiveAttributions(int64_t max) : max(max) {}
+  };
+
+  struct PriorityTooLow {
+    AttributionReport dropped_report;
+  };
+
+  struct NeverAttributedSource {};
+
+  struct ExcessiveReportingOrigins {
+    int64_t max;
+    explicit ExcessiveReportingOrigins(int64_t max) : max(max) {}
+  };
+
+  struct NoMatchingSourceFilterData {};
+
+  struct ProhibitedByBrowserPolicy {};
+
+  struct NoMatchingConfigurations {};
+
+  struct ExcessiveEventLevelReports {
+    AttributionReport dropped_report;
+  };
+
+  struct FalselyAttributedSource {};
+
+  struct ReportWindowPassed {};
+
+  struct NotRegistered {};
+
+  struct ReportWindowNotStarted {};
+
+  struct NoMatchingTriggerData {};
+
+  struct AggregatableSuccess {
+    AttributionReport new_report;
+  };
+
+  struct ExcessiveAggregatableReports {
+    int max;
+    explicit ExcessiveAggregatableReports(int max) : max(max) {}
+  };
+
+  struct NoHistograms {};
+
+  struct InsufficientBudget {};
+
+  struct InsufficientNamedBudget {
+    std::string name;
+    int budget;
+    InsufficientNamedBudget(std::string name, int64_t budget)
+        : name(std::move(name)), budget(budget) {}
+  };
+
+  using EventLevel = std::variant<EventLevelSuccess,
+                                  InternalError,
+                                  NoCapacityForConversionDestination,
+                                  NoMatchingImpressions,
+                                  Deduplicated,
+                                  ExcessiveAttributions,
+                                  PriorityTooLow,
+                                  NeverAttributedSource,
+                                  ExcessiveReportingOrigins,
+                                  NoMatchingSourceFilterData,
+                                  ProhibitedByBrowserPolicy,
+                                  NoMatchingConfigurations,
+                                  ExcessiveEventLevelReports,
+                                  FalselyAttributedSource,
+                                  ReportWindowPassed,
+                                  NotRegistered,
+                                  ReportWindowNotStarted,
+                                  NoMatchingTriggerData>;
+
+  using Aggregatable = std::variant<AggregatableSuccess,
+                                    InternalError,
+                                    NoCapacityForConversionDestination,
+                                    NoMatchingImpressions,
+                                    ExcessiveAttributions,
+                                    ExcessiveReportingOrigins,
+                                    NoHistograms,
+                                    InsufficientBudget,
+                                    InsufficientNamedBudget,
+                                    NoMatchingSourceFilterData,
+                                    NotRegistered,
+                                    ProhibitedByBrowserPolicy,
+                                    Deduplicated,
+                                    ReportWindowPassed,
+                                    ExcessiveAggregatableReports>;
 
   CreateReportResult(
       base::Time trigger_time,
-      AttributionTrigger::EventLevelResult event_level_status,
-      AttributionTrigger::AggregatableResult aggregatable_status,
-      absl::optional<AttributionReport> replaced_event_level_report =
-          absl::nullopt,
-      absl::optional<AttributionReport> new_event_level_report = absl::nullopt,
-      absl::optional<AttributionReport> new_aggregatable_report = absl::nullopt,
-      absl::optional<StoredSource> source = absl::nullopt,
-      Limits limits = Limits(),
-      absl::optional<AttributionReport> dropped_event_level_report =
-          absl::nullopt,
-      absl::optional<base::Time> min_null_aggregatble_report_time =
-          absl::nullopt);
+      AttributionTrigger,
+      EventLevel,
+      Aggregatable,
+      std::optional<StoredSource> source,
+      std::optional<base::Time> min_null_aggregatable_report_time);
+
   ~CreateReportResult();
 
   CreateReportResult(const CreateReportResult&);
@@ -63,76 +158,51 @@ class CONTENT_EXPORT CreateReportResult {
 
   base::Time trigger_time() const { return trigger_time_; }
 
-  AttributionTrigger::EventLevelResult event_level_status() const {
-    return event_level_status_;
+  AttributionTrigger::EventLevelResult event_level_status() const;
+
+  const EventLevel& event_level_result() const { return event_level_result_; }
+
+  AttributionTrigger::AggregatableResult aggregatable_status() const;
+
+  const Aggregatable& aggregatable_result() const {
+    return aggregatable_result_;
   }
 
-  AttributionTrigger::AggregatableResult aggregatable_status() const {
-    return aggregatable_status_;
-  }
+  const AttributionReport* replaced_event_level_report() const;
 
-  const absl::optional<AttributionReport>& replaced_event_level_report() const {
-    return replaced_event_level_report_;
-  }
+  const AttributionReport* new_event_level_report() const;
 
-  const absl::optional<AttributionReport>& new_event_level_report() const {
-    return new_event_level_report_;
-  }
+  AttributionReport* new_event_level_report();
 
-  absl::optional<AttributionReport>& new_event_level_report() {
-    return new_event_level_report_;
-  }
+  const AttributionReport* new_aggregatable_report() const;
 
-  const absl::optional<AttributionReport>& new_aggregatable_report() const {
-    return new_aggregatable_report_;
-  }
+  AttributionReport* new_aggregatable_report();
 
-  absl::optional<AttributionReport>& new_aggregatable_report() {
-    return new_aggregatable_report_;
-  }
+  const std::optional<StoredSource>& source() const { return source_; }
 
-  const absl::optional<StoredSource>& source() const { return source_; }
+  const AttributionReport* dropped_event_level_report() const;
 
-  const Limits& limits() const { return limits_; }
-
-  const absl::optional<AttributionReport>& dropped_event_level_report() const {
-    return dropped_event_level_report_;
-  }
-
-  absl::optional<base::Time> min_null_aggregatable_report_time() const {
+  std::optional<base::Time> min_null_aggregatable_report_time() const {
     return min_null_aggregatable_report_time_;
   }
+
+  const AttributionTrigger& trigger() const { return trigger_; }
 
  private:
   base::Time trigger_time_;
 
-  AttributionTrigger::EventLevelResult event_level_status_;
+  // `std::nullopt` if there's no matching source.
+  // TODO(apaseltiner): Combine this field with the result fields below.
+  std::optional<StoredSource> source_;
 
-  AttributionTrigger::AggregatableResult aggregatable_status_;
+  std::optional<base::Time> min_null_aggregatable_report_time_;
 
-  // `absl::nullopt` unless `event_level_status_` is
-  // `kSuccessDroppedLowerPriority`.
-  absl::optional<AttributionReport> replaced_event_level_report_;
+  EventLevel event_level_result_;
+  Aggregatable aggregatable_result_;
 
-  // `absl::nullopt` unless `event_level_status_` is `kSuccess` or
-  // `kSuccessDroppedLowerPriority`.
-  absl::optional<AttributionReport> new_event_level_report_;
-
-  // `absl::nullopt` unless `aggregatable_status_` is `kSuccess`.
-  absl::optional<AttributionReport> new_aggregatable_report_;
-
-  // `absl::nullopt` if there's no matching source.
-  absl::optional<StoredSource> source_;
-
-  Limits limits_;
-
-  // `absl::nullopt` unless `event_level_status_` is `kPriorityTooLow` or
-  // `kExcessiveReports`.
-  absl::optional<AttributionReport> dropped_event_level_report_;
-
-  absl::optional<base::Time> min_null_aggregatable_report_time_;
+  AttributionTrigger trigger_;
 };
 
 }  // namespace content
 
-#endif  // CONTENT_BROWSER_CREATE_REPORT_RESULT_H_
+#endif  // CONTENT_BROWSER_ATTRIBUTION_REPORTING_CREATE_REPORT_RESULT_H_

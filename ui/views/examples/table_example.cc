@@ -4,6 +4,7 @@
 
 #include "ui/views/examples/table_example.h"
 
+#include <array>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -51,8 +52,7 @@ TableExample::~TableExample() {
   observer_.Reset();
   // Delete the view before the model.
   if (table_ && table_->parent()) {
-    table_->parent()->RemoveChildViewT(table_);
-    table_ = nullptr;
+    table_->parent()->RemoveChildViewT(table_.ExtractAsDangling());
   }
 }
 
@@ -72,10 +72,10 @@ void TableExample::CreateExampleView(View* container) {
             .CopyAddressTo(checkbox)
             .SetText(label)
             .SetCallback(base::BindRepeating(
-                [](int id, TableView* table, Checkbox* checkbox) {
-                  table->SetColumnVisibility(id, checkbox->GetChecked());
+                [](int id, raw_ptr<TableView>* table, Checkbox* checkbox) {
+                  (*table)->SetColumnVisibility(id, checkbox->GetChecked());
                 },
-                id, *table, *checkbox))
+                id, table, *checkbox))
             .SetChecked(true)
             .SetProperty(kFlexBehaviorKey, full_flex);
       };
@@ -86,13 +86,13 @@ void TableExample::CreateExampleView(View* container) {
           TableView::CreateScrollViewBuilderWithTable(
               Builder<TableView>()
                   .CopyAddressTo(&table_)
-                  .SetModel(this)
-                  .SetTableType(ICON_AND_TEXT)
                   .SetColumns(
                       {TestTableColumn(0, u"Fruit", ui::TableColumn::LEFT, 1.0),
                        TestTableColumn(1, u"Color"),
                        TestTableColumn(2, u"Origin"),
                        TestTableColumn(3, u"Price", ui::TableColumn::RIGHT)})
+                  .SetTableType(TableType::kIconAndText)
+                  .SetModel(this)
                   .SetGrouper(this)
                   .SetObserver(this))
               .SetProperty(kFlexBehaviorKey, full_flex),
@@ -115,13 +115,13 @@ size_t TableExample::RowCount() {
 }
 
 std::u16string TableExample::GetText(size_t row, int column_id) {
-  const char* const cells[5][4] = {
+  constexpr auto cells = std::to_array<std::array<const char* const, 4>>({
       {"Orange", "Orange", "South America", "$5"},
       {"Apple", "Green", "Canada", "$3"},
       {"Blueberries", "Blue", "Mexico", "$10.30"},
       {"Strawberries", "Red", "California", "$7"},
       {"Cantaloupe", "Orange", "South America", "$5"},
-  };
+  });
   return ASCIIToUTF16(cells[row % 5][column_id]);
 }
 
@@ -132,12 +132,12 @@ ui::ImageModel TableExample::GetIcon(size_t row) {
 }
 
 std::u16string TableExample::GetTooltip(size_t row) {
-  const char* const tooltips[5] = {
-      "Orange - Orange you glad I didn't say banana?",
-      "Apple - An apple a day keeps the doctor away",
-      "Blueberries - Bet you can't eat just one",
-      "Strawberries - Always better when homegrown",
-      "Cantaloupe - So nice when perfectly ripe"};
+  constexpr auto tooltips =
+      std::to_array({"Orange - Orange you glad I didn't say banana?",
+                     "Apple - An apple a day keeps the doctor away",
+                     "Blueberries - Bet you can't eat just one",
+                     "Strawberries - Always better when homegrown",
+                     "Cantaloupe - So nice when perfectly ripe"});
 
   return ASCIIToUTF16(tooltips[row % 5]);
 }
@@ -158,11 +158,11 @@ void TableExample::GetGroupRange(size_t model_index, GroupRange* range) {
 }
 
 void TableExample::OnSelectionChanged() {
-  PrintStatus("Selected: %s", SelectedColumnName().c_str());
+  PrintStatus("Selected: " + SelectedColumnName());
 }
 
 void TableExample::OnDoubleClick() {
-  PrintStatus("Double Click: %s", SelectedColumnName().c_str());
+  PrintStatus("Double Click: " + SelectedColumnName());
 }
 
 void TableExample::OnMiddleClick() {}

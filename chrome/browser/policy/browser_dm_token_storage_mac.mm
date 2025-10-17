@@ -4,8 +4,11 @@
 
 #include "chrome/browser/policy/browser_dm_token_storage_mac.h"
 
+#include <optional>
 #include <string>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/base64url.h"
 #include "base/files/file_util.h"
 #include "base/files/important_file_writer.h"
@@ -13,9 +16,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/hash/sha1.h"
-#include "base/mac/foundation_util.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/mac/scoped_ioobject.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
@@ -27,7 +28,7 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "chrome/common/chrome_paths.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/policy/core/common/policy_logger.h"
 
 namespace policy {
 
@@ -64,13 +65,19 @@ enum EnrollmentTokenLocation {
 bool GetDmTokenFilePath(base::FilePath* token_file_path,
                         const std::string& client_id,
                         bool create_dir) {
-  if (!base::PathService::Get(base::DIR_APP_DATA, token_file_path))
+  if (!base::PathService::Get(base::DIR_APP_DATA, token_file_path)) {
+    LOG_POLICY(WARNING, CBCM_ENROLLMENT)
+        << "Failed to get app data directory path.";
     return false;
+  }
 
   *token_file_path = token_file_path->Append(kDmTokenBaseDir);
 
-  if (create_dir && !base::CreateDirectory(*token_file_path))
+  if (create_dir && !base::CreateDirectory(*token_file_path)) {
+    LOG_POLICY(WARNING, CBCM_ENROLLMENT)
+        << "Failed to create DMToken storage directory: " << *token_file_path;
     return false;
+  }
 
   std::string filename;
   base::Base64UrlEncode(base::SHA1HashString(client_id),
@@ -84,7 +91,6 @@ bool StoreDMTokenInDirAppDataDir(const std::string& token,
                                  const std::string& client_id) {
   base::FilePath token_file_path;
   if (!GetDmTokenFilePath(&token_file_path, client_id, /*create_dir=*/true)) {
-    NOTREACHED();
     return false;
   }
 
@@ -94,7 +100,6 @@ bool StoreDMTokenInDirAppDataDir(const std::string& token,
 bool DeleteDMTokenFromAppDataDir(const std::string& client_id) {
   base::FilePath token_file_path;
   if (!GetDmTokenFilePath(&token_file_path, client_id, /*create_dir=*/false)) {
-    NOTREACHED();
     return false;
   }
 
@@ -106,7 +111,7 @@ bool DeleteDMTokenFromAppDataDir(const std::string& client_id) {
 bool GetEnrollmentTokenFromPolicy(std::string* enrollment_token) {
   // Since the configuration management infrastructure is not initialized when
   // this code runs, read the policy preference directly.
-  base::ScopedCFTypeRef<CFPropertyListRef> value(
+  base::apple::ScopedCFTypeRef<CFPropertyListRef> value(
       CFPreferencesCopyAppValue(kEnrollmentTokenPolicyName, kBundleId));
 
   // Read the enrollment token from the new location. If that fails, try the old
@@ -116,7 +121,7 @@ bool GetEnrollmentTokenFromPolicy(std::string* enrollment_token) {
       !CFPreferencesAppValueIsForced(kEnrollmentTokenPolicyName, kBundleId)) {
     return false;
   }
-  CFStringRef value_string = base::mac::CFCast<CFStringRef>(value);
+  CFStringRef value_string = base::apple::CFCast<CFStringRef>(value.get());
   if (!value_string)
     return false;
 
@@ -137,26 +142,27 @@ bool GetEnrollmentTokenFromFile(std::string* enrollment_token) {
   return true;
 }
 
-absl::optional<bool> IsEnrollmentMandatoryByPolicy() {
-  base::ScopedCFTypeRef<CFPropertyListRef> value(CFPreferencesCopyAppValue(
-      kEnrollmentMandatoryOptionPolicyName, kBundleId));
+std::optional<bool> IsEnrollmentMandatoryByPolicy() {
+  base::apple::ScopedCFTypeRef<CFPropertyListRef> value(
+      CFPreferencesCopyAppValue(kEnrollmentMandatoryOptionPolicyName,
+                                kBundleId));
 
   if (!value || !CFPreferencesAppValueIsForced(
                     kEnrollmentMandatoryOptionPolicyName, kBundleId)) {
-    return absl::optional<bool>();
+    return std::optional<bool>();
   }
 
-  CFBooleanRef value_bool = base::mac::CFCast<CFBooleanRef>(value);
+  CFBooleanRef value_bool = base::apple::CFCast<CFBooleanRef>(value.get());
   if (!value_bool)
-    return absl::optional<bool>();
+    return std::optional<bool>();
   return value_bool == kCFBooleanTrue;
 }
 
-absl::optional<bool> IsEnrollmentMandatoryByFile() {
+std::optional<bool> IsEnrollmentMandatoryByFile() {
   std::string options;
   if (!base::ReadFileToString(base::FilePath(kEnrollmentOptionsFilePath),
                               &options)) {
-    return absl::optional<bool>();
+    return std::optional<bool>();
   }
   return std::string(base::TrimWhitespaceASCII(options, base::TRIM_ALL)) ==
          kEnrollmentMandatoryOption;
@@ -208,7 +214,7 @@ std::string BrowserDMTokenStorageMac::InitDMToken() {
 }
 
 bool BrowserDMTokenStorageMac::InitEnrollmentErrorOption() {
-  absl::optional<bool> is_mandatory = IsEnrollmentMandatoryByPolicy();
+  std::optional<bool> is_mandatory = IsEnrollmentMandatoryByPolicy();
   if (is_mandatory)
     return is_mandatory.value();
 

@@ -6,9 +6,13 @@
 
 #include <memory>
 
+#include "base/check_deref.h"
+#include "base/command_line.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_tree_host.h"
+#include "ui/gfx/switches.h"
 #include "ui/views/widget/desktop_aura/desktop_screen.h"
+#include "ui/views/widget/desktop_aura/desktop_screen_win_headless.h"
 #include "ui/views/widget/desktop_aura/desktop_window_tree_host_win.h"
 
 namespace views {
@@ -30,7 +34,7 @@ HWND DesktopScreenWin::GetHWNDFromNativeWindow(gfx::NativeWindow window) const {
 gfx::NativeWindow DesktopScreenWin::GetNativeWindowFromHWND(HWND hwnd) const {
   return ::IsWindow(hwnd)
              ? DesktopWindowTreeHostWin::GetContentWindowForHWND(hwnd)
-             : gfx::kNullNativeWindow;
+             : gfx::NativeWindow();
 }
 
 bool DesktopScreenWin::IsNativeWindowOccluded(gfx::NativeWindow window) const {
@@ -38,7 +42,7 @@ bool DesktopScreenWin::IsNativeWindowOccluded(gfx::NativeWindow window) const {
          aura::Window::OcclusionState::OCCLUDED;
 }
 
-absl::optional<bool> DesktopScreenWin::IsWindowOnCurrentVirtualDesktop(
+std::optional<bool> DesktopScreenWin::IsWindowOnCurrentVirtualDesktop(
     gfx::NativeWindow window) const {
   DCHECK(window);
   return window->GetHost()->on_current_workspace();
@@ -47,6 +51,13 @@ absl::optional<bool> DesktopScreenWin::IsWindowOnCurrentVirtualDesktop(
 ////////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<display::Screen> CreateDesktopScreen() {
+  const base::CommandLine& command_line =
+      CHECK_DEREF(base::CommandLine::ForCurrentProcess());
+
+  if (command_line.HasSwitch(switches::kHeadless)) {
+    return std::make_unique<DesktopScreenWinHeadless>();
+  }
+
   return std::make_unique<DesktopScreenWin>();
 }
 

@@ -8,6 +8,7 @@
 
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 
 namespace optimization_guide {
@@ -35,14 +36,14 @@ void PageTextDumpResult::AddFrameTextDumpResult(
   frame_results_.emplace(frame_result);
 }
 
-absl::optional<std::string> PageTextDumpResult::GetAMPTextContent() const {
+std::optional<std::string> PageTextDumpResult::GetAMPTextContent() const {
   if (empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // AMP frames are sorted in beginning, so if there are none then return null.
   if (!frame_results_.begin()->amp_frame()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<std::string> amp_text;
@@ -60,15 +61,14 @@ absl::optional<std::string> PageTextDumpResult::GetAMPTextContent() const {
   return base::JoinString(amp_text, " ");
 }
 
-absl::optional<std::string> PageTextDumpResult::GetMainFrameTextContent()
-    const {
+std::optional<std::string> PageTextDumpResult::GetMainFrameTextContent() const {
   if (empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Mainframes are sorted to the end.
   if (frame_results_.rbegin()->amp_frame()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // There should only be one mainframe.
@@ -76,10 +76,9 @@ absl::optional<std::string> PageTextDumpResult::GetMainFrameTextContent()
   return *frame_results_.rbegin()->utf8_contents();
 }
 
-absl::optional<std::string> PageTextDumpResult::GetAllFramesTextContent()
-    const {
+std::optional<std::string> PageTextDumpResult::GetAllFramesTextContent() const {
   if (empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<std::string> text;
@@ -126,9 +125,9 @@ bool FrameTextDumpResult::IsCompleted() const {
   return !!contents();
 }
 
-absl::optional<std::string> FrameTextDumpResult::utf8_contents() const {
+std::optional<std::string> FrameTextDumpResult::utf8_contents() const {
   if (!contents_) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return base::UTF16ToUTF8(*contents_);
 }
@@ -139,7 +138,7 @@ std::ostream& operator<<(std::ostream& os, const FrameTextDumpResult& frame) {
              "contents:%s",
              TextDumpEventToString(frame.event()).c_str(),
              frame.rfh_id().child_id, frame.rfh_id().frame_routing_id,
-             frame.amp_frame() ? "true" : "false", frame.unique_navigation_id(),
+             base::ToString(frame.amp_frame()), frame.unique_navigation_id(),
              frame.utf8_contents().value_or("null").c_str());
 }
 

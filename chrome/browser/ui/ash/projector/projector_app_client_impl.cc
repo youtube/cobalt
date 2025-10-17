@@ -8,17 +8,21 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
-#include "ash/public/cpp/projector/annotator_tool.h"
+#include "ash/webui/annotator/untrusted_annotator_page_handler_impl.h"
 #include "ash/webui/projector_app/public/cpp/projector_app_constants.h"
-#include "ash/webui/projector_app/untrusted_annotator_page_handler_impl.h"
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ref.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/browser_process.h"
+#include "chrome/browser/feedback/show_feedback_page.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/ash/projector/projector_soda_installation_controller.h"
-#include "chrome/browser/ui/chrome_pages.h"
+#include "components/account_manager_core/account_manager_facade.h"
+#include "components/account_manager_core/chromeos/account_manager_facade_factory.h"
+#include "components/application_locale_storage/application_locale_storage.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/soda/constants.h"
@@ -28,14 +32,6 @@
 namespace {
 
 constexpr char kUsEnglishLocale[] = "en-US";
-
-inline const std::string& GetLocale() {
-  return g_browser_process->GetApplicationLocale();
-}
-
-inline speech::LanguageCode GetLocaleLanguageCode() {
-  return speech::GetLanguageCode(GetLocale());
-}
 
 }  // namespace
 
@@ -63,10 +59,17 @@ void ProjectorAppClientImpl::RegisterProfilePrefs(
   registry->RegisterBooleanPref(
       ash::prefs::kProjectorExcludeTranscriptDialogShown,
       /*default_value=*/false);
+  registry->RegisterBooleanPref(
+      ash::prefs::kProjectorSWAUIPrefsMigrated, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_OS_PREF);
 }
 
-ProjectorAppClientImpl::ProjectorAppClientImpl()
-    : pending_screencast_manager_(base::BindRepeating(
+ProjectorAppClientImpl::ProjectorAppClientImpl(
+    PrefService* local_state,
+    ApplicationLocaleStorage* application_locale_storage)
+    : local_state_(CHECK_DEREF(local_state)),
+      application_locale_storage_(CHECK_DEREF(application_locale_storage)),
+      pending_screencast_manager_(base::BindRepeating(
           &ProjectorAppClientImpl::NotifyScreencastsPendingStatusChanged,
           base::Unretained(this))) {}
 
@@ -95,50 +98,56 @@ ProjectorAppClientImpl::GetUrlLoaderFactory() {
 
 void ProjectorAppClientImpl::OnNewScreencastPreconditionChanged(
     const ash::NewScreencastPrecondition& precondition) {
-  for (auto& observer : observers_)
+  for (auto& observer : observers_) {
     observer.OnNewScreencastPreconditionChanged(precondition);
+  }
 }
 
-const ash::PendingScreencastSet& ProjectorAppClientImpl::GetPendingScreencasts()
-    const {
+const ash::PendingScreencastContainerSet&
+ProjectorAppClientImpl::GetPendingScreencasts() const {
   return pending_screencast_manager_.GetPendingScreencasts();
 }
 
 void ProjectorAppClientImpl::NotifyScreencastsPendingStatusChanged(
-    const ash::PendingScreencastSet& pending_screencast) {
-  for (auto& observer : observers_)
-    observer.OnScreencastsPendingStatusChanged(pending_screencast);
+    const ash::PendingScreencastContainerSet& pending_screencast_containers) {
+  for (auto& observer : observers_) {
+    observer.OnScreencastsPendingStatusChanged(pending_screencast_containers);
+  }
 }
 
 bool ProjectorAppClientImpl::ShouldDownloadSoda() const {
   return ProjectorSodaInstallationController::ShouldDownloadSoda(
-      GetLocaleLanguageCode());
+      speech::GetLanguageCode(application_locale_storage_->Get()));
 }
 
 void ProjectorAppClientImpl::InstallSoda() {
-  return ProjectorSodaInstallationController::InstallSoda(GetLocale());
+  return ProjectorSodaInstallationController::InstallSoda(
+      *local_state_, application_locale_storage_->Get());
 }
 
 void ProjectorAppClientImpl::OnSodaInstallProgress(int combined_progress) {
-  for (auto& observer : observers_)
+  for (auto& observer : observers_) {
     observer.OnSodaProgress(combined_progress);
+  }
 }
 
 void ProjectorAppClientImpl::OnSodaInstallError() {
-  for (auto& observer : observers_)
+  for (auto& observer : observers_) {
     observer.OnSodaError();
+  }
 }
 
 void ProjectorAppClientImpl::OnSodaInstalled() {
-  for (auto& observer : observers_)
+  for (auto& observer : observers_) {
     observer.OnSodaInstalled();
+  }
 }
 
 void ProjectorAppClientImpl::OpenFeedbackDialog() const {
   Profile* profile = ProfileManager::GetActiveUserProfile();
   constexpr char kProjectorAppFeedbackCategoryTag[] = "FromProjectorApp";
-  chrome::ShowFeedbackPage(GURL(ash::kChromeUITrustedProjectorUrl), profile,
-                           chrome::kFeedbackSourceProjectorApp,
+  chrome::ShowFeedbackPage(GURL(ash::kChromeUIUntrustedProjectorUrl), profile,
+                           feedback::kFeedbackSourceProjectorApp,
                            /*description_template=*/std::string(),
                            /*description_placeholder_text=*/std::string(),
                            kProjectorAppFeedbackCategoryTag,
@@ -149,38 +158,17 @@ void ProjectorAppClientImpl::OpenFeedbackDialog() const {
 
 void ProjectorAppClientImpl::GetVideo(
     const std::string& video_file_id,
-    const std::string& resource_key,
+    const std::optional<std::string>& resource_key,
     ash::ProjectorAppClient::OnGetVideoCallback callback) const {
   screencast_manager_.GetVideo(video_file_id, resource_key,
                                std::move(callback));
 }
 
-void ProjectorAppClientImpl::SetAnnotatorPageHandler(
-    ash::UntrustedAnnotatorPageHandlerImpl* handler) {
-  annotator_handler_ = handler;
-}
-
-void ProjectorAppClientImpl::ResetAnnotatorPageHandler(
-    ash::UntrustedAnnotatorPageHandlerImpl* handler) {
-  if (annotator_handler_ == handler) {
-    annotator_handler_ = nullptr;
-  }
-}
-
-void ProjectorAppClientImpl::SetTool(const ash::AnnotatorTool& tool) {
-  DCHECK(annotator_handler_);
-  annotator_handler_->SetTool(tool);
-}
-
-void ProjectorAppClientImpl::Clear() {
-  DCHECK(annotator_handler_);
-  annotator_handler_->Clear();
-}
-
 void ProjectorAppClientImpl::NotifyAppUIActive(bool active) {
   pending_screencast_manager_.OnAppActiveStatusChanged(active);
-  if (!active)
+  if (!active) {
     screencast_manager_.ResetScopeSuppressDriveNotifications();
+  }
 }
 
 void ProjectorAppClientImpl::ToggleFileSyncingNotificationForPaths(
@@ -188,4 +176,13 @@ void ProjectorAppClientImpl::ToggleFileSyncingNotificationForPaths(
     bool suppress) {
   pending_screencast_manager_.ToggleFileSyncingNotificationForPaths(
       screencast_paths, suppress);
+}
+
+void ProjectorAppClientImpl::HandleAccountReauth(const std::string& email) {
+  ::GetAccountManagerFacade(
+      ProfileManager::GetActiveUserProfile()->GetPath().value())
+      ->ShowReauthAccountDialog(
+          account_manager::AccountManagerFacade::AccountAdditionSource::
+              kChromeOSProjectorAppReauth,
+          email, base::DoNothing());
 }

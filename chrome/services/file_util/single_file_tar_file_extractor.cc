@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/services/file_util/single_file_tar_file_extractor.h"
 
 #include <utility>
@@ -37,7 +42,7 @@ class TarExtractorInner {
       }
 
       base::span<const uint8_t> output_file_content;
-      if (!tar_reader_.ExtractChunk(base::make_span(tar_buffer),
+      if (!tar_reader_.ExtractChunk(base::span(tar_buffer),
                                     output_file_content)) {
         return chrome::file_util::mojom::ExtractionResult::kInvalidSrcFile;
       }

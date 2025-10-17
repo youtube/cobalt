@@ -11,18 +11,40 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-// User Script to be injected into main frame of CWVWebView after
-// window.document is created, but before other content is loaded (i.e., at the
-// same timing as WKUserScriptInjectionTimeAtDocumentStart).
+typedef NS_ENUM(NSInteger, CWVUserScriptInjectionTime) {
+  CWVUserScriptInjectionTimeAtDocumentStart,
+  CWVUserScriptInjectionTimeAtDocumentEnd
+};
+
+// User Script to be injected into a webpage.
 CWV_EXPORT
 @interface CWVUserScript : NSObject
 
 // JavaScript source code.
 @property(nonatomic, copy, readonly) NSString* source;
 
+// Whether the script should be injected into all frames or just the main frame.
+@property(nonatomic, readonly, getter=isForMainFrameOnly) BOOL forMainFrameOnly;
+
+// The time at which the script should be injected: at the start or end of the
+// document load.
+@property(nonatomic, readonly) CWVUserScriptInjectionTime injectionTime;
+
 - (instancetype)init NS_UNAVAILABLE;
 
+// Creates a user script which should be injected into the main frame only at document start time.
 - (instancetype)initWithSource:(NSString*)source;
+
+// Creates a user script which should be injected into all frames or just the
+// main frame at document start time.
+- (instancetype)initWithSource:(NSString*)source
+              forMainFrameOnly:(BOOL)forMainFrameOnly;
+
+// Creates a user script which will be injected into all frames or just the
+// main frame, and at the specified injection time.
+- (instancetype)initWithSource:(NSString*)source
+              forMainFrameOnly:(BOOL)forMainFrameOnly
+                 injectionTime:(CWVUserScriptInjectionTime)injectionTime;
 
 @end
 

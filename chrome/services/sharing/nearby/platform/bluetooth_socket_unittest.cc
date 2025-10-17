@@ -19,8 +19,7 @@
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 namespace {
 
@@ -101,7 +100,7 @@ class BluetoothSocketTest : public testing::Test {
 
  protected:
   std::unique_ptr<chrome::BluetoothDevice> bluetooth_device_;
-  raw_ptr<FakeSocket, ExperimentalAsh> fake_socket_ = nullptr;
+  raw_ptr<FakeSocket, DanglingUntriaged> fake_socket_ = nullptr;
   mojo::ScopedDataPipeProducerHandle receive_stream_;
   mojo::ScopedDataPipeConsumerHandle send_stream_;
   std::unique_ptr<BluetoothSocket> bluetooth_socket_;
@@ -172,5 +171,4 @@ TEST_F(BluetoothSocketTest, Destroy) {
   run_loop.Run();
 }
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome

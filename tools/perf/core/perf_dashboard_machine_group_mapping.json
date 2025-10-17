@@ -10,7 +10,6 @@
   "chromium.fuchsia.fyi": "ChromiumFuchsiaFyi",
   "chromium.fyi": "ChromiumFYI",
   "chromium.gatekeeper": "Gatekeeper",
-  "chromium.goma": "ChromiumGoma",
   "chromium.gpu": "ChromiumGPU",
   "chromium.gpu.fyi": "ChromiumGPUFYI",
   "chromium.infra": "Infra",
@@ -61,6 +60,7 @@
   "client.webrtc.fyi": "WebRTCFYI",
   "client.webrtc.perf": "WebRTCPerf",
   "tryserver.blink": "BlinkTryServer",
+  "tryserver.chrome": "ChromeFYIInternal",
   "tryserver.chromium.android": "TryserverChromiumAndroid",
   "tryserver.chromium.angle": "TryServerANGLE",
   "tryserver.chromium.chromiumos": "TryserverChromiumChromiumOS",
@@ -77,4 +77,3 @@
   "tryserver.nacl": "NativeClientTryServer",
   "tryserver.webrtc": "WebRTCTryServer"
 }
-

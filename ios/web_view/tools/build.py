@@ -196,12 +196,8 @@ def main():
 
   parser.add_argument('out_dir', nargs='?', default='out/IOSWebViewBuild',
                       help='path to output directory')
-  parser.add_argument('--no_goma', action='store_true',
-                      help='Prevents adding use_goma=true to the gn args.')
   parser.add_argument('--ninja_args',
                       help='Additional gn args to pass through to ninja.')
-  parser.add_argument('--include_cronet', action='store_true',
-                      help='Combines Cronet and ChromeWebView as 1 framework.')
   build_configs = ['Debug', 'Release']
   target_devices = ['iphonesimulator', 'iphoneos']
   parser.add_argument('--build_configs', nargs='+', default=build_configs,
@@ -226,14 +222,6 @@ def main():
 
   output_name = 'ChromeWebView'
   extra_gn_options = []
-  if not options.no_goma:
-    extra_gn_options.append('use_goma=true')
-  if options.include_cronet:
-    extra_gn_options.append('ios_web_view_include_cronet=true')
-    output_name = 'CronetChromeWebView'
-  else:
-    extra_gn_options.append('ios_web_view_include_cronet=false')
-  extra_gn_options.append('ios_web_view_output_name="%s"' % output_name)
   # This prevents Breakpad from being included in the final binary to avoid
   # duplicate symbols with the client app.
   extra_gn_options.append('use_crash_key_stubs=true')

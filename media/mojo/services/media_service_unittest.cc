@@ -172,7 +172,7 @@ class MediaServiceTest : public testing::Test {
     EXPECT_CALL(*this, OnRendererInitialized(expected_result))
         .WillOnce(QuitLoop(&run_loop));
     renderer_->Initialize(
-        std::move(client_remote), std::move(streams), nullptr,
+        std::move(client_remote), std::move(streams),
         base::BindOnce(&MediaServiceTest::OnRendererInitialized,
                        base::Unretained(this)));
     run_loop.Run();
@@ -184,15 +184,15 @@ class MediaServiceTest : public testing::Test {
   void OnCdmCreated(bool expected_result,
                     mojo::PendingRemote<mojom::ContentDecryptionModule> remote,
                     mojom::CdmContextPtr cdm_context,
-                    const std::string& error_message) {
+                    CreateCdmStatus status) {
     if (!expected_result) {
       EXPECT_FALSE(remote);
       EXPECT_FALSE(cdm_context);
-      EXPECT_TRUE(!error_message.empty());
+      EXPECT_NE(status, CreateCdmStatus::kSuccess);
       return;
     }
     EXPECT_TRUE(remote);
-    EXPECT_TRUE(error_message.empty());
+    EXPECT_EQ(status, CreateCdmStatus::kSuccess);
     cdm_.Bind(std::move(remote));
     cdm_.set_disconnect_handler(base::BindOnce(
         &MediaServiceTest::OnCdmConnectionError, base::Unretained(this)));
@@ -229,7 +229,7 @@ class MediaServiceTest : public testing::Test {
 // - If you expect a callback on an InterfacePtr call or connection error, use
 //   base::RunLoop::Run() and QuitLoop().
 
-// TODO(crbug.com/829233): Enable these tests on Android.
+// TODO(crbug.com/40570244): Enable these tests on Android.
 #if BUILDFLAG(ENABLE_MOJO_CDM) && !BUILDFLAG(IS_ANDROID)
 TEST_F(MediaServiceTest, InitializeCdm_Success) {
   InitializeCdm(kClearKeyKeySystem, true);

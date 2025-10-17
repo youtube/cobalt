@@ -49,6 +49,8 @@ bool TestNavigationURLLoader::SetNavigationTimeout(base::TimeDelta timeout) {
   return false;
 }
 
+void TestNavigationURLLoader::CancelNavigationTimeout() {}
+
 void TestNavigationURLLoader::SimulateServerRedirect(const GURL& redirect_url) {
   DCHECK_EQ(loader_type_, NavigationURLLoader::LoaderType::kRegular);
   net::RedirectInfo redirect_info;
@@ -89,7 +91,7 @@ void TestNavigationURLLoader::CallOnRequestRedirected(
 void TestNavigationURLLoader::CallOnResponseStarted(
     network::mojom::URLResponseHeadPtr response_head,
     mojo::ScopedDataPipeConsumerHandle response_body,
-    absl::optional<mojo_base::BigBuffer> cached_metadata) {
+    std::optional<mojo_base::BigBuffer> cached_metadata) {
   if (!response_head->parsed_headers)
     response_head->parsed_headers = network::mojom::ParsedHeaders::New();
   // Create a bidirectionnal communication pipe between a URLLoader and a
@@ -109,8 +111,8 @@ void TestNavigationURLLoader::CallOnResponseStarted(
   delegate_->OnResponseStarted(
       std::move(url_loader_client_endpoints), std::move(response_head),
       std::move(response_body), GlobalRequestID::MakeBrowserInitiated(), false,
-      request_info_->isolation_info.network_anonymization_key(), absl::nullopt,
-      std::move(early_hints));
+      request_info_->isolation_info.network_anonymization_key(),
+      SubresourceLoaderParams(), std::move(early_hints));
 }
 
 TestNavigationURLLoader::~TestNavigationURLLoader() {}

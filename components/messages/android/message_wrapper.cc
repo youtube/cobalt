@@ -7,9 +7,11 @@
 
 #include "base/android/jni_string.h"
 #include "base/logging.h"
-#include "components/messages/android/jni_headers/MessageWrapper_jni.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/gfx/android/java_bitmap.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/messages/android/jni_headers/MessageWrapper_jni.h"
 
 namespace messages {
 
@@ -94,6 +96,18 @@ void MessageWrapper::SetPrimaryButtonText(
                                            jprimary_button_text);
 }
 
+int MessageWrapper::GetPrimaryButtonTextMaxLines() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return Java_MessageWrapper_getPrimaryButtonTextMaxLines(
+      env, java_message_wrapper_);
+}
+
+void MessageWrapper::SetPrimaryButtonTextMaxLines(int max_lines) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_MessageWrapper_setPrimaryButtonTextMaxLines(env, java_message_wrapper_,
+                                                   max_lines);
+}
+
 std::u16string MessageWrapper::GetSecondaryButtonMenuText() {
   JNIEnv* env = base::android::AttachCurrentThread();
   base::android::ScopedJavaLocalRef<jstring> jsecondary_button_menu_text =
@@ -125,8 +139,8 @@ void MessageWrapper::AddSecondaryMenuItem(int item_id,
   JNIEnv* env = base::android::AttachCurrentThread();
   base::android::ScopedJavaLocalRef<jstring> jitem_text =
       base::android::ConvertUTF16ToJavaString(env, item_text);
-  Java_MessageWrapper_addSecondaryMenuItemOCUMPM_I_I_JLS(
-      env, java_message_wrapper_, item_id, resource_id, jitem_text);
+  Java_MessageWrapper_addSecondaryMenuItem(env, java_message_wrapper_, item_id,
+                                           resource_id, jitem_text);
 }
 
 void MessageWrapper::AddSecondaryMenuItem(
@@ -140,8 +154,8 @@ void MessageWrapper::AddSecondaryMenuItem(
       base::android::ConvertUTF16ToJavaString(env, item_text);
   base::android::ScopedJavaLocalRef<jstring> jitem_desc =
       base::android::ConvertUTF16ToJavaString(env, item_description);
-  Java_MessageWrapper_addSecondaryMenuItemOCUMPM_I_I_JLS_JLS(
-      env, java_message_wrapper_, item_id, resource_id, jitem_text, jitem_desc);
+  Java_MessageWrapper_addSecondaryMenuItem(env, java_message_wrapper_, item_id,
+                                           resource_id, jitem_text, jitem_desc);
 }
 
 void MessageWrapper::ClearSecondaryMenuItems() {

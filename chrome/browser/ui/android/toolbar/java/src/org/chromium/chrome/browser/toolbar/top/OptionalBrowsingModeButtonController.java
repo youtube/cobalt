@@ -7,10 +7,12 @@ package org.chromium.chrome.browser.toolbar.top;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.toolbar.ButtonData;
-import org.chromium.chrome.browser.toolbar.ButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
+import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
+import org.chromium.chrome.browser.toolbar.optional_button.ButtonDataProvider;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 
 import java.util.HashMap;
@@ -22,23 +24,27 @@ import java.util.Map;
  * mode toolbar.
  */
 @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+@NullMarked
 public class OptionalBrowsingModeButtonController {
     private final UserEducationHelper mUserEducationHelper;
     private final Map<ButtonDataProvider, ButtonDataProvider.ButtonDataObserver> mObserverMap;
-    private ButtonDataProvider mCurrentProvider;
-    private List<ButtonDataProvider> mButtonDataProviders;
+    private @Nullable ButtonDataProvider mCurrentProvider;
+    private final List<ButtonDataProvider> mButtonDataProviders;
     private final ToolbarLayout mToolbarLayout;
-    private final Supplier<Tab> mTabSupplier;
+    private final Supplier<@Nullable Tab> mTabSupplier;
 
     /**
      * Creates a new OptionalBrowsingModeButtonController.
+     *
      * @param buttonDataProviders List of button data providers in precedence order.
      * @param userEducationHelper Helper for displaying in-product help on a button.
      * @param toolbarLayout Toolbar layout where buttons will be displayed.
      */
-    OptionalBrowsingModeButtonController(List<ButtonDataProvider> buttonDataProviders,
-            UserEducationHelper userEducationHelper, ToolbarLayout toolbarLayout,
-            Supplier<Tab> tabSupplier) {
+    OptionalBrowsingModeButtonController(
+            List<ButtonDataProvider> buttonDataProviders,
+            UserEducationHelper userEducationHelper,
+            ToolbarLayout toolbarLayout,
+            Supplier<@Nullable Tab> tabSupplier) {
         mButtonDataProviders = buttonDataProviders;
         mUserEducationHelper = userEducationHelper;
         mToolbarLayout = toolbarLayout;
@@ -131,10 +137,10 @@ public class OptionalBrowsingModeButtonController {
         mToolbarLayout.updateOptionalButton(buttonData);
         // ToolbarPhone's optional button has animated transitions and it takes care of showing IPH
         // on its own.
-        if (buttonData.getButtonSpec().getIPHCommandBuilder() != null
+        if (buttonData.getButtonSpec().getIphCommandBuilder() != null
                 && !(mToolbarLayout instanceof ToolbarPhone)) {
-            mUserEducationHelper.requestShowIPH(
-                    buttonData.getButtonSpec().getIPHCommandBuilder().build());
+            mUserEducationHelper.requestShowIph(
+                    buttonData.getButtonSpec().getIphCommandBuilder().build());
         }
     }
 
@@ -158,7 +164,6 @@ public class OptionalBrowsingModeButtonController {
     }
 
     /** Returns the list of {@link ButtonDataProvider}s. */
-    @VisibleForTesting
     public List<ButtonDataProvider> getButtonDataProvidersForTesting() {
         return mButtonDataProviders;
     }

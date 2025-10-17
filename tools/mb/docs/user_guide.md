@@ -43,7 +43,7 @@ a single object with the following fields:
     no tests that will be run.
   * `additional_compile_targets`: an array of (ninja) build targets that
     reflect the stuff we might want to build *in addition to* the list
-    passed in `test_targets`. Targets in this list will be treated 
+    passed in `test_targets`. Targets in this list will be treated
     specially, in the following way: if a given target is a "meta"
     (GN: group) target like 'blink_tests' or or even the
     ninja-specific 'all' target, then only the *dependencies* of the
@@ -65,7 +65,7 @@ fields:
   * `compile_targets`: the list of ninja targets that should be passed
     directly to the corresponding ninja / compile.py invocation. This
     list may contain entries that are *not* listed in the input (see
-    the description of `additional_compile_targets` above and 
+    the description of `additional_compile_targets` above and
     [design_spec.md](the design spec) for how this works).
   * `invalid_targets`: a list of any targets that were passed in
     either of the input lists that weren't actually found in the graph.
@@ -124,10 +124,6 @@ You can pass the `-q/--quiet` flag to get mb to be silent unless there is an
 error, and pass the `-v/--verbose` flag to get mb to log all of the files
 that are read and written, and all the commands that are run.
 
-If the build config will use the Goma distributed-build system, you can pass
-the path to your Goma client in the `-g/--goma-dir` flag, and it will be
-incorporated into the appropriate flags for GN as needed.
-
 ### mb help
 
 Produces help output on the other subcommands
@@ -165,26 +161,6 @@ information on isolates and swarming.
 
 In either case, any flags past `--` will be passed on to the command
 to be run inside the isolate.
-
-### mb try
-
-Tries your change on the trybots. Right now this is essentially a fancy tryjob,
-like one you could trigger via `git cl try` or via CQ dry runs. Basic usage is
-
-`mb.py try -m tryserver.chromium.linux -b linux-rel base_unittests`
-
-Your change must be uploaded to Gerrit. Local changes will not be uploaded for
-you. It uses the gerrit CL associated with your given git branch.
-
-You still have to specify the builder group(`--builder-group`) and buildername
-(`-b`) arguments.  See
-[trybots.py](https://cs.chromium.org/chromium/build/scripts/slave/recipe_modules/chromium_tests/trybots.py)
-for a mapping of which bots are on which tryservers, and what those bots mirror.
-Any trybot in `trybots.py` is supported; you can test your code on windows, for
-example. The tryjob will compile and run your code on windows.
-
-The target (`base_unittests`) in the example is a ninja build target. Most ninja
-unittest targets can be put here which currently runs on the bots.
 
 ### mb validate
 
@@ -280,7 +256,7 @@ For example, if you had:
   }
   'mixins': {
     'bot': {
-      'gn_args': 'use_goma=true dcheck_always_on=false',
+      'gn_args': 'use_remoteexec=true dcheck_always_on=false',
     },
     'debug': {
       'gn_args': 'is_debug=true',
@@ -302,7 +278,7 @@ For example, if you had:
 ```
 
 and you ran `mb gen -c linux_release_trybot //out/Release`, it would
-translate into a call to `gn --args="use_goma=true dcheck_always_on=false dcheck_always_on=true"`.
+translate into a call to `gn --args="use_remoteexec=true dcheck_always_on=false dcheck_always_on=true"`.
 
 (From that you can see that mb is intentionally dumb and does not
 attempt to de-dup the flags, it lets GN do that).
@@ -320,5 +296,3 @@ If you hit weirder things than that, add some print statements to the
 python script, send a question to gn-dev@chromium.org, or
 [file a bug](https://crbug.com/new) with the label
 'mb' and cc: dpranke@chromium.org.
-
-

@@ -54,24 +54,24 @@ void SaturationProtectorBuffer::PushBack(float v) {
   RTC_DCHECK_LT(next_, buffer_.size());
   RTC_DCHECK_LE(size_, buffer_.size());
   buffer_[next_++] = v;
-  if (rtc::SafeEq(next_, buffer_.size())) {
+  if (SafeEq(next_, buffer_.size())) {
     next_ = 0;
   }
-  if (rtc::SafeLt(size_, buffer_.size())) {
+  if (SafeLt(size_, buffer_.size())) {
     size_++;
   }
 }
 
-absl::optional<float> SaturationProtectorBuffer::Front() const {
+std::optional<float> SaturationProtectorBuffer::Front() const {
   if (size_ == 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   RTC_DCHECK_LT(FrontIndex(), buffer_.size());
   return buffer_[FrontIndex()];
 }
 
 int SaturationProtectorBuffer::FrontIndex() const {
-  return rtc::SafeEq(size_, buffer_.size()) ? next_ : 0;
+  return SafeEq(size_, buffer_.size()) ? next_ : 0;
 }
 
 }  // namespace webrtc

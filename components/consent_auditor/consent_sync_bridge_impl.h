@@ -5,92 +5,86 @@
 #ifndef COMPONENTS_CONSENT_AUDITOR_CONSENT_SYNC_BRIDGE_IMPL_H_
 #define COMPONENTS_CONSENT_AUDITOR_CONSENT_SYNC_BRIDGE_IMPL_H_
 
-#include <stdint.h>
-
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "components/consent_auditor/consent_sync_bridge.h"
-#include "components/sync/model/model_type_change_processor.h"
-#include "components/sync/model/model_type_store.h"
-#include "components/sync/model/model_type_sync_bridge.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/sync/model/data_type_local_change_processor.h"
+#include "components/sync/model/data_type_store.h"
+#include "components/sync/model/data_type_store_with_in_memory_cache.h"
+#include "components/sync/model/data_type_sync_bridge.h"
 
 namespace consent_auditor {
 
 class ConsentSyncBridgeImpl : public ConsentSyncBridge,
-                              public syncer::ModelTypeSyncBridge {
+                              public syncer::DataTypeSyncBridge {
  public:
   ConsentSyncBridgeImpl(
-      syncer::OnceModelTypeStoreFactory store_factory,
-      std::unique_ptr<syncer::ModelTypeChangeProcessor> change_processor);
+      syncer::OnceDataTypeStoreFactory store_factory,
+      std::unique_ptr<syncer::DataTypeLocalChangeProcessor> change_processor);
 
   ConsentSyncBridgeImpl(const ConsentSyncBridgeImpl&) = delete;
   ConsentSyncBridgeImpl& operator=(const ConsentSyncBridgeImpl&) = delete;
 
   ~ConsentSyncBridgeImpl() override;
 
-  // ModelTypeSyncBridge implementation.
+  // DataTypeSyncBridge implementation.
   std::unique_ptr<syncer::MetadataChangeList> CreateMetadataChangeList()
       override;
-  absl::optional<syncer::ModelError> MergeFullSyncData(
+  std::optional<syncer::ModelError> MergeFullSyncData(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_data) override;
-  absl::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
+  std::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_changes) override;
-  void GetData(StorageKeyList storage_keys, DataCallback callback) override;
-  void GetAllDataForDebugging(DataCallback callback) override;
-  std::string GetClientTag(const syncer::EntityData& entity_data) override;
-  std::string GetStorageKey(const syncer::EntityData& entity_data) override;
+  std::unique_ptr<syncer::DataBatch> GetDataForCommit(
+      StorageKeyList storage_keys) override;
+  std::unique_ptr<syncer::DataBatch> GetAllDataForDebugging() override;
+  std::string GetClientTag(
+      const syncer::EntityData& entity_data) const override;
+  std::string GetStorageKey(
+      const syncer::EntityData& entity_data) const override;
+  bool IsEntityDataValid(const syncer::EntityData& entity_data) const override;
   void ApplyDisableSyncChanges(std::unique_ptr<syncer::MetadataChangeList>
                                    delete_metadata_change_list) override;
 
   // ConsentSyncBridge implementation.
   void RecordConsent(
       std::unique_ptr<sync_pb::UserConsentSpecifics> specifics) override;
-  base::WeakPtr<syncer::ModelTypeControllerDelegate> GetControllerDelegate()
+  base::WeakPtr<syncer::DataTypeControllerDelegate> GetControllerDelegate()
       override;
 
   static std::string GetStorageKeyFromSpecificsForTest(
       const sync_pb::UserConsentSpecifics& specifics);
-  std::unique_ptr<syncer::ModelTypeStore> StealStoreForTest();
+  std::unique_ptr<syncer::DataTypeStore> StealStoreForTest();
 
  private:
+  using StoreWithCache =
+      syncer::DataTypeStoreWithInMemoryCache<sync_pb::UserConsentSpecifics>;
+
   void RecordConsentImpl(
       std::unique_ptr<sync_pb::UserConsentSpecifics> specifics);
   // Record events in the deferred queue and clear the queue.
   void ProcessQueuedEvents();
 
-  void OnStoreCreated(const absl::optional<syncer::ModelError>& error,
-                      std::unique_ptr<syncer::ModelTypeStore> store);
-  void OnReadAllMetadata(const absl::optional<syncer::ModelError>& error,
-                         std::unique_ptr<syncer::MetadataBatch> metadata_batch);
-  void OnCommit(const absl::optional<syncer::ModelError>& error);
-  void OnReadData(
-      DataCallback callback,
-      const absl::optional<syncer::ModelError>& error,
-      std::unique_ptr<syncer::ModelTypeStore::RecordList> data_records,
-      std::unique_ptr<syncer::ModelTypeStore::IdList> missing_id_list);
-  void OnReadAllData(
-      DataCallback callback,
-      const absl::optional<syncer::ModelError>& error,
-      std::unique_ptr<syncer::ModelTypeStore::RecordList> data_records);
+  void OnStoreLoaded(const std::optional<syncer::ModelError>& error,
+                     std::unique_ptr<StoreWithCache> store,
+                     std::unique_ptr<syncer::MetadataBatch> metadata_batch);
+  void OnStoreCommit(const std::optional<syncer::ModelError>& error);
 
-  // Resubmit all the consents persisted in the store to sync consents, which
+  // Resubmits all the consents persisted in the store to the processor, which
   // were preserved when sync was disabled. This may resubmit entities that the
   // processor already knows about (i.e. with metadata), but it is allowed.
-  void ReadAllDataAndResubmit();
-  void OnReadAllDataToResubmit(
-      const absl::optional<syncer::ModelError>& error,
-      std::unique_ptr<syncer::ModelTypeStore::RecordList> data_records);
+  void ResubmitAllData();
 
-  // Persistent storage for in flight consents. Should remain quite small, as we
-  // delete upon commit confirmation. May contain consents without metadata
-  // (e.g. persisted when sync was disabled).
-  std::unique_ptr<syncer::ModelTypeStore> store_;
+  // Persistent storage for in flight consents. Should remain quite small, as
+  // entries are deleted upon commit confirmation. May contain consents without
+  // metadata (e.g. persisted when sync was disabled).
+  // Null upon construction, until the store is successfully initialized.
+  std::unique_ptr<StoreWithCache> store_;
 
   // Used to store consents while the store or change processor are not
   // ready.

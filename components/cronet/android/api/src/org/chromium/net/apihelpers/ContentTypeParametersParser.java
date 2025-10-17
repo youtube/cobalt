@@ -29,13 +29,15 @@ final class ContentTypeParametersParser {
 
     @Nullable
     Map.Entry<String, String> getNextParameter() throws ContentTypeParametersParserException {
-        int startPos = mCurrentPosition;
         optionallySkipWhitespace();
         String parameterName = getNextToken();
         if (currentChar() != '=') {
             throw new ContentTypeParametersParserException(
-                    "Invalid parameter format: expected = at " + mCurrentPosition + ": ["
-                            + mHeaderValue + "]",
+                    "Invalid parameter format: expected = at "
+                            + mCurrentPosition
+                            + ": ["
+                            + mHeaderValue
+                            + "]",
                     mCurrentPosition);
         }
 
@@ -53,8 +55,11 @@ final class ContentTypeParametersParser {
         if (hasMore()) {
             if (currentChar() != ';') {
                 throw new ContentTypeParametersParserException(
-                        "Invalid parameter format: expected ; at " + mCurrentPosition + ": ["
-                                + mHeaderValue + "]",
+                        "Invalid parameter format: expected ; at "
+                                + mCurrentPosition
+                                + ": ["
+                                + mHeaderValue
+                                + "]",
                         mCurrentPosition);
             }
 
@@ -66,8 +71,12 @@ final class ContentTypeParametersParser {
     private String getNextQuotedString() throws ContentTypeParametersParserException {
         int start = mCurrentPosition;
         if (currentChar() != '"') {
-            throw new ContentTypeParametersParserException("Not a quoted string: expected \" at "
-                            + mCurrentPosition + ": [" + mHeaderValue + "]",
+            throw new ContentTypeParametersParserException(
+                    "Not a quoted string: expected \" at "
+                            + mCurrentPosition
+                            + ": ["
+                            + mHeaderValue
+                            + "]",
                     mCurrentPosition);
         }
         advance();
@@ -162,7 +171,7 @@ final class ContentTypeParametersParser {
     }
 
     private static boolean isAscii(char ch) {
-        return (char) 0 <= ch && ch <= (char) 127;
+        return ch <= 127;
     }
 
     private static boolean isWhitespace(char c) {

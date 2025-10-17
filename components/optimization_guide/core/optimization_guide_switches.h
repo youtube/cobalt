@@ -6,14 +6,16 @@
 #define COMPONENTS_OPTIMIZATION_GUIDE_CORE_OPTIMIZATION_GUIDE_SWITCHES_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "base/component_export.h"
 #include "base/files/file_path.h"
 #include "base/time/time.h"
-#include "components/optimization_guide/core/page_content_annotation_type.h"
+#include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/proto/models.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "url/gurl.h"
 
 namespace optimization_guide {
 namespace proto {
@@ -22,104 +24,153 @@ class Configuration;
 
 namespace switches {
 
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kHintsProtoOverride[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kFetchHintsOverride[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kFetchHintsOverrideTimer[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kOptimizationGuideServiceGetHintsURL[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kOptimizationGuideServiceGetModelsURL[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kOptimizationGuideServiceModelExecutionURL[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kOptimizationGuideServiceAPIKey[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kPurgeHintsStore[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kPurgeModelAndFeaturesStore[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kDisableFetchingHintsAtNavigationStartForTesting[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kDisableCheckingUserPermissionsForTesting[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kDisableModelDownloadVerificationForTesting[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kModelOverride[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kOnDeviceModelExecutionOverride[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kOnDeviceModelAdaptationsOverride[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kOnDeviceValidationRequestOverride[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kOnDeviceValidationWriteToFile[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kDebugLoggingEnabled[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 extern const char kModelValidate[];
-extern const char kPageContentAnnotationsLoggingEnabled[];
-extern const char kPageContentAnnotationsValidationStartupDelaySeconds[];
-extern const char kPageContentAnnotationsValidationBatchSizeOverride[];
-extern const char kPageContentAnnotationsValidationPageTopics[];
-extern const char kPageContentAnnotationsValidationPageEntities[];
-extern const char kPageContentAnnotationsValidationContentVisibility[];
-extern const char kPageContentAnnotationsValidationWriteToFile[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kModelExecutionValidate[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kModelExecutionEnableRemoteDebugLogging[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kModelQualityServiceURL[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kModelQualityServiceAPIKey[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kEnableModelQualityDogfoodLogging[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kGetFreeDiskSpaceWithUserVisiblePriorityTask[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kOptimizationGuideLanguageOverride[];
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+extern const char kGoogleApiKeyConfigurationCheckOverride[];
+
+// The API key for the ModelQualityLoggingService.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+std::string GetModelQualityServiceAPIKey();
 
 // Returns whether the hint component should be processed.
 // Available hint components are only processed if a proto override isn't being
 // used; otherwise, the hints from the proto override are used instead.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool IsHintComponentProcessingDisabled();
 
 // Returns whether all entries within the store should be purged during startup
 // if the explicit purge switch exists or if a proto override is being used, in
 // which case the hints need to come from the override instead.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool ShouldPurgeOptimizationGuideStoreOnStartup();
 
 // Returns whether all entries within the store should be purged during startup
 // if the explicit purge switch exists.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool ShouldPurgeModelAndFeaturesStoreOnStartup();
 
 // Parses a list of hosts to have hints fetched for. This overrides scheduling
 // of the first hints fetch and forces it to occur immediately. If no hosts are
 // provided, nullopt is returned.
-absl::optional<std::vector<std::string>>
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+std::optional<std::vector<std::string>>
 ParseHintsFetchOverrideFromCommandLine();
 
 // Whether the hints fetcher timer should be overridden.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool ShouldOverrideFetchHintsTimer();
 
 // Attempts to parse a base64 encoded Optimization Guide Configuration proto
 // from the command line. If no proto is given or if it is encoded incorrectly,
 // nullptr is returned.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 std::unique_ptr<optimization_guide::proto::Configuration>
 ParseComponentConfigFromCommandLine();
 
 // Returns true if fetching of hints in real-time at the time of navigation
 // start should be disabled. Returns true only in tests.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool DisableFetchingHintsAtNavigationStartForTesting();
 
 // Returns true if checking of the user's permissions to fetch hints from the
 // remote Optimization Guide Service should be ignored. Returns true only in
 // tests.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool ShouldOverrideCheckingUserPermissionsToFetchHintsForTesting();
 
 // Returns true if the verification of model downloads should be skipped.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool ShouldSkipModelDownloadVerificationForTesting();
 
-// Returns whether at least one model was provided via command-line.
-bool IsModelOverridePresent();
-
 // Returns whether the model validation should happen.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool ShouldValidateModel();
 
-// Returns the model override command line switch.
-absl::optional<std::string> GetModelOverride();
+// Returns whether the server-side AI model execution validation should happen.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+bool ShouldValidateModelExecution();
+
+// Returns the path to the on-device base model provided on the command line.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+std::optional<std::string> GetOnDeviceModelExecutionOverride();
+
+// Returns the file path to the text file to use for the on-device request
+// override.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+std::optional<base::FilePath> GetOnDeviceValidationRequestOverride();
+
+// Returns the file path to write the on-device validation response to.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+std::optional<base::FilePath> GetOnDeviceValidationWriteToFile();
 
 // Returns true if debug logs are enabled for the optimization guide.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
 bool IsDebugLogsEnabled();
 
-// Returns true if page content annotations input should be logged.
-bool ShouldLogPageContentAnnotationsInput();
+// Returns whether to get free disk space with base::TaskPriority::USER_VISIBLE
+// task. This is about the freediskspace check in the context of the on-device
+// model eligibility check.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+bool ShouldGetFreeDiskSpaceWithUserVisiblePriorityTask();
 
-// Returns the delay to use for page content annotations validation, if given
-// and valid on the command line.
-absl::optional<base::TimeDelta> PageContentAnnotationsValidationStartupDelay();
+// Returns true if Google API key configuration check should be skipped.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+bool ShouldSkipGoogleApiKeyConfigurationCheck();
 
-// Returns the size of the batch to use for page content annotations validation,
-// if given and valid on the command line.
-absl::optional<size_t> PageContentAnnotationsValidationBatchSize();
-
-// Whether the result of page content annotations validation should be sent to
-// the console. True when any one of the corresponding command line flags is
-// enabled.
-bool LogPageContentAnnotationsValidationToConsole();
-
-// Returns a set on inputs to run the validation on for the given |type|,
-// using comma separated input from the command line.
-absl::optional<std::vector<std::string>>
-PageContentAnnotationsValidationInputForType(AnnotationType type);
-
-// Returns the file path to write page content annotation validation results to.
-absl::optional<base::FilePath> PageContentAnnotationsValidationWriteToFile();
+// Return the URL endpoint used for the model execution service.
+COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
+GURL GetModelExecutionServiceURL();
 
 }  // namespace switches
 }  // namespace optimization_guide

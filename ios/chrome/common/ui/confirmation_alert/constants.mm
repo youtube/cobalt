@@ -4,10 +4,6 @@
 
 #import "ios/chrome/common/ui/confirmation_alert/constants.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 NSString* const kConfirmationAlertMoreInfoAccessibilityIdentifier =
     @"kConfirmationAlertMoreInfoAccessibilityIdentifier";
 NSString* const kConfirmationAlertTitleAccessibilityIdentifier =
@@ -22,3 +18,7 @@ NSString* const kConfirmationAlertSecondaryActionAccessibilityIdentifier =
     @"kConfirmationAlertSecondaryActionAccessibilityIdentifier";
 NSString* const kConfirmationAlertTertiaryActionAccessibilityIdentifier =
     @"kConfirmationAlertTertiaryActionAccessibilityIdentifier";
+NSString* const kConfirmationAlertUnderTitleViewAccessibilityIdentifier =
+    @"kConfirmationAlertUnderTitleViewAccessibilityIdentifier";
+NSString* const kConfirmationAlertCheckmarkSymbolIdentifier =
+    @"kConfirmationAlertCheckmarkSymbolIdentifier";

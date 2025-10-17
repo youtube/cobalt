@@ -2,18 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(v8:11421): Remove #if once baseline compiler is ported to other
-// architectures.
-#include "src/flags/flags.h"
-#if ENABLE_SPARKPLUG
+#include "src/baseline/baseline-compiler.h"
 
 #include <algorithm>
+#include <optional>
 #include <type_traits>
 
 #include "src/base/bits.h"
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-assembler.h"
-#include "src/baseline/baseline-compiler.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins.h"
@@ -26,7 +23,7 @@
 #include "src/execution/frame-constants.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/code.h"
 #include "src/objects/heap-object.h"
@@ -63,13 +60,21 @@ namespace v8 {
 namespace internal {
 namespace baseline {
 
+#define __ basm_.
+
+#define RCS_BASELINE_SCOPE(rcs)                               \
+  RCS_SCOPE(stats_,                                           \
+            local_isolate_->is_main_thread()                  \
+                ? RuntimeCallCounterId::kCompileBaseline##rcs \
+                : RuntimeCallCounterId::kCompileBackgroundBaseline##rcs)
+
 template <typename IsolateT>
-Handle<ByteArray> BytecodeOffsetTableBuilder::ToBytecodeOffsetTable(
+Handle<TrustedByteArray> BytecodeOffsetTableBuilder::ToBytecodeOffsetTable(
     IsolateT* isolate) {
-  if (bytes_.empty()) return isolate->factory()->empty_byte_array();
-  Handle<ByteArray> table = isolate->factory()->NewByteArray(
-      static_cast<int>(bytes_.size()), AllocationType::kOld);
-  MemCopy(table->GetDataStartAddress(), bytes_.data(), bytes_.size());
+  if (bytes_.empty()) return isolate->factory()->empty_trusted_byte_array();
+  Handle<TrustedByteArray> table =
+      isolate->factory()->NewTrustedByteArray(static_cast<int>(bytes_.size()));
+  MemCopy(table->begin(), bytes_.data(), bytes_.size());
   return table;
 }
 
@@ -77,9 +82,9 @@ namespace detail {
 
 #ifdef DEBUG
 bool Clobbers(Register target, Register reg) { return target == reg; }
-bool Clobbers(Register target, Handle<Object> handle) { return false; }
-bool Clobbers(Register target, Smi smi) { return false; }
-bool Clobbers(Register target, TaggedIndex index) { return false; }
+bool Clobbers(Register target, DirectHandle<Object> handle) { return false; }
+bool Clobbers(Register target, Tagged<Smi> smi) { return false; }
+bool Clobbers(Register target, Tagged<TaggedIndex> index) { return false; }
 bool Clobbers(Register target, int32_t imm) { return false; }
 bool Clobbers(Register target, RootIndex index) { return false; }
 bool Clobbers(Register target, interpreter::Register reg) { return false; }
@@ -89,15 +94,15 @@ bool Clobbers(Register target, interpreter::RegisterList list) { return false; }
 // match.
 bool MachineTypeMatches(MachineType type, Register reg) { return true; }
 bool MachineTypeMatches(MachineType type, MemOperand reg) { return true; }
-bool MachineTypeMatches(MachineType type, Handle<HeapObject> handle) {
+bool MachineTypeMatches(MachineType type, DirectHandle<HeapObject> handle) {
   return type.IsTagged() && !type.IsTaggedSigned();
 }
-bool MachineTypeMatches(MachineType type, Smi handle) {
+bool MachineTypeMatches(MachineType type, Tagged<Smi> handle) {
   return type.IsTagged() && !type.IsTaggedPointer();
 }
-bool MachineTypeMatches(MachineType type, TaggedIndex handle) {
-  // TaggedIndex doesn't have a separate type, so check for the same type as for
-  // Smis.
+bool MachineTypeMatches(MachineType type, Tagged<TaggedIndex> handle) {
+  // Tagged<TaggedIndex> doesn't have a separate type, so check for the same
+  // type as for Smis.
   return type.IsTagged() && !type.IsTaggedPointer();
 }
 bool MachineTypeMatches(MachineType type, int32_t imm) {
@@ -262,7 +267,7 @@ const int kAverageBytecodeToInstructionRatio = 5;
 const int kAverageBytecodeToInstructionRatio = 7;
 #endif
 std::unique_ptr<AssemblerBuffer> AllocateBuffer(
-    Handle<BytecodeArray> bytecodes) {
+    DirectHandle<BytecodeArray> bytecodes) {
   int estimated_size;
   {
     DisallowHeapAllocation no_gc;
@@ -280,17 +285,15 @@ BaselineCompiler::BaselineCompiler(
       stats_(local_isolate->runtime_call_stats()),
       shared_function_info_(shared_function_info),
       bytecode_(bytecode),
+      zone_(local_isolate->allocator(), ZONE_NAME),
       masm_(
-          local_isolate->GetMainThreadIsolateUnsafe(),
+          local_isolate->GetMainThreadIsolateUnsafe(), &zone_,
           BaselineAssemblerOptions(local_isolate->GetMainThreadIsolateUnsafe()),
           CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
       basm_(&masm_),
       iterator_(bytecode_),
-      zone_(local_isolate->allocator(), ZONE_NAME),
-      labels_(zone_.NewArray<BaselineLabelPointer>(bytecode_->length())) {
-  MemsetPointer(reinterpret_cast<Address*>(labels_), Address{0},
-                bytecode_->length());
-
+      labels_(zone_.AllocateArray<Label>(bytecode_->length())),
+      label_tags_(2 * bytecode_->length(), &zone_) {
   // Empirically determined expected size of the offset table at the 95th %ile,
   // based on the size of the bytecode, to be:
   //
@@ -299,14 +302,6 @@ BaselineCompiler::BaselineCompiler(
       base::bits::RoundUpToPowerOfTwo(16 + bytecode_->Size() / 4));
 }
 
-#define __ basm_.
-
-#define RCS_BASELINE_SCOPE(rcs)                               \
-  RCS_SCOPE(stats_,                                           \
-            local_isolate_->is_main_thread()                  \
-                ? RuntimeCallCounterId::kCompileBaseline##rcs \
-                : RuntimeCallCounterId::kCompileBackgroundBaseline##rcs)
-
 void BaselineCompiler::GenerateCode() {
   {
     RCS_BASELINE_SCOPE(PreVisit);
@@ -314,7 +309,7 @@ void BaselineCompiler::GenerateCode() {
     // when CFI is enabled, to allow indirect jumps into baseline code.
     HandlerTable table(*bytecode_);
     for (int i = 0; i < table.NumberOfRangeEntries(); ++i) {
-      labels_[table.GetRangeHandler(i)].MarkAsIndirectJumpTarget();
+      MarkIndirectJumpTarget(table.GetRangeHandler(i));
     }
     for (; !iterator_.done(); iterator_.Advance()) {
       PreVisitSingleBytecode();
@@ -337,27 +332,30 @@ void BaselineCompiler::GenerateCode() {
   }
 }
 
-MaybeHandle<Code> BaselineCompiler::Build(LocalIsolate* local_isolate) {
+MaybeHandle<Code> BaselineCompiler::Build() {
+  RCS_BASELINE_SCOPE(Build);
   CodeDesc desc;
-  __ GetCode(local_isolate->GetMainThreadIsolateUnsafe(), &desc);
+  __ GetCode(local_isolate_, &desc);
 
   // Allocate the bytecode offset table.
-  Handle<ByteArray> bytecode_offset_table =
-      bytecode_offset_table_builder_.ToBytecodeOffsetTable(local_isolate);
+  Handle<TrustedByteArray> bytecode_offset_table =
+      bytecode_offset_table_builder_.ToBytecodeOffsetTable(local_isolate_);
 
-  Factory::CodeBuilder code_builder(local_isolate, desc, CodeKind::BASELINE);
+  Factory::CodeBuilder code_builder(local_isolate_, desc, CodeKind::BASELINE);
   code_builder.set_bytecode_offset_table(bytecode_offset_table);
-  if (shared_function_info_->HasInterpreterData()) {
+  if (shared_function_info_->HasInterpreterData(local_isolate_)) {
     code_builder.set_interpreter_data(
-        handle(shared_function_info_->interpreter_data(), local_isolate));
+        handle(shared_function_info_->interpreter_data(local_isolate_),
+               local_isolate_));
   } else {
     code_builder.set_interpreter_data(bytecode_);
   }
+  code_builder.set_parameter_count(bytecode_->parameter_count());
   return code_builder.TryBuild();
 }
 
-int BaselineCompiler::EstimateInstructionSize(BytecodeArray bytecode) {
-  return bytecode.length() * kAverageBytecodeToInstructionRatio;
+int BaselineCompiler::EstimateInstructionSize(Tagged<BytecodeArray> bytecode) {
+  return bytecode->length() * kAverageBytecodeToInstructionRatio;
 }
 
 interpreter::Register BaselineCompiler::RegisterOperand(int operand_index) {
@@ -369,11 +367,17 @@ void BaselineCompiler::LoadRegister(Register output, int operand_index) {
 }
 
 void BaselineCompiler::StoreRegister(int operand_index, Register value) {
+#ifdef DEBUG
+  effect_state_.CheckEffect();
+#endif
   __ Move(RegisterOperand(operand_index), value);
 }
 
 void BaselineCompiler::StoreRegisterPair(int operand_index, Register val0,
                                          Register val1) {
+#ifdef DEBUG
+  effect_state_.CheckEffect();
+#endif
   interpreter::Register reg0, reg1;
   std::tie(reg0, reg1) = iterator().GetRegisterPairOperand(operand_index);
   __ StoreRegister(reg0, val0);
@@ -381,10 +385,10 @@ void BaselineCompiler::StoreRegisterPair(int operand_index, Register val0,
 }
 template <typename Type>
 Handle<Type> BaselineCompiler::Constant(int operand_index) {
-  return Handle<Type>::cast(
+  return Cast<Type>(
       iterator().GetConstantForIndexOperand(operand_index, local_isolate_));
 }
-Smi BaselineCompiler::ConstantSmi(int operand_index) {
+Tagged<Smi> BaselineCompiler::ConstantSmi(int operand_index) {
   return iterator().GetConstantAtIndexAsSmi(operand_index);
 }
 template <typename Type>
@@ -409,22 +413,25 @@ uint32_t BaselineCompiler::Flag16(int operand_index) {
 uint32_t BaselineCompiler::RegisterCount(int operand_index) {
   return iterator().GetRegisterCountOperand(operand_index);
 }
-TaggedIndex BaselineCompiler::IndexAsTagged(int operand_index) {
+Tagged<TaggedIndex> BaselineCompiler::IndexAsTagged(int operand_index) {
   return TaggedIndex::FromIntptr(Index(operand_index));
 }
-TaggedIndex BaselineCompiler::UintAsTagged(int operand_index) {
+Tagged<TaggedIndex> BaselineCompiler::UintAsTagged(int operand_index) {
   return TaggedIndex::FromIntptr(Uint(operand_index));
 }
-Smi BaselineCompiler::IndexAsSmi(int operand_index) {
+Tagged<Smi> BaselineCompiler::IndexAsSmi(int operand_index) {
   return Smi::FromInt(Index(operand_index));
 }
-Smi BaselineCompiler::IntAsSmi(int operand_index) {
+Tagged<Smi> BaselineCompiler::IntAsSmi(int operand_index) {
   return Smi::FromInt(Int(operand_index));
 }
-Smi BaselineCompiler::Flag8AsSmi(int operand_index) {
+Tagged<Smi> BaselineCompiler::UintAsSmi(int operand_index) {
+  return Smi::FromInt(Uint(operand_index));
+}
+Tagged<Smi> BaselineCompiler::Flag8AsSmi(int operand_index) {
   return Smi::FromInt(Flag8(operand_index));
 }
-Smi BaselineCompiler::Flag16AsSmi(int operand_index) {
+Tagged<Smi> BaselineCompiler::Flag16AsSmi(int operand_index) {
   return Smi::FromInt(Flag16(operand_index));
 }
 
@@ -464,51 +471,27 @@ void BaselineCompiler::PreVisitSingleBytecode() {
       EnsureLabel(iterator().GetJumpTargetOffset(),
                   MarkAsIndirectJumpTarget::kYes);
       break;
-
-    // TODO(leszeks): Update the max_call_args as part of the main bytecode
-    // visit loop, by patching the value passed to the prologue.
-    case interpreter::Bytecode::kCallProperty:
-    case interpreter::Bytecode::kCallAnyReceiver:
-    case interpreter::Bytecode::kCallWithSpread:
-    case interpreter::Bytecode::kConstruct:
-    case interpreter::Bytecode::kConstructWithSpread:
-      return UpdateMaxCallArgs(
-          iterator().GetRegisterListOperand(1).register_count());
-    case interpreter::Bytecode::kCallUndefinedReceiver:
-      return UpdateMaxCallArgs(
-          iterator().GetRegisterListOperand(1).register_count() + 1);
-    case interpreter::Bytecode::kCallProperty0:
-    case interpreter::Bytecode::kCallUndefinedReceiver0:
-      return UpdateMaxCallArgs(1);
-    case interpreter::Bytecode::kCallProperty1:
-    case interpreter::Bytecode::kCallUndefinedReceiver1:
-      return UpdateMaxCallArgs(2);
-    case interpreter::Bytecode::kCallProperty2:
-    case interpreter::Bytecode::kCallUndefinedReceiver2:
-      return UpdateMaxCallArgs(3);
-
     default:
       break;
   }
 }
 
 void BaselineCompiler::VisitSingleBytecode() {
+#ifdef DEBUG
+  effect_state_.clear();
+#endif
   int offset = iterator().current_offset();
-  BaselineLabelPointer label = labels_[offset];
-  if (label.GetPointer()) __ Bind(label.GetPointer());
-  // Mark position as valid jump target unconditionnaly when the deoptimizer can
-  // jump to baseline code. This is required when CFI is enabled.
-  if (v8_flags.deopt_to_baseline || label.IsIndirectJumpTarget()) {
+  if (IsJumpTarget(offset)) __ Bind(&labels_[offset]);
+  // This is required when CFI is enabled.
+  if (IsIndirectJumpTarget(offset)) {
     __ JumpTarget();
   }
 
-#ifdef V8_CODE_COMMENTS
-  std::ostringstream str;
-  if (v8_flags.code_comments) {
+  ASM_CODE_COMMENT_STRING(&masm_, [&]() {
+    std::ostringstream str;
     iterator().PrintTo(str);
-  }
-  ASM_CODE_COMMENT_STRING(&masm_, str.str());
-#endif
+    return str.str();
+  });
 
   VerifyFrame();
 
@@ -520,12 +503,12 @@ void BaselineCompiler::VisitSingleBytecode() {
     interpreter::Bytecode bytecode = iterator().current_bytecode();
 
 #ifdef DEBUG
-    base::Optional<EnsureAccumulatorPreservedScope> accumulator_preserved_scope;
+    std::optional<EnsureAccumulatorPreservedScope> accumulator_preserved_scope;
     // We should make sure to preserve the accumulator whenever the bytecode
     // isn't registered as writing to it. We can't do this for jumps or switches
     // though, since the control flow would not match the control flow of this
     // scope.
-    if (v8_flags.debug_code &&
+    if (v8_flags.slow_debug_code &&
         !interpreter::Bytecodes::WritesOrClobbersAccumulator(bytecode) &&
         !interpreter::Bytecodes::IsJump(bytecode) &&
         !interpreter::Bytecodes::IsSwitch(bytecode)) {
@@ -538,7 +521,7 @@ void BaselineCompiler::VisitSingleBytecode() {
   case interpreter::Bytecode::k##name: \
     Visit##name();                     \
     break;
-      BYTECODE_LIST(BYTECODE_CASE)
+      BYTECODE_LIST(BYTECODE_CASE, BYTECODE_CASE)
 #undef BYTECODE_CASE
     }
   }
@@ -549,7 +532,7 @@ void BaselineCompiler::VisitSingleBytecode() {
 }
 
 void BaselineCompiler::VerifyFrame() {
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     ASM_CODE_COMMENT(&masm_);
     __ RecordComment(" -- Verify frame size");
     VerifyFrameSize();
@@ -578,7 +561,7 @@ void BaselineCompiler::TraceBytecode(Runtime::FunctionId function_id) {
                           function_id == Runtime::kTraceUnoptimizedBytecodeEntry
                               ? "Trace bytecode entry"
                               : "Trace bytecode exit");
-  SaveAccumulatorScope accumulator_scope(&basm_);
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
   CallRuntime(function_id, bytecode_,
               Smi::FromInt(BytecodeArray::kHeaderSize - kHeapObjectTag +
                            iterator().current_offset()),
@@ -587,7 +570,7 @@ void BaselineCompiler::TraceBytecode(Runtime::FunctionId function_id) {
 #endif
 
 #define DECLARE_VISITOR(name, ...) void Visit##name();
-BYTECODE_LIST(DECLARE_VISITOR)
+BYTECODE_LIST(DECLARE_VISITOR, DECLARE_VISITOR)
 #undef DECLARE_VISITOR
 
 #define DECLARE_VISITOR(name, ...) \
@@ -603,7 +586,6 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
     __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, skip_interrupt_label);
 
     DCHECK_LT(weight, 0);
-    SaveAccumulatorScope accumulator_scope(&basm_);
     CallRuntime(stack_check_behavior == kEnableStackCheck
                     ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug
                     : Runtime::kBytecodeBudgetInterrupt_Sparkplug,
@@ -633,24 +615,67 @@ Label* BaselineCompiler::BuildForwardJumpLabel() {
   return EnsureLabel(target_offset);
 }
 
+#if defined(DEBUG) || defined(V8_ENABLE_CET_SHADOW_STACK)
+// Allowlist to mark builtin calls during which it is impossible that the
+// sparkplug frame would have to be deoptimized. Either because they don't
+// execute any user code, or because they would anyway replace the current
+// frame, e.g., due to OSR.
+constexpr static bool BuiltinMayDeopt(Builtin id) {
+  switch (id) {
+    case Builtin::kSuspendGeneratorBaseline:
+    case Builtin::kBaselineOutOfLinePrologue:
+    case Builtin::kIncBlockCounter:
+    case Builtin::kToObject:
+    case Builtin::kStoreContextElementBaseline:
+    case Builtin::kStoreCurrentContextElementBaseline:
+    // This one explicitly skips the construct if the debugger is enabled.
+    case Builtin::kFindNonDefaultConstructorOrConstruct:
+      return false;
+    default:
+      return true;
+  }
+}
+#endif  // DEBUG || V8_ENABLE_CET_SHADOW_STACK
+
 template <Builtin kBuiltin, typename... Args>
 void BaselineCompiler::CallBuiltin(Args... args) {
+#ifdef DEBUG
+  effect_state_.CheckEffect();
+  if (BuiltinMayDeopt(kBuiltin)) {
+    effect_state_.MayDeopt();
+  }
+#endif
   ASM_CODE_COMMENT(&masm_);
   detail::MoveArgumentsForBuiltin<kBuiltin>(&basm_, args...);
   __ CallBuiltin(kBuiltin);
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  if (BuiltinMayDeopt(kBuiltin)) {
+    __ MaybeEmitPlaceHolderForDeopt();
+  }
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 }
 
 template <Builtin kBuiltin, typename... Args>
 void BaselineCompiler::TailCallBuiltin(Args... args) {
+#ifdef DEBUG
+  effect_state_.CheckEffect();
+#endif
   detail::MoveArgumentsForBuiltin<kBuiltin>(&basm_, args...);
   __ TailCallBuiltin(kBuiltin);
 }
 
 template <typename... Args>
 void BaselineCompiler::CallRuntime(Runtime::FunctionId function, Args... args) {
+#ifdef DEBUG
+  effect_state_.CheckEffect();
+  effect_state_.MayDeopt();
+#endif
   __ LoadContext(kContextRegister);
   int nargs = __ Push(args...);
   __ CallRuntime(function, nargs);
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  __ MaybeEmitPlaceHolderForDeopt();
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 }
 
 // Returns into kInterpreterAccumulatorRegister
@@ -671,7 +696,7 @@ void BaselineCompiler::VisitLdaZero() {
 }
 
 void BaselineCompiler::VisitLdaSmi() {
-  Smi constant = Smi::FromInt(iterator().GetImmediateOperand(0));
+  Tagged<Smi> constant = Smi::FromInt(iterator().GetImmediateOperand(0));
   __ Move(kInterpreterAccumulatorRegister, constant);
 }
 
@@ -732,18 +757,41 @@ void BaselineCompiler::VisitPopContext() {
   __ StoreContext(context);
 }
 
-void BaselineCompiler::VisitLdaContextSlot() {
+void BaselineCompiler::VisitLdaContextSlotNoCell() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register context = scratch_scope.AcquireScratch();
   LoadRegister(context, 0);
   uint32_t index = Index(1);
   uint32_t depth = Uint(2);
-  __ LdaContextSlot(context, index, depth);
+  __ LdaContextSlotNoCell(context, index, depth);
 }
 
-void BaselineCompiler::VisitLdaImmutableContextSlot() { VisitLdaContextSlot(); }
+void BaselineCompiler::VisitLdaContextSlot() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register context = scratch_scope.AcquireScratch();
+  Label done;
+  LoadRegister(context, 0);
+  uint32_t index = Index(1);
+  uint32_t depth = Uint(2);
+  __ LdaContextSlotNoCell(
+      context, index, depth,
+      BaselineAssembler::CompressionMode::kForceDecompression);
+  __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
+  __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
+                          CONTEXT_CELL_TYPE, &done, Label::kNear);
+  // TODO(victorgomes): inline trivial constant value read from context cell.
+  CallBuiltin<Builtin::kLoadFromContextCell>(
+      kInterpreterAccumulatorRegister,  // heap number
+      context,                          // context
+      Smi::FromInt(index));             // slot
+  __ Bind(&done);
+}
 
-void BaselineCompiler::VisitLdaCurrentContextSlot() {
+void BaselineCompiler::VisitLdaImmutableContextSlot() {
+  VisitLdaContextSlotNoCell();
+}
+
+void BaselineCompiler::VisitLdaCurrentContextSlotNoCell() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register context = scratch_scope.AcquireScratch();
   __ LoadContext(context);
@@ -751,11 +799,30 @@ void BaselineCompiler::VisitLdaCurrentContextSlot() {
                      Context::OffsetOfElementAt(Index(0)));
 }
 
-void BaselineCompiler::VisitLdaImmutableCurrentContextSlot() {
-  VisitLdaCurrentContextSlot();
+void BaselineCompiler::VisitLdaCurrentContextSlot() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register context = scratch_scope.AcquireScratch();
+  Label done;
+  uint32_t index = Index(0);
+  __ LoadContext(context);
+  __ LoadTaggedField(kInterpreterAccumulatorRegister, context,
+                     Context::OffsetOfElementAt(index));
+  __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
+  __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
+                          CONTEXT_CELL_TYPE, &done, Label::kNear);
+  // TODO(victorgomes): inline trivial constant value read from context cell.
+  CallBuiltin<Builtin::kLoadFromContextCell>(
+      kInterpreterAccumulatorRegister,  // heap number
+      context,                          // context
+      Smi::FromInt(index));             // slot
+  __ Bind(&done);
 }
 
-void BaselineCompiler::VisitStaContextSlot() {
+void BaselineCompiler::VisitLdaImmutableCurrentContextSlot() {
+  VisitLdaCurrentContextSlotNoCell();
+}
+
+void BaselineCompiler::VisitStaContextSlotNoCell() {
   Register value = WriteBarrierDescriptor::ValueRegister();
   Register context = WriteBarrierDescriptor::ObjectRegister();
   DCHECK(!AreAliased(value, context, kInterpreterAccumulatorRegister));
@@ -763,10 +830,10 @@ void BaselineCompiler::VisitStaContextSlot() {
   LoadRegister(context, 0);
   uint32_t index = Index(1);
   uint32_t depth = Uint(2);
-  __ StaContextSlot(context, value, index, depth);
+  __ StaContextSlotNoCell(context, value, index, depth);
 }
 
-void BaselineCompiler::VisitStaCurrentContextSlot() {
+void BaselineCompiler::VisitStaCurrentContextSlotNoCell() {
   Register value = WriteBarrierDescriptor::ValueRegister();
   Register context = WriteBarrierDescriptor::ObjectRegister();
   DCHECK(!AreAliased(value, context, kInterpreterAccumulatorRegister));
@@ -776,12 +843,40 @@ void BaselineCompiler::VisitStaCurrentContextSlot() {
       context, Context::OffsetOfElementAt(Index(0)), value);
 }
 
+void BaselineCompiler::VisitStaContextSlot() {
+  Register value = WriteBarrierDescriptor::ValueRegister();
+  Register context = WriteBarrierDescriptor::ObjectRegister();
+  DCHECK(!AreAliased(value, context, kInterpreterAccumulatorRegister));
+  __ Move(value, kInterpreterAccumulatorRegister);
+  LoadRegister(context, 0);
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
+  CallBuiltin<Builtin::kStoreContextElementBaseline>(context,        // context
+                                                     value,          // value
+                                                     IndexAsSmi(1),  // slot
+                                                     UintAsTagged(2));  // depth
+}
+
+void BaselineCompiler::VisitStaCurrentContextSlot() {
+  Register value = WriteBarrierDescriptor::ValueRegister();
+  DCHECK(!AreAliased(value, kInterpreterAccumulatorRegister));
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
+  __ Move(value, kInterpreterAccumulatorRegister);
+  CallBuiltin<Builtin::kStoreCurrentContextElementBaseline>(
+      value,           // value
+      IndexAsSmi(0));  // slot
+}
+
 void BaselineCompiler::VisitLdaLookupSlot() {
   CallRuntime(Runtime::kLoadLookupSlot, Constant<Name>(0));
 }
 
+void BaselineCompiler::VisitLdaLookupContextSlotNoCell() {
+  CallBuiltin<Builtin::kLookupContextNoCellBaseline>(
+      Constant<Name>(0), UintAsTagged(2), IndexAsTagged(1));
+}
+
 void BaselineCompiler::VisitLdaLookupContextSlot() {
-  CallBuiltin<Builtin::kLookupContextBaseline>(
+  CallBuiltin<Builtin::kLookupScriptContextBaseline>(
       Constant<Name>(0), UintAsTagged(2), IndexAsTagged(1));
 }
 
@@ -792,6 +887,11 @@ void BaselineCompiler::VisitLdaLookupGlobalSlot() {
 
 void BaselineCompiler::VisitLdaLookupSlotInsideTypeof() {
   CallRuntime(Runtime::kLoadLookupSlotInsideTypeof, Constant<Name>(0));
+}
+
+void BaselineCompiler::VisitLdaLookupContextSlotNoCellInsideTypeof() {
+  CallBuiltin<Builtin::kLookupContextNoCellInsideTypeofBaseline>(
+      Constant<Name>(0), UintAsTagged(2), IndexAsTagged(1));
 }
 
 void BaselineCompiler::VisitLdaLookupContextSlotInsideTypeof() {
@@ -867,6 +967,16 @@ void BaselineCompiler::VisitGetKeyedProperty() {
       RegisterOperand(0),               // object
       kInterpreterAccumulatorRegister,  // key
       IndexAsTagged(1));                // slot
+}
+
+void BaselineCompiler::VisitGetEnumeratedKeyedProperty() {
+  DCHECK(v8_flags.enable_enumerated_keyed_access_bytecode);
+  CallBuiltin<Builtin::kEnumeratedKeyedLoadICBaseline>(
+      RegisterOperand(0),               // object
+      kInterpreterAccumulatorRegister,  // key
+      RegisterOperand(1),               // enum index
+      RegisterOperand(2),               // cache type
+      IndexAsTagged(3));                // slot
 }
 
 void BaselineCompiler::VisitLdaModuleVariable() {
@@ -963,6 +1073,11 @@ void BaselineCompiler::VisitDefineKeyedOwnPropertyInLiteral() {
 
 void BaselineCompiler::VisitAdd() {
   CallBuiltin<Builtin::kAdd_Baseline>(
+      RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));
+}
+
+void BaselineCompiler::VisitAdd_LhsIsStringConstant_Internalize() {
+  CallBuiltin<Builtin::kAdd_LhsIsStringConstant_Internalize_Baseline>(
       RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));
 }
 
@@ -1118,7 +1233,8 @@ void BaselineCompiler::VisitLogicalNot() {
 }
 
 void BaselineCompiler::VisitTypeOf() {
-  CallBuiltin<Builtin::kTypeof>(kInterpreterAccumulatorRegister);
+  CallBuiltin<Builtin::kTypeof_Baseline>(kInterpreterAccumulatorRegister,
+                                         Index(0));
 }
 
 void BaselineCompiler::VisitDeletePropertyStrict() {
@@ -1145,7 +1261,7 @@ void BaselineCompiler::VisitGetSuperConstructor() {
 }
 
 void BaselineCompiler::VisitFindNonDefaultConstructorOrConstruct() {
-  SaveAccumulatorScope accumulator_scope(&basm_);
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
   CallBuiltin<Builtin::kFindNonDefaultConstructorOrConstruct>(
       RegisterOperand(0), RegisterOperand(1));
   StoreRegisterPair(2, kReturnRegister0, kReturnRegister1);
@@ -1270,10 +1386,24 @@ void BaselineCompiler::VisitCallRuntime() {
 }
 
 void BaselineCompiler::VisitCallRuntimeForPair() {
-  SaveAccumulatorScope accumulator_scope(&basm_);
-  CallRuntime(iterator().GetRuntimeIdOperand(0),
-              iterator().GetRegisterListOperand(1));
-  StoreRegisterPair(3, kReturnRegister0, kReturnRegister1);
+  auto builtin = iterator().GetRuntimeIdOperand(0);
+  switch (builtin) {
+    case Runtime::kLoadLookupSlotForCall: {
+      // TODO(olivf) Once we have more builtins to support here we should find
+      // out how to do this generically.
+      auto in = iterator().GetRegisterListOperand(1);
+      auto out = iterator().GetRegisterPairOperand(3);
+      BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+      Register out_reg = scratch_scope.AcquireScratch();
+      __ RegisterFrameAddress(out.first, out_reg);
+      DCHECK_EQ(in.register_count(), 1);
+      CallRuntime(Runtime::kLoadLookupSlotForCall_Baseline, in.first_register(),
+                  out_reg);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void BaselineCompiler::VisitCallJSRuntime() {
@@ -1362,14 +1492,9 @@ void BaselineCompiler::VisitIntrinsicGetImportMetaObject(
   CallBuiltin<Builtin::kGetImportMetaObjectBaseline>();
 }
 
-void BaselineCompiler::VisitIntrinsicAsyncFunctionAwaitCaught(
+void BaselineCompiler::VisitIntrinsicAsyncFunctionAwait(
     interpreter::RegisterList args) {
-  CallBuiltin<Builtin::kAsyncFunctionAwaitCaught>(args);
-}
-
-void BaselineCompiler::VisitIntrinsicAsyncFunctionAwaitUncaught(
-    interpreter::RegisterList args) {
-  CallBuiltin<Builtin::kAsyncFunctionAwaitUncaught>(args);
+  CallBuiltin<Builtin::kAsyncFunctionAwait>(args);
 }
 
 void BaselineCompiler::VisitIntrinsicAsyncFunctionEnter(
@@ -1387,14 +1512,9 @@ void BaselineCompiler::VisitIntrinsicAsyncFunctionResolve(
   CallBuiltin<Builtin::kAsyncFunctionResolve>(args);
 }
 
-void BaselineCompiler::VisitIntrinsicAsyncGeneratorAwaitCaught(
+void BaselineCompiler::VisitIntrinsicAsyncGeneratorAwait(
     interpreter::RegisterList args) {
-  CallBuiltin<Builtin::kAsyncGeneratorAwaitCaught>(args);
-}
-
-void BaselineCompiler::VisitIntrinsicAsyncGeneratorAwaitUncaught(
-    interpreter::RegisterList args) {
-  CallBuiltin<Builtin::kAsyncGeneratorAwaitUncaught>(args);
+  CallBuiltin<Builtin::kAsyncGeneratorAwait>(args);
 }
 
 void BaselineCompiler::VisitIntrinsicAsyncGeneratorReject(
@@ -1443,10 +1563,23 @@ void BaselineCompiler::VisitConstructWithSpread() {
       RegisterOperand(0),          // kFunction
       new_target,                  // kNewTarget
       arg_count,                   // kActualArgumentsCount
-      Index(3),                    // kSlot
       spread_register,             // kSpread
+      IndexAsTagged(3),            // kSlot
       RootIndex::kUndefinedValue,  // kReceiver
       args);
+}
+
+void BaselineCompiler::VisitConstructForwardAllArgs() {
+  using Descriptor = CallInterfaceDescriptorFor<
+      Builtin::kConstructForwardAllArgs_Baseline>::type;
+  Register new_target =
+      Descriptor::GetRegisterParameter(Descriptor::kNewTarget);
+  __ Move(new_target, kInterpreterAccumulatorRegister);
+
+  CallBuiltin<Builtin::kConstructForwardAllArgs_Baseline>(
+      RegisterOperand(0),  // kFunction
+      new_target,          // kNewTarget
+      IndexAsTagged(1));   // kSlot
 }
 
 void BaselineCompiler::VisitTestEqual() {
@@ -1568,7 +1701,7 @@ void BaselineCompiler::VisitTestTypeOf() {
     case interpreter::TestTypeOfFlags::LiteralFlag::kString: {
       Label is_smi, bad_instance_type;
       __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
-      static_assert(INTERNALIZED_STRING_TYPE == FIRST_TYPE);
+      static_assert(INTERNALIZED_TWO_BYTE_STRING_TYPE == FIRST_TYPE);
       __ JumpIfObjectType(kGreaterThanEqual, kInterpreterAccumulatorRegister,
                           FIRST_NONSTRING_TYPE, scratch_scope.AcquireScratch(),
                           &bad_instance_type, Label::kNear);
@@ -1711,9 +1844,7 @@ void BaselineCompiler::VisitTestTypeOf() {
 }
 
 void BaselineCompiler::VisitToName() {
-  SaveAccumulatorScope save_accumulator(&basm_);
   CallBuiltin<Builtin::kToName>(kInterpreterAccumulatorRegister);
-  StoreRegister(0, kInterpreterAccumulatorRegister);
 }
 
 void BaselineCompiler::VisitToNumber() {
@@ -1727,7 +1858,7 @@ void BaselineCompiler::VisitToNumeric() {
 }
 
 void BaselineCompiler::VisitToObject() {
-  SaveAccumulatorScope save_accumulator(&basm_);
+  SaveAccumulatorScope save_accumulator(this, &basm_);
   CallBuiltin<Builtin::kToObject>(kInterpreterAccumulatorRegister);
   StoreRegister(0, kInterpreterAccumulatorRegister);
 }
@@ -1760,11 +1891,11 @@ void BaselineCompiler::VisitCreateArrayLiteral() {
         Constant<HeapObject>(0),   // constant elements
         Smi::FromInt(flags_raw));  // flags
   } else {
-    CallRuntime(Runtime::kCreateArrayLiteral,
-                FeedbackVector(),          // feedback vector
-                IndexAsTagged(1),          // slot
-                Constant<HeapObject>(0),   // constant elements
-                Smi::FromInt(flags_raw));  // flags
+    CallBuiltin<Builtin::kCreateArrayFromSlowBoilerplate>(
+        FeedbackVector(),          // feedback vector
+        IndexAsTagged(1),          // slot
+        Constant<HeapObject>(0),   // constant elements
+        Smi::FromInt(flags_raw));  // flags
   }
 }
 
@@ -1790,11 +1921,11 @@ void BaselineCompiler::VisitCreateObjectLiteral() {
         Constant<ObjectBoilerplateDescription>(0),  // boilerplate
         Smi::FromInt(flags_raw));                   // flags
   } else {
-    CallRuntime(Runtime::kCreateObjectLiteral,
-                FeedbackVector(),                           // feedback vector
-                IndexAsTagged(1),                           // slot
-                Constant<ObjectBoilerplateDescription>(0),  // boilerplate
-                Smi::FromInt(flags_raw));                   // flags
+    CallBuiltin<Builtin::kCreateObjectFromSlowBoilerplate>(
+        FeedbackVector(),                           // feedback vector
+        IndexAsTagged(1),                           // slot
+        Constant<ObjectBoilerplateDescription>(0),  // boilerplate
+        Smi::FromInt(flags_raw));                   // flags
   }
 }
 
@@ -1859,6 +1990,15 @@ void BaselineCompiler::VisitCreateFunctionContext() {
   CallBuiltin<Builtin::kFastNewFunctionContextFunction>(info, slot_count);
 }
 
+void BaselineCompiler::VisitCreateFunctionContextWithCells() {
+  Handle<ScopeInfo> info = Constant<ScopeInfo>(0);
+  uint32_t slot_count = Uint(1);
+  DCHECK_LE(slot_count, ConstructorBuiltins::MaximumFunctionContextSlots());
+  DCHECK_EQ(info->scope_type(), ScopeType::FUNCTION_SCOPE);
+  CallBuiltin<Builtin::kFastNewFunctionContextFunctionWithCells>(info,
+                                                                 slot_count);
+}
+
 void BaselineCompiler::VisitCreateEvalContext() {
   Handle<ScopeInfo> info = Constant<ScopeInfo>(0);
   uint32_t slot_count = Uint(1);
@@ -1908,7 +2048,9 @@ void BaselineCompiler::VisitJumpLoop() {
     LoadFeedbackVector(feedback_vector);
     __ LoadWord8Field(osr_state, feedback_vector,
                       FeedbackVector::kOsrStateOffset);
-    static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
+    static_assert(FeedbackVector::MaybeHasMaglevOsrCodeBit::encode(true) >
+                  FeedbackVector::kMaxOsrUrgency);
+    static_assert(FeedbackVector::MaybeHasTurbofanOsrCodeBit::encode(true) >
                   FeedbackVector::kMaxOsrUrgency);
     __ JumpIfByte(kUnsignedGreaterThan, osr_state, loop_depth, &osr_armed,
                   Label::kNear);
@@ -1916,7 +2058,7 @@ void BaselineCompiler::VisitJumpLoop() {
 
   __ Bind(&osr_not_armed);
 #endif  // !V8_JITLESS
-  Label* label = labels_[iterator().GetJumpTargetOffset()].GetPointer();
+  Label* label = &labels_[iterator().GetJumpTargetOffset()];
   int weight = iterator().GetRelativeJumpTargetOffset() -
                iterator().current_bytecode_size_without_prefix();
   // We can pass in the same label twice since it's a back edge and thus already
@@ -1926,6 +2068,13 @@ void BaselineCompiler::VisitJumpLoop() {
 
 #ifndef V8_JITLESS
   {
+    // In case we deopt during the above interrupt check then this part of the
+    // jump loop is skipped. This is not a problem as nothing observable happens
+    // here.
+#ifdef DEBUG
+    effect_state_.safe_to_skip = true;
+#endif
+
     ASM_CODE_COMMENT_STRING(&masm_, "OSR Handle Armed");
     __ Bind(&osr_armed);
     Register maybe_target_code = D::MaybeTargetCodeRegister();
@@ -1947,13 +2096,22 @@ void BaselineCompiler::VisitJumpLoop() {
 
     __ Bind(&osr);
     Label do_osr;
-    int weight = bytecode_->length() * v8_flags.osr_to_tierup;
+    weight = bytecode_->length() * v8_flags.osr_to_tierup;
+    __ Push(maybe_target_code);
     UpdateInterruptBudgetAndJumpToLabel(-weight, nullptr, &do_osr,
                                         kDisableStackCheck);
     __ Bind(&do_osr);
-    CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code);
+    Register expected_param_count = D::ExpectedParameterCountRegister();
+    __ Move(expected_param_count, Smi::FromInt(bytecode_->parameter_count()));
+    __ Pop(maybe_target_code);
+    CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code,
+                                                      expected_param_count);
     __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, nullptr);
     __ Jump(&osr_not_armed, Label::kNear);
+
+#ifdef DEBUG
+    effect_state_.safe_to_skip = false;
+#endif
   }
 #endif  // !V8_JITLESS
 }
@@ -1984,6 +2142,10 @@ void BaselineCompiler::VisitJumpIfFalseConstant() { VisitJumpIfFalse(); }
 
 void BaselineCompiler::VisitJumpIfJSReceiverConstant() {
   VisitJumpIfJSReceiver();
+}
+
+void BaselineCompiler::VisitJumpIfForInDoneConstant() {
+  VisitJumpIfForInDone();
 }
 
 void BaselineCompiler::VisitJumpIfToBooleanTrueConstant() {
@@ -2056,6 +2218,14 @@ void BaselineCompiler::VisitJumpIfJSReceiver() {
   __ Bind(&dont_jump);
 }
 
+void BaselineCompiler::VisitJumpIfForInDone() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register index = scratch_scope.AcquireScratch();
+  LoadRegister(index, 1);
+  __ JumpIfTagged(kEqual, index, __ RegisterFrameOperand(RegisterOperand(2)),
+                  BuildForwardJumpLabel());
+}
+
 void BaselineCompiler::VisitSwitchOnSmiNoFeedback() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   interpreter::JumpTableTargetOffsets offsets =
@@ -2090,17 +2260,6 @@ void BaselineCompiler::VisitForInPrepare() {
   __ StoreRegister(third, kReturnRegister1);
 }
 
-void BaselineCompiler::VisitForInContinue() {
-  SelectBooleanConstant(kInterpreterAccumulatorRegister,
-                        [&](Label* is_true, Label::Distance distance) {
-                          LoadRegister(kInterpreterAccumulatorRegister, 0);
-                          __ JumpIfTagged(
-                              kNotEqual, kInterpreterAccumulatorRegister,
-                              __ RegisterFrameOperand(RegisterOperand(1)),
-                              is_true, distance);
-                        });
-}
-
 void BaselineCompiler::VisitForInNext() {
   interpreter::Register cache_type, cache_array;
   std::tie(cache_type, cache_array) = iterator().GetRegisterPairOperand(2);
@@ -2113,8 +2272,7 @@ void BaselineCompiler::VisitForInNext() {
 }
 
 void BaselineCompiler::VisitForInStep() {
-  LoadRegister(kInterpreterAccumulatorRegister, 0);
-  __ AddSmi(kInterpreterAccumulatorRegister, Smi::FromInt(1));
+  __ IncrementSmi(__ RegisterFrameOperand(RegisterOperand(0)));
 }
 
 void BaselineCompiler::VisitSetPendingMessage() {
@@ -2242,7 +2400,7 @@ void BaselineCompiler::VisitSuspendGenerator() {
   Register generator_object = scratch_scope.AcquireScratch();
   LoadRegister(generator_object, 0);
   {
-    SaveAccumulatorScope accumulator_scope(&basm_);
+    SaveAccumulatorScope accumulator_scope(this, &basm_);
 
     int bytecode_offset =
         BytecodeArray::kHeaderSize + iterator().current_offset();
@@ -2274,12 +2432,11 @@ void BaselineCompiler::VisitGetIterator() {
 }
 
 void BaselineCompiler::VisitDebugger() {
-  SaveAccumulatorScope accumulator_scope(&basm_);
   CallRuntime(Runtime::kHandleDebuggerStatement);
 }
 
 void BaselineCompiler::VisitIncBlockCounter() {
-  SaveAccumulatorScope accumulator_scope(&basm_);
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
   CallBuiltin<Builtin::kIncBlockCounter>(__ FunctionOperand(),
                                          IndexAsSmi(0));  // coverage array slot
 }
@@ -2308,8 +2465,33 @@ void BaselineCompiler::VisitIllegal() {
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK)
 #undef DEBUG_BREAK
 
+SaveAccumulatorScope::SaveAccumulatorScope(BaselineCompiler* compiler,
+                                           BaselineAssembler* assembler)
+    :
+#ifdef DEBUG
+      compiler_(compiler),
+#endif
+      assembler_(assembler) {
+#ifdef DEBUG
+  DCHECK(!compiler_->effect_state_.accumulator_on_stack);
+  compiler_->effect_state_.accumulator_on_stack = true;
+#endif  // DEBUG
+  ASM_CODE_COMMENT(assembler_->masm());
+  assembler_->Push(kInterpreterAccumulatorRegister);
+}
+
+SaveAccumulatorScope::~SaveAccumulatorScope() {
+#ifdef DEBUG
+  DCHECK(compiler_->effect_state_.accumulator_on_stack);
+  compiler_->effect_state_.accumulator_on_stack = false;
+#endif  // DEBUG
+  ASM_CODE_COMMENT(assembler_->masm());
+  assembler_->Pop(kInterpreterAccumulatorRegister);
+}
+
+#undef RCS_BASELINE_SCOPE
+#undef __
+
 }  // namespace baseline
 }  // namespace internal
 }  // namespace v8
-
-#endif  // ENABLE_SPARKPLUG

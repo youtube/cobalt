@@ -11,6 +11,7 @@
 #include "ash/ash_export.h"
 #include "ash/system/video_conference/video_conference_tray_controller.h"
 #include "base/gtest_prod_util.h"
+#include "chromeos/crosapi/mojom/video_conference.mojom-forward.h"
 
 namespace ash {
 
@@ -28,12 +29,10 @@ class ASH_EXPORT FakeVideoConferenceTrayController
     : public VideoConferenceTrayController {
  public:
   FakeVideoConferenceTrayController();
-
   FakeVideoConferenceTrayController(const FakeVideoConferenceTrayController&) =
       delete;
   FakeVideoConferenceTrayController& operator=(
       const FakeVideoConferenceTrayController&) = delete;
-
   ~FakeVideoConferenceTrayController() override;
 
   // VideoConferenceTrayController:
@@ -41,11 +40,17 @@ class ASH_EXPORT FakeVideoConferenceTrayController
   void SetMicrophoneMuted(bool muted) override;
   bool GetCameraMuted() override;
   bool GetMicrophoneMuted() override;
+  void StopAllScreenShare() override;
+  VideoConferenceTrayEffectsManager& GetEffectsManager() override;
+
+  void SetEffectsManager(VideoConferenceTrayEffectsManager* effects_manager);
   void GetMediaApps(base::OnceCallback<void(MediaApps)> ui_callback) override;
   void ReturnToApp(const base::UnguessableToken& id) override;
   void HandleDeviceUsedWhileDisabled(
       crosapi::mojom::VideoConferenceMediaDevice device,
       const std::u16string& app_name) override;
+  void HandleClientUpdate(
+      crosapi::mojom::VideoConferenceClientUpdatePtr update) override;
 
   // Adds or clears media app(s) in `media_apps_`.
   void AddMediaApp(crosapi::mojom::VideoConferenceMediaAppInfoPtr media_app);
@@ -56,6 +61,13 @@ class ASH_EXPORT FakeVideoConferenceTrayController
   device_used_while_disabled_records() {
     return device_used_while_disabled_records_;
   }
+
+  const crosapi::mojom::VideoConferenceClientUpdatePtr& last_client_update() {
+    return last_client_update_;
+  }
+  int stop_all_screen_share_count() { return stop_all_screen_share_count_; }
+
+  const MediaApps& media_apps() { return media_apps_; }
 
  private:
   FRIEND_TEST_ALL_PREFIXES(video_conference::ReturnToAppPanelTest, ReturnToApp);
@@ -68,6 +80,9 @@ class ASH_EXPORT FakeVideoConferenceTrayController
   // Indicates whether microphone is muted.
   bool microphone_muted_ = false;
 
+  // Record number of times StopAllScreenShare is called.
+  int stop_all_screen_share_count_ = 0;
+
   // Records calls of the HandleDeviceUsedWhileDisabled for testing.
   std::vector<
       std::pair<crosapi::mojom::VideoConferenceMediaDevice, std::u16string>>
@@ -77,8 +92,18 @@ class ASH_EXPORT FakeVideoConferenceTrayController
   // launched and brought to the foreground).
   std::map<base::UnguessableToken, bool> app_to_launch_state_;
 
+  // The `VideoConferenceTrayEffectsManager` that should be used. Can be
+  // specified by `SetEffectsManager()`. Mainly used by tests that require use
+  // of a fake VC effects manager over the manager used in production. If null,
+  // then a call to `GetEffectsManager()` will return the result of the base
+  // `VideoConferenceTrayController::GetEffectsManager()`.
+  raw_ptr<VideoConferenceTrayEffectsManager> effects_manager_;
+
   // General-purpose repository for fake effects.
   std::unique_ptr<fake_video_conference::EffectRepository> effect_repository_;
+
+  // Last client update received.
+  crosapi::mojom::VideoConferenceClientUpdatePtr last_client_update_;
 };
 
 }  // namespace ash

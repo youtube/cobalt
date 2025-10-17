@@ -1,7 +1,4 @@
-tsergeant@chromium.org
-
-# For backup
-dominickn@chromium.org
+file://chrome/browser/web_applications/OWNERS
 
 per-file *.mojom=set noparent
 per-file *.mojom=file://ipc/SECURITY_OWNERS

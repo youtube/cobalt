@@ -5,10 +5,10 @@
 #ifndef CHROME_BROWSER_BANNERS_TEST_APP_BANNER_MANAGER_DESKTOP_H_
 #define CHROME_BROWSER_BANNERS_TEST_APP_BANNER_MANAGER_DESKTOP_H_
 
+#include <optional>
+
 #include "base/values.h"
 #include "chrome/browser/banners/app_banner_manager_desktop.h"
-
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 class WebContents;
@@ -55,31 +55,35 @@ class TestAppBannerManagerDesktop : public AppBannerManagerDesktop {
   void OnDidGetManifest(const InstallableData& result) override;
   void OnDidPerformInstallableWebAppCheck(
       const InstallableData& result) override;
-  void PerformServiceWorkerCheck() override;
-  void OnDidPerformWorkerCheck(const InstallableData& result) override;
   void ResetCurrentPageData() override;
 
   // AppBannerManagerDesktop:
   TestAppBannerManagerDesktop* AsTestAppBannerManagerDesktopForTesting()
       override;
 
+  const base::Value::List& debug_log() const { return debug_log_; }
+
  protected:
   // AppBannerManager:
-  void OnInstall(blink::mojom::DisplayMode display) override;
-  void DidFinishCreatingWebApp(const web_app::AppId& app_id,
-                               webapps::InstallResultCode code) override;
+  void OnInstall(blink::mojom::DisplayMode display,
+                 bool set_current_web_app_not_installable) override;
+  void DidFinishCreatingWebApp(
+      const webapps::ManifestId& manifest_id,
+      base::WeakPtr<AppBannerManagerDesktop> is_navigation_current,
+      const webapps::AppId& app_id,
+      webapps::InstallResultCode code) override;
   void DidFinishLoad(content::RenderFrameHost* render_frame_host,
                      const GURL& validated_url) override;
   void UpdateState(AppBannerManager::State state) override;
+  void RecheckInstallabilityForLoadedPage() override;
 
  private:
   void SetInstallable(bool installable);
   void SetPromotable(bool promotable);
   void OnFinished();
 
-  absl::optional<bool> installable_;
+  std::optional<bool> installable_;
   base::Value::List debug_log_;
-  bool waiting_for_worker_;
   base::OnceClosure tear_down_quit_closure_;
   base::OnceClosure installable_quit_closure_;
   base::OnceClosure promotable_quit_closure_;

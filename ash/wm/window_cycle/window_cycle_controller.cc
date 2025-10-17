@@ -4,35 +4,32 @@
 
 #include "ash/wm/window_cycle/window_cycle_controller.h"
 
-#include "ash/accelerators/accelerator_controller_impl.h"
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/events/event_rewriter_controller_impl.h"
 #include "ash/metrics/task_switch_metrics_recorder.h"
 #include "ash/metrics/task_switch_source.h"
 #include "ash/metrics/user_metrics_recorder.h"
-#include "ash/public/cpp/accelerators.h"
-#include "ash/public/cpp/shell_window_ids.h"
-#include "ash/public/cpp/window_properties.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/wallpaper/wallpaper_controller_impl.h"
 #include "ash/wm/desks/desk.h"
-#include "ash/wm/desks/desks_controller.h"
+#include "ash/wm/desks/desk_bar_controller.h"
 #include "ash/wm/desks/desks_util.h"
 #include "ash/wm/mru_window_tracker.h"
 #include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/screen_pinning_controller.h"
+#include "ash/wm/snap_group/snap_group.h"
+#include "ash/wm/snap_group/snap_group_controller.h"
 #include "ash/wm/window_cycle/window_cycle_event_filter.h"
 #include "ash/wm/window_cycle/window_cycle_list.h"
-#include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
 #include "base/check.h"
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
-#include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -196,7 +193,6 @@ void WindowCycleController::HandleKeyboardNavigation(
     case KeyboardNavDirection::kInvalid:
     default:
       NOTREACHED();
-      break;
   }
 }
 
@@ -222,6 +218,12 @@ void WindowCycleController::StartCycling(bool same_app_only) {
   // End overview as the window cycle list takes over window switching.
   shell->overview_controller()->EndOverview(
       OverviewEndAction::kStartedWindowCycle);
+
+  // Close all desk bars as the window cycle list takes over window switching.
+  if (auto* desk_bar_controller =
+          shell->desks_controller()->desk_bar_controller()) {
+    desk_bar_controller->CloseAllDeskBars();
+  }
 
   WindowCycleController::WindowList window_list = CreateWindowList();
   SaveCurrentActiveDeskAndWindow(window_list);
@@ -281,7 +283,7 @@ bool WindowCycleController::IsEventInCycleView(
 }
 
 aura::Window* WindowCycleController::GetWindowAtPoint(
-    const ui::LocatedEvent* event) const {
+    const ui::LocatedEvent* event) {
   return window_cycle_list_ ? window_cycle_list_->GetWindowAtPoint(event)
                             : nullptr;
 }
@@ -381,7 +383,7 @@ void WindowCycleController::OnActiveUserPrefServiceChanged(
   InitFromUserPrefs();
 }
 
-void WindowCycleController::OnDeskAdded(const Desk* desk) {
+void WindowCycleController::OnDeskAdded(const Desk* desk, bool from_undo) {
   CancelCycling();
 }
 
@@ -393,9 +395,8 @@ void WindowCycleController::OnDeskRemoved(const Desk* desk) {
 // WindowCycleController, private:
 
 WindowCycleController::WindowList WindowCycleController::CreateWindowList() {
-  WindowCycleController::WindowList window_list =
-      Shell::Get()->mru_window_tracker()->BuildWindowForCycleWithPipList(
-          IsAltTabPerActiveDesk() ? kActiveDesk : kAllDesks);
+  WindowList window_list = BuildWindowListForWindowCycling(
+      IsAltTabPerActiveDesk() ? kActiveDesk : kAllDesks);
 
   // Window cycle list windows will handle showing their transient related
   // windows, so if a window in |window_list| has a transient root also in
@@ -403,6 +404,43 @@ WindowCycleController::WindowList WindowCycleController::CreateWindowList() {
   // the window.
   window_util::EnsureTransientRoots(&window_list);
   return window_list;
+}
+
+MruWindowTracker::WindowList
+WindowCycleController::BuildWindowListForWindowCycling(
+    DesksMruType desks_mru_type) {
+  const auto window_list =
+      Shell::Get()->mru_window_tracker()->BuildWindowForCycleWithPipList(
+          desks_mru_type);
+
+  SnapGroupController* snap_group_controller = SnapGroupController::Get();
+  if (!snap_group_controller) {
+    return window_list;
+  }
+
+  MruWindowTracker::WindowList adjusted_window_list;
+  for (aura::Window* window : window_list) {
+    // The latter-activated window in a snap group should have been added. Skip
+    // inserting to avoid duplicates.
+    if (base::Contains(adjusted_window_list, window)) {
+      continue;
+    }
+
+    if (SnapGroup* snap_group =
+            snap_group_controller->GetSnapGroupForGivenWindow(window)) {
+      // Insert the windows if they belong to a group following the order of the
+      // actual window layout, i.e. primary snapped window comes first followed
+      // by the secondary snapped window.
+      adjusted_window_list.push_back(
+          snap_group->GetPhysicallyLeftOrTopWindow());
+      adjusted_window_list.push_back(
+          snap_group->GetPhysicallyRightOrBottomWindow());
+    } else {
+      adjusted_window_list.push_back(window);
+    }
+  }
+
+  return adjusted_window_list;
 }
 
 void WindowCycleController::SaveCurrentActiveDeskAndWindow(
@@ -486,7 +524,7 @@ void WindowCycleController::OnAltTabModePrefChanged() {
 
   // After the cycle is reset, imitate the same forward cycling behavior as
   // starting alt-tab with `Step()`, which makes sure the correct window is
-  // selected and highlighted.
+  // selected and focused.
   Step(WindowCyclingDirection::kForward,
        /*starting_alt_tab_or_switching_mode=*/true);
 
@@ -497,7 +535,7 @@ void WindowCycleController::OnAltTabModePrefChanged() {
 }
 
 bool WindowCycleController::IsValidKeyboardNavigation(
-    KeyboardNavDirection direction) {
+    KeyboardNavDirection direction) const {
   // Only allow Left and Right arrow keys if interactive alt-tab mode is not
   // in use.
   if (!IsInteractiveAltTabModeAllowed()) {

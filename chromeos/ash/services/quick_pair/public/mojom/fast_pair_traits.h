@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "chromeos/ash/services/quick_pair/public/cpp/battery_notification.h"
@@ -17,7 +18,6 @@
 #include "chromeos/ash/services/quick_pair/public/mojom/fast_pair_data_parser.mojom-shared.h"
 #include "mojo/public/cpp/bindings/enum_traits.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace mojo {
 
@@ -57,6 +57,23 @@ class StructTraits<DecryptedResponseDataView, DecryptedResponse> {
 
   static std::vector<uint8_t> salt(const DecryptedResponse& r) {
     return std::vector<uint8_t>(r.salt.begin(), r.salt.end());
+  }
+
+  static std::optional<uint8_t> flags(const DecryptedResponse& r) {
+    return r.flags;
+  }
+
+  static std::optional<uint8_t> num_addresses(const DecryptedResponse& r) {
+    return r.num_addresses;
+  }
+
+  static std::optional<std::vector<uint8_t>> secondary_address_bytes(
+      const DecryptedResponse& r) {
+    if (!r.secondary_address_bytes.has_value()) {
+      return std::nullopt;
+    }
+    return std::vector<uint8_t>(r.secondary_address_bytes.value().begin(),
+                                r.secondary_address_bytes.value().end());
   }
 
   static bool Read(DecryptedResponseDataView data, DecryptedResponse* out);
@@ -128,7 +145,7 @@ class StructTraits<NotDiscoverableAdvertisementDataView,
     return r.salt;
   }
 
-  static absl::optional<BatteryNotification> battery_notification(
+  static std::optional<BatteryNotification> battery_notification(
       const NotDiscoverableAdvertisement& r) {
     return r.battery_notification;
   }

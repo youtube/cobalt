@@ -11,16 +11,9 @@
 
 namespace cc {
 
-ClipNode::ClipNode()
-    : id(kInvalidPropertyNodeId),
-      parent_id(kInvalidPropertyNodeId),
-      pixel_moving_filter_id(kInvalidPropertyNodeId),
-      transform_id(kInvalidPropertyNodeId) {}
-
+ClipNode::ClipNode() = default;
 ClipNode::ClipNode(const ClipNode& other) = default;
-
 ClipNode& ClipNode::operator=(const ClipNode& other) = default;
-
 ClipNode::~ClipNode() = default;
 
 bool ClipNode::AppliesLocalClip() const {
@@ -32,6 +25,12 @@ bool ClipNode::operator==(const ClipNode& other) const {
   return id == other.id && parent_id == other.parent_id && clip == other.clip &&
          pixel_moving_filter_id == other.pixel_moving_filter_id &&
          transform_id == other.transform_id;
+}
+
+std::string ClipNode::ToString() const {
+  base::trace_event::TracedValueJSON value;
+  AsValueInto(&value);
+  return value.ToFormattedJSON();
 }
 #endif
 

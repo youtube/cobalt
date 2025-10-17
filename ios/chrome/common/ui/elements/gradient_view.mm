@@ -4,12 +4,8 @@
 
 #import "ios/chrome/common/ui/elements/gradient_view.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface GradientView ()
 
@@ -40,6 +36,20 @@
     self.gradientLayer.endPoint = endPoint;
     self.userInteractionEnabled = NO;
     [self updateColors];
+
+    if (@available(iOS 17, *)) {
+      NSArray<UITrait>* traits = @[
+        UITraitUserInterfaceIdiom.class, UITraitUserInterfaceStyle.class,
+        UITraitDisplayGamut.class, UITraitAccessibilityContrast.class,
+        UITraitUserInterfaceLevel.class
+      ];
+      __weak __typeof(self) weakSelf = self;
+      UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
+                                       UITraitCollection* previousCollection) {
+        [weakSelf updateColorsOnTraitChange:previousCollection];
+      };
+      [self registerForTraitChanges:traits withHandler:handler];
+    }
   }
   return self;
 }
@@ -53,32 +63,49 @@
 }
 
 - (CAGradientLayer*)gradientLayer {
-  return base::mac::ObjCCastStrict<CAGradientLayer>(self.layer);
+  return base::apple::ObjCCastStrict<CAGradientLayer>(self.layer);
 }
 
+#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
 - (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
   [super traitCollectionDidChange:previousTraitCollection];
-  if ([self.traitCollection
-          hasDifferentColorAppearanceComparedToTraitCollection:
-              previousTraitCollection]) {
-    [self updateColors];
+  if (@available(iOS 17, *)) {
+    return;
   }
+
+  [self updateColorsOnTraitChange:previousTraitCollection];
+}
+#endif
+
+- (void)setStartColor:(UIColor*)startColor endColor:(UIColor*)endColor {
+  self.startColor = startColor;
+  self.endColor = endColor;
+  [self updateColors];
 }
 
 #pragma mark - Private
 
 - (void)updateColors {
-  [CATransaction begin];
-  // If this isn't set, the changes here are automatically animated. The other
-  // color changes for dark mode don't animate, however, so there ends up being
-  // visual desyncing.
-  [CATransaction setDisableActions:YES];
-
   self.gradientLayer.colors = @[
     (id)self.startColor.CGColor,
     (id)self.endColor.CGColor,
   ];
-  [CATransaction commit];
+}
+
+// Animate and update the view's color when its appearance has been modified via
+// changes in UITraits.
+- (void)updateColorsOnTraitChange:(UITraitCollection*)previousTraitCollection {
+  if ([self.traitCollection
+          hasDifferentColorAppearanceComparedToTraitCollection:
+              previousTraitCollection]) {
+    [CATransaction begin];
+    // If this isn't set, the changes here are automatically animated. The other
+    // color changes for dark mode don't animate, however, so there ends up
+    // being visual desyncing.
+    [CATransaction setDisableActions:YES];
+    [self updateColors];
+    [CATransaction commit];
+  }
 }
 
 @end

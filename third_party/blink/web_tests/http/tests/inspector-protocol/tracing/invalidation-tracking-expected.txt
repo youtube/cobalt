@@ -1,27 +1,64 @@
 Tests the data of invalidation tracking trace events
 Recording started
 Tracing complete
-ScheduleStyleInvalidationTracking
-Object: {
-	args: {
-		data: {
-			frame: string
-			invalidatedSelectorId: string
-			invalidationSet: string
-			nodeId: number
-			nodeName: string
-		}
-	}
-	cat: string
-	name: string
-	ph: string
-	pid: number
-	s: string
-	tid: number
-	ts: number
-}
 StyleRecalcInvalidationTracking
 Array: [
+	{
+		args: {
+			data: {
+				extraData: string
+				frame: string
+				nodeId: number
+				nodeName: string
+				reason: string
+				stackTrace: [
+					{
+						columnNumber: number
+						functionName: string
+						lineNumber: number
+						scriptId: string
+						url: string
+					}
+				]
+				subtree: boolean
+			}
+		}
+		cat: string
+		name: string
+		ph: string
+		pid: number
+		s: string
+		tid: number
+		ts: number
+	}
+	{
+		args: {
+			data: {
+				extraData: string
+				frame: string
+				nodeId: number
+				nodeName: string
+				reason: string
+				stackTrace: [
+					{
+						columnNumber: number
+						functionName: string
+						lineNumber: number
+						scriptId: string
+						url: string
+					}
+				]
+				subtree: boolean
+			}
+		}
+		cat: string
+		name: string
+		ph: string
+		pid: number
+		s: string
+		tid: number
+		ts: number
+	}
 	{
 		args: {
 			data: {
@@ -61,32 +98,6 @@ Array: [
 		ts: number
 	}
 ]
-StyleInvalidatorInvalidationTracking
-Object: {
-	args: {
-		data: {
-			frame: string
-			invalidationList: [
-				{
-					id: string
-					tagNames: [
-						string,
-					]
-				}
-			]
-			nodeId: number
-			nodeName: string
-			reason: string
-		}
-	}
-	cat: string
-	name: string
-	ph: string
-	pid: number
-	s: string
-	tid: number
-	ts: number
-}
 LayoutInvalidationTracking
 Object: {
 	args: {
@@ -95,6 +106,15 @@ Object: {
 			nodeId: number
 			nodeName: string
 			reason: string
+			stackTrace: [
+				{
+					columnNumber: number
+					functionName: string
+					lineNumber: number
+					scriptId: string
+					url: string
+				}
+			]
 		}
 	}
 	cat: string
@@ -105,4 +125,10 @@ Object: {
 	tid: number
 	ts: number
 }
+Number of StyleResolver::ResolveStyle events:
+6
+Style recalc initiator:
+forceLayout
+Layout initiator:
+forceLayout
 

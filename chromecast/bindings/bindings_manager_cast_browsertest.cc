@@ -5,7 +5,10 @@
 #ifndef CHROMECAST_BINDINGS_BINDINGS_MANAGER_CAST_BROWSERTEST_H_
 #define CHROMECAST_BINDINGS_BINDINGS_MANAGER_CAST_BROWSERTEST_H_
 
+#include "chromecast/bindings/bindings_manager_cast.h"
+
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/command_line.h"
@@ -14,17 +17,16 @@
 #include "base/memory/weak_ptr.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "chromecast/base/chromecast_switches.h"
 #include "chromecast/base/metrics/cast_metrics_helper.h"
-#include "chromecast/bindings/bindings_manager_cast.h"
 #include "chromecast/bindings/public/mojom/api_bindings.mojom.h"
 #include "chromecast/browser/cast_browser_context.h"
 #include "chromecast/browser/cast_browser_process.h"
 #include "chromecast/browser/cast_web_contents_impl.h"
 #include "chromecast/browser/cast_web_contents_observer.h"
+#include "chromecast/browser/test/cast_browser_test.h"
 #include "components/cast/message_port/test_message_port_receiver.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
@@ -61,7 +63,7 @@ base::FilePath GetTestDataPath() {
 
 base::FilePath GetTestDataFilePath(const std::string& name) {
   base::FilePath file_path;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &file_path));
   return file_path.Append(GetTestDataPath()).AppendASCII(name);
 }
 
@@ -76,7 +78,7 @@ class TitleChangeObserver : public CastWebContentsObserver {
 
   // Spins a Runloop until the title of the page matches the |expected_title|
   // that have been set.
-  void RunUntilTitleEquals(base::StringPiece expected_title) {
+  void RunUntilTitleEquals(std::string_view expected_title) {
     expected_title_ = std::string(expected_title);
     // Spin the runloop until the expected conditions are met.
     if (current_title_ != expected_title_) {
@@ -124,25 +126,8 @@ class MockWebContentsDelegate : public content::WebContentsDelegate {
 // =============================================================================
 // Test class
 // =============================================================================
-class BindingsManagerCastBrowserTest : public content::BrowserTestBase {
- public:
-  BindingsManagerCastBrowserTest(const BindingsManagerCastBrowserTest&) =
-      delete;
-  BindingsManagerCastBrowserTest& operator=(
-      const BindingsManagerCastBrowserTest&) = delete;
-
+class BindingsManagerCastBrowserTest : public shell::CastBrowserTest {
  protected:
-  BindingsManagerCastBrowserTest() = default;
-  ~BindingsManagerCastBrowserTest() override = default;
-
-  void SetUp() final {
-    SetUpCommandLine(base::CommandLine::ForCurrentProcess());
-    BrowserTestBase::SetUp();
-  }
-  void SetUpCommandLine(base::CommandLine* command_line) final {
-    command_line->AppendSwitchASCII(switches::kTestType, "browser");
-  }
-
   void PreRunTestOnMainThread() override {
     // Pump startup related events.
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);

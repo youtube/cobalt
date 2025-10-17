@@ -45,7 +45,7 @@ class TranslationResponseParserTest : public testing::Test {
   }
 
  protected:
-  base::test::SingleThreadTaskEnvironment task_environment_;
+  base::test::TaskEnvironment task_environment_;
   std::unique_ptr<TranslationResponseParser> translation_response_parser_;
   std::unique_ptr<TranslationResult> translation_result_;
   data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
@@ -68,7 +68,7 @@ TEST_F(TranslationResponseParserTest, ProcessResponseSuccess) {
       std::make_unique<std::string>(kTranslationResponse));
   WaitForResponse();
   ASSERT_TRUE(translation_result_);
-  EXPECT_EQ(u"translated text", translation_result_->translated_text);
+  EXPECT_EQ("translated text", translation_result_->translated_text);
 }
 
 TEST_F(TranslationResponseParserTest,
@@ -89,7 +89,7 @@ TEST_F(TranslationResponseParserTest,
   WaitForResponse();
   ASSERT_TRUE(translation_result_);
   // Should correctly unescape ampersand character codes.
-  EXPECT_EQ(u"don't mess with me", translation_result_->translated_text);
+  EXPECT_EQ("don't mess with me", translation_result_->translated_text);
 }
 
 TEST_F(TranslationResponseParserTest, ProcessResponseNoResults) {

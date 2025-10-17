@@ -11,16 +11,24 @@
 #include "base/check.h"
 #include "base/task/thread_pool.h"
 #include "base/values.h"
+#include "build/build_config.h"
+#include "chrome/browser/enterprise/connectors/device_trust/device_trust_features.h"
 #include "chrome/browser/enterprise/connectors/device_trust/signals/decorators/common/metrics_utils.h"
 #include "chrome/browser/enterprise/connectors/device_trust/signals/decorators/common/signals_utils.h"
 #include "chrome/browser/enterprise/signals/device_info_fetcher.h"
-#include "chrome/browser/enterprise/signals/signals_common.h"
+#include "components/device_signals/core/browser/browser_utils.h"
 #include "components/device_signals/core/browser/signals_aggregator.h"
 #include "components/device_signals/core/browser/signals_types.h"
 #include "components/device_signals/core/common/common_types.h"
 #include "components/device_signals/core/common/signals_constants.h"
+#include "components/enterprise/core/dependency_factory.h"
+#include "components/policy/core/common/cloud/cloud_policy_manager.h"
 #include "components/policy/core/common/cloud/cloud_policy_store.h"
 #include "components/policy/proto/device_management_backend.pb.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "components/device_signals/core/common/win/win_types.h"
+#endif
 
 namespace enterprise_connectors {
 
@@ -28,25 +36,25 @@ namespace {
 
 constexpr char kLatencyHistogramVariant[] = "Browser";
 
-absl::optional<std::string> TryGetEnrollmentDomain(
-    policy::CloudPolicyStore* store) {
-  if (store && store->has_policy()) {
-    const auto* policy = store->policy();
-    return policy->has_managed_by() ? policy->managed_by()
-                                    : policy->display_domain();
-  }
-  return absl::nullopt;
+std::vector<std::string> RemoveDuplicates(std::vector<std::string> addresses) {
+  std::sort(addresses.begin(), addresses.end());
+  addresses.erase(std::unique(addresses.begin(), addresses.end()),
+                  addresses.end());
+
+  return addresses;
 }
 
 }  // namespace
 
 BrowserSignalsDecorator::BrowserSignalsDecorator(
-    policy::CloudPolicyStore* browser_cloud_policy_store,
-    policy::CloudPolicyStore* user_cloud_policy_store,
+    policy::CloudPolicyManager* browser_cloud_policy_manager,
+    std::unique_ptr<enterprise_core::DependencyFactory> dependency_factory,
     device_signals::SignalsAggregator* signals_aggregator)
-    : browser_cloud_policy_store_(browser_cloud_policy_store),
-      user_cloud_policy_store_(user_cloud_policy_store),
-      signals_aggregator_(signals_aggregator) {}
+    : browser_cloud_policy_manager_(browser_cloud_policy_manager),
+      dependency_factory_(std::move(dependency_factory)),
+      signals_aggregator_(signals_aggregator) {
+  CHECK(dependency_factory_);
+}
 
 BrowserSignalsDecorator::~BrowserSignalsDecorator() = default;
 
@@ -55,18 +63,23 @@ void BrowserSignalsDecorator::Decorate(base::Value::Dict& signals,
   auto start_time = base::TimeTicks::Now();
 
   const auto device_enrollment_domain =
-      TryGetEnrollmentDomain(browser_cloud_policy_store_);
+      device_signals::TryGetEnrollmentDomain(browser_cloud_policy_manager_);
   if (device_enrollment_domain) {
     signals.Set(device_signals::names::kDeviceEnrollmentDomain,
                 device_enrollment_domain.value());
   }
 
-  const auto user_enrollment_domain =
-      TryGetEnrollmentDomain(user_cloud_policy_store_);
+  const auto user_enrollment_domain = device_signals::TryGetEnrollmentDomain(
+      dependency_factory_->GetUserCloudPolicyManager());
   if (user_enrollment_domain) {
     signals.Set(device_signals::names::kUserEnrollmentDomain,
                 user_enrollment_domain.value());
   }
+
+  // On Chrome Browser, the trigger is currently always a browser navigation.
+  signals.Set(
+      device_signals::names::kTrigger,
+      static_cast<int32_t>(device_signals::Trigger::kBrowserNavigation));
 
   auto barrier_closure = base::BarrierClosure(
       /*num_closures=*/signals_aggregator_ ? 2 : 1,
@@ -85,6 +98,10 @@ void BrowserSignalsDecorator::Decorate(base::Value::Dict& signals,
   if (signals_aggregator_) {
     device_signals::SignalsAggregationRequest request;
     request.signal_names.emplace(device_signals::SignalName::kAgent);
+
+    if (IsDTCAntivirusSignalEnabled()) {
+      request.signal_names.emplace(device_signals::SignalName::kAntiVirus);
+    }
     signals_aggregator_->GetSignals(
         request,
         base::BindOnce(&BrowserSignalsDecorator::OnAggregatedSignalsReceived,
@@ -105,7 +122,7 @@ void BrowserSignalsDecorator::OnDeviceInfoFetched(
   signals.Set(device_signals::names::kDeviceHostName,
               device_info.device_host_name);
   signals.Set(device_signals::names::kMacAddresses,
-              ToListValue(device_info.mac_addresses));
+              ToListValue(RemoveDuplicates(device_info.mac_addresses)));
 
   if (device_info.windows_machine_domain) {
     signals.Set(device_signals::names::kWindowsMachineDomain,
@@ -138,6 +155,18 @@ void BrowserSignalsDecorator::OnAggregatedSignalsReceived(
                   std::move(serialized_crowdstrike_signals.value()));
     }
   }
+
+#if BUILDFLAG(IS_WIN)
+  if (IsDTCAntivirusSignalEnabled()) {
+    device_signals::InstalledAntivirusState antivirus_state{
+        device_signals::InstalledAntivirusState::kNone};
+    if (response.av_signal_response) {
+      antivirus_state = response.av_signal_response->antivirus_state;
+    }
+    signals.Set(device_signals::names::kAntivirusState,
+                static_cast<int>(antivirus_state));
+  }
+#endif
 
   std::move(done_closure).Run();
 }

@@ -12,6 +12,8 @@ import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 
 import org.chromium.base.ApiCompatibilityUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.resources.Resource;
 import org.chromium.ui.resources.ResourceFactory;
 
@@ -19,9 +21,10 @@ import org.chromium.ui.resources.ResourceFactory;
  * A representation of a static resource and all related information for drawing it.  In general
  * this means a {@link Bitmap} and a potential {@link NinePatchData}.
  */
+@NullMarked
 public class StaticResource implements Resource {
-    private Bitmap mBitmap;
-    private final NinePatchData mNinePatchData;
+    private @Nullable Bitmap mBitmap;
+    private final @Nullable NinePatchData mNinePatchData;
     private final Rect mBitmapSize;
 
     /**
@@ -36,7 +39,7 @@ public class StaticResource implements Resource {
     }
 
     @Override
-    public NinePatchData getNinePatchData() {
+    public @Nullable NinePatchData getNinePatchData() {
         return mNinePatchData;
     }
 
@@ -46,11 +49,6 @@ public class StaticResource implements Resource {
         Bitmap bitmap = mBitmap;
         mBitmap = null;
         return bitmap;
-    }
-
-    @Override
-    public boolean shouldRemoveResourceOnNullBitmap() {
-        return false;
     }
 
     @Override
@@ -64,22 +62,21 @@ public class StaticResource implements Resource {
     }
 
     /**
-     * Attempts to load the Android resource specified by {@code resId} from {@code resources}.
-     * This will attempt to first load the resource as a {@code Bitmap}.  If that fails it will try
-     * to load the resource as a {@link Drawable}.
+     * Attempts to load the Android resource specified by {@code resId} from {@code resources}. This
+     * will attempt to first load the resource as a {@code Bitmap}. If that fails it will try to
+     * load the resource as a {@link Drawable}.
+     *
      * @param resources The {@link Resources} instance to load from.
-     * @param resId     The id of the Android resource to load.
-     * @param fitWidth  The smallest width the image can be.  The image will be shrunk to scale to
-     *                  try to get close to this value.  Or use {@code 0} to use the intrinsic
-     *                  size.
-     * @param fitHeight The smallest height the image can be.  The image will be shrunk to scale to
-     *                  try to get close to this value.  Or use {@code 0} to use the intrinsic
-     *                  size.
-     * @return          The loaded {@link StaticResource} or {@code null} if the resource could not
-     *                  be loaded.
+     * @param resId The id of the Android resource to load.
+     * @param fitWidth The smallest width the image can be. The image will be shrunk to scale to try
+     *     to get close to this value. Or use {@code 0} to use the intrinsic size.
+     * @param fitHeight The smallest height the image can be. The image will be shrunk to scale to
+     *     try to get close to this value. Or use {@code 0} to use the intrinsic size.
+     * @return The loaded {@link StaticResource} or {@code null} if the resource could not be
+     *     loaded.
      */
-    public static StaticResource create(Resources resources, int resId, int fitWidth,
-            int fitHeight) {
+    public static @Nullable StaticResource create(
+            Resources resources, int resId, int fitWidth, int fitHeight) {
         if (resId <= 0) return null;
         Bitmap bitmap = decodeBitmap(resources, resId, fitWidth, fitHeight);
         if (bitmap == null) bitmap = decodeDrawable(resources, resId, fitWidth, fitHeight);
@@ -88,8 +85,8 @@ public class StaticResource implements Resource {
         return new StaticResource(bitmap);
     }
 
-    private static Bitmap decodeBitmap(Resources resources, int resId, int fitWidth,
-            int fitHeight) {
+    private static @Nullable Bitmap decodeBitmap(
+            Resources resources, int resId, int fitWidth, int fitHeight) {
         BitmapFactory.Options options = createOptions(resources, resId, fitWidth, fitHeight);
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
         Bitmap bitmap = BitmapFactory.decodeResource(resources, resId, options);
@@ -97,16 +94,17 @@ public class StaticResource implements Resource {
         if (bitmap == null) return null;
         if (bitmap.getConfig() == options.inPreferredConfig) return bitmap;
 
-        Bitmap convertedBitmap = Bitmap.createBitmap(
-                bitmap.getWidth(), bitmap.getHeight(), options.inPreferredConfig);
+        Bitmap convertedBitmap =
+                Bitmap.createBitmap(
+                        bitmap.getWidth(), bitmap.getHeight(), options.inPreferredConfig);
         Canvas canvas = new Canvas(convertedBitmap);
         canvas.drawBitmap(bitmap, 0, 0, null);
         bitmap.recycle();
         return convertedBitmap;
     }
 
-    private static Bitmap decodeDrawable(Resources resources, int resId, int fitWidth,
-            int fitHeight) {
+    private static @Nullable Bitmap decodeDrawable(
+            Resources resources, int resId, int fitWidth, int fitHeight) {
         try {
             Drawable drawable = ApiCompatibilityUtils.getDrawable(resources, resId);
             int width = Math.max(drawable.getMinimumWidth(), Math.max(fitWidth, 1));
@@ -121,8 +119,8 @@ public class StaticResource implements Resource {
         }
     }
 
-    private static BitmapFactory.Options createOptions(Resources resources, int resId,
-            int fitWidth, int fitHeight) {
+    private static BitmapFactory.Options createOptions(
+            Resources resources, int resId, int fitWidth, int fitHeight) {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ARGB_8888;
         if (fitWidth == 0 || fitHeight == 0) return options;

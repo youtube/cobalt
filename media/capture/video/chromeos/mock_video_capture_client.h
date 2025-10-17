@@ -8,7 +8,7 @@
 #include "media/capture/video/video_capture_device.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-// TODO(crbug.com/838774):
+// TODO(crbug.com/41386548):
 // Consolidate the MockVideoCaptureClient implementations
 
 namespace media {
@@ -40,44 +40,57 @@ class MockVideoCaptureClient : public VideoCaptureDevice::Client {
                  const base::Location& location,
                  const std::string& message);
 
-  void OnIncomingCapturedData(const uint8_t* data,
-                              int length,
-                              const VideoCaptureFormat& format,
-                              const gfx::ColorSpace& color_space,
-                              int rotation,
-                              bool flip_y,
-                              base::TimeTicks reference_time,
-                              base::TimeDelta timestamp,
-                              int frame_feedback_id) override;
-  void OnIncomingCapturedGfxBuffer(gfx::GpuMemoryBuffer* buffer,
-                                   const VideoCaptureFormat& frame_format,
-                                   int clockwise_rotation,
-                                   base::TimeTicks reference_time,
-                                   base::TimeDelta timestamp,
-                                   int frame_feedback_id) override;
-  void OnIncomingCapturedExternalBuffer(
-      CapturedExternalVideoBuffer buffer,
-      std::vector<CapturedExternalVideoBuffer> scaled_buffers,
+  void OnIncomingCapturedData(
+      const uint8_t* data,
+      int length,
+      const VideoCaptureFormat& format,
+      const gfx::ColorSpace& color_space,
+      int rotation,
+      bool flip_y,
       base::TimeTicks reference_time,
       base::TimeDelta timestamp,
-      gfx::Rect visible_rect) override;
+      std::optional<base::TimeTicks> capture_begin_time,
+      const std::optional<media::VideoFrameMetadata>& metadata,
+      int frame_feedback_id) override;
+  void OnIncomingCapturedImage(
+      scoped_refptr<gpu::ClientSharedImage> shared_image,
+      const VideoCaptureFormat& frame_format,
+      int clockwise_rotation,
+      base::TimeTicks reference_time,
+      base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_time,
+      const std::optional<media::VideoFrameMetadata>& metadata,
+      int frame_feedback_id) override;
+  void OnIncomingCapturedExternalBuffer(
+      CapturedExternalVideoBuffer buffer,
+      base::TimeTicks reference_time,
+      base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_time,
+      const gfx::Rect& visible_rect,
+      const std::optional<media::VideoFrameMetadata>& metadata) override;
   // Trampoline methods to workaround GMOCK problems with std::unique_ptr<>.
   ReserveResult ReserveOutputBuffer(const gfx::Size& dimensions,
                                     VideoPixelFormat format,
                                     int frame_feedback_id,
-                                    Buffer* buffer) override;
-  void OnIncomingCapturedBuffer(Buffer buffer,
-                                const VideoCaptureFormat& format,
-                                base::TimeTicks reference_time,
-                                base::TimeDelta timestamp) override;
+                                    Buffer* buffer,
+                                    int* require_new_buffer_id,
+                                    int* retire_old_buffer_id) override;
+  void OnIncomingCapturedBuffer(
+      Buffer buffer,
+      const VideoCaptureFormat& format,
+      base::TimeTicks reference_time,
+      base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_time,
+      const std::optional<media::VideoFrameMetadata>& metadata) override;
   void OnIncomingCapturedBufferExt(
       Buffer buffer,
       const VideoCaptureFormat& format,
       const gfx::ColorSpace& color_space,
       base::TimeTicks reference_time,
       base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_time,
       gfx::Rect visible_rect,
-      const VideoFrameMetadata& additional_metadata) override;
+      const std::optional<VideoFrameMetadata>& additional_metadata) override;
 
  private:
   base::OnceClosure frame_cb_;

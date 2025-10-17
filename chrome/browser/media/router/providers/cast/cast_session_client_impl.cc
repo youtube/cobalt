@@ -4,10 +4,17 @@
 
 #include "chrome/browser/media/router/providers/cast/cast_session_client_impl.h"
 
+#include <optional>
+#include <string>
 #include <vector>
 
+#include "base/json/json_writer.h"
 #include "chrome/browser/media/router/data_decoder_util.h"
+#include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/media/router/providers/cast/app_activity.h"
+#include "chrome/browser/media/router/providers/cast/cast_internal_message_util.h"
+#include "components/media_router/common/mojom/debugger.mojom.h"
+#include "components/media_router/common/mojom/logger.mojom.h"
 #include "components/media_router/common/providers/cast/channel/enum_table.h"
 
 using blink::mojom::PresentationConnectionCloseReason;
@@ -18,9 +25,34 @@ namespace media_router {
 
 namespace {
 
+void LogCastInternalMessage(mojom::Logger& logger,
+                            const CastInternalMessage& message) {
+  std::optional<std::string> json;
+  std::string message_type;
+  std::string session_id;
+  switch (message.type()) {
+    case CastInternalMessage::Type::kAppMessage:
+      session_id = message.session_id();
+      message_type = message.app_message_namespace();
+      json = base::WriteJson(message.app_message_body(), 10);
+      break;
+    case CastInternalMessage::Type::kV2Message:
+      session_id = message.session_id();
+      message_type = message.v2_message_type();
+      json = base::WriteJson(message.v2_message_body(), 10);
+      break;
+    default:
+      message_type = CastInternalMessageTypeToString(message.type());
+      break;
+  }
+  logger.LogInfo(media_router::mojom::LogCategory::kRoute,
+                 "Cast::HandleParsedClientMessage", json.value_or(""),
+                 message.client_id(), message_type, session_id);
+}
+
 void ReportClientMessageParseError(const MediaRoute::Id& route_id,
                                    const std::string& error) {
-  // TODO(crbug.com/905002): Record UMA metric for parse result.
+  // TODO(crbug.com/41426190): Record UMA metric for parse result.
   DLOG(ERROR) << "Failed to parse Cast client message for " << route_id << ": "
               << error;
 }
@@ -28,35 +60,40 @@ void ReportClientMessageParseError(const MediaRoute::Id& route_id,
 // Traverses a JSON value, recursively removing any dict entries whose value is
 // null.
 void RemoveNullFields(base::Value& value) {
-  if (value.is_list()) {
-    for (auto& item : value.GetList()) {
+  if (auto* list = value.GetIfList()) {
+    for (auto& item : *list) {
       RemoveNullFields(item);
     }
-  } else if (value.is_dict()) {
+  } else if (auto* dict = value.GetIfDict()) {
     std::vector<std::string> to_remove;
-    for (auto pair : value.GetDict()) {
-      if (pair.second.is_none()) {
-        to_remove.push_back(pair.first);
+    for (auto [key, val] : *dict) {
+      if (val.is_none()) {
+        to_remove.push_back(key);
       } else {
-        RemoveNullFields(pair.second);
+        RemoveNullFields(val);
       }
     }
     for (const auto& key : to_remove) {
-      value.RemoveKey(key);
+      dict->Remove(key);
     }
   }
 }
 
 }  // namespace
 
-CastSessionClientImpl::CastSessionClientImpl(const std::string& client_id,
-                                             const url::Origin& origin,
-                                             int frame_tree_node_id,
-                                             AutoJoinPolicy auto_join_policy,
-                                             CastActivity* activity)
+CastSessionClientImpl::CastSessionClientImpl(
+    const std::string& client_id,
+    const url::Origin& origin,
+    content::FrameTreeNodeId frame_tree_node_id,
+    AutoJoinPolicy auto_join_policy,
+    CastActivity* activity,
+    mojo::Remote<mojom::Logger>& logger,
+    mojo::Remote<mojom::Debugger>& debugger)
     : CastSessionClient(client_id, origin, frame_tree_node_id),
       auto_join_policy_(auto_join_policy),
-      activity_(activity) {}
+      activity_(activity),
+      logger_(logger),
+      debugger_(debugger) {}
 
 CastSessionClientImpl::~CastSessionClientImpl() = default;
 
@@ -74,16 +111,22 @@ mojom::RoutePresentationConnectionPtr CastSessionClientImpl::Init() {
 
 void CastSessionClientImpl::SendMessageToClient(
     PresentationConnectionMessagePtr message) {
+  if (IsCastMessageLoggingEnabled() && message->is_message()) {
+    logger_.get()->LogInfo(media_router::mojom::LogCategory::kRoute,
+                           "Cast::SendMessageToClient", message->get_message(),
+                           client_id(), origin().Serialize(),
+                           session_id().value_or(""));
+  }
   connection_remote_->OnMessage(std::move(message));
 }
 
-void CastSessionClientImpl::SendMediaStatusToClient(
-    const base::Value::Dict& media_status,
-    absl::optional<int> request_id) {
+void CastSessionClientImpl::SendMediaMessageToClient(
+    const base::Value::Dict& payload,
+    std::optional<int> request_id) {
   // Look up if there is a pending request from this client associated with this
   // message. If so, send the media status message as a response by setting the
   // sequence number.
-  absl::optional<int> sequence_number;
+  std::optional<int> sequence_number;
   if (request_id) {
     auto it = pending_media_requests_.find(*request_id);
     if (it != pending_media_requests_.end()) {
@@ -93,14 +136,12 @@ void CastSessionClientImpl::SendMediaStatusToClient(
       pending_media_requests_.erase(it);
     }
   }
-
-  SendMessageToClient(
-      CreateV2Message(client_id(), media_status, sequence_number));
+  SendMessageToClient(CreateV2Message(client_id(), payload, sequence_number));
 }
 
 bool CastSessionClientImpl::MatchesAutoJoinPolicy(
     url::Origin other_origin,
-    int other_frame_tree_node_id) const {
+    content::FrameTreeNodeId other_frame_tree_node_id) const {
   switch (auto_join_policy_) {
     case AutoJoinPolicy::kPageScoped:
       return false;
@@ -114,8 +155,9 @@ bool CastSessionClientImpl::MatchesAutoJoinPolicy(
 
 void CastSessionClientImpl::OnMessage(
     PresentationConnectionMessagePtr message) {
-  if (!message->is_message())
+  if (!message->is_message()) {
     return;
+  }
 
   GetDataDecoder().ParseJson(
       message->get_message(),
@@ -124,13 +166,13 @@ void CastSessionClientImpl::OnMessage(
 }
 
 void CastSessionClientImpl::DidClose(PresentationConnectionCloseReason reason) {
-  activity_->CloseConnectionOnReceiver(client_id());
+  activity_->CloseConnectionOnReceiver(client_id(), reason);
 }
 
 void CastSessionClientImpl::SendErrorCodeToClient(
     int sequence_number,
     CastInternalMessage::ErrorCode error_code,
-    absl::optional<std::string> description) {
+    std::optional<std::string> description) {
   base::Value::Dict message;
   message.Set("code", base::Value(*cast_util::EnumToString(error_code)));
   message.Set("description",
@@ -180,6 +222,10 @@ void CastSessionClientImpl::HandleParsedClientMessage(
     return;
   }
 
+  if (IsCastMessageLoggingEnabled()) {
+    LogCastInternalMessage(*(logger_->get()), *cast_message);
+  }
+
   switch (cast_message->type()) {
     case CastInternalMessage::Type::kAppMessage:
       // Send an ACK message back to SDK client to indicate it is handled.
@@ -224,7 +270,7 @@ void CastSessionClientImpl::HandleV2ProtocolMessage(
       cast_channel::V2MessageTypeFromString(type_str);
   if (cast_channel::IsMediaRequestMessageType(type)) {
     DVLOG(2) << "Got media command from client: " << type_str;
-    absl::optional<int> request_id =
+    std::optional<int> request_id =
         activity_->SendMediaRequestToReceiver(cast_message);
     if (request_id) {
       DCHECK(cast_message.sequence_number());
@@ -260,7 +306,7 @@ void CastSessionClientImpl::SendResultResponse(int sequence_number,
     SendMessageToClient(
         CreateV2Message(client_id(), base::Value::Dict(), sequence_number));
   } else {
-    // TODO(crbug.com/951089): Send correct error codes.  The original
+    // TODO(crbug.com/41452006): Send correct error codes.  The original
     // implementation isn't much help here because it sends incorrectly
     // formatted error messages without a valid error code in a lot of cases.
     SendErrorCodeToClient(sequence_number,
@@ -271,15 +317,17 @@ void CastSessionClientImpl::SendResultResponse(int sequence_number,
 
 void CastSessionClientImpl::CloseConnection(
     PresentationConnectionCloseReason close_reason) {
-  if (connection_remote_)
+  if (connection_remote_) {
     connection_remote_->DidClose(close_reason);
+  }
   TearDownPresentationConnection();
-  activity_->CloseConnectionOnReceiver(client_id());
+  activity_->CloseConnectionOnReceiver(client_id(), close_reason);
 }
 
 void CastSessionClientImpl::TerminateConnection() {
-  if (connection_remote_)
+  if (connection_remote_) {
     connection_remote_->DidChangeState(PresentationConnectionState::TERMINATED);
+  }
 
   TearDownPresentationConnection();
 }

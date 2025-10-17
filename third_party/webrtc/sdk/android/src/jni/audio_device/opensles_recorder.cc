@@ -45,7 +45,7 @@ namespace jni {
 
 OpenSLESRecorder::OpenSLESRecorder(
     const AudioParameters& audio_parameters,
-    rtc::scoped_refptr<OpenSLEngineManager> engine_manager)
+    webrtc::scoped_refptr<OpenSLEngineManager> engine_manager)
     : audio_parameters_(audio_parameters),
       audio_device_buffer_(nullptr),
       initialized_(false),
@@ -56,7 +56,7 @@ OpenSLESRecorder::OpenSLESRecorder(
       simple_buffer_queue_(nullptr),
       buffer_index_(0),
       last_rec_time_(0) {
-  ALOGD("ctor[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("ctor[tid=%d]", webrtc::CurrentThreadId());
   // Detach from this thread since we want to use the checker to verify calls
   // from the internal  audio thread.
   thread_checker_opensles_.Detach();
@@ -68,7 +68,7 @@ OpenSLESRecorder::OpenSLESRecorder(
 }
 
 OpenSLESRecorder::~OpenSLESRecorder() {
-  ALOGD("dtor[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("dtor[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   Terminate();
   DestroyAudioRecorder();
@@ -79,7 +79,7 @@ OpenSLESRecorder::~OpenSLESRecorder() {
 }
 
 int OpenSLESRecorder::Init() {
-  ALOGD("Init[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("Init[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   if (audio_parameters_.channels() == 2) {
     ALOGD("Stereo mode is enabled");
@@ -88,14 +88,14 @@ int OpenSLESRecorder::Init() {
 }
 
 int OpenSLESRecorder::Terminate() {
-  ALOGD("Terminate[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("Terminate[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   StopRecording();
   return 0;
 }
 
 int OpenSLESRecorder::InitRecording() {
-  ALOGD("InitRecording[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("InitRecording[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(!initialized_);
   RTC_DCHECK(!recording_);
@@ -114,7 +114,7 @@ bool OpenSLESRecorder::RecordingIsInitialized() const {
 }
 
 int OpenSLESRecorder::StartRecording() {
-  ALOGD("StartRecording[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("StartRecording[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(initialized_);
   RTC_DCHECK(!recording_);
@@ -140,7 +140,7 @@ int OpenSLESRecorder::StartRecording() {
   // Start audio recording by changing the state to SL_RECORDSTATE_RECORDING.
   // Given that buffers are already enqueued, recording should start at once.
   // The macro returns -1 if recording fails to start.
-  last_rec_time_ = rtc::Time();
+  last_rec_time_ = Time();
   if (LOG_ON_ERROR(
           (*recorder_)->SetRecordState(recorder_, SL_RECORDSTATE_RECORDING))) {
     return -1;
@@ -151,7 +151,7 @@ int OpenSLESRecorder::StartRecording() {
 }
 
 int OpenSLESRecorder::StopRecording() {
-  ALOGD("StopRecording[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("StopRecording[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   if (!initialized_ || !recording_) {
     return 0;
@@ -371,7 +371,7 @@ void OpenSLESRecorder::ReadBufferQueue() {
   // Check delta time between two successive callbacks and provide a warning
   // if it becomes very large.
   // TODO(henrika): using 150ms as upper limit but this value is rather random.
-  const uint32_t current_time = rtc::Time();
+  const uint32_t current_time = Time();
   const uint32_t diff = current_time - last_rec_time_;
   if (diff > 150) {
     ALOGW("Bad OpenSL ES record timing, dT=%u [ms]", diff);
@@ -383,7 +383,7 @@ void OpenSLESRecorder::ReadBufferQueue() {
   // OpenSL ES anyhow. Hence, as is, the WebRTC based AEC (which would use
   // these estimates) will never be active.
   fine_audio_buffer_->DeliverRecordedData(
-      rtc::ArrayView<const int16_t>(
+      webrtc::ArrayView<const int16_t>(
           audio_buffers_[buffer_index_].get(),
           audio_parameters_.frames_per_buffer() * audio_parameters_.channels()),
       25);

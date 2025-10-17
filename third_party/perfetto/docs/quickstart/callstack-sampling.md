@@ -2,12 +2,12 @@
 
 ## Prerequisites
 
-*   [ADB](https://developer.android.com/studio/command-line/adb) installed.
-*   A device running Android R+.
-*   Either a debuggable (`userdebug`/`eng`) Android image, or the apps to be
-    profiled need to be
-    [marked as profileable or debuggable](https://developer.android.com/guide/topics/manifest/profileable-element)
-    in their manifests.
+- [ADB](https://developer.android.com/studio/command-line/adb) installed.
+- A device running Android T+.
+- Either a debuggable (`userdebug`/`eng`) Android image, or the apps to be
+  profiled need to be
+  [marked as profileable or debuggable](https://developer.android.com/guide/topics/manifest/profileable-element)
+  in their manifests.
 
 ## Capture a CPU profile
 
@@ -29,7 +29,7 @@ export ANDROID_SERIAL=SER123456
 Download `cpu_profile` (if you don't have a Perfetto checkout):
 
 ```bash
-curl -LO https://raw.githubusercontent.com/google/perfetto/master/tools/cpu_profile
+curl -LO https://raw.githubusercontent.com/google/perfetto/main/tools/cpu_profile
 chmod +x cpu_profile
 ```
 
@@ -94,7 +94,7 @@ set ANDROID_SERIAL=SER123456
 ```
 
 Download the
-[`cpu_profile`](https://raw.githubusercontent.com/google/perfetto/master/tools/cpu_profile)
+[`cpu_profile`](https://raw.githubusercontent.com/google/perfetto/main/tools/cpu_profile)
 script. Then, start profiling. For example, to profile the processes
 `com.android.foo` and `com.android.bar`, use:
 
@@ -119,11 +119,6 @@ PERFETTO_SYMBOLIZER_MODE=index PERFETTO_BINARY_PATH=path/to/directory/with/symbo
 
 ## View profile
 
-Visualizing callstacks in the Perfetto UI is currently disabled behind a
-flag. Please enable it before proceeding further:
-
-![Enable flame graph flag](/docs/images/enable-profile-flame-graph.png)
-
 Upload the `raw-trace` or `symbolized-trace` file from the output directory to
 the [Perfetto UI](https://ui.perfetto.dev) and click and drag over one or more
 of the diamond markers in the UI track named "Perf Samples" for the processes
@@ -135,4 +130,6 @@ the call-stack at that point on the timeline.
 
 `cpu_profile` will also write separate profiles for each process that it
 profiled in the output directory, and those can be visualized using
-[`pprof`](https://github.com/google/pprof).
+[`pprof`](https://github.com/google/pprof). You can merge them into one by
+passing all of them to pprof, e.g.
+`pprof /tmp/perf_profile-240105114948clvad/*`.

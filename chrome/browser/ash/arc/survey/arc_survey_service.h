@@ -68,7 +68,7 @@ class ArcSurveyService : public KeyedService, public ArcAppListPrefs::Observer {
   const PackageNameMap* GetPackageNameMapForTesting();
   const TaskIdMap* GetTaskIdMapForTesting();
   const std::set<std::string>* GetAllowedPackagesForTesting();
-  void AddAllowedPackageNameForTesting(const std::string package_name);
+  void AddAllowedPackageNameForTesting(const std::string& package_name);
 
   static void EnsureFactoryBuilt();
 
@@ -105,7 +105,7 @@ class ArcSurveyService : public KeyedService, public ArcAppListPrefs::Observer {
   base::TimeDelta elapsed_time_survey_trigger_;
 
   // Unowned pointer.
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile> profile_;
 
   scoped_refptr<ash::HatsNotificationController> hats_notification_controller_;
 };

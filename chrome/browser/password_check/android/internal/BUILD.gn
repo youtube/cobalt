@@ -3,9 +3,9 @@
 # found in the LICENSE file.
 
 import("//build/config/android/rules.gni")
-import("//build/config/locales.gni")
 import("//chrome/android/features/android_library_factory_tmpl.gni")
 import("//chrome/common/features.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 import("//tools/grit/grit_rule.gni")
 
 _factory_sources = [ "java/src/org/chromium/chrome/browser/password_check/PasswordCheckFactory.java" ]
@@ -27,6 +27,7 @@ android_library_factory("public_factory_java") {
 android_library("internal_factory_java") {
   deps = [
     ":internal_java",
+    "//base:base_java",
     "//chrome/browser/flags:java",
     "//chrome/browser/settings:java",
     "//components/browser_ui/settings/android:java",
@@ -42,6 +43,7 @@ _public_ui_target = "//chrome/browser/password_check/android:public_ui_java"
 android_library_factory("public_ui_factory_java") {
   deps = [
     "//chrome/browser/feedback/android:java",
+    "//chrome/browser/profiles/android:java",
     "//chrome/browser/settings:java",
     "//components/browser_ui/settings/android:java",
     "//third_party/androidx:androidx_fragment_fragment_java",
@@ -55,13 +57,19 @@ android_library("internal_ui_factory_java") {
   deps = [
     ":internal_java",
     "//chrome/browser/feedback/android:java",
+    "//chrome/browser/profiles/android:java",
     "//chrome/browser/settings:java",
     "//components/browser_ui/settings/android:java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_preference_preference_java",
     _public_target,
     _public_ui_target,
   ]
   sources = _ui_factory_sources
+}
+
+generate_jni("internal_jni") {
+  sources = [ "java/src/org/chromium/chrome/browser/password_check/PasswordCheckBridge.java" ]
 }
 
 android_library("internal_java") {
@@ -69,10 +77,10 @@ android_library("internal_java") {
     ":java_resources",
     ":public_factory_java",
     "//base:base_java",
-    "//base:jni_java",
     "//build/android:build_java",
     "//chrome/android:chrome_app_java_resources",
     "//chrome/browser/device_reauth/android:java",
+    "//chrome/browser/feedback/android:factory_java",
     "//chrome/browser/feedback/android:java",
     "//chrome/browser/flags:java",
     "//chrome/browser/password_check/android:password_check_java_enums",
@@ -101,10 +109,12 @@ android_library("internal_java") {
     "//third_party/androidx:androidx_lifecycle_lifecycle_common_java",
     "//third_party/androidx:androidx_preference_preference_java",
     "//third_party/androidx:androidx_recyclerview_recyclerview_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_full_java",
     "//url:gurl_java",
     _public_target,
   ]
+  srcjar_deps = [ ":internal_jni" ]
   sources = [
     "java/src/org/chromium/chrome/browser/password_check/PasswordCheckBridge.java",
     "java/src/org/chromium/chrome/browser/password_check/PasswordCheckCoordinator.java",
@@ -119,7 +129,7 @@ android_library("internal_java") {
     "java/src/org/chromium/chrome/browser/password_check/helper/PasswordCheckChangePasswordHelper.java",
     "java/src/org/chromium/chrome/browser/password_check/helper/PasswordCheckIconHelper.java",
   ]
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+
   resources_package = "org.chromium.chrome.browser.password_check"
 }
 
@@ -144,9 +154,4 @@ android_resources("java_resources") {
 java_strings_grd("java_strings_grd") {
   defines = chrome_grit_defines
   grd_file = "java/strings/android_password_check_strings.grd"
-  outputs =
-      [ "values/android_password_check_strings.xml" ] +
-      process_file_template(
-          android_bundle_locales_as_resources,
-          [ "values-{{source_name_part}}/android_password_check_strings.xml" ])
 }

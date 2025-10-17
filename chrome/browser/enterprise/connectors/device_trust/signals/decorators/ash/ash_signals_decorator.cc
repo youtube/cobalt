@@ -14,15 +14,17 @@
 #include "chrome/browser/ash/crosapi/networking_attributes_ash.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/policy/core/device_attributes_impl.h"
+#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/connectors/device_trust/signals/decorators/common/metrics_utils.h"
 #include "chrome/browser/enterprise/connectors/device_trust/signals/decorators/common/signals_decorator.h"
 #include "chrome/browser/enterprise/connectors/device_trust/signals/decorators/common/signals_utils.h"
-#include "chrome/browser/enterprise/signals/signals_common.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/network/device_state.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
+#include "components/device_signals/core/browser/signals_types.h"
+#include "components/device_signals/core/common/common_types.h"
 #include "components/device_signals/core/common/signals_constants.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/prefs/pref_service.h"
@@ -34,6 +36,20 @@ namespace {
 using policy::BrowserPolicyConnectorAsh;
 
 constexpr char kLatencyHistogramVariant[] = "Ash";
+
+device_signals::Trigger DetermineTrigger(Profile* profile) {
+  if (!profile) {
+    return device_signals::Trigger::kUnspecified;
+  }
+  if (ash::ProfileHelper::IsUserProfile(profile)) {
+    return device_signals::Trigger::kBrowserNavigation;
+  }
+  if (ash::ProfileHelper::IsSigninProfile(profile)) {
+    return device_signals::Trigger::kLoginScreen;
+  }
+
+  return device_signals::Trigger::kUnspecified;
+}
 
 void GetNetworkDeviceStates(Profile* profile,
                             ash::NetworkStateHandler::DeviceStateList* list) {
@@ -74,16 +90,18 @@ void AshSignalsDecorator::Decorate(base::Value::Dict& signals,
               attributes_->GetDeviceSerialNumber());
   signals.Set(device_signals::names::kDeviceHostName,
               ash::NetworkHandler::Get()->network_state_handler()->hostname());
+  signals.Set(device_signals::names::kTrigger,
+              static_cast<int32_t>(DetermineTrigger(profile_)));
   // On ChromeOS the disk is always encrypted. See (b/249756773) for more
   // information.
   signals.Set(device_signals::names::kDiskEncrypted,
-              static_cast<int32_t>(enterprise_signals::SettingValue::ENABLED));
+              static_cast<int32_t>(device_signals::SettingValue::ENABLED));
 
   // Also, there is no way to remove the need for a password when logging into a
   // device, including when the screen is locked. A password or pin is always
   // required.
   signals.Set(device_signals::names::kScreenLockSecured,
-              static_cast<int32_t>(enterprise_signals::SettingValue::ENABLED));
+              static_cast<int32_t>(device_signals::SettingValue::ENABLED));
 
   base::Value::List imei_list;
   base::Value::List meid_list;
@@ -135,7 +153,7 @@ void AshSignalsDecorator::OnNetworkInfoRetrieved(
     case Result::Tag::kErrorMessage:
       break;
     case Result::Tag::kNetworkDetails:
-      absl::optional<std::string> mac_address =
+      std::optional<std::string> mac_address =
           result->get_network_details()->mac_address;
 
       // `get_network_details()->mac_address` returns a std::string. On other

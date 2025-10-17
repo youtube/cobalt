@@ -1,16 +1,16 @@
-// Copyright (c) 2020, Google Inc.
+// Copyright 2020 The BoringSSL Authors
 //
-// Permission to use, copy, modify, and/or distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-// SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-// OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package hpke
 
@@ -18,13 +18,11 @@ import (
 	"bytes"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -32,9 +30,8 @@ const (
 	exportOnlyAEAD uint16 = 0xffff
 )
 
-var (
-	testDataDir = flag.String("testdata", "testdata", "The path to the test vector JSON file.")
-)
+//go:embed testdata/test-vectors.json
+var testVectorsJSON []byte
 
 // Simple round-trip test for fixed inputs.
 func TestRoundTrip(t *testing.T) {
@@ -98,15 +95,8 @@ type ExportTestVector struct {
 
 // TestVectors checks all relevant test vectors in test-vectors.json.
 func TestVectors(t *testing.T) {
-	jsonStr, err := os.ReadFile(filepath.Join(*testDataDir, "test-vectors.json"))
-	if err != nil {
-		t.Errorf("error reading test vectors: %s", err)
-		return
-	}
-
 	var testVectors []HpkeTestVector
-	err = json.Unmarshal(jsonStr, &testVectors)
-	if err != nil {
+	if err := json.Unmarshal(testVectorsJSON, &testVectors); err != nil {
 		t.Errorf("error parsing test vectors: %s", err)
 		return
 	}

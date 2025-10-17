@@ -7,8 +7,9 @@
 #include <memory>
 #include <vector>
 
+#include "base/memory/scoped_refptr.h"
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/core/ec_signing_key.h"
-#include "crypto/scoped_mock_unexportable_key_provider.h"
+#include "crypto/scoped_fake_unexportable_key_provider.h"
 #include "crypto/signature_verifier.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,7 +34,7 @@ void ValidateSigningKey(SigningKeyPair* key_pair,
 
   // Signing should work.
   auto signed_data = key_pair->key()->SignSlowly(
-      base::as_bytes(base::make_span("data to sign")));
+      base::byte_span_with_nul_from_cstring("data to sign"));
   ASSERT_TRUE(signed_data.has_value());
   ASSERT_GT(signed_data->size(), 0u);
 }
@@ -42,7 +43,7 @@ std::unique_ptr<crypto::UnexportableSigningKey> GenerateSigningKey(
     BPKUR::KeyTrustLevel trust_level) {
   std::unique_ptr<crypto::UnexportableKeyProvider> provider;
   if (trust_level == BPKUR::CHROME_BROWSER_HW_KEY) {
-    provider = crypto::GetUnexportableKeyProvider();
+    provider = crypto::GetUnexportableKeyProvider(/*config=*/{});
   } else {
     provider = std::make_unique<ECSigningKeyProvider>();
   }
@@ -55,13 +56,13 @@ std::unique_ptr<crypto::UnexportableSigningKey> GenerateSigningKey(
 
 class SigningKeyPairTest : public testing::Test {
  protected:
-  crypto::ScopedMockUnexportableKeyProvider scoped_key_provider_;
+  crypto::ScopedFakeUnexportableKeyProvider scoped_key_provider_;
 };
 
 // Tests that the SigningKeyPair instance is correctly initialized with a
 // hardware-backed SigningKeyPair if it was available.
 TEST_F(SigningKeyPairTest, SigningKeyPairInstance_WithHwKey) {
-  auto key_pair = std::make_unique<SigningKeyPair>(
+  auto key_pair = base::MakeRefCounted<SigningKeyPair>(
       GenerateSigningKey(BPKUR::CHROME_BROWSER_HW_KEY),
       BPKUR::CHROME_BROWSER_HW_KEY);
   ValidateSigningKey(key_pair.get(), BPKUR::CHROME_BROWSER_HW_KEY);
@@ -70,7 +71,7 @@ TEST_F(SigningKeyPairTest, SigningKeyPairInstance_WithHwKey) {
 // Tests that the SigningKeyPair instance is correctly initialized with a
 // crypto::ECPrivateKey-backed SigningKeyPair if it was available.
 TEST_F(SigningKeyPairTest, Create_WithECPrivateKey) {
-  auto key_pair = std::make_unique<SigningKeyPair>(
+  auto key_pair = base::MakeRefCounted<SigningKeyPair>(
       GenerateSigningKey(BPKUR::CHROME_BROWSER_OS_KEY),
       BPKUR::CHROME_BROWSER_OS_KEY);
   ValidateSigningKey(key_pair.get(), BPKUR::CHROME_BROWSER_OS_KEY);

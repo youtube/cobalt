@@ -6,6 +6,7 @@
 #define IOS_WEB_VIEW_INTERNAL_WEB_VIEW_MESSAGE_HANDLER_JAVA_SCRIPT_FEATURE_H_
 
 #import <map>
+#import <optional>
 #import <string>
 
 #import "base/functional/callback.h"
@@ -58,12 +59,13 @@ class WebViewMessageHandlerJavaScriptFeature
   void RegisterHandler(std::string& command,
                        WebViewMessageHandlerCallback handler);
   void UnregisterHandler(std::string& command);
+  bool IsHandlerRegistered(std::string& command);
 
  private:
   friend class base::NoDestructor<WebViewMessageHandlerJavaScriptFeature>;
 
   // JavaScriptFeature overrides
-  absl::optional<std::string> GetScriptMessageHandlerName() const override;
+  std::optional<std::string> GetScriptMessageHandlerName() const override;
   void ScriptMessageReceived(web::WebState* web_state,
                              const web::ScriptMessage& script_message) override;
 

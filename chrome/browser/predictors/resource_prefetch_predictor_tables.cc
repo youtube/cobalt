@@ -4,14 +4,15 @@
 
 #include "chrome/browser/predictors/resource_prefetch_predictor_tables.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
+#include "chrome/browser/predictors/lcp_critical_path_predictor/lcp_critical_path_predictor_util.h"
 #include "chrome/browser/predictors/predictors_features.h"
 #include "sql/statement.h"
 #include "sql/transaction.h"
@@ -68,8 +69,7 @@ void ResourcePrefetchPredictorTables::SortOrigins(
     OriginData* data,
     const std::string& main_frame_origin) {
   auto* origins = data->mutable_origins();
-  auto it =
-      base::ranges::find(*origins, main_frame_origin, &OriginStat::origin);
+  auto it = std::ranges::find(*origins, main_frame_origin, &OriginStat::origin);
   int iterator_offset = 0;
   if (it != origins->end()) {
     origins->SwapElements(0, it - origins->begin());
@@ -154,19 +154,15 @@ bool ResourcePrefetchPredictorTables::DropTablesIfOutdated(sql::Database* db) {
          {kMetadataTableName, kUrlResourceTableName, kHostResourceTableName,
           kUrlRedirectTableName, kHostRedirectTableName, kManifestTableName,
           kUrlMetadataTableName, kHostMetadataTableName, kOriginTableName}) {
-      success =
-          success &&
-          db->Execute(base::StringPrintf("DROP TABLE IF EXISTS %s", table_name)
-                          .c_str());
+      success = success && db->Execute(base::StringPrintf(
+                               "DROP TABLE IF EXISTS %s", table_name));
     }
   }
 
   if (incompatible_version) {
-    success =
-        success &&
-        db->Execute(base::StringPrintf(kCreateGlobalMetadataStatementTemplate,
-                                       kMetadataTableName)
-                        .c_str());
+    success = success &&
+              db->Execute(base::StringPrintf(
+                  kCreateGlobalMetadataStatementTemplate, kMetadataTableName));
     success = success && SetDatabaseVersion(db, kDatabaseVersion);
   }
 
@@ -177,10 +173,8 @@ bool ResourcePrefetchPredictorTables::DropTablesIfOutdated(sql::Database* db) {
 int ResourcePrefetchPredictorTables::GetDatabaseVersion(sql::Database* db) {
   int version = 0;
   if (db->DoesTableExist(kMetadataTableName)) {
-    sql::Statement statement(db->GetUniqueStatement(
-        base::StringPrintf("SELECT value FROM %s WHERE key='version'",
-                           kMetadataTableName)
-            .c_str()));
+    sql::Statement statement(db->GetUniqueStatement(base::StringPrintf(
+        "SELECT value FROM %s WHERE key='version'", kMetadataTableName)));
     if (statement.Step())
       version = statement.ColumnInt(0);
   }
@@ -190,16 +184,14 @@ int ResourcePrefetchPredictorTables::GetDatabaseVersion(sql::Database* db) {
 // static
 bool ResourcePrefetchPredictorTables::SetDatabaseVersion(sql::Database* db,
                                                          int version) {
-  sql::Statement statement(db->GetUniqueStatement(
-      base::StringPrintf(
-          "INSERT OR REPLACE INTO %s (key,value) VALUES ('version',%d)",
-          kMetadataTableName, version)
-          .c_str()));
+  sql::Statement statement(db->GetUniqueStatement(base::StringPrintf(
+      "INSERT OR REPLACE INTO %s (key,value) VALUES ('version',%d)",
+      kMetadataTableName, version)));
   return statement.Run();
 }
 
 void ResourcePrefetchPredictorTables::CreateOrClearTablesIfNecessary() {
-  // TODO(crbug.com/1229370): This method's logic is almost identical to
+  // TODO(crbug.com/40778330): This method's logic is almost identical to
   // sqlite_proto::ProtoTableManager::CreateOrClearTablesIfNecessary, so the two
   // classes could probably share a common implementation wrapping
   // sql::MetaTable.
@@ -215,12 +207,11 @@ void ResourcePrefetchPredictorTables::CreateOrClearTablesIfNecessary() {
   success = success && DropTablesIfOutdated(db);
 
   for (const char* table_name : {kHostRedirectTableName, kOriginTableName}) {
-    success = success &&
-              (db->DoesTableExist(table_name) ||
-               db->Execute(base::StringPrintf(
-                               kCreateProtoTableStatementTemplate, table_name)
-                               .c_str()));
+    success = success && (db->DoesTableExist(table_name) ||
+                          db->Execute(base::StringPrintf(
+                              kCreateProtoTableStatementTemplate, table_name)));
   }
+  success &= LcppDataMap::CreateOrClearTablesIfNecessary(db);
 
   if (success) {
     success = transaction.Commit();

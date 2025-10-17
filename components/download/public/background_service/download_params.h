@@ -6,8 +6,10 @@
 #define COMPONENTS_DOWNLOAD_PUBLIC_BACKGROUND_SERVICE_DOWNLOAD_PARAMS_H_
 
 #include <map>
+#include <optional>
 #include <string>
 
+#include "base/component_export.h"
 #include "base/functional/callback.h"
 #include "base/time/time.h"
 #include "components/download/public/background_service/clients.h"
@@ -15,8 +17,8 @@
 #include "net/http/http_request_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace download {
 
@@ -24,7 +26,8 @@ namespace download {
 // specify restrictions on what impact this download will have on the device
 // (battery, network conditions, priority, etc.). On iOS, the network and
 // battery requirements are mapped to NSURLSessionConfiguration.discretionary.
-struct SchedulingParams {
+struct COMPONENT_EXPORT(COMPONENTS_DOWNLOAD_PUBLIC_BACKGROUND_SERVICE)
+    SchedulingParams {
  public:
   enum class NetworkRequirements {
     // The download can occur under all network conditions.
@@ -99,7 +102,8 @@ struct SchedulingParams {
 };
 
 // The parameters describing how to build the request when starting a download.
-struct RequestParams {
+struct COMPONENT_EXPORT(COMPONENTS_DOWNLOAD_PUBLIC_BACKGROUND_SERVICE)
+    RequestParams {
  public:
   RequestParams();
   RequestParams(const RequestParams& other);
@@ -125,19 +129,27 @@ struct RequestParams {
   // The isolation info of the request, this won't be persisted to db and will
   // be invalidate during download resumption in new browser session. Not
   // supported on iOS.
-  absl::optional<net::IsolationInfo> isolation_info;
+  std::optional<net::IsolationInfo> isolation_info;
 
   // First-party URL redirect policy: During server redirects, whether the
   // first-party URL for cookies will need to be changed. Download is normally
   // considered a main frame navigation. However, this is not true for
   // background fetch.
   bool update_first_party_url_on_redirect = true;
+
+  // The origin that initiated the request. This is used to perform
+  // security checks. Normally, these checks aren't required for downloads,
+  // but necessary for background fetch.
+  // See |request_initiator| in url_request.mojom for a more detailed
+  // explanation.
+  std::optional<url::Origin> initiator;
 };
 
 // The parameters that describe a download request made to the DownloadService.
 // The |client| needs to be properly created and registered for this service for
 // the download to be accepted.
-struct DownloadParams {
+struct COMPONENT_EXPORT(COMPONENTS_DOWNLOAD_PUBLIC_BACKGROUND_SERVICE)
+    DownloadParams {
   using CustomData = std::map<std::string, std::string>;
 
   enum StartResult {

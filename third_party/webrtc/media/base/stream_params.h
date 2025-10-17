@@ -56,7 +56,7 @@
 #include "media/base/rid_description.h"
 #include "rtc_base/unique_id_generator.h"
 
-namespace cricket {
+namespace webrtc {
 
 extern const char kFecSsrcGroupSemantics[];
 extern const char kFecFrSsrcGroupSemantics[];
@@ -80,7 +80,7 @@ struct SsrcGroup {
 
   std::string ToString() const;
 
-  std::string semantics;        // e.g FIX, FEC, SIM.
+  std::string semantics;        // e.g FID, FEC-FR, SIM.
   std::vector<uint32_t> ssrcs;  // SSRCs of this type.
 };
 
@@ -160,11 +160,19 @@ struct StreamParams {
   void GenerateSsrcs(int num_layers,
                      bool generate_fid,
                      bool generate_fec_fr,
-                     rtc::UniqueRandomIdGenerator* ssrc_generator);
+                     UniqueRandomIdGenerator* ssrc_generator);
 
   // Convenience to get all the SIM SSRCs if there are SIM ssrcs, or
   // the first SSRC otherwise.
-  void GetPrimarySsrcs(std::vector<uint32_t>* ssrcs) const;
+  void GetPrimarySsrcs(std::vector<uint32_t>* primary_ssrcs) const;
+
+  // Convenience to get all the secondary SSRCs for the given primary ssrcs
+  // of a particular semantic.
+  // If a given primary SSRC does not have a secondary SSRC, the list of
+  // secondary SSRCS will be smaller than the list of primary SSRCs.
+  void GetSecondarySsrcs(const std::string& semantic,
+                         const std::vector<uint32_t>& primary_ssrcs,
+                         std::vector<uint32_t>* fid_ssrcs) const;
 
   // Convenience to get all the FID SSRCs for the given primary ssrcs.
   // If a given primary SSRC does not have a FID SSRC, the list of FID
@@ -303,12 +311,33 @@ inline bool RemoveStreamBySsrc(StreamParamsVec* streams, uint32_t ssrc) {
   return RemoveStream(
       streams, [&ssrc](const StreamParams& sp) { return sp.has_ssrc(ssrc); });
 }
-inline bool RemoveStreamByIds(StreamParamsVec* streams,
-                              const std::string& id) {
+inline bool RemoveStreamByIds(StreamParamsVec* streams, const std::string& id) {
   return RemoveStream(streams,
                       [&id](const StreamParams& sp) { return sp.id == id; });
 }
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace cricket {
+using ::webrtc::GetStream;
+using ::webrtc::GetStreamByIds;
+using ::webrtc::GetStreamBySsrc;
+using ::webrtc::HasStreamWithNoSsrcs;
+using ::webrtc::kFecFrSsrcGroupSemantics;
+using ::webrtc::kFecSsrcGroupSemantics;
+using ::webrtc::kFidSsrcGroupSemantics;
+using ::webrtc::kSimSsrcGroupSemantics;
+using ::webrtc::RemoveStream;
+using ::webrtc::RemoveStreamByIds;
+using ::webrtc::RemoveStreamBySsrc;
+using ::webrtc::SsrcGroup;
+using ::webrtc::StreamParams;
+using ::webrtc::StreamParamsVec;
+using ::webrtc::StreamSelector;
 }  // namespace cricket
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_BASE_STREAM_PARAMS_H_

@@ -4,6 +4,8 @@
 
 #include "ash/system/accessibility/autoclick_menu_bubble_controller.h"
 
+#include <string>
+
 #include "ash/bubble/bubble_constants.h"
 #include "ash/public/cpp/shell_window_ids.h"
 #include "ash/shelf/shelf.h"
@@ -14,15 +16,19 @@
 #include "ash/system/tray/tray_background_view.h"
 #include "ash/system/tray/tray_bubble_view.h"
 #include "ash/system/tray/tray_constants.h"
-#include "ash/system/unified/unified_system_tray_view.h"
 #include "ash/wm/collision_detection/collision_detection_utils.h"
 #include "ash/wm/work_area_insets.h"
 #include "ash/wm/workspace/workspace_layout_manager.h"
 #include "ash/wm/workspace_controller.h"
+#include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
+#include "base/strings/string_number_conversions.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
+#include "ui/display/display.h"
+#include "ui/display/manager/display_manager.h"
 #include "ui/events/event_utils.h"
 #include "ui/views/border.h"
 #include "ui/views/bubble/bubble_border.h"
@@ -92,11 +98,37 @@ void AutoclickMenuBubbleController::SetPosition(
   gfx::Rect new_bounds = GetOnScreenBoundsForFloatingMenuPosition(
       gfx::Size(kAutoclickMenuWidth, kAutoclickMenuHeight), new_position);
 
+  // TODO(396681078): Confirm the preventive fix, clean up logging, and swap to
+  // a valid display if needed.
+  const display::Display target_display =
+      display::Screen::GetScreen()->GetDisplayNearestWindow(
+          bubble_widget_->GetNativeWindow());
+  if (!target_display.is_valid() ||
+      !Shell::GetRootWindowControllerWithDisplayId(target_display.id())) {
+    SCOPED_CRASH_KEY_NUMBER("AMBC", "target_display", target_display.id());
+    if (display::DisplayManager* display_manager =
+            Shell::Get()->display_manager()) {
+      std::string key;
+      for (size_t i = 0; i < display_manager->GetNumDisplays(); i++) {
+        const display::Display& current_display =
+            display_manager->GetDisplayAt(i);
+        key += (i ? "_" : "") + base::NumberToString(i);
+        key += "_" + base::NumberToString(current_display.id());
+        key += "_" + base::NumberToString(current_display.is_valid());
+        key += "_" + base::NumberToString(
+                         !!Shell::GetRootWindowControllerWithDisplayId(
+                             current_display.id()));
+      }
+      key += "_" + base::NumberToString(display_manager->IsInUnifiedMode());
+      SCOPED_CRASH_KEY_STRING256("AMBC", "display_info", key);
+    }
+    base::debug::DumpWithoutCrashing();
+    return;
+  }
+
   // Update the preferred bounds based on other system windows.
   gfx::Rect resting_bounds = CollisionDetectionUtils::GetRestingPosition(
-      display::Screen::GetScreen()->GetDisplayNearestWindow(
-          bubble_widget_->GetNativeWindow()),
-      new_bounds,
+      target_display, new_bounds,
       CollisionDetectionUtils::RelativePriority::kAutomaticClicksMenu);
 
   // Un-inset the bounds to get the widget's bounds, which includes the drop
@@ -150,6 +182,7 @@ void AutoclickMenuBubbleController::ShowBubble(AutoclickEventType type,
                           kShellWindowId_AccessibilityBubbleContainer);
   init_params.anchor_mode = TrayBubbleView::AnchorMode::kRect;
   init_params.is_anchored_to_status_area = false;
+  init_params.close_on_deactivate = false;
   // The widget's shadow is drawn below and on the sides of the view, with a
   // width of kCollisionWindowWorkAreaInsetsDp. Set the top inset to 0 to ensure
   // the scroll view is drawn at kCollisionWindowWorkAreaInsetsDp above the
@@ -160,12 +193,13 @@ void AutoclickMenuBubbleController::ShowBubble(AutoclickEventType type,
                                          kCollisionWindowWorkAreaInsetsDp);
   init_params.preferred_width = kAutoclickMenuWidth;
   init_params.translucent = true;
+  init_params.type = TrayBubbleView::TrayBubbleType::kAccessibilityBubble;
   bubble_view_ = new TrayBubbleView(init_params);
 
   menu_view_ = new AutoclickMenuView(type, position);
   menu_view_->SetBorder(views::CreateEmptyBorder(
       gfx::Insets::TLBR(kUnifiedTopShortcutSpacing, 0, 0, 0)));
-  bubble_view_->AddChildView(menu_view_.get());
+  bubble_view_->AddChildViewRaw(menu_view_.get());
 
   bubble_widget_ = views::BubbleDialogDelegateView::CreateBubble(bubble_view_);
   TrayBackgroundView::InitializeBubbleAnimations(bubble_widget_);
@@ -206,12 +240,12 @@ void AutoclickMenuBubbleController::ClickOnBubble(gfx::Point location_in_dips,
   location_in_dips -= bubble_view_->GetBoundsInScreen().OffsetFromOrigin();
 
   // Generate synthesized mouse events for the click.
-  const ui::MouseEvent press_event(ui::ET_MOUSE_PRESSED, location_in_dips,
-                                   location_in_dips, ui::EventTimeForNow(),
-                                   mouse_event_flags | ui::EF_LEFT_MOUSE_BUTTON,
-                                   ui::EF_LEFT_MOUSE_BUTTON);
+  const ui::MouseEvent press_event(
+      ui::EventType::kMousePressed, location_in_dips, location_in_dips,
+      ui::EventTimeForNow(), mouse_event_flags | ui::EF_LEFT_MOUSE_BUTTON,
+      ui::EF_LEFT_MOUSE_BUTTON);
   const ui::MouseEvent release_event(
-      ui::ET_MOUSE_RELEASED, location_in_dips, location_in_dips,
+      ui::EventType::kMouseReleased, location_in_dips, location_in_dips,
       ui::EventTimeForNow(), mouse_event_flags | ui::EF_LEFT_MOUSE_BUTTON,
       ui::EF_LEFT_MOUSE_BUTTON);
 
@@ -248,6 +282,12 @@ void AutoclickMenuBubbleController::BubbleViewDestroyed() {
 
 std::u16string AutoclickMenuBubbleController::GetAccessibleNameForBubble() {
   return l10n_util::GetStringUTF16(IDS_ASH_AUTOCLICK_MENU);
+}
+
+void AutoclickMenuBubbleController::HideBubble(
+    const TrayBubbleView* bubble_view) {
+  // This function is currently not unused for bubbles of type
+  // `kAccessibilityBubble`, so can leave this empty.
 }
 
 void AutoclickMenuBubbleController::OnLocaleChanged() {

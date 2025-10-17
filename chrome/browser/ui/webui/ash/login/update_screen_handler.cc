@@ -5,11 +5,12 @@
 #include "chrome/browser/ui/webui/ash/login/update_screen_handler.h"
 
 #include <memory>
+#include <string_view>
 
 #include "ash/constants/ash_features.h"
 #include "base/values.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 #include "ui/chromeos/devicetype_utils.h"
@@ -18,16 +19,12 @@ namespace ash {
 
 namespace {
 
-constexpr bool strings_equal(char const* a, char const* b) {
-  return *a == *b && (*a == '\0' || strings_equal(a + 1, b + 1));
-}
-static_assert(
-    strings_equal(UpdateView::kScreenId.name,
+static_assert(std::string_view(UpdateView::kScreenId.name) ==
                   "oobe"
                   // break with comment is used here so the verification value
                   // won't get automatically renamed by mass renaming tools
-                  "-update"),
-    "The update screen id must never change");
+                  "-update",
+              "The update screen id must never change");
 
 // These values must be kept in sync with UIState in JS code.
 constexpr const char kCheckingForUpdate[] = "checking";
@@ -45,7 +42,7 @@ UpdateScreenHandler::~UpdateScreenHandler() = default;
 
 void UpdateScreenHandler::Show(bool is_opt_out_enabled) {
   base::Value::Dict data;
-  data.Set("is_opt_out_enabled", is_opt_out_enabled);
+  data.Set("isOptOutEnabled", is_opt_out_enabled);
   ShowInWebUI(std::move(data));
 }
 
@@ -92,6 +89,10 @@ void UpdateScreenHandler::SetCancelUpdateShortcutEnabled(bool value) {
   CallExternalAPI("setCancelUpdateShortcutEnabled", value);
 }
 
+base::WeakPtr<UpdateView> UpdateScreenHandler::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 void UpdateScreenHandler::DeclareLocalizedValues(
     ::login::LocalizedValuesBuilder* builder) {
   builder->Add("updateCompeletedMsg", IDS_UPDATE_COMPLETED);
@@ -121,6 +122,8 @@ void UpdateScreenHandler::DeclareLocalizedValues(
   builder->Add("slideSelectedButtonLabel", IDS_UPDATE_SELECTED_BUTTON_LABEL);
   builder->Add("slideUnselectedButtonLabel",
                IDS_UPDATE_UNSELECTED_BUTTON_LABEL);
+
+  builder->Add("gettingDeviceReadyTitle", IDS_GETTING_DEVICE_READY);
 
   builder->Add("updateOverCellularPromptTitle",
                IDS_UPDATE_OVER_CELLULAR_PROMPT_TITLE);

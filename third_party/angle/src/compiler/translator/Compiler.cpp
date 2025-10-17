@@ -29,6 +29,7 @@
 #include "compiler/translator/ValidateTypeSizeLimitations.h"
 #include "compiler/translator/ValidateVaryingLocations.h"
 #include "compiler/translator/VariablePacker.h"
+#include "compiler/translator/tree_ops/ClampFragDepth.h"
 #include "compiler/translator/tree_ops/ClampIndirectIndices.h"
 #include "compiler/translator/tree_ops/ClampPointSize.h"
 #include "compiler/translator/tree_ops/DeclareAndInitBuiltinsForInstancedMultiview.h"
@@ -40,24 +41,28 @@
 #include "compiler/translator/tree_ops/InitializeVariables.h"
 #include "compiler/translator/tree_ops/MonomorphizeUnsupportedFunctions.h"
 #include "compiler/translator/tree_ops/PruneEmptyCases.h"
+#include "compiler/translator/tree_ops/PruneInfiniteLoops.h"
 #include "compiler/translator/tree_ops/PruneNoOps.h"
 #include "compiler/translator/tree_ops/RemoveArrayLengthMethod.h"
 #include "compiler/translator/tree_ops/RemoveDynamicIndexing.h"
+#include "compiler/translator/tree_ops/RemoveInactiveInterfaceVariables.h"
 #include "compiler/translator/tree_ops/RemoveInvariantDeclaration.h"
 #include "compiler/translator/tree_ops/RemoveUnreferencedVariables.h"
+#include "compiler/translator/tree_ops/RemoveUnusedFramebufferFetch.h"
+#include "compiler/translator/tree_ops/RescopeGlobalVariables.h"
 #include "compiler/translator/tree_ops/RewritePixelLocalStorage.h"
+#include "compiler/translator/tree_ops/ScalarizeVecAndMatConstructorArgs.h"
 #include "compiler/translator/tree_ops/SeparateDeclarations.h"
 #include "compiler/translator/tree_ops/SimplifyLoopConditions.h"
 #include "compiler/translator/tree_ops/SplitSequenceOperator.h"
-#include "compiler/translator/tree_ops/apple/AddAndTrueToLoopCondition.h"
-#include "compiler/translator/tree_ops/apple/RewriteDoWhile.h"
-#include "compiler/translator/tree_ops/apple/UnfoldShortCircuitAST.h"
-#include "compiler/translator/tree_ops/gl/ClampFragDepth.h"
-#include "compiler/translator/tree_ops/gl/RegenerateStructNames.h"
-#include "compiler/translator/tree_ops/gl/RewriteRepeatedAssignToSwizzled.h"
-#include "compiler/translator/tree_ops/gl/ScalarizeVecAndMatConstructorArgs.h"
-#include "compiler/translator/tree_ops/gl/UseInterfaceBlockFields.h"
+#include "compiler/translator/tree_ops/glsl/RegenerateStructNames.h"
+#include "compiler/translator/tree_ops/glsl/RewriteRepeatedAssignToSwizzled.h"
+#include "compiler/translator/tree_ops/glsl/UseInterfaceBlockFields.h"
+#include "compiler/translator/tree_ops/glsl/apple/AddAndTrueToLoopCondition.h"
+#include "compiler/translator/tree_ops/glsl/apple/RewriteDoWhile.h"
+#include "compiler/translator/tree_ops/glsl/apple/UnfoldShortCircuitAST.h"
 #include "compiler/translator/tree_util/BuiltIn.h"
+#include "compiler/translator/tree_util/FindSymbolNode.h"
 #include "compiler/translator/tree_util/IntermNodePatternMatcher.h"
 #include "compiler/translator/tree_util/ReplaceShadowingVariables.h"
 #include "compiler/translator/tree_util/ReplaceVariable.h"
@@ -110,6 +115,30 @@ bool IsTopLevelNodeUnusedFunction(const CallDAG &callDag,
 
     ASSERT(callDagIndex < metadata.size());
     return !metadata[callDagIndex].used;
+}
+
+void AddBuiltInToInitList(TSymbolTable *symbolTable,
+                          int shaderVersion,
+                          TIntermBlock *root,
+                          const char *name,
+                          InitVariableList *list)
+{
+    const TIntermSymbol *builtin = FindSymbolNode(root, ImmutableString(name));
+    const TVariable *builtinVar  = nullptr;
+    if (builtin != nullptr)
+    {
+        builtinVar = &builtin->variable();
+    }
+    else
+    {
+        builtinVar = static_cast<const TVariable *>(
+            symbolTable->findBuiltIn(ImmutableString(name), shaderVersion));
+    }
+
+    if (builtinVar != nullptr)
+    {
+        list->push_back(builtinVar);
+    }
 }
 
 #if defined(ANGLE_FUZZER_CORPUS_OUTPUT_DIR)
@@ -187,7 +216,7 @@ bool RemoveInvariant(sh::GLenum shaderType,
                      const ShCompileOptions &compileOptions)
 {
     if (shaderType == GL_FRAGMENT_SHADER &&
-        (IsGLSL420OrNewer(outputType) || IsOutputVulkan(outputType)))
+        (IsGLSL420OrNewer(outputType) || IsOutputSPIRV(outputType)))
         return true;
 
     if (compileOptions.removeInvariantAndCentroidForESSL3 && shaderVersion >= 300 &&
@@ -244,7 +273,7 @@ class [[nodiscard]] TScopedPoolAllocator
     ~TScopedPoolAllocator()
     {
         SetGlobalPoolAllocator(nullptr);
-        mAllocator->pop();
+        mAllocator->pop(angle::PoolAllocator::ReleaseStrategy::All);
     }
 
   private:
@@ -284,9 +313,6 @@ int GetMaxShaderVersionForSpec(ShShaderSpec spec)
             return 310;
         case SH_GLES3_2_SPEC:
             return 320;
-        case SH_GL_CORE_SPEC:
-        case SH_GL_COMPATIBILITY_SPEC:
-            return 460;
         default:
             UNREACHABLE();
             return 0;
@@ -374,7 +400,7 @@ TCompiler::TCompiler(sh::GLenum type, ShShaderSpec spec, ShShaderOutput output)
       mTessEvaluationShaderInputPointType(EtetUndefined),
       mHasAnyPreciseType(false),
       mAdvancedBlendEquations(0),
-      mHasPixelLocalStorageUniforms(false),
+      mUsesDerivatives(false),
       mCompileOptions{}
 {}
 
@@ -400,7 +426,10 @@ bool TCompiler::shouldLimitTypeSizes() const
     // Prevent unrealistically large variable sizes in shaders.  This works around driver bugs
     // around int-size limits (such as 2GB).  The limits are generously large enough that no real
     // shader should ever hit it.
-    return true;
+    //
+    // The size check does not take std430 into account, so this is limited to WebGL and shaders
+    // up to ES3.
+    return mShaderVersion <= 300;
 }
 
 bool TCompiler::Init(const ShBuiltInResources &resources)
@@ -472,8 +501,7 @@ TIntermBlock *TCompiler::compileTreeImpl(const char *const shaderStrings[],
     }
 
     TParseContext parseContext(mSymbolTable, mExtensionBehavior, mShaderType, mShaderSpec,
-                               compileOptions, !IsDesktopGLSpec(mShaderSpec), &mDiagnostics,
-                               getResources(), getOutputType());
+                               compileOptions, &mDiagnostics, getResources(), getOutputType());
 
     parseContext.setFragmentPrecisionHighOnESSL1(mResources.FragmentPrecisionHigh == 1);
 
@@ -558,8 +586,10 @@ bool TCompiler::checkShaderVersion(TParseContext *parseContext)
             }
             else if (mShaderVersion == 310)
             {
-                if (!parseContext->checkCanUseExtension(sh::TSourceLoc(),
-                                                        TExtension::EXT_tessellation_shader))
+                if (!parseContext->checkCanUseOneOfExtensions(
+                        sh::TSourceLoc(),
+                        std::array<TExtension, 2u>{{TExtension::EXT_tessellation_shader,
+                                                    TExtension::OES_tessellation_shader}}))
                 {
                     return false;
                 }
@@ -582,9 +612,9 @@ void TCompiler::setASTMetadata(const TParseContext &parseContext)
 
     mEarlyFragmentTestsSpecified = parseContext.isEarlyFragmentTestsSpecified();
 
-    mHasDiscard = parseContext.hasDiscard();
-
-    mEnablesPerSampleShading = parseContext.isSampleQualifierSpecified();
+    mMetadataFlags[MetadataFlags::HasDiscard] = parseContext.hasDiscard();
+    mMetadataFlags[MetadataFlags::EnablesPerSampleShading] =
+        parseContext.isSampleQualifierSpecified();
 
     mComputeShaderLocalSizeDeclared = parseContext.isComputeShaderLocalSizeDeclared();
     mComputeShaderLocalSize         = parseContext.getComputeShaderLocalSize();
@@ -593,10 +623,21 @@ void TCompiler::setASTMetadata(const TParseContext &parseContext)
 
     mHasAnyPreciseType = parseContext.hasAnyPreciseType();
 
+    mUsesDerivatives = parseContext.usesDerivatives();
+
     if (mShaderType == GL_FRAGMENT_SHADER)
     {
-        mAdvancedBlendEquations       = parseContext.getAdvancedBlendEquations();
-        mHasPixelLocalStorageUniforms = !parseContext.pixelLocalStorageBindings().empty();
+        mAdvancedBlendEquations = parseContext.getAdvancedBlendEquations();
+        const std::map<int, ShPixelLocalStorageFormat> &plsFormats =
+            parseContext.pixelLocalStorageFormats();
+        // std::map keys are in sorted order, so the PLS uniform with the largest binding will be at
+        // rbegin().
+        mPixelLocalStorageFormats.resize(plsFormats.empty() ? 0 : plsFormats.rbegin()->first + 1,
+                                         ShPixelLocalStorageFormat::NotPLS);
+        for (auto [binding, format] : parseContext.pixelLocalStorageFormats())
+        {
+            mPixelLocalStorageFormats[binding] = format;
+        }
     }
     if (mShaderType == GL_GEOMETRY_SHADER_EXT)
     {
@@ -604,6 +645,13 @@ void TCompiler::setASTMetadata(const TParseContext &parseContext)
         mGeometryShaderOutputPrimitiveType = parseContext.getGeometryShaderOutputPrimitiveType();
         mGeometryShaderMaxVertices         = parseContext.getGeometryShaderMaxVertices();
         mGeometryShaderInvocations         = parseContext.getGeometryShaderInvocations();
+
+        mMetadataFlags[MetadataFlags::HasValidGeometryShaderInputPrimitiveType] =
+            mGeometryShaderInputPrimitiveType != EptUndefined;
+        mMetadataFlags[MetadataFlags::HasValidGeometryShaderOutputPrimitiveType] =
+            mGeometryShaderOutputPrimitiveType != EptUndefined;
+        mMetadataFlags[MetadataFlags::HasValidGeometryShaderMaxVertices] =
+            mGeometryShaderMaxVertices >= 0;
     }
     if (mShaderType == GL_TESS_CONTROL_SHADER_EXT)
     {
@@ -618,6 +666,15 @@ void TCompiler::setASTMetadata(const TParseContext &parseContext)
         mTessEvaluationShaderInputOrderingType =
             parseContext.getTessEvaluationShaderInputOrderingType();
         mTessEvaluationShaderInputPointType = parseContext.getTessEvaluationShaderInputPointType();
+
+        mMetadataFlags[MetadataFlags::HasValidTessGenMode] =
+            mTessEvaluationShaderInputPrimitiveType != EtetUndefined;
+        mMetadataFlags[MetadataFlags::HasValidTessGenSpacing] =
+            mTessEvaluationShaderInputVertexSpacingType != EtetUndefined;
+        mMetadataFlags[MetadataFlags::HasValidTessGenVertexOrder] =
+            mTessEvaluationShaderInputOrderingType != EtetUndefined;
+        mMetadataFlags[MetadataFlags::HasValidTessGenPointMode] =
+            mTessEvaluationShaderInputPointType != EtetUndefined;
     }
 }
 
@@ -646,7 +703,7 @@ bool TCompiler::getShaderBinary(const ShHandle compilerHandle,
     gl::BinaryOutputStream stream;
     gl::ShaderType shaderType = gl::FromGLenum<gl::ShaderType>(mShaderType);
     gl::CompiledShaderState state(shaderType);
-    state.buildCompiledShaderState(compilerHandle, IsOutputVulkan(mOutputType));
+    state.buildCompiledShaderState(compilerHandle, IsOutputSPIRV(mOutputType));
 
     stream.writeBytes(
         reinterpret_cast<const unsigned char *>(angle::GetANGLEShaderProgramVersion()),
@@ -732,17 +789,35 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
 {
     mValidateASTOptions = {};
 
-    // Desktop GLSL shaders don't have precision, so don't expect them to be specified.
-    mValidateASTOptions.validatePrecision = !IsDesktopGLSpec(mShaderSpec);
+    // Disallow expressions deemed too complex.
+    // This needs to be checked before other functions that will traverse the AST
+    // to prevent potential stack overflow crashes.
+    if (compileOptions.limitExpressionComplexity && !limitExpressionComplexity(root))
+    {
+        return false;
+    }
 
     if (!validateAST(root))
     {
         return false;
     }
 
+    // Turn |inout| variables that are never read from into |out| before collecting variables and
+    // before PLS uses them.
+    if (mShaderVersion >= 300 &&
+        (IsExtensionEnabled(mExtensionBehavior, TExtension::EXT_shader_framebuffer_fetch) ||
+         IsExtensionEnabled(mExtensionBehavior,
+                            TExtension::EXT_shader_framebuffer_fetch_non_coherent)))
+    {
+        if (!RemoveUnusedFramebufferFetch(this, root, &mSymbolTable))
+        {
+            return false;
+        }
+    }
+
     // For now, rewrite pixel local storage before collecting variables or any operations on images.
     //
-    // TODO(anglebug.com/7279):
+    // TODO(anglebug.com/40096838):
     //   Should this actually run after collecting variables?
     //   Do we need more introspection?
     //   Do we want to hide rewritten shader image uniforms from glGetActiveUniform?
@@ -758,19 +833,8 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
-    // Disallow expressions deemed too complex.
-    if (compileOptions.limitExpressionComplexity && !limitExpressionComplexity(root))
-    {
-        return false;
-    }
-
     if (shouldRunLoopAndIndexingValidation(compileOptions) &&
         !ValidateLimitations(root, mShaderType, &mSymbolTable, &mDiagnostics))
-    {
-        return false;
-    }
-
-    if (shouldLimitTypeSizes() && !ValidateTypeSizeLimitations(root, &mSymbolTable, &mDiagnostics))
     {
         return false;
     }
@@ -788,6 +852,25 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     }
     // Folding should only be able to generate warnings.
     ASSERT(mDiagnostics.numErrors() == 0);
+
+    // gl_ClipDistance and gl_CullDistance built-in arrays have unique semantics.
+    // They are pre-declared as unsized and must be sized by the shader either
+    // redeclaring them or indexing them only with integral constant expressions.
+    // The translator treats them as having the maximum allowed size and this pass
+    // detects the actual sizes resizing the variables if needed.
+    if (parseContext.isExtensionEnabled(TExtension::ANGLE_clip_cull_distance) ||
+        parseContext.isExtensionEnabled(TExtension::EXT_clip_cull_distance) ||
+        parseContext.isExtensionEnabled(TExtension::APPLE_clip_distance))
+    {
+        bool isClipDistanceUsed = false;
+        if (!ValidateClipCullDistance(this, root, &mDiagnostics,
+                                      mResources.MaxCombinedClipAndCullDistances,
+                                      &mClipDistanceSize, &mCullDistanceSize, &isClipDistanceUsed))
+        {
+            return false;
+        }
+        mMetadataFlags[MetadataFlags::HasClipDistance] = isClipDistanceUsed;
+    }
 
     // Validate no barrier() after return before prunning it in |PruneNoOps()| below.
     if (mShaderType == GL_TESS_CONTROL_SHADER && !ValidateBarrierFunctionCall(root, &mDiagnostics))
@@ -816,7 +899,7 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     bool highPrecisionSupported        = isHighPrecisionSupported();
     bool enableNonConstantInitializers = IsExtensionEnabled(
         mExtensionBehavior, TExtension::EXT_shader_non_constant_global_initializers);
-    // forceDeferGlobalInitializers is needed for MSL
+    // forceDeferNonConstGlobalInitializers is needed for MSL
     // to convert a non-const global. For example:
     //
     //    int someGlobal = 123;
@@ -827,12 +910,12 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     //    void main() {
     //        someGlobal = 123;
     //
-    // This is because MSL doesn't allow statically initialized globals.
-    bool forceDeferGlobalInitializers = getOutputType() == SH_MSL_METAL_OUTPUT;
+    // This is because MSL doesn't allow statically initialized non-const globals.
+    bool forceDeferNonConstGlobalInitializers = getOutputType() == SH_MSL_METAL_OUTPUT;
 
     if (enableNonConstantInitializers &&
         !DeferGlobalInitializers(this, root, initializeLocalsAndGlobals, canUseLoopsToInitialize,
-                                 highPrecisionSupported, forceDeferGlobalInitializers,
+                                 highPrecisionSupported, forceDeferNonConstGlobalInitializers,
                                  &mSymbolTable))
     {
         return false;
@@ -875,37 +958,20 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         return false;
     }
 
-    // anglebug.com/7484: The ESSL spec has a bug with images as function arguments. The recommended
-    // workaround is to inline functions that accept image arguments.
+    // anglebug.com/42265954: The ESSL spec has a bug with images as function arguments. The
+    // recommended workaround is to inline functions that accept image arguments.
     if (mShaderVersion >= 310 && !MonomorphizeUnsupportedFunctions(
-                                     this, root, &mSymbolTable, compileOptions,
+                                     this, root, &mSymbolTable,
                                      UnsupportedFunctionArgsBitSet{UnsupportedFunctionArgs::Image}))
     {
         return false;
     }
 
     if (mShaderVersion >= 300 && mShaderType == GL_FRAGMENT_SHADER &&
-        !ValidateOutputs(root, getExtensionBehavior(), mResources.MaxDrawBuffers, &mDiagnostics))
+        !ValidateOutputs(root, getExtensionBehavior(), mResources, hasPixelLocalStorageUniforms(),
+                         IsWebGLBasedSpec(mShaderSpec), &mDiagnostics))
     {
         return false;
-    }
-
-    if (parseContext.isExtensionEnabled(TExtension::ANGLE_clip_cull_distance) ||
-        parseContext.isExtensionEnabled(TExtension::EXT_clip_cull_distance) ||
-        parseContext.isExtensionEnabled(TExtension::APPLE_clip_distance))
-    {
-        if (!ValidateClipCullDistance(
-                root, &mDiagnostics, mResources.MaxCullDistances,
-                mResources.MaxCombinedClipAndCullDistances, &mClipDistanceSize, &mCullDistanceSize,
-                &mClipDistanceRedeclared, &mCullDistanceRedeclared, &mClipDistanceUsed))
-        {
-            return false;
-        }
-
-        if (!resizeClipAndCullDistanceBuiltins(root))
-        {
-            return false;
-        }
     }
 
     // Clamping uniform array bounds needs to happen after validateLimitations pass.
@@ -967,8 +1033,7 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     {
         if (compileOptions.emulateGLDrawID)
         {
-            if (!EmulateGLDrawID(this, root, &mSymbolTable, &mUniforms,
-                                 shouldCollectVariables(compileOptions)))
+            if (!EmulateGLDrawID(this, root, &mSymbolTable, &mUniforms))
             {
                 return false;
             }
@@ -982,7 +1047,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         if (compileOptions.emulateGLBaseVertexBaseInstance)
         {
             if (!EmulateGLBaseVertexBaseInstance(this, root, &mSymbolTable, &mUniforms,
-                                                 shouldCollectVariables(compileOptions),
                                                  compileOptions.addBaseVertexToVertexID))
             {
                 return false;
@@ -994,30 +1058,68 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         mResources.MaxDrawBuffers > 1 &&
         IsExtensionEnabled(mExtensionBehavior, TExtension::EXT_draw_buffers))
     {
-        if (!EmulateGLFragColorBroadcast(this, root, mResources.MaxDrawBuffers, &mOutputVariables,
+        if (!EmulateGLFragColorBroadcast(this, root, mResources.MaxDrawBuffers,
+                                         mResources.MaxDualSourceDrawBuffers, &mOutputVariables,
                                          &mSymbolTable, mShaderVersion))
         {
             return false;
         }
     }
 
-    // Split multi declarations and remove calls to array length().
-    // Note that SimplifyLoopConditions needs to be run before any other AST transformations
-    // that may need to generate new statements from loop conditions or loop expressions.
-    if (!SimplifyLoopConditions(this, root,
-                                IntermNodePatternMatcher::kMultiDeclaration |
-                                    IntermNodePatternMatcher::kArrayLengthMethod,
-                                &getSymbolTable()))
+    if (compileOptions.simplifyLoopConditions)
     {
-        return false;
+        if (!SimplifyLoopConditions(this, root, &getSymbolTable()))
+        {
+            return false;
+        }
+    }
+    else
+    {
+        // Split multi declarations and remove calls to array length().
+        // Note that SimplifyLoopConditions needs to be run before any other AST transformations
+        // that may need to generate new statements from loop conditions or loop expressions.
+        if (!SimplifyLoopConditions(this, root,
+                                    IntermNodePatternMatcher::kMultiDeclaration |
+                                        IntermNodePatternMatcher::kArrayLengthMethod,
+                                    &getSymbolTable()))
+        {
+            return false;
+        }
     }
 
     // Note that separate declarations need to be run before other AST transformations that
     // generate new statements from expressions.
-    if (!SeparateDeclarations(this, root, &getSymbolTable()))
+    if (!SeparateDeclarations(*this, *root, mCompileOptions.separateCompoundStructDeclarations))
     {
         return false;
     }
+
+    if (IsWebGLBasedSpec(mShaderSpec))
+    {
+        // Remove infinite loops, they are not supposed to exist in shaders.
+        bool anyInfiniteLoops = false;
+        if (!PruneInfiniteLoops(this, root, &mSymbolTable, &anyInfiniteLoops))
+        {
+            return false;
+        }
+
+        // If requested, reject shaders with infinite loops.  If not requested, the same loops are
+        // removed from the shader as a fallback.
+        if (anyInfiniteLoops && mCompileOptions.rejectWebglShadersWithUndefinedBehavior)
+        {
+            mDiagnostics.globalError("Infinite loop detected in the shader");
+            return false;
+        }
+    }
+
+    if (compileOptions.rescopeGlobalVariables)
+    {
+        if (!RescopeGlobalVariables(*this, *root))
+        {
+            return false;
+        }
+    }
+
     mValidateASTOptions.validateMultiDeclarations = true;
 
     if (!SplitSequenceOperator(this, root, IntermNodePatternMatcher::kArrayLengthMethod,
@@ -1027,6 +1129,11 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     }
 
     if (!RemoveArrayLengthMethod(this, root))
+    {
+        return false;
+    }
+    // Fold the expressions again, because |RemoveArrayLengthMethod| can introduce new constants.
+    if (!FoldExpressions(this, root, &mDiagnostics))
     {
         return false;
     }
@@ -1043,6 +1150,13 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     // invalid state. Relies on that PruneNoOps and RemoveUnreferencedVariables have already been
     // run.
     if (!PruneEmptyCases(this, root))
+    {
+        return false;
+    }
+
+    // Run after RemoveUnreferencedVariables, validate that the shader does not have excessively
+    // large variables.
+    if (shouldLimitTypeSizes() && !ValidateTypeSizeLimitations(root, &mSymbolTable, &mDiagnostics))
     {
         return false;
     }
@@ -1069,43 +1183,62 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         }
     }
 
-    if (shouldCollectVariables(compileOptions))
+    ASSERT(!mVariablesCollected);
+    CollectVariables(root, &mAttributes, &mOutputVariables, &mUniforms, &mInputVaryings,
+                     &mOutputVaryings, &mSharedVariables, &mUniformBlocks, &mShaderStorageBlocks,
+                     mResources.HashFunction, &mSymbolTable, mShaderType, mExtensionBehavior,
+                     mResources, mTessControlShaderOutputVertices);
+    collectInterfaceBlocks();
+    mVariablesCollected = true;
+    if (compileOptions.useUnusedStandardSharedBlocks)
     {
-        ASSERT(!mVariablesCollected);
-        CollectVariables(root, &mAttributes, &mOutputVariables, &mUniforms, &mInputVaryings,
-                         &mOutputVaryings, &mSharedVariables, &mUniformBlocks,
-                         &mShaderStorageBlocks, mResources.HashFunction, &mSymbolTable, mShaderType,
-                         mExtensionBehavior, mResources, mTessControlShaderOutputVertices);
-        collectInterfaceBlocks();
-        mVariablesCollected = true;
-        if (compileOptions.useUnusedStandardSharedBlocks)
+        if (!useAllMembersInUnusedStandardAndSharedBlocks(root))
         {
-            if (!useAllMembersInUnusedStandardAndSharedBlocks(root))
-            {
-                return false;
-            }
+            return false;
         }
-        if (compileOptions.enforcePackingRestrictions)
+    }
+    if (compileOptions.enforcePackingRestrictions)
+    {
+        int maxUniformVectors = GetMaxUniformVectorsForShaderType(mShaderType, mResources);
+        if (mShaderType == GL_VERTEX_SHADER && compileOptions.emulateClipOrigin)
         {
-            int maxUniformVectors = GetMaxUniformVectorsForShaderType(mShaderType, mResources);
-            // Returns true if, after applying the packing rules in the GLSL ES 1.00.17 spec
-            // Appendix A, section 7, the shader does not use too many uniforms.
-            if (!CheckVariablesInPackingLimits(maxUniformVectors, mUniforms))
-            {
-                mDiagnostics.globalError("too many uniforms");
-                return false;
-            }
+            --maxUniformVectors;
         }
-        bool needInitializeOutputVariables =
-            compileOptions.initOutputVariables && mShaderType != GL_COMPUTE_SHADER;
-        needInitializeOutputVariables |=
-            compileOptions.initFragmentOutputVariables && mShaderType == GL_FRAGMENT_SHADER;
-        if (needInitializeOutputVariables)
+        // Returns true if, after applying the packing rules in the GLSL ES 1.00.17 spec
+        // Appendix A, section 7, the shader does not use too many uniforms.
+        if (!CheckVariablesInPackingLimits(maxUniformVectors, mUniforms))
         {
-            if (!initializeOutputVariables(root))
-            {
-                return false;
-            }
+            mDiagnostics.globalError("too many uniforms");
+            return false;
+        }
+    }
+
+    // Remove declarations of inactive shader interface variables so backends don't need to account
+    // for them.  Note that currently, CollectVariables marks every field of an active uniform
+    // that's of struct type as active, i.e. no extracted sampler is inactive, so this can be done
+    // before extracting samplers from structs.
+    //
+    // For the MSL output, keep the inactive fragment outputs, but remove them otherwise.
+    if (compileOptions.removeInactiveVariables)
+    {
+        if (!RemoveInactiveInterfaceVariables(this, root, &getSymbolTable(), getAttributes(),
+                                              getInputVaryings(), getOutputVariables(),
+                                              getUniforms(), getInterfaceBlocks(),
+                                              mOutputType != SH_MSL_METAL_OUTPUT))
+        {
+            return false;
+        }
+    }
+
+    bool needInitializeOutputVariables =
+        compileOptions.initOutputVariables && mShaderType != GL_COMPUTE_SHADER;
+    needInitializeOutputVariables |=
+        compileOptions.initFragmentOutputVariables && mShaderType == GL_FRAGMENT_SHADER;
+    if (needInitializeOutputVariables)
+    {
+        if (!initializeOutputVariables(root))
+        {
+            return false;
         }
     }
 
@@ -1141,7 +1274,7 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
     // be optimized out
     if (!enableNonConstantInitializers &&
         !DeferGlobalInitializers(this, root, initializeLocalsAndGlobals, canUseLoopsToInitialize,
-                                 highPrecisionSupported, forceDeferGlobalInitializers,
+                                 highPrecisionSupported, forceDeferNonConstGlobalInitializers,
                                  &mSymbolTable))
     {
         return false;
@@ -1177,7 +1310,8 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
 
     if (getShaderType() == GL_VERTEX_SHADER && compileOptions.clampPointSize)
     {
-        if (!ClampPointSize(this, root, mResources.MaxPointSize, &getSymbolTable()))
+        if (!ClampPointSize(this, root, mResources.MinPointSize, mResources.MaxPointSize,
+                            &getSymbolTable()))
         {
             return false;
         }
@@ -1205,39 +1339,6 @@ bool TCompiler::checkAndSimplifyAST(TIntermBlock *root,
         {
             return false;
         }
-    }
-
-    return true;
-}
-
-bool TCompiler::resizeClipAndCullDistanceBuiltins(TIntermBlock *root)
-{
-    auto resizeVariable = [=](const ImmutableString &name, uint32_t size, uint32_t maxSize) {
-        // Skip if the variable is not used or implicitly has the maximum size
-        if (size == 0 || size == maxSize)
-            return true;
-        ASSERT(size < maxSize);
-        const TVariable *builtInVar =
-            static_cast<const TVariable *>(mSymbolTable.findBuiltIn(name, getShaderVersion()));
-        TType *resizedType = new TType(builtInVar->getType());
-        resizedType->setArraySize(0, size);
-
-        TVariable *resizedVar =
-            new TVariable(&mSymbolTable, name, resizedType, SymbolType::BuiltIn);
-
-        return ReplaceVariable(this, root, builtInVar, resizedVar);
-    };
-
-    if (!mClipDistanceRedeclared && !resizeVariable(ImmutableString("gl_ClipDistance"),
-                                                    mClipDistanceSize, mResources.MaxClipDistances))
-    {
-        return false;
-    }
-
-    if (!mCullDistanceRedeclared && !resizeVariable(ImmutableString("gl_CullDistance"),
-                                                    mCullDistanceSize, mResources.MaxCullDistances))
-    {
-        return false;
     }
 
     return true;
@@ -1384,6 +1485,7 @@ void TCompiler::setResourceString()
         << ":EXT_draw_buffers:" << mResources.EXT_draw_buffers
         << ":FragmentPrecisionHigh:" << mResources.FragmentPrecisionHigh
         << ":MaxExpressionComplexity:" << mResources.MaxExpressionComplexity
+        << ":MaxStatementDepth:" << mResources.MaxStatementDepth
         << ":MaxCallStackDepth:" << mResources.MaxCallStackDepth
         << ":MaxFunctionParameters:" << mResources.MaxFunctionParameters
         << ":EXT_blend_func_extended:" << mResources.EXT_blend_func_extended
@@ -1397,6 +1499,7 @@ void TCompiler::setResourceString()
         << ":EXT_shader_framebuffer_fetch_non_coherent:" << mResources.EXT_shader_framebuffer_fetch_non_coherent
         << ":NV_shader_framebuffer_fetch:" << mResources.NV_shader_framebuffer_fetch
         << ":ARM_shader_framebuffer_fetch:" << mResources.ARM_shader_framebuffer_fetch
+        << ":ARM_shader_framebuffer_fetch_depth_stencil:" << mResources.ARM_shader_framebuffer_fetch_depth_stencil
         << ":OVR_multiview2:" << mResources.OVR_multiview2
         << ":OVR_multiview:" << mResources.OVR_multiview
         << ":EXT_YUV_target:" << mResources.EXT_YUV_target
@@ -1418,10 +1521,13 @@ void TCompiler::setResourceString()
         << ":APPLE_clip_distance:" << mResources.APPLE_clip_distance
         << ":OES_texture_cube_map_array:" << mResources.OES_texture_cube_map_array
         << ":EXT_texture_cube_map_array:" << mResources.EXT_texture_cube_map_array
+        << ":EXT_texture_query_lod:" << mResources.EXT_texture_query_lod
+        << ":EXT_texture_shadow_lod:" << mResources.EXT_texture_shadow_lod
         << ":EXT_shadow_samplers:" << mResources.EXT_shadow_samplers
         << ":OES_shader_multisample_interpolation:" << mResources.OES_shader_multisample_interpolation
         << ":OES_shader_image_atomic:" << mResources.OES_shader_image_atomic
         << ":EXT_tessellation_shader:" << mResources.EXT_tessellation_shader
+        << ":OES_tessellation_shader:" << mResources.OES_tessellation_shader
         << ":OES_texture_buffer:" << mResources.OES_texture_buffer
         << ":EXT_texture_buffer:" << mResources.EXT_texture_buffer
         << ":OES_sample_variables:" << mResources.OES_sample_variables
@@ -1508,6 +1614,9 @@ void TCompiler::clearResults()
     mInfoSink.debug.erase();
     mDiagnostics.resetErrorCount();
 
+    mMetadataFlags.reset();
+    mSpecConstUsageBits.reset();
+
     mAttributes.clear();
     mOutputVariables.clear();
     mUniforms.clear();
@@ -1522,11 +1631,8 @@ void TCompiler::clearResults()
 
     mNumViews = -1;
 
-    mClipDistanceSize       = 0;
-    mCullDistanceSize       = 0;
-    mClipDistanceRedeclared = false;
-    mCullDistanceRedeclared = false;
-    mClipDistanceUsed       = false;
+    mClipDistanceSize = 0;
+    mCullDistanceSize = 0;
 
     mGeometryShaderInputPrimitiveType  = EptUndefined;
     mGeometryShaderOutputPrimitiveType = EptUndefined;
@@ -1717,22 +1823,18 @@ bool TCompiler::limitExpressionComplexity(TIntermBlock *root)
     return true;
 }
 
-bool TCompiler::shouldCollectVariables(const ShCompileOptions &compileOptions)
-{
-    return compileOptions.variables;
-}
-
-bool TCompiler::wereVariablesCollected() const
-{
-    return mVariablesCollected;
-}
-
 bool TCompiler::initializeGLPosition(TIntermBlock *root)
 {
-    sh::ShaderVariable var(GL_FLOAT_VEC4);
-    var.name = "gl_Position";
-    return InitializeVariables(this, root, {var}, &mSymbolTable, mShaderVersion, mExtensionBehavior,
-                               false, false);
+    InitVariableList list;
+    AddBuiltInToInitList(&mSymbolTable, mShaderVersion, root, "gl_Position", &list);
+
+    if (!list.empty())
+    {
+        return InitializeVariables(this, root, list, &mSymbolTable, mShaderVersion,
+                                   mExtensionBehavior, false, false);
+    }
+
+    return true;
 }
 
 bool TCompiler::useAllMembersInUnusedStandardAndSharedBlocks(TIntermBlock *root)
@@ -1753,35 +1855,79 @@ bool TCompiler::useAllMembersInUnusedStandardAndSharedBlocks(TIntermBlock *root)
 
 bool TCompiler::initializeOutputVariables(TIntermBlock *root)
 {
+    // Place `main` at the end of the shader if not already.  If a variable is declared after main,
+    // main cannot reference it.
+    {
+        const TIntermSequence *original = root->getSequence();
+        TIntermSequence reordered;
+        TIntermNode *main = nullptr;
+
+        for (TIntermNode *node : *original)
+        {
+            TIntermFunctionDefinition *function = node->getAsFunctionDefinition();
+            if (function != nullptr && function->getFunction()->isMain())
+            {
+                ASSERT(main == nullptr);
+                main = node;
+            }
+            else
+            {
+                reordered.push_back(node);
+            }
+        }
+        ASSERT(main != nullptr);
+        reordered.push_back(main);
+
+        root->replaceAllChildren(std::move(reordered));
+    }
+
     InitVariableList list;
-    list.reserve(mOutputVaryings.size());
-    if (mShaderType == GL_VERTEX_SHADER || mShaderType == GL_GEOMETRY_SHADER_EXT ||
-        mShaderType == GL_TESS_CONTROL_SHADER_EXT || mShaderType == GL_TESS_EVALUATION_SHADER_EXT)
+
+    for (TIntermNode *node : *root->getSequence())
     {
-        for (const sh::ShaderVariable &var : mOutputVaryings)
+        TIntermDeclaration *asDecl = node->getAsDeclarationNode();
+        if (asDecl == nullptr)
         {
-            list.push_back(var);
-            if (var.name == "gl_Position")
-            {
-                ASSERT(!mGLPositionInitialized);
-                mGLPositionInitialized = true;
-            }
+            continue;
+        }
+
+        TIntermSymbol *symbol = asDecl->getSequence()->front()->getAsSymbolNode();
+        if (symbol == nullptr)
+        {
+            TIntermBinary *initNode = asDecl->getSequence()->front()->getAsBinaryNode();
+            ASSERT(initNode->getOp() == EOpInitialize);
+            symbol = initNode->getLeft()->getAsSymbolNode();
+        }
+        ASSERT(symbol);
+
+        // inout variables represent the context of the framebuffer when the draw call starts, so
+        // they have to be considered as already initialized.
+        const TQualifier qualifier = symbol->getType().getQualifier();
+        if (qualifier != EvqFragmentInOut && IsShaderOut(symbol->getType().getQualifier()))
+        {
+            list.push_back(&symbol->variable());
         }
     }
-    else
+
+    // Initialize built-in outputs as well.
+    const std::vector<ShaderVariable> &outputVariables =
+        mShaderType == GL_FRAGMENT_SHADER ? mOutputVariables : mOutputVaryings;
+
+    for (const ShaderVariable &var : outputVariables)
     {
-        ASSERT(mShaderType == GL_FRAGMENT_SHADER);
-        for (const sh::ShaderVariable &var : mOutputVariables)
+        if (var.isFragmentInOut || !var.isBuiltIn())
         {
-            // in-out variables represent the context of the framebuffer
-            // when the draw call starts, so they have to be considered
-            // as already initialized.
-            if (!var.isFragmentInOut)
-            {
-                list.push_back(var);
-            }
+            continue;
+        }
+
+        AddBuiltInToInitList(&mSymbolTable, mShaderVersion, root, var.name.c_str(), &list);
+        if (var.name == "gl_Position")
+        {
+            ASSERT(!mGLPositionInitialized);
+            mGLPositionInitialized = true;
         }
     }
+
     return InitializeVariables(this, root, list, &mSymbolTable, mShaderVersion, mExtensionBehavior,
                                false, false);
 }

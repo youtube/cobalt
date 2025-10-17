@@ -7,9 +7,10 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <array>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -46,27 +47,27 @@ TEST(CapabilitiesTest, Empty) {
 }
 
 TEST(CapabilitiesTest, HasCapability) {
-  HasCapabilityTestData data[] = {
-    { "", "", false },
-    { "a", "", false },
-    { "a", "a", true },
-    { "a a", "", false },
-    { "a a", "a", true },
-    { "a a", "z", false },
-    { "a b", "", false },
-    { "a b", "a", true },
-    { "a b", "b", true },
-    { "a b", "z", false },
-    { "a b c", "", false },
-    { "a b c", "a", true },
-    { "a b c", "b", true },
-    { "a b c", "z", false }
-  };
+  auto data = std::to_array<HasCapabilityTestData>({
+      {"", "", false},
+      {"a", "", false},
+      {"a", "a", true},
+      {"a a", "", false},
+      {"a a", "a", true},
+      {"a a", "z", false},
+      {"a b", "", false},
+      {"a b", "a", true},
+      {"a b", "b", true},
+      {"a b", "z", false},
+      {"a b c", "", false},
+      {"a b c", "a", true},
+      {"a b c", "b", true},
+      {"a b c", "z", false},
+  });
 
   // Verify that HasCapability(|capabilities|, |key|) returns |result|.
   // |result|.
   for (size_t i = 0; i < std::size(data); ++i) {
-    std::vector<base::StringPiece> caps =
+    std::vector<std::string_view> caps =
         base::SplitStringPiece(data[i].capabilities, " ", base::KEEP_WHITESPACE,
                                base::SPLIT_WANT_NONEMPTY);
     do {
@@ -79,26 +80,26 @@ TEST(CapabilitiesTest, HasCapability) {
 TEST(CapabilitiesTest, Intersect) {
   EXPECT_EQ(IntersectCapabilities("a", "a"), "a");
 
-  IntersectTestData data[] = {
-    { "", "", "" },
-    { "a", "", "" },
-    { "a", "a", "a" },
-    { "a", "b", "" },
-    { "a b", "", "" },
-    { "a b", "a", "a" },
-    { "a b", "b", "b" },
-    { "a b", "z", "" },
-    { "a b c", "a", "a" },
-    { "a b c", "b", "b" },
-    { "a b c", "a b", "a b" },
-    { "a b c", "b a", "a b" },
-    { "a b c", "z", "" }
-  };
+  auto data = std::to_array<IntersectTestData>({
+      {"", "", ""},
+      {"a", "", ""},
+      {"a", "a", "a"},
+      {"a", "b", ""},
+      {"a b", "", ""},
+      {"a b", "a", "a"},
+      {"a b", "b", "b"},
+      {"a b", "z", ""},
+      {"a b c", "a", "a"},
+      {"a b c", "b", "b"},
+      {"a b c", "a b", "a b"},
+      {"a b c", "b a", "a b"},
+      {"a b c", "z", ""},
+  });
 
   // Verify that intersection of |right| with all permutations of |left| yields
   // |result|.
   for (size_t i = 0; i < std::size(data); ++i) {
-    std::vector<base::StringPiece> caps = base::SplitStringPiece(
+    std::vector<std::string_view> caps = base::SplitStringPiece(
         data[i].left, " ", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
     do {
       EXPECT_EQ(data[i].result,

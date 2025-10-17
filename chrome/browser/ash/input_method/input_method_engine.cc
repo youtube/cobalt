@@ -6,12 +6,13 @@
 
 #include <algorithm>
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/keyboard/ui/keyboard_ui_controller.h"
-#include "ash/system/tray/system_nudge_controller.h"
+#include "ash/public/cpp/system/anchored_nudge_manager.h"
 #include "base/check.h"
 #include "base/i18n/char_iterator.h"
 #include "base/logging.h"
@@ -21,8 +22,8 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/ash/input_method/ui/input_method_menu_item.h"
-#include "chrome/browser/ash/input_method/ui/input_method_menu_manager.h"
+#include "chrome/browser/ui/ash/input_method/input_method_menu_item.h"
+#include "chrome/browser/ui/ash/input_method/input_method_menu_manager.h"
 #include "chrome/browser/ui/ash/keyboard/chrome_keyboard_controller_client.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -140,7 +141,7 @@ void InputMethodEngine::DiacriticsSettingsChanged() {
   const bool new_value =
       profile_->GetPrefs()->GetBoolean(ash::prefs::kLongPressDiacriticsEnabled);
   if (!new_value) {
-    SystemNudgeController::RecordNudgeAction(
+    AnchoredNudgeManager::Get()->MaybeRecordNudgeAction(
         NudgeCatalogName::kDisableDiacritics);
   }
 }
@@ -186,8 +187,9 @@ bool InputMethodEngine::CommitText(int context_id,
 
 void InputMethodEngine::ConfirmComposition(bool reset_engine) {
   TextInputTarget* input_context = IMEBridge::Get()->GetInputContextHandler();
-  if (input_context)
+  if (input_context) {
     input_context->ConfirmComposition(reset_engine);
+  }
 }
 
 bool InputMethodEngine::DeleteSurroundingText(int context_id,
@@ -215,6 +217,28 @@ bool InputMethodEngine::DeleteSurroundingText(int context_id,
   }
 
   return true;
+}
+
+base::expected<void, InputMethodEngine::Error>
+InputMethodEngine::ReplaceSurroundingText(
+    int context_id,
+    int length_before_selection,
+    int length_after_selection,
+    const std::u16string_view replacement_text) {
+  if (!IsActive()) {
+    return base::unexpected(Error::kInputMethodNotActive);
+  }
+  if (context_id != context_id_ || context_id_ == -1) {
+    return base::unexpected(Error::kIncorrectContextId);
+  }
+
+  if (TextInputTarget* input_context =
+          IMEBridge::Get()->GetInputContextHandler()) {
+    input_context->ReplaceSurroundingText(
+        length_before_selection, length_after_selection, replacement_text);
+  }
+
+  return base::ok();
 }
 
 bool InputMethodEngine::FinishComposingText(int context_id,
@@ -462,27 +486,6 @@ bool InputMethodEngine::SetComposingRange(
       static_cast<uint32_t>(start), static_cast<uint32_t>(end), text_spans);
 }
 
-gfx::Rect InputMethodEngine::GetTextFieldBounds(int context_id,
-                                                std::string* error) {
-  if (!IsActive()) {
-    *error = kErrorNotActive;
-    return gfx::Rect();
-  }
-  if (context_id != context_id_ || context_id_ == -1) {
-    *error = base::StringPrintf(
-        "%s request context id = %d, current context id = %d",
-        kErrorWrongContext, context_id, context_id_);
-    return gfx::Rect();
-  }
-
-  TextInputTarget* input_context = IMEBridge::Get()->GetInputContextHandler();
-  if (!input_context) {
-    return gfx::Rect();
-  }
-
-  return input_context->GetTextFieldBounds();
-}
-
 void InputMethodEngine::KeyEventHandled(const std::string& extension_id,
                                         const std::string& request_id,
                                         bool handled) {
@@ -536,8 +539,9 @@ void InputMethodEngine::Focus(
     const TextInputMethod::InputContext& input_context) {
   current_input_type_ = input_context.type;
 
-  if (!IsActive() || current_input_type_ == ui::TEXT_INPUT_TYPE_NONE)
+  if (!IsActive() || current_input_type_ == ui::TEXT_INPUT_TYPE_NONE) {
     return;
+  }
 
   context_id_ = next_context_id_;
   ++next_context_id_;
@@ -546,21 +550,15 @@ void InputMethodEngine::Focus(
 }
 
 void InputMethodEngine::Blur() {
-  if (!IsActive() || current_input_type_ == ui::TEXT_INPUT_TYPE_NONE)
+  if (!IsActive() || current_input_type_ == ui::TEXT_INPUT_TYPE_NONE) {
     return;
+  }
 
   current_input_type_ = ui::TEXT_INPUT_TYPE_NONE;
 
   int context_id = context_id_;
   context_id_ = -1;
   observer_->OnBlur(active_component_id_, context_id);
-}
-
-void InputMethodEngine::OnTouch(ui::EventPointerType pointerType) {
-  if (!IsActive() || current_input_type_ == ui::TEXT_INPUT_TYPE_NONE)
-    return;
-
-  observer_->OnTouch(pointerType);
 }
 
 void InputMethodEngine::Enable(const std::string& component_id) {
@@ -700,8 +698,9 @@ bool InputMethodEngine::SetButtonHighlighted(
   }
   IMEAssistiveWindowHandlerInterface* aw_handler =
       IMEBridge::Get()->GetAssistiveWindowHandler();
-  if (aw_handler)
+  if (aw_handler) {
     aw_handler->SetButtonHighlighted(button, highlighted);
+  }
   return true;
 }
 
@@ -725,7 +724,8 @@ bool InputMethodEngine::AcceptSuggestionCandidate(
   }
 
   if (delete_previous_utf16_len) {
-    DeleteSurroundingText(context_id_, -delete_previous_utf16_len,
+    DeleteSurroundingText(context_id_,
+                          -static_cast<int>(delete_previous_utf16_len),
                           delete_previous_utf16_len, error);
   }
 
@@ -733,16 +733,18 @@ bool InputMethodEngine::AcceptSuggestionCandidate(
 
   IMEAssistiveWindowHandlerInterface* aw_handler =
       IMEBridge::Get()->GetAssistiveWindowHandler();
-  if (aw_handler)
+  if (aw_handler) {
     aw_handler->AcceptSuggestion(suggestion);
+  }
   return true;
 }
 
 const InputMethodEngine::CandidateWindowProperty&
 InputMethodEngine::GetCandidateWindowProperty(const std::string& engine_id) {
-  if (candidate_window_property_.first != engine_id)
+  if (candidate_window_property_.first != engine_id) {
     candidate_window_property_ = {engine_id,
                                   InputMethodEngine::CandidateWindowProperty()};
+  }
   return candidate_window_property_.second;
 }
 
@@ -763,6 +765,7 @@ void InputMethodEngine::SetCandidateWindowProperty(
   dest_property.is_auxiliary_text_visible = property.is_auxiliary_text_visible;
   dest_property.current_candidate_index = property.current_candidate_index;
   dest_property.total_candidates = property.total_candidates;
+  dest_property.is_user_selecting = candidate_window_.is_user_selecting();
 
   candidate_window_.SetProperty(dest_property);
   candidate_window_property_ = {engine_id, property};
@@ -830,6 +833,8 @@ bool InputMethodEngine::SetCandidates(int context_id,
 
     candidate_window_.mutable_candidates()->push_back(entry);
   }
+  candidate_window_.set_is_user_selecting(InferIsUserSelecting(candidates));
+
   if (IsActive()) {
     IMECandidateWindowHandlerInterface* cw_handler =
         IMEBridge::Get()->GetCandidateWindowHandler();
@@ -891,8 +896,9 @@ bool InputMethodEngine::SetSuggestion(int context_id,
 
   IMEAssistiveWindowHandlerInterface* aw_handler =
       IMEBridge::Get()->GetAssistiveWindowHandler();
-  if (aw_handler)
+  if (aw_handler) {
     aw_handler->ShowSuggestion(details);
+  }
   return true;
 }
 
@@ -908,8 +914,9 @@ bool InputMethodEngine::DismissSuggestion(int context_id, std::string* error) {
 
   IMEAssistiveWindowHandlerInterface* aw_handler =
       IMEBridge::Get()->GetAssistiveWindowHandler();
-  if (aw_handler)
+  if (aw_handler) {
     aw_handler->HideSuggestion();
+  }
   return true;
 }
 
@@ -938,8 +945,8 @@ bool InputMethodEngine::AcceptSuggestion(int context_id, std::string* error) {
     }
     size_t confirmed_length = aw_handler->GetConfirmedLength();
     if (confirmed_length > 0) {
-      DeleteSurroundingText(context_id_, -confirmed_length, confirmed_length,
-                            error);
+      DeleteSurroundingText(context_id_, -static_cast<int>(confirmed_length),
+                            confirmed_length, error);
     }
     CommitText(context_id_, suggestion_text, error);
     aw_handler->HideSuggestion();
@@ -962,16 +969,18 @@ bool InputMethodEngine::SetAssistiveWindowProperties(
 
   IMEAssistiveWindowHandlerInterface* aw_handler =
       IMEBridge::Get()->GetAssistiveWindowHandler();
-  if (aw_handler)
+  if (aw_handler) {
     aw_handler->SetAssistiveWindowProperties(assistive_window);
+  }
   return true;
 }
 
 void InputMethodEngine::Announce(const std::u16string& message) {
   IMEAssistiveWindowHandlerInterface* aw_handler =
       IMEBridge::Get()->GetAssistiveWindowHandler();
-  if (aw_handler)
+  if (aw_handler) {
     aw_handler->Announce(message);
+  }
 }
 
 void InputMethodEngine::OnProfileWillBeDestroyed(Profile* profile) {
@@ -1008,8 +1017,9 @@ bool InputMethodEngine::UpdateMenuItems(
 
 void InputMethodEngine::HideInputView() {
   auto* keyboard_client = ChromeKeyboardControllerClient::Get();
-  if (keyboard_client->is_keyboard_enabled())
+  if (keyboard_client->is_keyboard_enabled()) {
     keyboard_client->HideKeyboard(ash::HideReason::kUser);
+  }
 }
 
 void InputMethodEngine::OnInputMethodOptionsChanged() {
@@ -1042,8 +1052,9 @@ void InputMethodEngine::UpdateComposition(
 void InputMethodEngine::CommitTextToInputContext(int context_id,
                                                  const std::u16string& text) {
   TextInputTarget* input_context = IMEBridge::Get()->GetInputContextHandler();
-  if (!input_context)
+  if (!input_context) {
     return;
+  }
 
   const bool had_composition_text = input_context->HasCompositionText();
   input_context->CommitText(
@@ -1077,6 +1088,23 @@ void InputMethodEngine::OnScreenProjectionChanged(bool is_projected) {
   if (observer_) {
     observer_->OnScreenProjectionChanged(is_projected);
   }
+}
+
+bool InputMethodEngine::InferIsUserSelecting(
+    base::span<const Candidate> candidates) {
+  if (candidates.empty()) {
+    return false;
+  }
+
+  // Only infer for Japanese IME.
+  if (!active_component_id_.starts_with("nacl_mozc_")) {
+    return true;
+  }
+
+  const bool any_non_empty_label = std::ranges::any_of(
+      candidates,
+      [](const Candidate& candidate) { return !candidate.label.empty(); });
+  return any_non_empty_label;
 }
 
 void InputMethodEngine::NotifyInputMethodExtensionReadyForTesting() {

@@ -5,7 +5,6 @@
 #include "base/callback_list.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
@@ -128,7 +127,7 @@ IN_PROC_BROWSER_TEST_F(TwoClientSendTabToSelfSyncTest,
                       ->GetDeviceInfoTracker())
                   .Wait());
 
-  std::vector<std::unique_ptr<syncer::DeviceInfo>> device_infos =
+  std::vector<const syncer::DeviceInfo*> device_infos =
       DeviceInfoSyncServiceFactory::GetForProfile(GetProfile(1))
           ->GetDeviceInfoTracker()
           ->GetAllDeviceInfo();
@@ -156,11 +155,12 @@ IN_PROC_BROWSER_TEST_F(TwoClientSendTabToSelfSyncTest,
   // Explicitly set the two profiles to have different client names to simulate
   // them being on different devices. Otherwise their device infos will get
   // deduped.
-  // TODO(crbug.com/1257573): This is rather misleading. The "device1"/"device2"
-  // strings below are never sent to the server, they just ensure the local
-  // device name is different from the other entry. The same string could even
-  // be used in both calls. The most robust test would be: update the device
-  // info name and wait for the right value of GetTargetDeviceInfoSortedList().
+  // TODO(crbug.com/40200734): This is rather misleading. The
+  // "device1"/"device2" strings below are never sent to the server, they just
+  // ensure the local device name is different from the other entry. The same
+  // string could even be used in both calls. The most robust test would be:
+  // update the device info name and wait for the right value of
+  // GetTargetDeviceInfoSortedList().
   static_cast<send_tab_to_self::SendTabToSelfBridge*>(
       SendTabToSelfSyncServiceFactory::GetForProfile(GetProfile(0))
           ->GetSendTabToSelfModel())
@@ -255,17 +255,17 @@ class TwoClientSendTabToSelfWithTransportModeSyncTest
 };
 
 // Non-primary accounts don't exist on ChromeOS.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 
 IN_PROC_BROWSER_TEST_F(TwoClientSendTabToSelfWithTransportModeSyncTest,
                        SignedInClientCanReceive) {
   ASSERT_TRUE(SetupClients()) << "SetupClients() failed.";
 
   // Set up one client syncing and the other signed-in but not syncing.
-  GetClient(0)->SetupSync();
+  ASSERT_TRUE(GetClient(0)->SetupSync());
   secondary_account_helper::SignInUnconsentedAccount(
       GetProfile(1), &test_url_loader_factory_, "user@g.com");
-  GetClient(1)->AwaitSyncTransportActive();
+  ASSERT_TRUE(GetClient(1)->AwaitSyncTransportActive());
 
   DeviceInfoSyncServiceFactory::GetForProfile(GetProfile(1))
       ->GetDeviceInfoTracker()
@@ -279,7 +279,7 @@ IN_PROC_BROWSER_TEST_F(TwoClientSendTabToSelfWithTransportModeSyncTest,
                       ->GetDeviceInfoTracker())
                   .Wait());
 
-  std::vector<std::unique_ptr<syncer::DeviceInfo>> device_infos =
+  std::vector<const syncer::DeviceInfo*> device_infos =
       DeviceInfoSyncServiceFactory::GetForProfile(GetProfile(1))
           ->GetDeviceInfoTracker()
           ->GetAllDeviceInfo();
@@ -288,4 +288,4 @@ IN_PROC_BROWSER_TEST_F(TwoClientSendTabToSelfWithTransportModeSyncTest,
   EXPECT_TRUE(device_infos[1]->send_tab_to_self_receiving_enabled());
 }
 
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)

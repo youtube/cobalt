@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.contextualsearch;
 import androidx.annotation.IntDef;
 
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -14,13 +15,14 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * Centralizes UMA data collection for Related Searches. All calls must be made from the UI thread.
  */
+@NullMarked
 public class RelatedSearchesUma {
     // Constants for user permissions histogram.
     @IntDef({
-            Permissions.SEND_NOTHING,
-            Permissions.SEND_URL,
-            Permissions.SEND_CONTENT,
-            Permissions.SEND_URL_AND_CONTENT,
+        Permissions.SEND_NOTHING,
+        Permissions.SEND_URL,
+        Permissions.SEND_CONTENT,
+        Permissions.SEND_URL_AND_CONTENT,
     })
     @Retention(RetentionPolicy.SOURCE)
     private @interface Permissions {
@@ -35,10 +37,10 @@ public class RelatedSearchesUma {
     // These values are persisted to logs. Entries should not be renumbered and
     // numeric values should never be reused.
     @IntDef({
-            ScrollAndClickStatus.NO_SCROLL_NO_CLICK,
-            ScrollAndClickStatus.NO_SCROLL_CLICKED,
-            ScrollAndClickStatus.SCROLLED_NO_CLICK,
-            ScrollAndClickStatus.SCROLLED_CLICKED,
+        ScrollAndClickStatus.NO_SCROLL_NO_CLICK,
+        ScrollAndClickStatus.NO_SCROLL_CLICKED,
+        ScrollAndClickStatus.SCROLLED_NO_CLICK,
+        ScrollAndClickStatus.SCROLLED_CLICKED,
     })
     @Retention(RetentionPolicy.SOURCE)
     private @interface ScrollAndClickStatus {
@@ -46,30 +48,32 @@ public class RelatedSearchesUma {
         int NO_SCROLL_CLICKED = 1;
         int SCROLLED_NO_CLICK = 2;
         int SCROLLED_CLICKED = 3;
-        int NUM_ENTRIES = 4;
     }
 
     /**
      * Logs a histogram indicating which privacy permissions are available that Related Searches
      * cares about. This ignores any language constraint.
+     *
      * <p>This can be called multiple times for each user from any part of the code that's freqently
      * executed.
+     *
      * @param canSendUrl Whether this user has allowed sending page URL info to Google.
      * @param canSendContent Whether the user can send page content to Google (has accepted the
-     *        Contextual Search opt-in).
+     *     Contextual Search opt-in).
      */
     static void logRelatedSearchesPermissionsForAllUsers(
             boolean canSendUrl, boolean canSendContent) {
-        @Permissions
-        int permissionsEnum;
+        @Permissions int permissionsEnum;
         if (canSendUrl) {
             permissionsEnum =
                     canSendContent ? Permissions.SEND_URL_AND_CONTENT : Permissions.SEND_URL;
         } else {
             permissionsEnum = canSendContent ? Permissions.SEND_CONTENT : Permissions.SEND_NOTHING;
         }
-        RecordHistogram.recordEnumeratedHistogram("Search.RelatedSearches.AllUserPermissions",
-                permissionsEnum, Permissions.NUM_ENTRIES);
+        RecordHistogram.recordEnumeratedHistogram(
+                "Search.RelatedSearches.AllUserPermissions",
+                permissionsEnum,
+                Permissions.NUM_ENTRIES);
     }
 
     /**
@@ -157,16 +161,21 @@ public class RelatedSearchesUma {
      * @param clicked Whether the user clicked any suggestion or not after they were presented.
      */
     public static void logCarouselScrollAndClickStatus(boolean scrolled, boolean clicked) {
-        @ScrollAndClickStatus
-        int scrollAndClickStatus;
+        @ScrollAndClickStatus int scrollAndClickStatus;
         if (scrolled) {
-            scrollAndClickStatus = clicked ? ScrollAndClickStatus.SCROLLED_CLICKED
-                                           : ScrollAndClickStatus.SCROLLED_NO_CLICK;
+            scrollAndClickStatus =
+                    clicked
+                            ? ScrollAndClickStatus.SCROLLED_CLICKED
+                            : ScrollAndClickStatus.SCROLLED_NO_CLICK;
         } else {
-            scrollAndClickStatus = clicked ? ScrollAndClickStatus.NO_SCROLL_CLICKED
-                                           : ScrollAndClickStatus.NO_SCROLL_NO_CLICK;
+            scrollAndClickStatus =
+                    clicked
+                            ? ScrollAndClickStatus.NO_SCROLL_CLICKED
+                            : ScrollAndClickStatus.NO_SCROLL_NO_CLICK;
         }
-        RecordHistogram.recordEnumeratedHistogram("Search.RelatedSearches.CarouselScrollAndClick",
-                scrollAndClickStatus, Permissions.NUM_ENTRIES);
+        RecordHistogram.recordEnumeratedHistogram(
+                "Search.RelatedSearches.CarouselScrollAndClick",
+                scrollAndClickStatus,
+                Permissions.NUM_ENTRIES);
     }
 }

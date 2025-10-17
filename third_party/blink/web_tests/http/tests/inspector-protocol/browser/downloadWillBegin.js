@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {page, session, dp} = await testRunner.startBlank('Tests we properly emit Browser.downloadWillBegin.');
   await session.evaluateAsync(`
     const frame = document.createElement('iframe');
@@ -14,6 +14,13 @@
   ]);
 
   const pageId = page._targetId;
+
+  function stabilizeFilePath(filePath) {
+    if (!filePath)
+      return;
+    const pathSeparator = filePath.includes('/') ? '/' : '\\';
+    return `<some file path>/${filePath.split(pathSeparator).pop()}`;
+  }
 
   async function runTestForTarget(target) {
     await target.Browser.setDownloadBehavior({
@@ -36,9 +43,12 @@
             return;
           visitedStates.add(event.params.state);
           testRunner.log(`downloadProgress has expected guid: ${downloadId === event.params.guid}`);
-          testRunner.log(event);
-          if (event.params.state === 'completed')
+          testRunner.log(event, '', [...TestRunner.stabilizeNames, 'filePath']);
+          if (event.params.state === 'completed') {
+            testRunner.log(
+                `file path: ${stabilizeFilePath(event.params.filePath)}`);
             resolve();
+          }
         });
       });
     }

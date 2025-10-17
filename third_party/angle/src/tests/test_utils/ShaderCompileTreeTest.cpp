@@ -9,7 +9,7 @@
 
 #include "tests/test_utils/ShaderCompileTreeTest.h"
 
-#include "compiler/translator/TranslatorESSL.h"
+#include "compiler/translator/glsl/TranslatorESSL.h"
 #include "compiler/translator/tree_util/IntermTraverse.h"
 
 namespace sh
@@ -155,13 +155,11 @@ bool ShaderCompileTreeTest::hasWarning() const
 
 const std::vector<sh::ShaderVariable> &ShaderCompileTreeTest::getUniforms() const
 {
-    ASSERT(mCompileOptions.variables);
     return mTranslator->getUniforms();
 }
 
 const std::vector<sh::ShaderVariable> &ShaderCompileTreeTest::getAttributes() const
 {
-    ASSERT(mCompileOptions.variables);
     return mTranslator->getAttributes();
 }
 

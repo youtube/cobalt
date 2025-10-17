@@ -13,6 +13,7 @@ import os
 import pprint
 import sys
 import subprocess
+import tempfile
 
 d = os.path.dirname
 THIS_DIR = d(os.path.abspath(__file__))
@@ -24,30 +25,45 @@ import generate_buildbot_json
 # Add custom mixins here.
 ADDITIONAL_MIXINS = {
     'angle_skia_gold_test': {
-        '$mixin_append': {
-            'args': [
-                '--git-revision=${got_angle_revision}',
-                # BREAK GLASS IN CASE OF EMERGENCY
-                # Uncommenting this argument will bypass all interactions with Skia
-                # Gold in any tests that use it. This is meant as a temporary
-                # emergency stop in case of a Gold outage that's affecting the bots.
-                # '--bypass-skia-gold-functionality',
-            ],
-            'precommit_args': [
-                '--gerrit-issue=${patch_issue}',
-                '--gerrit-patchset=${patch_set}',
-                '--buildbucket-id=${buildbucket_build_id}',
-                # This normally evaluates to "0", but will evaluate to "1" if
-                # "Use-Permissive-Angle-Pixel-Comparison: True" is present as a
-                # CL footer.
-                '--use-permissive-pixel-comparison=${use_permissive_angle_pixel_comparison}',
-            ],
+        'args': [
+            '--git-revision=${got_angle_revision}',
+            # BREAK GLASS IN CASE OF EMERGENCY
+            # Uncommenting this argument will bypass all interactions with Skia
+            # Gold in any tests that use it. This is meant as a temporary
+            # emergency stop in case of a Gold outage that's affecting the bots.
+            # '--bypass-skia-gold-functionality',
+        ],
+        'precommit_args': [
+            '--gerrit-issue=${patch_issue}',
+            '--gerrit-patchset=${patch_set}',
+            '--buildbucket-id=${buildbucket_build_id}',
+            # This normally evaluates to "0", but will evaluate to "1" if
+            # "Use-Permissive-Angle-Pixel-Comparison: True" is present as a
+            # CL footer.
+            '--use-permissive-pixel-comparison=${use_permissive_angle_pixel_comparison}',
+        ],
+    },
+    'samsung_s24': {
+        'swarming': {
+            'dimensions': {
+                'device_os': 'AP3A.240905.015.A2',
+                'device_os_type': 'user',
+                'device_type': 's5e9945',
+                'os': 'Android'
+            }
         }
     },
     'timeout_120m': {
         'swarming': {
             'hard_timeout': 7200,
             'io_timeout': 300
+        }
+    },
+    'temp_band_below_30C': {
+        'swarming': {
+            'dimensions': {
+                'temp_band': '<30'
+            }
         }
     },
 }
@@ -84,29 +100,53 @@ def main():
         outputs = ['angle.json', 'mixins.pyl']
         if sys.argv[1] == 'inputs':
             print(','.join(inputs))
-        elif sys.argv[1] == 'outputs':
+            return 0
+        if sys.argv[1] == 'outputs':
             print(','.join(outputs))
-        else:
-            print('Invalid script parameters')
-            return 1
-        return 0
+            return 0
 
-    chromium_args = generate_buildbot_json.BBJSONGenerator.parse_args(sys.argv[1:])
-    chromium_generator = generate_buildbot_json.BBJSONGenerator(chromium_args)
-    chromium_generator.load_configuration_files()
+    # --verify-only enables dirty checks without relying on checked in hashes.
+    # Compares the content of the existing file with the generated content.
+    verify_only = '--verify-only' in sys.argv
 
-    override_args = sys.argv[1:] + ['--pyl-files-dir', THIS_DIR]
-    angle_args = generate_buildbot_json.BBJSONGenerator.parse_args(override_args)
-    angle_generator = generate_buildbot_json.BBJSONGenerator(angle_args)
-    angle_generator.load_configuration_files()
-    angle_generator.resolve_configuration_files()
+    if verify_only:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            return run_generator(verify_only, temp_dir)
+    else:
+        return run_generator(verify_only, None)
+
+
+def write_or_verify_file(filename, content, verify_only):
+    if verify_only:
+        try:
+            with open(filename) as f:
+                # Note: .gitattributes "* text=auto" handles LF <-> CRLF on Windows
+                return f.read() == content
+        except FileNotFoundError:
+            return False
+    else:
+        with open(filename, 'w') as fout:
+            fout.write(content)
+            return True
+
+
+def run_generator(verify_only, temp_dir):
+    override_args = ['--pyl-files-dir', THIS_DIR]
+    if verify_only:
+        override_args += ['--output-dir', temp_dir]
+    args = generate_buildbot_json.BBJSONGenerator.parse_args(override_args)
+    generator = generate_buildbot_json.BBJSONGenerator(args)
+    generator.load_configuration_files()
+    generator.resolve_configuration_files()
+
+    chromium_mixins = generator.load_pyl_file(os.path.join(TESTING_BBOT_DIR, 'mixins.pyl'))
 
     seen_mixins = set()
-    for waterfall in angle_generator.waterfalls:
+    for waterfall in generator.waterfalls:
         seen_mixins = seen_mixins.union(waterfall.get('mixins', set()))
         for bot_name, tester in waterfall['machines'].items():
             seen_mixins = seen_mixins.union(tester.get('mixins', set()))
-    for suite in angle_generator.test_suites.values():
+    for suite in generator.test_suites.values():
         if isinstance(suite, list):
             # Don't care about this, it's a composition, which shouldn't include a
             # swarming mixin.
@@ -119,8 +159,8 @@ def main():
     for mixin in seen_mixins:
         if mixin in found_mixins:
             continue
-        assert (mixin in chromium_generator.mixins), 'Error with %s mixin' % mixin
-        found_mixins[mixin] = chromium_generator.mixins[mixin]
+        assert (mixin in chromium_mixins), 'Error with %s mixin' % mixin
+        found_mixins[mixin] = chromium_mixins[mixin]
 
     pp = pprint.PrettyPrinter(indent=2)
 
@@ -131,11 +171,25 @@ def main():
     }
     generated_mixin_pyl = MIXINS_PYL_TEMPLATE.format(**format_data)
 
-    with open(MIXIN_FILE_NAME, 'w') as f:
-        f.write(generated_mixin_pyl)
-        f.close()
+    if not write_or_verify_file(MIXIN_FILE_NAME, generated_mixin_pyl, verify_only):
+        print('infra/specs/mixins.pyl dirty')
+        return 1
 
-    return angle_generator.main()
+    if generator.main() != 0:
+        print('buildbot (pyl to json) generation failed')
+        return 1
+
+    if verify_only:
+        for waterfall in generator.waterfalls:
+            filename = waterfall['name'] + '.json'  # angle.json, might have more in future
+            with open(os.path.join(temp_dir, filename)) as f:
+                content = f.read()
+            angle_filename = os.path.join(THIS_DIR, filename)
+            if not write_or_verify_file(angle_filename, content, True):
+                print('infra/specs/%s dirty' % filename)
+                return 1
+
+    return 0
 
 
 if __name__ == '__main__':  # pragma: no cover

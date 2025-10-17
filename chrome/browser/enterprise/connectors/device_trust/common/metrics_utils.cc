@@ -7,17 +7,18 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 #include "chrome/browser/enterprise/connectors/device_trust/common/common_types.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace enterprise_connectors {
 
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // Enrollment status of the device where the Device Trust connector attestation
 // is happening. These values are persisted to logs and should not be
 // renumbered. Please update the DTEnrollmentStatus enum in enums.xml when
@@ -27,7 +28,7 @@ enum class DTEnrollmentStatus {
   kUnmanaged = 1,
   kMaxValue = kUnmanaged,
 };
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 DTHandshakeResult ResponseToResult(const DeviceTrustResponse& response) {
   if (!response.error) {
@@ -46,6 +47,31 @@ DTHandshakeResult ResponseToResult(const DeviceTrustResponse& response) {
   }
 }
 
+bool ContainsPolicyLevel(const std::set<DTCPolicyLevel>& levels,
+                         const DTCPolicyLevel& level) {
+  return levels.find(level) != levels.end();
+}
+
+DTAttestationPolicyLevel GetAttestationPolicyLevel(
+    const std::set<DTCPolicyLevel>& levels) {
+  if (levels.empty()) {
+    return DTAttestationPolicyLevel::kNone;
+  }
+
+  if (ContainsPolicyLevel(levels, DTCPolicyLevel::kBrowser)) {
+    if (ContainsPolicyLevel(levels, DTCPolicyLevel::kUser)) {
+      return DTAttestationPolicyLevel::kUserAndBrowser;
+    }
+    return DTAttestationPolicyLevel::kBrowser;
+  }
+
+  if (ContainsPolicyLevel(levels, DTCPolicyLevel::kUser)) {
+    return DTAttestationPolicyLevel::kUser;
+  }
+
+  return DTAttestationPolicyLevel::kUnknown;
+}
+
 }  // namespace
 
 void LogAttestationFunnelStep(DTAttestationFunnelStep step) {
@@ -55,15 +81,20 @@ void LogAttestationFunnelStep(DTAttestationFunnelStep step) {
   VLOG(1) << "Device Trust attestation step: " << static_cast<int>(step);
 }
 
+void LogAttestationPolicyLevel(const std::set<DTCPolicyLevel>& levels) {
+  static constexpr char kAttestationPolicyLevelHistogram[] =
+      "Enterprise.DeviceTrust.Attestation.PolicyLevel";
+  base::UmaHistogramEnumeration(kAttestationPolicyLevelHistogram,
+                                GetAttestationPolicyLevel(levels));
+}
+
 void LogAttestationResult(DTAttestationResult result) {
   static constexpr char kAttestationResultHistogram[] =
       "Enterprise.DeviceTrust.Attestation.Result";
   base::UmaHistogramEnumeration(kAttestationResultHistogram, result);
-  if (result == DTAttestationResult::kSuccess) {
-    VLOG(1) << "Device Trust attestation was successful";
-  } else {
+  if (!IsSuccessAttestationResult(result)) {
     LOG(ERROR) << "Device Trust attestation error: "
-               << AttestationResultToString(result);
+               << AttestationErrorToString(result);
   }
 }
 
@@ -82,7 +113,7 @@ void LogDeviceTrustResponse(const DeviceTrustResponse& response,
                                 ResponseToResult(response));
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 void LogOrigin(DTOrigin origin) {
   static constexpr char kOriginHistogram[] = "Enterprise.DeviceTrust.Origin";
   base::UmaHistogramEnumeration(kOriginHistogram, origin);
@@ -97,6 +128,6 @@ void LogEnrollmentStatus() {
           ? DTEnrollmentStatus::kManaged
           : DTEnrollmentStatus::kUnmanaged);
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace enterprise_connectors

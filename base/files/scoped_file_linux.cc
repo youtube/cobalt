@@ -14,7 +14,6 @@
 #include "base/debug/stack_trace.h"
 #include "base/immediate_crash.h"
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 
 namespace {
 
@@ -65,9 +64,11 @@ void ScopedFDCloseTraits::Release(const ScopedFD& owner, int fd) {
 
 namespace subtle {
 
+#if !defined(COMPONENT_BUILD)
 void EnableFDOwnershipEnforcement(bool enabled) {
   g_is_ownership_enforced = enabled;
 }
+#endif  // !defined(COMPONENT_BUILD)
 
 void ResetFDOwnership() {
   std::fill(g_is_fd_owned.begin(), g_is_fd_owned.end(), false);
@@ -81,6 +82,7 @@ bool IsFDOwned(int fd) {
 
 }  // namespace base
 
+#if !defined(COMPONENT_BUILD)
 using LibcCloseFuncPtr = int (*)(int);
 
 #if !BUILDFLAG(IS_STARBOARD)
@@ -101,8 +103,9 @@ extern "C" {
 NO_SANITIZE("cfi-icall")
 __attribute__((visibility("default"), noinline)) int close(int fd) {
   static LibcCloseFuncPtr libc_close = LoadCloseSymbol();
-  if (base::IsFDOwned(fd) && g_is_ownership_enforced)
+  if (base::IsFDOwned(fd) && g_is_ownership_enforced) {
     CrashOnFdOwnershipViolation();
+  }
   if (libc_close == nullptr) {
     RAW_LOG(ERROR, "close symbol missing\n");
     base::ImmediateCrash();
@@ -110,5 +113,6 @@ __attribute__((visibility("default"), noinline)) int close(int fd) {
   return libc_close(fd);
 }
 
-}  // extern "C"
+}       // extern "C"
 #endif  // !BUILDFLAG(IS_STARBOARD)
+#endif  // !defined(COMPONENT_BUILD)

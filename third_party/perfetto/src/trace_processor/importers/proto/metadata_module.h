@@ -18,6 +18,7 @@
 #define SRC_TRACE_PROCESSOR_IMPORTERS_PROTO_METADATA_MODULE_H_
 
 #include "src/trace_processor/importers/common/trace_parser.h"
+#include "src/trace_processor/importers/proto/packet_sequence_state_generation.h"
 #include "src/trace_processor/importers/proto/proto_importer_module.h"
 
 #include "protos/perfetto/trace/trace_packet.pbzero.h"
@@ -35,7 +36,7 @@ class MetadataModule : public ProtoImporterModule {
       const protos::pbzero::TracePacket::Decoder& decoder,
       TraceBlobView* packet,
       int64_t packet_timestamp,
-      PacketSequenceState* state,
+      RefPtr<PacketSequenceStateGeneration> state,
       uint32_t field_id) override;
 
   void ParseTracePacketData(const protos::pbzero::TracePacket::Decoder& decoder,
@@ -46,12 +47,24 @@ class MetadataModule : public ProtoImporterModule {
   void ParseTraceConfig(const protos::pbzero::TraceConfig_Decoder&) override;
 
  private:
-  void ParseTrigger(int64_t ts, ConstBytes);
+  enum class TraceTriggerPacketType {
+    kNone,
+    kTraceTrigger,
+    kCloneSnapshot,
+  };
+
+  void ParseTrigger(int64_t ts, ConstBytes, TraceTriggerPacketType);
+  void ParseChromeTrigger(int64_t ts, ConstBytes);
   void ParseTraceUuid(ConstBytes);
 
   TraceProcessorContext* context_;
-  StringId producer_name_key_id_ = kNullStringId;
-  StringId trusted_producer_uid_key_id_ = kNullStringId;
+  TraceTriggerPacketType trace_trigger_packet_type_ =
+      TraceTriggerPacketType::kNone;
+
+  const StringId producer_name_key_id_;
+  const StringId trusted_producer_uid_key_id_;
+  const StringId chrome_trigger_name_id_;
+  const StringId chrome_trigger_hash_id_;
 };
 
 }  // namespace trace_processor

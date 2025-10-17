@@ -4,16 +4,17 @@
 
 package org.chromium.components.image_fetcher;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import org.chromium.base.DiscardableReferencePool;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.embedder_support.simple_factory_key.SimpleFactoryKeyHandle;
 
-/**
- * Factory to provide the image fetcher best suited for the given config.
- */
+/** Factory to provide the image fetcher best suited for the given config. */
+@NullMarked
 public class ImageFetcherFactory {
-    /**
-     * Alias for createImageFetcher below.
-     */
+    /** Alias for createImageFetcher below. */
     public static ImageFetcher createImageFetcher(
             @ImageFetcherConfig int config, SimpleFactoryKeyHandle simpleFactoryKeyHandle) {
         ImageFetcherBridge bridge =
@@ -22,24 +23,26 @@ public class ImageFetcherFactory {
                 config, bridge, null, InMemoryCachedImageFetcher.DEFAULT_CACHE_SIZE);
     }
 
-    /**
-     * Alias for createImageFetcher below.
-     */
-    public static ImageFetcher createImageFetcher(@ImageFetcherConfig int config,
+    /** Alias for createImageFetcher below. */
+    public static ImageFetcher createImageFetcher(
+            @ImageFetcherConfig int config,
             SimpleFactoryKeyHandle simpleFactoryKeyHandle,
             DiscardableReferencePool discardableReferencePool) {
         ImageFetcherBridge bridge =
                 ImageFetcherBridge.getForSimpleFactoryKeyHandle(simpleFactoryKeyHandle);
-        return createImageFetcher(config, bridge, discardableReferencePool,
+        return createImageFetcher(
+                config,
+                bridge,
+                discardableReferencePool,
                 InMemoryCachedImageFetcher.DEFAULT_CACHE_SIZE);
     }
 
-    /**
-     * Alias for createImageFetcher below.
-     */
-    public static ImageFetcher createImageFetcher(@ImageFetcherConfig int config,
+    /** Alias for createImageFetcher below. */
+    public static ImageFetcher createImageFetcher(
+            @ImageFetcherConfig int config,
             SimpleFactoryKeyHandle simpleFactoryKeyHandle,
-            DiscardableReferencePool discardableReferencePool, int inMemoryCacheSize) {
+            DiscardableReferencePool discardableReferencePool,
+            int inMemoryCacheSize) {
         ImageFetcherBridge bridge =
                 ImageFetcherBridge.getForSimpleFactoryKeyHandle(simpleFactoryKeyHandle);
         return createImageFetcher(config, bridge, discardableReferencePool, inMemoryCacheSize);
@@ -56,10 +59,12 @@ public class ImageFetcherFactory {
      * @param inMemoryCacheSize The size of the in memory cache (in bytes).
      * @return The correct ImageFetcher according to the provided config.
      */
-    static ImageFetcher createImageFetcher(@ImageFetcherConfig int config,
+    static ImageFetcher createImageFetcher(
+            @ImageFetcherConfig int config,
             ImageFetcherBridge imageFetcherBridge,
-            DiscardableReferencePool discardableReferencePool, int inMemoryCacheSize) {
-        // TODO(crbug.com/947191):Allow server-side configuration image fetcher clients.
+            @Nullable DiscardableReferencePool discardableReferencePool,
+            int inMemoryCacheSize) {
+        // TODO(crbug.com/41449848):Allow server-side configuration image fetcher clients.
         switch (config) {
             case ImageFetcherConfig.NETWORK_ONLY:
                 return new NetworkImageFetcher(imageFetcherBridge);
@@ -69,17 +74,26 @@ public class ImageFetcherFactory {
             case ImageFetcherConfig.IN_MEMORY_ONLY:
                 assert discardableReferencePool != null;
                 return new InMemoryCachedImageFetcher(
-                        createImageFetcher(ImageFetcherConfig.NETWORK_ONLY, imageFetcherBridge,
-                                discardableReferencePool, inMemoryCacheSize),
-                        discardableReferencePool, inMemoryCacheSize);
+                        createImageFetcher(
+                                ImageFetcherConfig.NETWORK_ONLY,
+                                imageFetcherBridge,
+                                discardableReferencePool,
+                                inMemoryCacheSize),
+                        discardableReferencePool,
+                        inMemoryCacheSize);
             case ImageFetcherConfig.IN_MEMORY_WITH_DISK_CACHE:
                 assert discardableReferencePool != null;
                 return new InMemoryCachedImageFetcher(
-                        createImageFetcher(ImageFetcherConfig.DISK_CACHE_ONLY, imageFetcherBridge,
-                                discardableReferencePool, inMemoryCacheSize),
-                        discardableReferencePool, inMemoryCacheSize);
+                        createImageFetcher(
+                                ImageFetcherConfig.DISK_CACHE_ONLY,
+                                imageFetcherBridge,
+                                discardableReferencePool,
+                                inMemoryCacheSize),
+                        discardableReferencePool,
+                        inMemoryCacheSize);
             default:
-                return null;
+                assert false : "Was " + config;
+                return assumeNonNull(null);
         }
     }
 }

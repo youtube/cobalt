@@ -13,9 +13,11 @@
 #include "build/build_config.h"
 #include "components/viz/service/gl/gpu_service_impl.h"
 #include "gpu/command_buffer/service/command_buffer_task_executor.h"
+#include "gpu/command_buffer/service/dawn_context_provider.h"
 #include "gpu/command_buffer/service/gpu_task_scheduler_helper.h"
 #include "gpu/command_buffer/service/scheduler.h"
 #include "gpu/command_buffer/service/scheduler_sequence.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "gpu/ipc/service/image_transport_surface.h"
 #include "ui/gl/init/gl_factory.h"
 
@@ -74,7 +76,8 @@ SkiaOutputSurfaceDependencyImpl::GetVulkanContextProvider() {
   return gpu_service_impl_->vulkan_context_provider();
 }
 
-DawnContextProvider* SkiaOutputSurfaceDependencyImpl::GetDawnContextProvider() {
+gpu::DawnContextProvider*
+SkiaOutputSurfaceDependencyImpl::GetDawnContextProvider() {
   return gpu_service_impl_->dawn_context_provider();
 }
 
@@ -88,10 +91,6 @@ SkiaOutputSurfaceDependencyImpl::GetGpuFeatureInfo() {
   return gpu_service_impl_->gpu_feature_info();
 }
 
-gpu::MailboxManager* SkiaOutputSurfaceDependencyImpl::GetMailboxManager() {
-  return gpu_service_impl_->mailbox_manager();
-}
-
 bool SkiaOutputSurfaceDependencyImpl::IsOffscreen() {
   return surface_handle_ == gpu::kNullSurfaceHandle;
 }
@@ -100,32 +99,27 @@ gpu::SurfaceHandle SkiaOutputSurfaceDependencyImpl::GetSurfaceHandle() {
   return surface_handle_;
 }
 
-scoped_refptr<gl::Presenter> SkiaOutputSurfaceDependencyImpl::CreatePresenter(
-    base::WeakPtr<gpu::ImageTransportSurfaceDelegate> stub,
-    gl::GLSurfaceFormat format) {
+scoped_refptr<gl::Presenter>
+SkiaOutputSurfaceDependencyImpl::CreatePresenter() {
   DCHECK(!IsOffscreen());
-
   auto presenter = gpu::ImageTransportSurface::CreatePresenter(
-      GetSharedContextState()->display(), stub, surface_handle_, format);
+      GetSharedContextState(), GetGpuDriverBugWorkarounds(),
+      GetGpuFeatureInfo(), surface_handle_);
   if (presenter &&
-      GetGpuDriverBugWorkarounds().rely_on_implicit_sync_for_swap_buffers) {
-    presenter->SetRelyOnImplicitSync();
+      base::FeatureList::IsEnabled(features::kHandleOverlaysSwapFailure)) {
+    presenter->SetNotifyNonSimpleOverlayFailure();
   }
   return presenter;
 }
 
 scoped_refptr<gl::GLSurface> SkiaOutputSurfaceDependencyImpl::CreateGLSurface(
-    base::WeakPtr<gpu::ImageTransportSurfaceDelegate> stub,
     gl::GLSurfaceFormat format) {
-  if (IsOffscreen()) {
-    return gl::init::CreateOffscreenGLSurfaceWithFormat(
-        GetSharedContextState()->display(), gfx::Size(), format);
-  } else {
-    return gpu::ImageTransportSurface::CreateNativeGLSurface(
-        GetSharedContextState()->display(), stub, surface_handle_, format);
-  }
+  CHECK(!IsOffscreen());
+  return gpu::ImageTransportSurface::CreateNativeGLSurface(
+      GetSharedContextState()->display(), surface_handle_, format);
 }
 
+#if BUILDFLAG(IS_ANDROID)
 base::ScopedClosureRunner SkiaOutputSurfaceDependencyImpl::CachePresenter(
     gl::Presenter* presenter) {
   // We're running on the viz thread here. We want to release ref on the
@@ -165,14 +159,15 @@ base::ScopedClosureRunner SkiaOutputSurfaceDependencyImpl::CacheGLSurface(
 
   return base::ScopedClosureRunner(std::move(release_callback));
 }
+#endif
 
-scoped_refptr<base::TaskRunner>
+scoped_refptr<base::SingleThreadTaskRunner>
 SkiaOutputSurfaceDependencyImpl::GetClientTaskRunner() {
   return client_thread_task_runner_;
 }
 
 void SkiaOutputSurfaceDependencyImpl::ScheduleGrContextCleanup() {
-  GetSharedContextState()->ScheduleGrContextCleanup();
+  GetSharedContextState()->ScheduleSkiaCleanup();
 }
 
 void SkiaOutputSurfaceDependencyImpl::ScheduleDelayedGPUTaskFromGPUThread(
@@ -185,14 +180,7 @@ void SkiaOutputSurfaceDependencyImpl::ScheduleDelayedGPUTaskFromGPUThread(
 void SkiaOutputSurfaceDependencyImpl::DidLoseContext(
     gpu::error::ContextLostReason reason,
     const GURL& active_url) {
-  // |offscreen| is used to determine if it's compositing context or not to
-  // decide if we need to disable webgl and canvas.
-  gpu_service_impl_->DidLoseContext(/*offscreen=*/false, reason, active_url);
-}
-
-base::TimeDelta
-SkiaOutputSurfaceDependencyImpl::GetGpuBlockedTimeSinceLastSwap() {
-  return gpu_service_impl_->GetGpuScheduler()->TakeTotalBlockingTime();
+  gpu_service_impl_->DidLoseContext(reason, active_url);
 }
 
 bool SkiaOutputSurfaceDependencyImpl::NeedsSupportForExternalStencil() {

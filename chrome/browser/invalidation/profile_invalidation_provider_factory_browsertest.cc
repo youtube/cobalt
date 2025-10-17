@@ -2,16 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/invalidation/profile_invalidation_provider_factory.h"
+
+#include <stdint.h>
+
 #include "ash/constants/ash_switches.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/invalidation/profile_invalidation_provider_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/testing_profile.h"
 #include "components/account_id/account_id.h"
-#include "components/invalidation/impl/profile_invalidation_provider.h"
+#include "components/invalidation/invalidation_constants.h"
+#include "components/invalidation/invalidation_listener.h"
+#include "components/invalidation/profile_invalidation_provider.h"
 #include "components/invalidation/public/invalidation_service.h"
 #include "components/user_manager/user_manager.h"
 #include "components/user_manager/user_names.h"
@@ -19,6 +25,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace invalidation {
+
+namespace {
+constexpr int64_t kFakeProjectNumber = 1234567890;
+}  // namespace
 
 class ProfileInvalidationProviderFactoryTestBase : public InProcessBrowserTest {
  public:
@@ -35,10 +45,10 @@ class ProfileInvalidationProviderFactoryTestBase : public InProcessBrowserTest {
 };
 
 ProfileInvalidationProviderFactoryTestBase::
-    ProfileInvalidationProviderFactoryTestBase() {}
+    ProfileInvalidationProviderFactoryTestBase() = default;
 
 ProfileInvalidationProviderFactoryTestBase::
-    ~ProfileInvalidationProviderFactoryTestBase() {}
+    ~ProfileInvalidationProviderFactoryTestBase() = default;
 
 bool ProfileInvalidationProviderFactoryTestBase::
     CanConstructProfileInvalidationProvider(Profile* profile) {
@@ -62,10 +72,10 @@ class ProfileInvalidationProviderFactoryLoginScreenBrowserTest
 };
 
 ProfileInvalidationProviderFactoryLoginScreenBrowserTest::
-    ProfileInvalidationProviderFactoryLoginScreenBrowserTest() {}
+    ProfileInvalidationProviderFactoryLoginScreenBrowserTest() = default;
 
 ProfileInvalidationProviderFactoryLoginScreenBrowserTest::
-    ~ProfileInvalidationProviderFactoryLoginScreenBrowserTest() {}
+    ~ProfileInvalidationProviderFactoryLoginScreenBrowserTest() = default;
 
 void ProfileInvalidationProviderFactoryLoginScreenBrowserTest::SetUpCommandLine(
     base::CommandLine* command_line) {
@@ -98,10 +108,10 @@ class ProfileInvalidationProviderFactoryGuestBrowserTest
 };
 
 ProfileInvalidationProviderFactoryGuestBrowserTest::
-    ProfileInvalidationProviderFactoryGuestBrowserTest() {}
+    ProfileInvalidationProviderFactoryGuestBrowserTest() = default;
 
 ProfileInvalidationProviderFactoryGuestBrowserTest::
-    ~ProfileInvalidationProviderFactoryGuestBrowserTest() {}
+    ~ProfileInvalidationProviderFactoryGuestBrowserTest() = default;
 
 void ProfileInvalidationProviderFactoryGuestBrowserTest::SetUpCommandLine(
     base::CommandLine* command_line) {
@@ -126,5 +136,57 @@ IN_PROC_BROWSER_TEST_F(ProfileInvalidationProviderFactoryGuestBrowserTest,
   EXPECT_FALSE(CanConstructProfileInvalidationProvider(guest_profile));
   EXPECT_FALSE(CanConstructProfileInvalidationProvider(login_profile));
 }
+
+using ProfileInvalidationProviderFactoryBrowserTest =
+    ProfileInvalidationProviderFactoryTestBase;
+
+IN_PROC_BROWSER_TEST_F(
+    ProfileInvalidationProviderFactoryBrowserTest,
+    CreatesInvalidationServiceForRegularProfileWhenDirectInvalidationsFeatureDisabled) {
+  std::unique_ptr<TestingProfile> testing_profile =
+      TestingProfile::Builder().Build();
+  ProfileInvalidationProvider* provider =
+      ProfileInvalidationProviderFactory::GetForProfile(testing_profile.get());
+
+  ASSERT_TRUE(provider);
+
+  auto service_or_listener =
+      provider->GetInvalidationServiceOrListener(kFakeProjectNumber);
+
+  EXPECT_TRUE(
+      std::holds_alternative<InvalidationService*>(service_or_listener));
+}
+
+class ProfileInvalidationProviderFactoryWithDirectInvalidationsBrowserTest
+    : public ProfileInvalidationProviderFactoryBrowserTest,
+      public testing::WithParamInterface<int64_t> {
+ protected:
+  const auto& GetProjectNumber() const { return GetParam(); }
+};
+
+IN_PROC_BROWSER_TEST_P(
+    ProfileInvalidationProviderFactoryWithDirectInvalidationsBrowserTest,
+    CreatesInvalidationListenerForRegularProfileWhenDirectInvalidationsFeatureEnabled) {
+  std::unique_ptr<TestingProfile> testing_profile =
+      TestingProfile::Builder().Build();
+
+  ProfileInvalidationProvider* provider =
+      ProfileInvalidationProviderFactory::GetForProfile(testing_profile.get());
+
+  ASSERT_TRUE(provider);
+
+  auto service_or_listener =
+      provider->GetInvalidationServiceOrListener(GetProjectNumber());
+
+  ASSERT_TRUE(
+      std::holds_alternative<InvalidationListener*>(service_or_listener));
+  EXPECT_TRUE(std::get<InvalidationListener*>(service_or_listener));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    ProfileInvalidationProviderFactoryWithDirectInvalidationsBrowserTest,
+    testing::Values(kCriticalInvalidationsProjectNumber,
+                    kNonCriticalInvalidationsProjectNumber));
 
 }  // namespace invalidation

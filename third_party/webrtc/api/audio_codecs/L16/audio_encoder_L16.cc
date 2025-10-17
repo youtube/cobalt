@@ -10,37 +10,47 @@
 
 #include "api/audio_codecs/L16/audio_encoder_L16.h"
 
+#include <stddef.h>
+
+#include <map>
 #include <memory>
+#include <optional>
+#include <vector>
 
 #include "absl/strings/match.h"
+#include "api/audio_codecs/audio_codec_pair_id.h"
+#include "api/audio_codecs/audio_encoder.h"
+#include "api/audio_codecs/audio_format.h"
+#include "api/field_trials_view.h"
 #include "modules/audio_coding/codecs/pcm16b/audio_encoder_pcm16b.h"
 #include "modules/audio_coding/codecs/pcm16b/pcm16b_common.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/numerics/safe_minmax.h"
 #include "rtc_base/string_to_number.h"
 
 namespace webrtc {
 
-absl::optional<AudioEncoderL16::Config> AudioEncoderL16::SdpToConfig(
+std::optional<AudioEncoderL16::Config> AudioEncoderL16::SdpToConfig(
     const SdpAudioFormat& format) {
-  if (!rtc::IsValueInRangeForNumericType<int>(format.num_channels)) {
+  if (!IsValueInRangeForNumericType<int>(format.num_channels)) {
     RTC_DCHECK_NOTREACHED();
-    return absl::nullopt;
+    return std::nullopt;
   }
   Config config;
   config.sample_rate_hz = format.clockrate_hz;
-  config.num_channels = rtc::dchecked_cast<int>(format.num_channels);
+  config.num_channels = dchecked_cast<int>(format.num_channels);
   auto ptime_iter = format.parameters.find("ptime");
   if (ptime_iter != format.parameters.end()) {
-    const auto ptime = rtc::StringToNumber<int>(ptime_iter->second);
+    const auto ptime = StringToNumber<int>(ptime_iter->second);
     if (ptime && *ptime > 0) {
-      config.frame_size_ms = rtc::SafeClamp(10 * (*ptime / 10), 10, 60);
+      config.frame_size_ms = SafeClamp(10 * (*ptime / 10), 10, 60);
     }
   }
   if (absl::EqualsIgnoreCase(format.name, "L16") && config.IsOk()) {
     return config;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void AudioEncoderL16::AppendSupportedEncoders(
@@ -51,16 +61,15 @@ void AudioEncoderL16::AppendSupportedEncoders(
 AudioCodecInfo AudioEncoderL16::QueryAudioEncoder(
     const AudioEncoderL16::Config& config) {
   RTC_DCHECK(config.IsOk());
-  return {config.sample_rate_hz,
-          rtc::dchecked_cast<size_t>(config.num_channels),
+  return {config.sample_rate_hz, dchecked_cast<size_t>(config.num_channels),
           config.sample_rate_hz * config.num_channels * 16};
 }
 
 std::unique_ptr<AudioEncoder> AudioEncoderL16::MakeAudioEncoder(
     const AudioEncoderL16::Config& config,
     int payload_type,
-    absl::optional<AudioCodecPairId> /*codec_pair_id*/,
-    const FieldTrialsView* field_trials) {
+    std::optional<AudioCodecPairId> /*codec_pair_id*/,
+    const FieldTrialsView* /* field_trials */) {
   AudioEncoderPcm16B::Config c;
   c.sample_rate_hz = config.sample_rate_hz;
   c.num_channels = config.num_channels;

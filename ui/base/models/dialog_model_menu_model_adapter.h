@@ -7,6 +7,9 @@
 
 #include <memory>
 
+#include "base/component_export.h"
+#include "base/memory/weak_ptr.h"
+#include "ui/base/models/dialog_model_field.h"
 #include "ui/base/models/dialog_model_host.h"
 #include "ui/base/models/menu_model.h"
 
@@ -16,6 +19,7 @@ class DialogModel;
 
 class COMPONENT_EXPORT(UI_BASE) DialogModelMenuModelAdapter final
     : public DialogModelHost,
+      public DialogModelFieldHost,
       public MenuModel {
  public:
   explicit DialogModelMenuModelAdapter(std::unique_ptr<DialogModel> model);
@@ -23,10 +27,10 @@ class COMPONENT_EXPORT(UI_BASE) DialogModelMenuModelAdapter final
 
   // DialogModelHost:
   void Close() override;
-  void OnFieldAdded(DialogModelField* field) override;
+  void OnDialogButtonChanged() override;
 
   // MenuModel:
-  bool HasIcons() const override;
+  base::WeakPtr<ui::MenuModel> AsWeakPtr() override;
   size_t GetItemCount() const override;
   ItemType GetTypeAt(size_t index) const override;
   ui::MenuSeparatorType GetSeparatorTypeAt(size_t index) const override;
@@ -50,6 +54,8 @@ class COMPONENT_EXPORT(UI_BASE) DialogModelMenuModelAdapter final
   DialogModelField* GetField(size_t index);
 
   std::unique_ptr<DialogModel> model_;
+
+  base::WeakPtrFactory<DialogModelMenuModelAdapter> weak_ptr_factory_{this};
 };
 
 }  // namespace ui

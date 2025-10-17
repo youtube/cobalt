@@ -4,11 +4,15 @@
 
 package org.chromium.components.webapk.lib.client;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 
 import androidx.annotation.IntDef;
 
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -25,11 +29,20 @@ import java.util.regex.Pattern;
  * WebApkVerifySignature reads in the APK file and verifies the WebApk signature. It reads the
  * signature from the zip comment and verifies that it was signed by the public key passed.
  */
+@NullMarked
 public class WebApkVerifySignature {
     /** Errors codes. */
-    @IntDef({Error.OK, Error.BAD_APK, Error.EXTRA_FIELD_TOO_LARGE, Error.FILE_COMMENT_TOO_LARGE,
-            Error.INCORRECT_SIGNATURE, Error.SIGNATURE_NOT_FOUND, Error.TOO_MANY_META_INF_FILES,
-            Error.BAD_BLANK_SPACE, Error.BAD_V2_SIGNING_BLOCK})
+    @IntDef({
+        Error.OK,
+        Error.BAD_APK,
+        Error.EXTRA_FIELD_TOO_LARGE,
+        Error.FILE_COMMENT_TOO_LARGE,
+        Error.INCORRECT_SIGNATURE,
+        Error.SIGNATURE_NOT_FOUND,
+        Error.TOO_MANY_META_INF_FILES,
+        Error.BAD_BLANK_SPACE,
+        Error.BAD_V2_SIGNING_BLOCK
+    })
     @SuppressWarnings("JavaLangClash")
     @Retention(RetentionPolicy.SOURCE)
     public @interface Error {
@@ -77,22 +90,15 @@ public class WebApkVerifySignature {
     private static final String V2_SIGNING_MAGIC = "APK Sig Block 42";
 
     /**
-     * The pattern we look for in the APK/zip comment for signing key.
-     * An example is "webapk:0000:<hexvalues>". This pattern can appear anywhere
-     * in the comment but must be separated from any other parts with a
-     * separator that doesn't look like a hex character.
+     * The pattern we look for in the APK/zip comment for signing key. An example is
+     * "webapk:0000:<hexvalues>". This pattern can appear anywhere in the comment but must be
+     * separated from any other parts with a separator that doesn't look like a hex character.
      */
     private static final Pattern WEBAPK_COMMENT_PATTERN =
             Pattern.compile("webapk:\\d+:([a-fA-F0-9]+)");
 
     /** Maximum file comment length permitted. */
     private static final int MAX_FILE_COMMENT_LENGTH = 0;
-
-    /**
-     * Maximum extra field length permitted.
-     * Support .so alignment and a 64 bytes bytes for any extras.
-     */
-    private static final int MAX_EXTRA_LENGTH = 4096 + 64;
 
     /** The memory buffer we are going to read the zip from. */
     private final ByteBuffer mBuffer;
@@ -107,20 +113,20 @@ public class WebApkVerifySignature {
     private int mEndOfCentralDirOffset;
 
     /** The zip archive comment as a UTF-8 string. */
-    private String mComment;
+    private @Nullable String mComment;
 
     /**
      * Sorted list of 'blocks' of memory we will cryptographically hash. We sort the blocks by
      * filename to ensure a repeatable order.
      */
-    private ArrayList<Block> mBlocks;
+    private @Nullable ArrayList<Block> mBlocks;
 
     /** Block contains metadata about a zip entry. */
     private static class Block implements Comparable<Block> {
-        String mFilename;
-        int mPosition;
+        final String mFilename;
+        final int mPosition;
         int mHeaderSize;
-        int mCompressedSize;
+        final int mCompressedSize;
 
         Block(String filename, int position, int compressedSize) {
             mFilename = filename;
@@ -136,12 +142,13 @@ public class WebApkVerifySignature {
         }
 
         /** Comparator for sorting the list by position ascending. */
-        public static Comparator<Block> positionComparator = new Comparator<Block>() {
-            @Override
-            public int compare(Block b1, Block b2) {
-                return b1.mPosition - b2.mPosition;
-            }
-        };
+        public static final Comparator<Block> POSITION_COMPARATOR =
+                new Comparator<Block>() {
+                    @Override
+                    public int compare(Block b1, Block b2) {
+                        return b1.mPosition - b2.mPosition;
+                    }
+                };
 
         @Override
         public boolean equals(Object o) {
@@ -165,12 +172,12 @@ public class WebApkVerifySignature {
      * Read in the comment and directory. If there is no parseable comment we won't read the
      * directory as there is no point (for speed). On success, all of our private variables will be
      * set.
+     *
      * @return OK on success.
      */
     public @Error int read() {
         try {
-            @Error
-            int err = readEOCD();
+            @Error int err = readEOCD();
             if (err != Error.OK) {
                 return err;
             }
@@ -190,6 +197,7 @@ public class WebApkVerifySignature {
 
     /**
      * verifySignature hashes all the files and then verifies the signature.
+     *
      * @param pub The public key that it should be verified against.
      * @return Error.OK if the public key signature verifies.
      */
@@ -215,9 +223,11 @@ public class WebApkVerifySignature {
     /**
      * calculateHash goes through each file listed in blocks and calculates the SHA-256
      * cryptographic hash.
+     *
      * @param sig Signature object you can call update on.
      */
     public @Error int calculateHash(Signature sig) throws Exception {
+        assumeNonNull(mBlocks);
         Collections.sort(mBlocks);
         int metaInfCount = 0;
         for (Block block : mBlocks) {
@@ -252,6 +262,7 @@ public class WebApkVerifySignature {
 
     /**
      * intToLittleEndian converts an integer to a little endian array of bytes.
+     *
      * @param value Integer value to convert.
      * @return Array of bytes.
      */
@@ -263,12 +274,12 @@ public class WebApkVerifySignature {
     }
 
     /**
-     * Extract the bytes of the signature from the comment. We expect
-     * "webapk:0000:<hexvalues>" comment followed by hex values. Currently we ignore the
-     * "key id" which is always "0000".
+     * Extract the bytes of the signature from the comment. We expect "webapk:0000:<hexvalues>"
+     * comment followed by hex values. Currently we ignore the "key id" which is always "0000".
+     *
      * @return the bytes of the signature.
      */
-    static byte[] parseCommentSignature(String comment) {
+    static byte @Nullable [] parseCommentSignature(@Nullable String comment) {
         Matcher m = WEBAPK_COMMENT_PATTERN.matcher(comment);
         if (!m.find()) {
             return null;
@@ -279,6 +290,7 @@ public class WebApkVerifySignature {
 
     /**
      * Reads the End of Central Directory Record.
+     *
      * @return Error.OK on success.
      */
     private @Error int readEOCD() {
@@ -304,6 +316,7 @@ public class WebApkVerifySignature {
 
     /**
      * Reads the central directory and populates {@link mBlocks} with data about each entry.
+     *
      * @return Error.OK on success.
      */
     @Error
@@ -328,9 +341,6 @@ public class WebApkVerifySignature {
             int offset = read4();
             String filename = readString(fileNameLength);
             seekDelta(extraLen + fileCommentLength);
-            if (extraLen > MAX_EXTRA_LENGTH) {
-                return Error.EXTRA_FIELD_TOO_LARGE;
-            }
             if (fileCommentLength > MAX_FILE_COMMENT_LENGTH) {
                 return Error.FILE_COMMENT_TOO_LARGE;
             }
@@ -343,7 +353,7 @@ public class WebApkVerifySignature {
         }
 
         // We need blocks to be sorted by position at this point.
-        Collections.sort(mBlocks, Block.positionComparator);
+        Collections.sort(mBlocks, Block.POSITION_COMPARATOR);
         int lastByte = 0;
 
         // Read the 'local file header' block to the size of the header in bytes.
@@ -366,9 +376,6 @@ public class WebApkVerifySignature {
             seekDelta(18);
             int fileNameLength = read2();
             int extraFieldLength = read2();
-            if (extraFieldLength > MAX_EXTRA_LENGTH) {
-                return Error.EXTRA_FIELD_TOO_LARGE;
-            }
 
             block.mHeaderSize =
                     (mBuffer.position() - block.mPosition) + fileNameLength + extraFieldLength;
@@ -406,10 +413,11 @@ public class WebApkVerifySignature {
     /**
      * We search buffer for EOCD_SIG and return the location where we found it. If the file has no
      * comment it should seek only once.
-     * TODO(scottkirkwood): Use a Boyer-Moore search algorithm.
+     *
      * @return Offset from start of buffer or -1 if not found.
      */
     private int findEOCDStart() {
+        // TODO(scottkirkwood): Use a Boyer-Moore search algorithm.
         int offset = mBuffer.limit() - MIN_EOCD_SIZE;
         int minSearchOffset = Math.max(0, offset - MAX_EOCD_SIZE);
         for (; offset >= minSearchOffset; offset--) {
@@ -424,6 +432,7 @@ public class WebApkVerifySignature {
 
     /**
      * Seek to this position.
+     *
      * @param offset offset from start of file.
      */
     private void seek(int offset) {
@@ -432,6 +441,7 @@ public class WebApkVerifySignature {
 
     /**
      * Skip forward this number of bytes.
+     *
      * @param delta number of bytes to seek forward.
      */
     private void seekDelta(int delta) {
@@ -440,6 +450,7 @@ public class WebApkVerifySignature {
 
     /**
      * Reads two bytes in little endian format.
+     *
      * @return short value read (as an int).
      */
     private int read2() {
@@ -448,6 +459,7 @@ public class WebApkVerifySignature {
 
     /**
      * Reads four bytes in little endian format.
+     *
      * @return value read.
      */
     private int read4() {
@@ -465,10 +477,10 @@ public class WebApkVerifySignature {
     }
 
     /**
-     * Convert a hex string into bytes. We store hex in the signature as zip
-     * tools often don't like binary strings.
+     * Convert a hex string into bytes. We store hex in the signature as zip tools often don't like
+     * binary strings.
      */
-    static byte[] hexToBytes(String s) {
+    static byte @Nullable [] hexToBytes(String s) {
         int len = s.length();
         if (len % 2 != 0) {
             // Odd number of nibbles.
@@ -476,8 +488,10 @@ public class WebApkVerifySignature {
         }
         byte[] data = new byte[len / 2];
         for (int i = 0; i < len; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
-                    + Character.digit(s.charAt(i + 1), 16));
+            data[i / 2] =
+                    (byte)
+                            ((Character.digit(s.charAt(i), 16) << 4)
+                                    + Character.digit(s.charAt(i + 1), 16));
         }
         return data;
     }

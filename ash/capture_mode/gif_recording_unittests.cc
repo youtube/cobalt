@@ -12,12 +12,13 @@
 #include "ash/capture_mode/capture_mode_types.h"
 #include "ash/capture_mode/recording_type_menu_view.h"
 #include "ash/capture_mode/test_capture_mode_delegate.h"
-#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/capture_mode/capture_mode_test_api.h"
+#include "ash/shell.h"
 #include "ash/style/icon_button.h"
 #include "ash/test/ash_test_base.h"
+#include "ash/test/ash_test_util.h"
+#include "base/test/gtest_tags.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "ui/events/keycodes/keyboard_codes_posix.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/vector2d.h"
@@ -29,7 +30,7 @@ namespace ash {
 
 class GifRecordingTest : public AshTestBase {
  public:
-  GifRecordingTest() : scoped_feature_list_(features::kGifRecording) {}
+  GifRecordingTest() = default;
   GifRecordingTest(const GifRecordingTest&) = delete;
   GifRecordingTest& operator=(const GifRecordingTest&) = delete;
   ~GifRecordingTest() override = default;
@@ -85,9 +86,6 @@ class GifRecordingTest : public AshTestBase {
 
  protected:
   base::HistogramTester histogram_tester_;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(GifRecordingTest, DropDownButtonVisibility) {
@@ -260,6 +258,9 @@ TEST_F(GifRecordingTest, FutureCaptureSessionsAffected) {
 }
 
 TEST_F(GifRecordingTest, TabNavigation) {
+  base::AddFeatureIdTagToTestResult(
+      "screenplay-759f3130-3839-408a-8342-a373654e8927");
+
   auto* controller = StartRegionVideoCapture();
 
   // Tab 15 times until we reach the capture button.
@@ -325,6 +326,44 @@ TEST_F(GifRecordingTest, TabNavigation) {
             test_api.GetCurrentFocusedView()->GetView());
 }
 
+TEST_F(GifRecordingTest, PressingEnterOnAFocusedItemBehavesLikeSpace) {
+  auto* controller = StartRegionVideoCapture();
+
+  // Tab 16 times until we reach the drop down button.
+  auto* event_generator = GetEventGenerator();
+  SendKey(ui::VKEY_TAB, event_generator, ui::EF_NONE, /*count=*/16);
+  using FocusGroup = CaptureModeSessionFocusCycler::FocusGroup;
+  CaptureModeSessionTestApi test_api(controller->capture_mode_session());
+  EXPECT_EQ(FocusGroup::kCaptureButton, test_api.GetCurrentFocusGroup());
+  EXPECT_EQ(1u, test_api.GetCurrentFocusIndex());
+  EXPECT_EQ(GetRecordingTypeDropDownButton(),
+            test_api.GetCurrentFocusedView()->GetView());
+
+  // Pressing the enter should open the menu, and we should be in the
+  // `kPendingRecordingType` focus group.
+  SendKey(ui::VKEY_RETURN, event_generator);
+  EXPECT_TRUE(GetRecordingTypeMenuWidget());
+  EXPECT_EQ(FocusGroup::kPendingRecordingType, test_api.GetCurrentFocusGroup());
+
+  // Then tab twice to reach the GIF recording option.
+  SendKey(ui::VKEY_TAB, event_generator, ui::EF_NONE, /*count=*/2);
+  EXPECT_EQ(FocusGroup::kRecordingTypeMenu, test_api.GetCurrentFocusGroup());
+  EXPECT_EQ(1u, test_api.GetCurrentFocusIndex());
+  auto* recording_type_menu_view = GetRecordingTypeMenuView();
+  EXPECT_EQ(recording_type_menu_view->GetGifOptionForTesting(),
+            test_api.GetCurrentFocusedView()->GetView());
+
+  // Pressing the enter key should select GIF, and close the menu.
+  SendKey(ui::VKEY_RETURN, event_generator);
+  EXPECT_FALSE(GetRecordingTypeMenuWidget());
+  EXPECT_EQ(RecordingType::kGif, controller->recording_type());
+
+  // The focus is moved back to the drop down button.
+  EXPECT_EQ(FocusGroup::kCaptureButton, test_api.GetCurrentFocusGroup());
+  EXPECT_EQ(1u, test_api.GetCurrentFocusIndex());
+  EXPECT_EQ(GetRecordingTypeDropDownButton(),
+            test_api.GetCurrentFocusedView()->GetView());
+}
 TEST_F(GifRecordingTest, CloseRecordingMenuWhileFocusIsSomewhereElse) {
   auto* controller = StartRegionVideoCapture();
 
@@ -361,6 +400,52 @@ TEST_F(GifRecordingTest, CloseRecordingMenuWhileFocusIsSomewhereElse) {
             test_api.GetCurrentFocusedView()->GetView());
 }
 
+TEST_F(GifRecordingTest, GifIsNotSupportedForFullscreenOrWindow) {
+  struct {
+    const char* const scope_name;
+    CaptureModeSource source;
+  } kTestCases[] = {
+      {"Testing fullscreen", CaptureModeSource::kFullscreen},
+      {"Testing window", CaptureModeSource::kWindow},
+  };
+
+  auto window = CreateTestWindow(gfx::Rect(200, 200));
+
+  for (const auto& test_case : kTestCases) {
+    SCOPED_TRACE(test_case.scope_name);
+    auto* controller = StartRegionVideoCapture();
+    controller->SetRecordingType(RecordingType::kGif);
+
+    // Audio recording is not supported for GIF, but switching to fullscreen or
+    // window recording should switch to webm recording, which do support audio
+    // recording, so we should expect that.
+    controller->SetAudioRecordingMode(AudioRecordingMode::kMicrophone);
+
+    // Switch to another source than region.
+    controller->SetSource(test_case.source);
+    // The recording type remains the same, and is still set as GIF. However,
+    // the recording will be forced to webm, since GIF is only supported for
+    // `kRegion`.
+    EXPECT_EQ(controller->recording_type(), RecordingType::kGif);
+
+    // This is needed for window recording.
+    GetEventGenerator()->MoveMouseToCenterOf(window.get());
+
+    StartVideoRecordingImmediately();
+
+    EXPECT_TRUE(controller->is_recording_in_progress());
+    auto* test_delegate = static_cast<TestCaptureModeDelegate*>(
+        controller->delegate_for_testing());
+    CaptureModeTestApi().FlushRecordingServiceForTesting();
+    EXPECT_TRUE(test_delegate->IsDoingAudioRecording());
+    controller->EndVideoRecording(EndRecordingReason::kStopRecordingButton);
+
+    // The resulting file should have a ".webm" extension.
+    const auto file = WaitForCaptureFileToBeSaved();
+    EXPECT_TRUE(file.MatchesExtension(".webm"));
+  }
+}
+
 TEST_F(GifRecordingTest, RecordingTypeIsRespected) {
   auto* controller = StartRegionVideoCapture();
   controller->SetRecordingType(RecordingType::kGif);
@@ -368,7 +453,7 @@ TEST_F(GifRecordingTest, RecordingTypeIsRespected) {
   // Even though audio recording is enabled, when performing a GIF recording,
   // the recording service should not be asked to connect to the audio streaming
   // factory and should not be doing any audio recording.
-  controller->EnableAudioRecording(true);
+  controller->SetAudioRecordingMode(AudioRecordingMode::kMicrophone);
   StartVideoRecordingImmediately();
 
   // Test that the configuration histogram was reported correctly, and that the
@@ -442,6 +527,58 @@ TEST_F(GifRecordingTest, RegionToScreenRatioHistogram) {
     controller->EndVideoRecording(EndRecordingReason::kStopRecordingButton);
     WaitForCaptureFileToBeSaved();
   }
+}
+
+// Regression test for b/293340894. When the region is selected in a such a way
+// that will cause the default bounds of the recording type menu to go outside
+// the display bounds, the bounds should be adjusted such that it remains within
+// the target display.
+TEST_F(GifRecordingTest, RecordingMenuOutsideOfBounds) {
+  UpdateDisplay("800x700,801+0-800x700");
+  auto* controller = CaptureModeController::Get();
+  controller->SetUserCaptureRegion(gfx::Rect(1550, 650, 50, 50),
+                                   /*by_user=*/true);
+  controller->SetRecordingType(RecordingType::kGif);
+
+  auto* event_generator = GetEventGenerator();
+  // Move cursor to the second display so capture mode is created there when it
+  // starts.
+  event_generator->MoveMouseTo(gfx::Point(1000, 500));
+  StartRegionVideoCapture();
+  ClickOnDropDownButton();
+
+  // The menu should be created without any crashes and should be contained
+  // within the bounds of the external display.
+  auto* recording_type_menu_widget = GetRecordingTypeMenuWidget();
+  ASSERT_TRUE(recording_type_menu_widget);
+  const gfx::Rect display_bounds{801, 0, 800, 700};
+  EXPECT_TRUE(display_bounds.Contains(
+      recording_type_menu_widget->GetWindowBoundsInScreen()));
+}
+
+// Regression test for b/319551191.
+TEST_F(GifRecordingTest, RecordingMenuAtTheLeftOrRightEdge) {
+  // Set a region touching the left edge of the screen.
+  const gfx::Size region_size(177, 165);
+  auto* controller = CaptureModeController::Get();
+  controller->SetUserCaptureRegion(gfx::Rect(gfx::Point(0, 0), region_size),
+                                   /*by_user=*/true);
+
+  // There should be no crashes when we open the recording type menu.
+  StartRegionVideoCapture();
+  ClickOnDropDownButton();
+
+  // Restart the session with a region touching the right edge of the screen.
+  controller->Stop();
+  const auto root_bounds = Shell::GetPrimaryRootWindow()->bounds();
+  controller->SetUserCaptureRegion(
+      gfx::Rect(gfx::Point(root_bounds.right() - region_size.width(), 0),
+                region_size),
+      /*by_user=*/true);
+
+  // Similarly, there should be no crashes.
+  StartRegionVideoCapture();
+  ClickOnDropDownButton();
 }
 
 // -----------------------------------------------------------------------------

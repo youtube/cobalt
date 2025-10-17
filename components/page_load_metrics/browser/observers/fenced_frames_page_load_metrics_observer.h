@@ -6,7 +6,6 @@
 #define COMPONENTS_PAGE_LOAD_METRICS_BROWSER_OBSERVERS_FENCED_FRAMES_PAGE_LOAD_METRICS_OBSERVER_H_
 
 #include "components/page_load_metrics/browser/page_load_metrics_observer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace internal {
 

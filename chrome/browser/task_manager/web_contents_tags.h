@@ -6,17 +6,17 @@
 #define CHROME_BROWSER_TASK_MANAGER_WEB_CONTENTS_TAGS_H_
 
 #include "build/build_config.h"
+#include "components/guest_view/buildflags/buildflags.h"
+#include "components/webapps/common/web_app_id.h"
 #include "extensions/buildflags/buildflags.h"
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "extensions/common/mojom/view_type.mojom.h"
-#endif
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "extensions/common/mojom/view_type.mojom.h"  // nogncheck
+#endif  // !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/web_applications/web_app_id.h"
-#endif  // !BUILDFLAG(IS_ANDROID)
-
 class BackgroundContents;
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace content {
 class WebContents;
@@ -36,6 +36,7 @@ class WebContentsTags {
   WebContentsTags(const WebContentsTags&) = delete;
   WebContentsTags& operator=(const WebContentsTags&) = delete;
 
+#if !BUILDFLAG(IS_ANDROID)
   // Tags a BackgroundContents so that it shows up in the task manager. Calling
   // this function creates a BackgroundContentsTag, and attaches it to
   // |web_contents|. If an instance is already attached, this does nothing. The
@@ -44,6 +45,7 @@ class WebContentsTags {
   static void CreateForBackgroundContents(
       content::WebContents* web_contents,
       BackgroundContents* background_contents);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   // Tags a DevTools WebContents so that it shows up in the task manager.
   // Calling this function creates a DevToolsTag, and attaches it to
@@ -74,14 +76,16 @@ class WebContentsTags {
   // up by the caller, as it is owned by |web_contents|.
   static void CreateForPrintingContents(content::WebContents* web_contents);
 
+#if BUILDFLAG(ENABLE_GUEST_VIEW)
   // Tags a WebContents owned by a GuestViewBase so that it shows up in the
   // task manager. Calling this function creates a GuestTag, and attaches it to
   // |web_contents|. If an instance is already attached, this does nothing. The
   // resulting tag does not have to be cleaned up by the caller, as it is owned
   // by |web_contents|.
   static void CreateForGuestContents(content::WebContents* web_contents);
+#endif  // BUILDFLAG(ENABLE_GUEST_VIEW)
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   // Tags a WebContents that belongs to |extension| so that it shows up in the
   // task manager. Calling this function creates a ExtensionTag, and attaches
   // it to |web_contents|. If an instance is already attached, this does
@@ -91,14 +95,7 @@ class WebContentsTags {
   // non-background contents Extension.
   static void CreateForExtension(content::WebContents* web_contents,
                                  extensions::mojom::ViewType view_type);
-#endif
-
-  // Tags a WebContents created for a Portal so that it shows up in the task
-  // manager. Calling this function creates a PortalTag, and attaches it to
-  // |web_contents|. If an instance is already attached, this does nothing.
-  // The resulting tag does not have to be cleaned up by the caller, as it is
-  // owned by |web_contents|.
-  static void CreateForPortal(content::WebContents* web_contents);
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
   // Tags a WebContents created for a tool so that it shows up in the task
   // manager. Calling this function creates a ToolTag, and attaches it to
@@ -108,7 +105,6 @@ class WebContentsTags {
   static void CreateForToolContents(content::WebContents* web_contents,
                                     int tool_name);
 
-#if !BUILDFLAG(IS_ANDROID)
   // Tags a WebContents created for a web app so that it shows up in the task
   // manager. Calling this function creates a WebAppTag, and attaches it to
   // |web_contents|. If an instance is already attached, this does nothing (but
@@ -116,9 +112,8 @@ class WebContentsTags {
   // not have to be cleaned up by the caller, as it is owned by |web_contents|.
   // |app_id| is the string ID of the web app.
   static void CreateForWebApp(content::WebContents* web_contents,
-                              const web_app::AppId& app_id,
+                              const webapps::AppId& app_id,
                               const bool is_isolated_web_app);
-#endif  // !BUILDFLAG(IS_ANDROID)
 
   // Clears the task-manager tag, created by any of the above functions, from
   // the given |web_contents| if any.

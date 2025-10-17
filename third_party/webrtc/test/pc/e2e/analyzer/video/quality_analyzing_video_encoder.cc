@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "api/environment/environment.h"
 #include "api/video/video_codec_type.h"
 #include "api/video_codecs/video_encoder.h"
 #include "modules/video_coding/include/video_error_codes.h"
@@ -26,7 +27,7 @@ namespace webrtc_pc_e2e {
 namespace {
 
 using EmulatedSFUConfigMap =
-    ::webrtc::webrtc_pc_e2e::QualityAnalyzingVideoEncoder::EmulatedSFUConfigMap;
+    webrtc_pc_e2e::QualityAnalyzingVideoEncoder::EmulatedSFUConfigMap;
 
 constexpr size_t kMaxFrameInPipelineCount = 1000;
 constexpr double kNoMultiplier = 1.0;
@@ -84,7 +85,7 @@ int32_t QualityAnalyzingVideoEncoder::InitEncode(
   MutexLock lock(&mutex_);
   codec_settings_ = *codec_settings;
   mode_ = SimulcastMode::kNormal;
-  absl::optional<InterLayerPredMode> inter_layer_pred_mode;
+  std::optional<InterLayerPredMode> inter_layer_pred_mode;
   if (codec_settings->GetScalabilityMode().has_value()) {
     inter_layer_pred_mode = ScalabilityModeToInterLayerPredMode(
         *codec_settings->GetScalabilityMode());
@@ -141,7 +142,7 @@ int32_t QualityAnalyzingVideoEncoder::Encode(
   {
     MutexLock lock(&mutex_);
     // Store id to be able to retrieve it in analyzing callback.
-    timestamp_to_frame_id_list_.push_back({frame.timestamp(), frame.id()});
+    timestamp_to_frame_id_list_.push_back({frame.rtp_timestamp(), frame.id()});
     // If this list is growing, it means that we are not receiving new encoded
     // images from encoder. So it should be a bug in setup on in the encoder.
     RTC_DCHECK_LT(timestamp_to_frame_id_list_.size(), kMaxFrameInPipelineCount);
@@ -158,7 +159,7 @@ int32_t QualityAnalyzingVideoEncoder::Encode(
       auto it = timestamp_to_frame_id_list_.end();
       while (it != timestamp_to_frame_id_list_.begin()) {
         --it;
-        if (it->first == frame.timestamp()) {
+        if (it->first == frame.rtp_timestamp()) {
           timestamp_to_frame_id_list_.erase(it);
           break;
         }
@@ -199,7 +200,7 @@ void QualityAnalyzingVideoEncoder::SetRates(
       std::tie(min_bitrate_bps, max_bitrate_bps) =
           GetMinMaxBitratesBps(codec_settings_, si);
       double bitrate_multiplier = bitrate_multiplier_;
-      const uint32_t corrected_bitrate = rtc::checked_cast<uint32_t>(
+      const uint32_t corrected_bitrate = checked_cast<uint32_t>(
           bitrate_multiplier * spatial_layer_bitrate_bps);
       if (corrected_bitrate < min_bitrate_bps) {
         bitrate_multiplier = min_bitrate_bps / spatial_layer_bitrate_bps;
@@ -211,8 +212,8 @@ void QualityAnalyzingVideoEncoder::SetRates(
         if (parameters.bitrate.HasBitrate(si, ti)) {
           multiplied_allocation.SetBitrate(
               si, ti,
-              rtc::checked_cast<uint32_t>(
-                  bitrate_multiplier * parameters.bitrate.GetBitrate(si, ti)));
+              checked_cast<uint32_t>(bitrate_multiplier *
+                                     parameters.bitrate.GetBitrate(si, ti)));
         }
       }
     }
@@ -252,7 +253,7 @@ EncodedImageCallback::Result QualityAnalyzingVideoEncoder::OnEncodedImage(
     std::pair<uint32_t, uint16_t> timestamp_frame_id;
     while (!timestamp_to_frame_id_list_.empty()) {
       timestamp_frame_id = timestamp_to_frame_id_list_.front();
-      if (timestamp_frame_id.first == encoded_image.Timestamp()) {
+      if (timestamp_frame_id.first == encoded_image.RtpTimestamp()) {
         break;
       }
       timestamp_to_frame_id_list_.pop_front();
@@ -271,7 +272,7 @@ EncodedImageCallback::Result QualityAnalyzingVideoEncoder::OnEncodedImage(
       // posting frame to it, but then call the callback for this frame.
       RTC_LOG(LS_ERROR) << "QualityAnalyzingVideoEncoder::OnEncodedImage: No "
                            "frame id for encoded_image.Timestamp()="
-                        << encoded_image.Timestamp();
+                        << encoded_image.RtpTimestamp();
       return EncodedImageCallback::Result(
           EncodedImageCallback::Result::Error::OK);
     }
@@ -398,15 +399,15 @@ QualityAnalyzingVideoEncoderFactory::GetSupportedFormats() const {
 VideoEncoderFactory::CodecSupport
 QualityAnalyzingVideoEncoderFactory::QueryCodecSupport(
     const SdpVideoFormat& format,
-    absl::optional<std::string> scalability_mode) const {
+    std::optional<std::string> scalability_mode) const {
   return delegate_->QueryCodecSupport(format, scalability_mode);
 }
 
-std::unique_ptr<VideoEncoder>
-QualityAnalyzingVideoEncoderFactory::CreateVideoEncoder(
+std::unique_ptr<VideoEncoder> QualityAnalyzingVideoEncoderFactory::Create(
+    const Environment& env,
     const SdpVideoFormat& format) {
   return std::make_unique<QualityAnalyzingVideoEncoder>(
-      peer_name_, delegate_->CreateVideoEncoder(format), bitrate_multiplier_,
+      peer_name_, delegate_->Create(env, format), bitrate_multiplier_,
       stream_to_sfu_config_, injector_, analyzer_);
 }
 

@@ -56,15 +56,6 @@ millions of VoIP endpoints. This codec is included as part of the WebRTC
 project.
 
 
-### What is the iLBC audio codec?
-
-iLBC is a free narrowband voice codec that was developed by Global IP
-Solutions, and is used in many Voice over IP (VoIP) and streaming audio
-applications. In 2004, the final IETF RFC versions of the iLBC codec
-specification and the iLBC RTP Profile draft became available. This codec is
-included as part of the WebRTC project.
-
-
 ### What is the VP8 video codec?
 
 VP8 is a highly-efficient video compression technology developed by the WebM Project. It is the video codec included with WebRTC.
@@ -173,7 +164,7 @@ stem from the GIPS acquisition.
 
 ### What codecs are supported in WebRTC?
 
-The currently supported voice codecs are G.711, G.722, iLBC, and iSAC, and VP8
+The currently supported voice codecs are G.711, G.722, and Opus, while VP8
 is the supported video codec. The list of supported codecs may change in the
 future.
 

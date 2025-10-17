@@ -4,6 +4,8 @@
 
 #include "ash/hud_display/legend.h"
 
+#include <string_view>
+
 #include "ash/hud_display/graph.h"
 #include "ash/hud_display/hud_constants.h"
 #include "ash/hud_display/solid_source_background.h"
@@ -19,6 +21,7 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/view_utils.h"
 
 namespace ash {
 namespace hud_display {
@@ -26,9 +29,9 @@ namespace hud_display {
 namespace {
 
 class LegendEntry : public views::View {
- public:
-  METADATA_HEADER(LegendEntry);
+  METADATA_HEADER(LegendEntry, views::View)
 
+ public:
   explicit LegendEntry(const Legend::Entry& data);
 
   LegendEntry(const LegendEntry&) = delete;
@@ -47,13 +50,13 @@ class LegendEntry : public views::View {
 
  private:
   const SkColor color_;
-  const raw_ref<const Graph, ExperimentalAsh> graph_;
+  const raw_ref<const Graph> graph_;
   size_t value_index_ = 0;
   Legend::Formatter formatter_;
-  raw_ptr<views::Label, ExperimentalAsh> value_ = nullptr;
+  raw_ptr<views::Label> value_ = nullptr;
 };
 
-BEGIN_METADATA(LegendEntry, views::View)
+BEGIN_METADATA(LegendEntry)
 END_METADATA
 
 LegendEntry::LegendEntry(const Legend::Entry& data)
@@ -77,7 +80,7 @@ LegendEntry::LegendEntry(const Legend::Entry& data)
       std::make_unique<views::Label>(data.label, views::style::CONTEXT_LABEL));
   label->SetEnabledColor(kHUDDefaultColor);
   if (!data.tooltip.empty())
-    label->SetTooltipText(data.tooltip);
+    label->SetCustomTooltipText(data.tooltip);
 
   constexpr int kLabelToValueSpece = 5;
   value_ = AddChildView(std::make_unique<views::Label>(
@@ -154,7 +157,7 @@ Legend::Entry::Entry(const Entry&) = default;
 
 Legend::Entry::~Entry() = default;
 
-BEGIN_METADATA(Legend, views::View)
+BEGIN_METADATA(Legend)
 END_METADATA
 
 Legend::Legend(const std::vector<Legend::Entry>& contents) {
@@ -175,45 +178,41 @@ Legend::Legend(const std::vector<Legend::Entry>& contents) {
 
 Legend::~Legend() = default;
 
-void Legend::Layout() {
-  views::View::Layout();
+void Legend::Layout(PassKey) {
+  LayoutSuperclass<views::View>(this);
 
   gfx::Size max_size;
   bool updated = false;
-  for (auto* view : children()) {
-    if (view->GetClassName() != LegendEntry::kViewClassName)
-      continue;
-
-    views::View* value = static_cast<LegendEntry*>(view)->value();
-    max_size.SetToMax(value->GetPreferredSize());
-    updated |= max_size != value->GetPreferredSize();
+  for (views::View* view : children()) {
+    if (auto* entry = views::AsViewClass<LegendEntry>(view)) {
+      views::View* value = entry->value();
+      max_size.SetToMax(value->GetPreferredSize());
+      updated |= max_size != value->GetPreferredSize();
+    }
   }
   if (updated) {
-    for (auto* view : children()) {
-      if (view->GetClassName() != LegendEntry::kViewClassName)
-        continue;
-
-      static_cast<LegendEntry*>(view)->value()->SetPreferredSize(max_size);
+    for (views::View* view : children()) {
+      if (auto* entry = views::AsViewClass<LegendEntry>(view)) {
+        entry->value()->SetPreferredSize(max_size);
+      }
     }
-    views::View::Layout();
+    LayoutSuperclass<views::View>(this);
   }
 }
 
 void Legend::SetValuesIndex(size_t index) {
-  for (auto* view : children()) {
-    if (view->GetClassName() != LegendEntry::kViewClassName)
-      continue;
-
-    static_cast<LegendEntry*>(view)->SetValueIndex(index);
+  for (views::View* view : children()) {
+    if (auto* entry = views::AsViewClass<LegendEntry>(view)) {
+      entry->SetValueIndex(index);
+    }
   }
 }
 
 void Legend::RefreshValues() {
-  for (auto* view : children()) {
-    if (view->GetClassName() != LegendEntry::kViewClassName)
-      continue;
-
-    static_cast<LegendEntry*>(view)->RefreshValue();
+  for (views::View* view : children()) {
+    if (auto* entry = views::AsViewClass<LegendEntry>(view)) {
+      entry->RefreshValue();
+    }
   }
 }
 

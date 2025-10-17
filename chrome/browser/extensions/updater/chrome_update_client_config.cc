@@ -16,13 +16,16 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
+#include "base/scoped_observation.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/version.h"
 #include "chrome/browser/component_updater/component_updater_utils.h"
 #include "chrome/browser/extensions/updater/extension_update_client_command_line_config_policy.h"
+#include "chrome/browser/extensions/updater/extension_updater_switches.h"
 #include "chrome/browser/google/google_brand.h"
 #include "chrome/browser/update_client/chrome_update_query_params_delegate.h"
 #include "chrome/common/channel_info.h"
@@ -31,11 +34,12 @@
 #include "components/services/patch/content/patch_service.h"
 #include "components/services/unzip/content/unzip_service.h"
 #include "components/update_client/activity_data_service.h"
-#include "components/update_client/buildflags.h"
+#include "components/update_client/crx_cache.h"
 #include "components/update_client/crx_downloader_factory.h"
 #include "components/update_client/net/network_chromium.h"
 #include "components/update_client/patch/patch_impl.h"
 #include "components/update_client/patcher.h"
+#include "components/update_client/persisted_data.h"
 #include "components/update_client/protocol_handler.h"
 #include "components/update_client/unzip/unzip_impl.h"
 #include "components/update_client/unzipper.h"
@@ -44,6 +48,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/storage_partition.h"
 #include "extensions/browser/extension_prefs.h"
+#include "extensions/browser/extension_prefs_observer.h"
 
 namespace extensions {
 
@@ -58,7 +63,8 @@ static FactoryCallback& GetFactoryCallback() {
 }
 
 class ExtensionActivityDataService final
-    : public update_client::ActivityDataService {
+    : public update_client::ActivityDataService,
+      public ExtensionPrefsObserver {
  public:
   explicit ExtensionActivityDataService(ExtensionPrefs* extension_prefs);
 
@@ -78,10 +84,16 @@ class ExtensionActivityDataService final
   int GetDaysSinceLastActive(const std::string& id) const override;
   int GetDaysSinceLastRollCall(const std::string& id) const override;
 
+  // ExtensionPrefsObserver:
+  void OnExtensionPrefsWillBeDestroyed(ExtensionPrefs* prefs) override;
+
  private:
   // This member is not owned by this class, it's owned by a profile keyed
   // service.
   raw_ptr<ExtensionPrefs> extension_prefs_;
+
+  base::ScopedObservation<ExtensionPrefs, ExtensionPrefsObserver>
+      prefs_observation_{this};
 };
 
 // Calculates the value to use for the ping days parameter.
@@ -91,19 +103,28 @@ int CalculatePingDays(const base::Time& last_ping_day) {
              : std::max((base::Time::Now() - last_ping_day).InDays(), 0);
 }
 
+PrefService* GetPrefService(base::WeakPtr<content::BrowserContext> context) {
+  return context ? ExtensionPrefs::Get(context.get())->pref_service() : nullptr;
+}
+
 ExtensionActivityDataService::ExtensionActivityDataService(
     ExtensionPrefs* extension_prefs)
     : extension_prefs_(extension_prefs) {
   DCHECK(extension_prefs_);
+
+  prefs_observation_.Observe(extension_prefs);
 }
 
 void ExtensionActivityDataService::GetActiveBits(
     const std::vector<std::string>& ids,
     base::OnceCallback<void(const std::set<std::string>&)> callback) const {
   std::set<std::string> actives;
-  for (const auto& id : ids) {
-    if (extension_prefs_->GetActiveBit(id))
-      actives.insert(id);
+  if (extension_prefs_) {
+    for (const auto& id : ids) {
+      if (extension_prefs_->GetActiveBit(id)) {
+        actives.insert(id);
+      }
+    }
   }
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), actives));
@@ -111,11 +132,17 @@ void ExtensionActivityDataService::GetActiveBits(
 
 int ExtensionActivityDataService::GetDaysSinceLastActive(
     const std::string& id) const {
+  if (!extension_prefs_) {
+    return update_client::kDaysUnknown;
+  }
   return CalculatePingDays(extension_prefs_->LastActivePingDay(id));
 }
 
 int ExtensionActivityDataService::GetDaysSinceLastRollCall(
     const std::string& id) const {
+  if (!extension_prefs_) {
+    return update_client::kDaysUnknown;
+  }
   return CalculatePingDays(extension_prefs_->LastPingDay(id));
 }
 
@@ -123,13 +150,23 @@ void ExtensionActivityDataService::GetAndClearActiveBits(
     const std::vector<std::string>& ids,
     base::OnceCallback<void(const std::set<std::string>&)> callback) {
   std::set<std::string> actives;
-  for (const auto& id : ids) {
-    if (extension_prefs_->GetActiveBit(id))
-      actives.insert(id);
-    extension_prefs_->SetActiveBit(id, false);
+  if (extension_prefs_) {
+    for (const auto& id : ids) {
+      if (extension_prefs_->GetActiveBit(id)) {
+        actives.insert(id);
+      }
+      extension_prefs_->SetActiveBit(id, false);
+    }
   }
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), actives));
+}
+
+void ExtensionActivityDataService::OnExtensionPrefsWillBeDestroyed(
+    ExtensionPrefs* prefs) {
+  DCHECK(prefs_observation_.IsObservingSource(prefs));
+  prefs_observation_.Reset();
+  extension_prefs_ = nullptr;
 }
 
 }  // namespace
@@ -138,80 +175,102 @@ void ExtensionActivityDataService::GetAndClearActiveBits(
 // communication with the update backend.
 ChromeUpdateClientConfig::ChromeUpdateClientConfig(
     content::BrowserContext* context,
-    absl::optional<GURL> url_override)
-    : context_(context),
+    std::optional<GURL> url_override)
+    : context_(context->GetWeakPtr()),
       impl_(ExtensionUpdateClientCommandLineConfigPolicy(
                 base::CommandLine::ForCurrentProcess()),
             /*require_encryption=*/true),
-      pref_service_(ExtensionPrefs::Get(context)->pref_service()),
-      activity_data_service_(std::make_unique<ExtensionActivityDataService>(
-          ExtensionPrefs::Get(context))),
+      persisted_data_(update_client::CreatePersistedData(
+          base::BindRepeating(&extensions::GetPrefService, context_),
+          std::make_unique<ExtensionActivityDataService>(
+              ExtensionPrefs::Get(context)))),
       url_override_(url_override) {
-  DCHECK(pref_service_);
+  base::FilePath path;
+  bool result = base::PathService::Get(chrome::DIR_USER_DATA, &path);
+  crx_cache_ = base::MakeRefCounted<update_client::CrxCache>(
+      result ? std::optional<base::FilePath>(
+                   path.AppendASCII("extensions_crx_cache"))
+             : std::nullopt);
 }
 
 ChromeUpdateClientConfig::~ChromeUpdateClientConfig() = default;
 
 base::TimeDelta ChromeUpdateClientConfig::InitialDelay() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return impl_.InitialDelay();
 }
 
 base::TimeDelta ChromeUpdateClientConfig::NextCheckDelay() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return impl_.NextCheckDelay();
 }
 
 base::TimeDelta ChromeUpdateClientConfig::OnDemandDelay() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return impl_.OnDemandDelay();
 }
 
 base::TimeDelta ChromeUpdateClientConfig::UpdateDelay() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return impl_.UpdateDelay();
 }
 
 std::vector<GURL> ChromeUpdateClientConfig::UpdateUrl() const {
-  if (url_override_.has_value())
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (url_override_.has_value()) {
     return {*url_override_};
+  }
   return impl_.UpdateUrl();
 }
 
 std::vector<GURL> ChromeUpdateClientConfig::PingUrl() const {
-  if (url_override_.has_value())
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (url_override_.has_value()) {
     return {*url_override_};
+  }
   return impl_.PingUrl();
 }
 
 std::string ChromeUpdateClientConfig::GetProdId() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return update_client::UpdateQueryParams::GetProdIdString(
       update_client::UpdateQueryParams::ProdId::CRX);
 }
 
 base::Version ChromeUpdateClientConfig::GetBrowserVersion() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return impl_.GetBrowserVersion();
 }
 
 std::string ChromeUpdateClientConfig::GetChannel() const {
-  return chrome::GetChannelName(chrome::WithExtendedStable(true));
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return GetChannelForExtensionUpdates();
 }
 
 std::string ChromeUpdateClientConfig::GetLang() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return ChromeUpdateQueryParamsDelegate::GetLang();
 }
 
 std::string ChromeUpdateClientConfig::GetOSLongName() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return impl_.GetOSLongName();
 }
 
 base::flat_map<std::string, std::string>
 ChromeUpdateClientConfig::ExtraRequestParams() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return impl_.ExtraRequestParams();
 }
 
 std::string ChromeUpdateClientConfig::GetDownloadPreference() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return std::string();
 }
 
 scoped_refptr<update_client::NetworkFetcherFactory>
 ChromeUpdateClientConfig::GetNetworkFetcherFactory() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!network_fetcher_factory_) {
     network_fetcher_factory_ =
         base::MakeRefCounted<update_client::NetworkFetcherChromiumFactory>(
@@ -229,6 +288,7 @@ ChromeUpdateClientConfig::GetNetworkFetcherFactory() {
 
 scoped_refptr<update_client::CrxDownloaderFactory>
 ChromeUpdateClientConfig::GetCrxDownloaderFactory() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!crx_downloader_factory_) {
     crx_downloader_factory_ =
         update_client::MakeCrxDownloaderFactory(GetNetworkFetcherFactory());
@@ -238,6 +298,7 @@ ChromeUpdateClientConfig::GetCrxDownloaderFactory() {
 
 scoped_refptr<update_client::UnzipperFactory>
 ChromeUpdateClientConfig::GetUnzipperFactory() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (!unzip_factory_) {
     unzip_factory_ = base::MakeRefCounted<update_client::UnzipChromiumFactory>(
@@ -248,6 +309,7 @@ ChromeUpdateClientConfig::GetUnzipperFactory() {
 
 scoped_refptr<update_client::PatcherFactory>
 ChromeUpdateClientConfig::GetPatcherFactory() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (!patch_factory_) {
     patch_factory_ = base::MakeRefCounted<update_client::PatchChromiumFactory>(
@@ -256,52 +318,63 @@ ChromeUpdateClientConfig::GetPatcherFactory() {
   return patch_factory_;
 }
 
-bool ChromeUpdateClientConfig::EnabledDeltas() const {
-  return impl_.EnabledDeltas();
-}
-
 bool ChromeUpdateClientConfig::EnabledBackgroundDownloader() const {
-  return impl_.EnabledBackgroundDownloader();
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Historically, Chrome hasn't used background downloaders like BITS for
+  // extension updates. In theory, they should work in most cases. When they
+  // don't (for example because they don't pass the credentials necessary to
+  // download private extensions), the system should fall back to the foreground
+  // downloader. So, returning `true` here is probably safe, but should likely
+  // be done as a Finch experiment that is carefully monitored.
+  return false;
 }
 
 bool ChromeUpdateClientConfig::EnabledCupSigning() const {
-  if (url_override_.has_value())
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (url_override_.has_value()) {
     return false;
+  }
   return impl_.EnabledCupSigning();
 }
 
 PrefService* ChromeUpdateClientConfig::GetPrefService() const {
-  return pref_service_;
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return extensions::GetPrefService(context_);
 }
 
-update_client::ActivityDataService*
-ChromeUpdateClientConfig::GetActivityDataService() const {
-  return activity_data_service_.get();
+update_client::PersistedData* ChromeUpdateClientConfig::GetPersistedData()
+    const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return persisted_data_.get();
 }
 
 bool ChromeUpdateClientConfig::IsPerUserInstall() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return component_updater::IsPerUserInstall();
 }
 
 std::unique_ptr<update_client::ProtocolHandlerFactory>
 ChromeUpdateClientConfig::GetProtocolHandlerFactory() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return impl_.GetProtocolHandlerFactory();
 }
 
-absl::optional<bool> ChromeUpdateClientConfig::IsMachineExternallyManaged()
+std::optional<bool> ChromeUpdateClientConfig::IsMachineExternallyManaged()
     const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return impl_.IsMachineExternallyManaged();
 }
 
 update_client::UpdaterStateProvider
 ChromeUpdateClientConfig::GetUpdaterStateProvider() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return impl_.GetUpdaterStateProvider();
 }
 
 // static
 scoped_refptr<ChromeUpdateClientConfig> ChromeUpdateClientConfig::Create(
     content::BrowserContext* context,
-    absl::optional<GURL> update_url_override) {
+    std::optional<GURL> update_url_override) {
   FactoryCallback& factory = GetFactoryCallback();
   return factory.is_null() ? base::MakeRefCounted<ChromeUpdateClientConfig>(
                                  context, update_url_override)
@@ -315,15 +388,13 @@ void ChromeUpdateClientConfig::SetChromeUpdateClientConfigFactoryForTesting(
   GetFactoryCallback() = factory;
 }
 
-#if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
-absl::optional<base::FilePath> ChromeUpdateClientConfig::GetCrxCachePath()
+scoped_refptr<update_client::CrxCache> ChromeUpdateClientConfig::GetCrxCache()
     const {
-  base::FilePath path;
-  bool result = base::PathService::Get(chrome::DIR_USER_DATA, &path);
-  return result ? absl::optional<base::FilePath>(
-                      path.AppendASCII((kExtensionsCrxCachePath)))
-                : absl::nullopt;
+  return crx_cache_;
 }
-#endif
+
+bool ChromeUpdateClientConfig::IsConnectionMetered() const {
+  return impl_.IsConnectionMetered();
+}
 
 }  // namespace extensions

@@ -28,11 +28,11 @@ bool IsValidMimeType(const std::string& type_string) {
 }
 
 // Parses `rel` attribute and returns its parsed representation. Returns
-// absl::nullopt when the value isn't pre-defined.
-absl::optional<mojom::LinkRelAttribute> ParseRelAttribute(
-    const absl::optional<std::string>& attr) {
+// std::nullopt when the value isn't pre-defined.
+std::optional<mojom::LinkRelAttribute> ParseRelAttribute(
+    const std::optional<std::string>& attr) {
   if (!attr.has_value())
-    return absl::nullopt;
+    return std::nullopt;
 
   std::string value = base::ToLowerASCII(attr.value());
   if (value == "dns-prefetch")
@@ -43,15 +43,15 @@ absl::optional<mojom::LinkRelAttribute> ParseRelAttribute(
     return mojom::LinkRelAttribute::kPreload;
   else if (value == "modulepreload")
     return mojom::LinkRelAttribute::kModulePreload;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 // Parses `as` attribute and returns its parsed representation. Returns
-// absl::nullopt when the value isn't pre-defined.
-absl::optional<mojom::LinkAsAttribute> ParseAsAttribute(
-    const absl::optional<std::string>& attr) {
+// std::nullopt when the value isn't pre-defined.
+std::optional<mojom::LinkAsAttribute> ParseAsAttribute(
+    const std::optional<std::string>& attr) {
   if (!attr.has_value())
-    return absl::nullopt;
+    return std::nullopt;
 
   std::string value = base::ToLowerASCII(attr.value());
   if (value == "font") {
@@ -65,13 +65,13 @@ absl::optional<mojom::LinkAsAttribute> ParseAsAttribute(
   } else if (value == "fetch") {
     return mojom::LinkAsAttribute::kFetch;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 // Parses `crossorigin` attribute and returns its parsed representation. Returns
-// absl::nullopt when the value isn't pre-defined.
-absl::optional<mojom::CrossOriginAttribute> ParseCrossOriginAttribute(
-    const absl::optional<std::string>& attr) {
+// std::nullopt when the value isn't pre-defined.
+std::optional<mojom::CrossOriginAttribute> ParseCrossOriginAttribute(
+    const std::optional<std::string>& attr) {
   if (!attr.has_value())
     return mojom::CrossOriginAttribute::kAnonymous;
 
@@ -80,14 +80,14 @@ absl::optional<mojom::CrossOriginAttribute> ParseCrossOriginAttribute(
     return mojom::CrossOriginAttribute::kAnonymous;
   else if (value == "use-credentials")
     return mojom::CrossOriginAttribute::kUseCredentials;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 // Parses `fetchpriority` attribute and returns its parsed representation.
 // Returns mojom::FetchPriorityAttribute::kAuto which is the missing and
 // invalid value for the attribute.
-absl::optional<mojom::FetchPriorityAttribute> ParseFetchPriorityAttribute(
-    const absl::optional<std::string>& attr) {
+std::optional<mojom::FetchPriorityAttribute> ParseFetchPriorityAttribute(
+    const std::optional<std::string>& attr) {
   if (!attr.has_value()) {
     return mojom::FetchPriorityAttribute::kAuto;
   }
@@ -107,7 +107,7 @@ absl::optional<mojom::FetchPriorityAttribute> ParseFetchPriorityAttribute(
 // attributes. Returns true only when all attributes and their values are
 // pre-definied.
 bool ParseAttributes(
-    const std::unordered_map<std::string, absl::optional<std::string>>& attrs,
+    const std::unordered_map<std::string, std::optional<std::string>>& attrs,
     mojom::LinkHeaderPtr& parsed) {
   bool is_rel_set = false;
 
@@ -118,33 +118,33 @@ bool ParseAttributes(
       // Ignore if `rel` is already set.
       if (is_rel_set)
         continue;
-      absl::optional<mojom::LinkRelAttribute> rel =
+      std::optional<mojom::LinkRelAttribute> rel =
           ParseRelAttribute(attr.second);
       if (!rel.has_value())
         return false;
       parsed->rel = rel.value();
       is_rel_set = true;
     } else if (name == "as") {
-      // TODO(crbug.com/1182567): Make sure ignoring second and subsequent ones
+      // TODO(crbug.com/40170852): Make sure ignoring second and subsequent ones
       // is a reasonable behavior.
       if (parsed->as != mojom::LinkAsAttribute::kUnspecified)
         continue;
-      absl::optional<mojom::LinkAsAttribute> as = ParseAsAttribute(attr.second);
+      std::optional<mojom::LinkAsAttribute> as = ParseAsAttribute(attr.second);
       if (!as.has_value())
         return false;
       parsed->as = as.value();
     } else if (name == "crossorigin") {
-      // TODO(crbug.com/1182567): Make sure ignoring second and subsequent ones
+      // TODO(crbug.com/40170852): Make sure ignoring second and subsequent ones
       // is a reasonable behavior.
       if (parsed->cross_origin != mojom::CrossOriginAttribute::kUnspecified)
         continue;
-      absl::optional<mojom::CrossOriginAttribute> cross_origin =
+      std::optional<mojom::CrossOriginAttribute> cross_origin =
           ParseCrossOriginAttribute(attr.second);
       if (!cross_origin.has_value())
         return false;
       parsed->cross_origin = cross_origin.value();
     } else if (name == "type") {
-      // TODO(crbug.com/1182567): Make sure ignoring second and subsequent ones
+      // TODO(crbug.com/40170852): Make sure ignoring second and subsequent ones
       // is a reasonable behavior.
       if (parsed->mime_type.has_value())
         continue;
@@ -152,12 +152,12 @@ bool ParseAttributes(
         return false;
       parsed->mime_type = attr.second.value();
     } else if (name == "fetchpriority") {
-      // TODO(crbug.com/1182567): Make sure ignoring second and subsequent ones
+      // TODO(crbug.com/40170852): Make sure ignoring second and subsequent ones
       // is a reasonable behavior.
       if (parsed->fetch_priority != mojom::FetchPriorityAttribute::kAuto) {
         continue;
       }
-      absl::optional<mojom::FetchPriorityAttribute> fetch_priority =
+      std::optional<mojom::FetchPriorityAttribute> fetch_priority =
           ParseFetchPriorityAttribute(attr.second);
       if (!fetch_priority.has_value()) {
         return false;
@@ -179,19 +179,19 @@ std::vector<mojom::LinkHeaderPtr> ParseLinkHeaders(
     const net::HttpResponseHeaders& headers,
     const GURL& base_url) {
   std::vector<mojom::LinkHeaderPtr> parsed_headers;
-  std::string link_header;
-  headers.GetNormalizedHeader("link", &link_header);
-  for (const auto& pair : link_header_util::SplitLinkHeader(link_header)) {
-    std::string url;
-    std::unordered_map<std::string, absl::optional<std::string>> attrs;
-    if (!link_header_util::ParseLinkHeaderValue(pair.first, pair.second, &url,
-                                                &attrs)) {
+  std::string link_header =
+      headers.GetNormalizedHeader("link").value_or(std::string());
+  for (const auto& value : link_header_util::SplitLinkHeader(link_header)) {
+    std::unordered_map<std::string, std::optional<std::string>> attrs;
+    std::optional<std::string> url =
+        link_header_util::ParseLinkHeaderValue(value, attrs);
+    if (!url) {
       continue;
     }
 
     auto parsed = mojom::LinkHeader::New();
 
-    parsed->href = base_url.Resolve(url);
+    parsed->href = base_url.Resolve(*url);
     if (!parsed->href.is_valid())
       continue;
 

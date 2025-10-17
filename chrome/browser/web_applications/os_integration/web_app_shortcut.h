@@ -15,9 +15,10 @@
 #include "base/functional/callback_helpers.h"
 #include "base/sequence_checker.h"
 #include "build/build_config.h"
+#include "chrome/browser/web_applications/os_integration/shortcut_creation_reason.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
+#include "components/webapps/common/web_app_id.h"
 #include "ui/gfx/image/image_family.h"
 #include "url/gurl.h"
 
@@ -26,7 +27,7 @@
 #endif  // BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_MAC)
-#include "chrome/browser/web_applications/app_shim_registry_mac.h"
+#include "chrome/browser/web_applications/os_integration/mac/app_shim_registry.h"
 #endif
 
 class Profile;
@@ -41,10 +42,12 @@ class ImageSkia;
 }
 
 namespace web_app {
-namespace proto {
-class WebAppOsIntegrationState;
+
+namespace proto::os_state {
+class WebAppOsIntegration;
 class ShortcutMenus;
-}
+}  // namespace proto::os_state
+
 class WebApp;
 class WebAppIconManager;
 
@@ -63,12 +66,17 @@ struct ShortcutInfo {
   std::u16string title;
   std::u16string description;
   gfx::ImageFamily favicon;
+  gfx::ImageFamily favicon_maskable;
   base::FilePath profile_path;
   std::string profile_name;
   std::string version_for_display;
   std::set<std::string> file_handler_extensions;
   std::set<std::string> file_handler_mime_types;
   std::set<std::string> protocol_handlers;
+  // Icons from DIY apps may get custom masking, as they have not "opted-in" to
+  // the installed PWA experience and thus the icons are not designed to be
+  // displayed on an OS dock.
+  bool is_diy_app = false;
 #if BUILDFLAG(IS_LINUX)
   std::set<DesktopActionInfo> actions;
 #endif  // BUILDFLAG(IS_LINUX)
@@ -93,11 +101,11 @@ struct ShortcutInfo {
 };
 
 std::unique_ptr<ShortcutInfo> BuildShortcutInfoWithoutFavicon(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const GURL& start_url,
     const base::FilePath& profile_path,
     const std::string& profile_name,
-    const proto::WebAppOsIntegrationState& state);
+    const proto::os_state::WebAppOsIntegration& state);
 
 void PopulateFaviconForShortcutInfo(
     const WebApp* app,
@@ -106,7 +114,7 @@ void PopulateFaviconForShortcutInfo(
     base::OnceCallback<void(std::unique_ptr<ShortcutInfo>)> callback);
 
 std::vector<WebAppShortcutsMenuItemInfo> CreateShortcutsMenuItemInfos(
-    const proto::ShortcutMenus& shortcut_menus);
+    const proto::os_state::ShortcutMenus& shortcut_menus);
 
 // This specifies a folder in the system applications menu (e.g the Start Menu
 // on Windows).
@@ -128,28 +136,31 @@ enum ApplicationsMenuLocation {
 
 // Info about which locations to create app shortcuts in.
 struct ShortcutLocations {
+  ShortcutLocations();
+  ~ShortcutLocations();
+
+  friend bool operator==(const ShortcutLocations&,
+                         const ShortcutLocations&) = default;
+
+  base::Value ToDebugValue() const;
+
   bool on_desktop = false;
-
   ApplicationsMenuLocation applications_menu_location = APP_MENU_LOCATION_NONE;
-
   // For Windows, this refers to quick launch bar prior to Win7. In Win7,
   // this means "pin to taskbar". For Mac/Linux, this could be used for
   // Mac dock or the gnome/kde application launcher. However, those are not
   // implemented yet.
   bool in_quick_launch_bar = false;
-
   // For Windows, this refers to the Startup folder.
   // For Mac, this refers to the Login Items list.
   // For Linux, this refers to the autostart folder.
   bool in_startup = false;
 };
 
-// This encodes the cause of shortcut creation as the correct behavior in each
-// case is implementation specific.
-enum ShortcutCreationReason {
-  SHORTCUT_CREATION_BY_USER,
-  SHORTCUT_CREATION_AUTOMATED,
-};
+ShortcutLocations MergeLocations(
+    const ShortcutLocations& user_specified_locations,
+    const ShortcutLocations& existing_locations);
+
 
 // Compute a deterministic name based on data in the shortcut_info.
 std::string GenerateApplicationNameFromInfo(const ShortcutInfo& shortcut_info);
@@ -187,13 +198,16 @@ namespace internals {
 // shortcuts. Used internally by CreateShortcuts methods.
 // |shortcut_data_path| is where to store any resources created for the
 // shortcut, and is also used as the UserDataDir for platform app shortcuts.
-// |shortcut_info| contains info about the shortcut to create, and
 // |creation_locations| contains information about where to create them.
+// |shortcut_info| contains info about the shortcut to create, and
+// |callback| must be called on the Shortcut IO thread when the work is
+// complete.
 // Performs blocking IO operations.
-bool CreatePlatformShortcuts(const base::FilePath& shortcut_data_path,
+void CreatePlatformShortcuts(const base::FilePath& shortcut_data_path,
                              const ShortcutLocations& creation_locations,
                              ShortcutCreationReason creation_reason,
-                             const ShortcutInfo& shortcut_info);
+                             const ShortcutInfo& shortcut_info,
+                             CreateShortcutsCallback callback);
 
 // Implemented for each platform, does the platform specific parts of checking
 // desktop and application menu to get shortcut locations.
@@ -201,8 +215,8 @@ ShortcutLocations GetAppExistingShortCutLocationImpl(
     const ShortcutInfo& shortcut_info);
 
 // Schedules a call to |CreatePlatformShortcuts| on the Shortcut IO thread and
-// invokes |callback| when complete. This function must be called from the UI
-// thread.
+// invokes |callback| on the UI thread when complete. This function must be
+// called from the UI thread.
 void ScheduleCreatePlatformShortcuts(
     const base::FilePath& shortcut_data_path,
     const ShortcutLocations& creation_locations,
@@ -214,6 +228,16 @@ void ScheduleDeletePlatformShortcuts(
     const base::FilePath& shortcut_data_path,
     std::unique_ptr<ShortcutInfo> shortcut_info,
     DeleteShortcutsCallback callback);
+
+// Schedules a call to `UpdatePlatformShortcuts` on the Shortcut IO thread and
+// invokes `callback` on the UI thread when complete. This function must be
+// called from the UI thread.
+void ScheduleUpdatePlatformShortcuts(
+    const base::FilePath& shortcut_data_dir,
+    const std::u16string& old_app_title,
+    std::optional<ShortcutLocations> locations,
+    base::OnceCallback<void(Result)> on_complete,
+    std::unique_ptr<ShortcutInfo> shortcut_info);
 
 void ScheduleDeleteMultiProfileShortcutsForApp(const std::string& app_id,
                                                ResultCallback callback);
@@ -235,20 +259,32 @@ void DeleteMultiProfileShortcutsForApp(const std::string& app_id);
 // platform specific implementation of the UpdateAllShortcuts function, and
 // is executed on the FILE thread. On Windows, this also updates shortcuts in
 // the pinned taskbar directories.
-// Returns true if update was performed successfully and false otherwise
-Result UpdatePlatformShortcuts(const base::FilePath& shortcut_data_path,
-                               const std::u16string& old_app_title,
-                               const ShortcutInfo& shortcut_info);
+// If the |user_specified_locations| are set, then an union of the current
+// shortcut locations and the set values are considered during a shortcut
+// update. If a shortcut does not exist in a specific location, then that is
+// created. By default, the creation locations are not passed.
+// |callback| must be invoked on the Shortcut UI thread. Result::kOK will be
+// passed to the callback if the update was performed successfully, otherwise
+// Result::kError will be passed.
+void UpdatePlatformShortcuts(
+    const base::FilePath& shortcut_data_path,
+    const std::u16string& old_app_title,
+    std::optional<ShortcutLocations> user_specified_locations,
+    ResultCallback callback,
+    const ShortcutInfo& shortcut_info);
 
 // Run an IO task on a worker thread. Ownership of |shortcut_info| transfers
 // to a closure that deletes it on the UI thread when the task is complete.
 // Tasks posted here run with BEST_EFFORT priority and block shutdown.
 void PostShortcutIOTask(base::OnceCallback<void(const ShortcutInfo&)> task,
                         std::unique_ptr<ShortcutInfo> shortcut_info);
-void PostShortcutIOTaskAndReplyWithResult(
-    base::OnceCallback<Result(const ShortcutInfo&)> task,
-    std::unique_ptr<ShortcutInfo> shortcut_info,
-    ResultCallback reply);
+
+// Run an IO task on a worker thread. Ownership of |shortcut_info| transfers
+// to the task which must delete it on the UI thread when the task is complete.
+// Tasks posted here run with BEST_EFFORT priority and block shutdown.
+void PostAsyncShortcutIOTask(
+    base::OnceCallback<void(std::unique_ptr<ShortcutInfo>)> task,
+    std::unique_ptr<ShortcutInfo> shortcut_info);
 
 // The task runner for running shortcut tasks. On Windows this will be a task
 // runner that permits access to COM libraries. Shortcut tasks typically deal

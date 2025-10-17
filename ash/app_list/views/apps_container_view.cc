@@ -35,6 +35,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
+#include "chromeos/constants/chromeos_features.h"
+#include "ui/base/dragdrop/drag_drop_types.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
@@ -119,6 +122,17 @@ constexpr int kDefaultFadeoutMaskHeight = 16;
 // and continue section when launcher becomes visible.
 constexpr base::TimeDelta kZeroStateSearchTimeout = base::Milliseconds(16);
 
+const ui::DropTargetEvent GetTranslatedDropTargetEvent(
+    const ui::DropTargetEvent event,
+    views::View* src_view,
+    views::View* dst_view) {
+  gfx::Point event_location = event.location();
+  views::View::ConvertPointToTarget(src_view, dst_view, &event_location);
+  return ui::DropTargetEvent(event.data(), gfx::PointF(event_location),
+                             event.root_location_f(),
+                             event.source_operations());
+}
+
 }  // namespace
 
 // A view that contains continue section, recent apps and a separator view,
@@ -126,6 +140,8 @@ constexpr base::TimeDelta kZeroStateSearchTimeout = base::Milliseconds(16);
 // The view is intended to be a wrapper around suggested content views that
 // makes applying identical transforms to suggested content views easier.
 class AppsContainerView::ContinueContainer : public views::View {
+  METADATA_HEADER(ContinueContainer, views::View)
+
  public:
   ContinueContainer(AppListKeyboardController* keyboard_controller,
                     AppListViewDelegate* view_delegate,
@@ -211,11 +227,14 @@ class AppsContainerView::ContinueContainer : public views::View {
                            continue_section_->GetVisible());
   }
 
-  const raw_ptr<AppListViewDelegate, ExperimentalAsh> view_delegate_;
-  raw_ptr<ContinueSectionView, ExperimentalAsh> continue_section_ = nullptr;
-  raw_ptr<RecentAppsView, ExperimentalAsh> recent_apps_ = nullptr;
-  raw_ptr<views::Separator, ExperimentalAsh> separator_ = nullptr;
+  const raw_ptr<AppListViewDelegate> view_delegate_;
+  raw_ptr<ContinueSectionView> continue_section_ = nullptr;
+  raw_ptr<RecentAppsView> recent_apps_ = nullptr;
+  raw_ptr<views::Separator, DanglingUntriaged> separator_ = nullptr;
 };
+
+BEGIN_METADATA(AppsContainerView, ContinueContainer)
+END_METADATA
 
 const int AppsContainerView::kHorizontalMargin = 24;
 
@@ -462,15 +481,8 @@ void AppsContainerView::ResetForShowApps() {
   if (needs_layout()) {
     // Layout might be needed if `ResetForShowApps` was called during animation
     // (specifically, during tablet ->(aborted) clamshell -> tablet transition).
-    Layout();
+    DeprecatedLayoutImmediately();
   }
-}
-
-void AppsContainerView::SetDragAndDropHostOfCurrentAppList(
-    ApplicationDragAndDropHost* drag_and_drop_host) {
-  apps_grid_view()->SetDragAndDropHostOfCurrentAppList(drag_and_drop_host);
-  app_list_folder_view()->items_grid_view()->SetDragAndDropHostOfCurrentAppList(
-      drag_and_drop_host);
 }
 
 void AppsContainerView::ReparentFolderItemTransit(
@@ -529,7 +541,7 @@ void AppsContainerView::OnAppListVisibilityChanged(bool shown) {
   // TODO(https://crbug.com/1306613): Remove explicit layout once the linked
   // issue gets fixed.
   if (shown && needs_layout())
-    Layout();
+    DeprecatedLayoutImmediately();
 }
 
 // PaginationModelObserver:
@@ -544,6 +556,12 @@ void AppsContainerView::SelectedPageChanged(int old_selected,
   separator_->layer()->SetTransform(transform);
   if (toast_container_)
     toast_container_->layer()->SetTransform(transform);
+
+  if (new_selected == apps_grid_view_->pagination_model()->total_pages() - 1) {
+    RecordLauncherWorkflowMetrics(
+        AppListUserAction::kNavigatedToBottomOfAppList,
+        /*is_tablet_mode = */ true, std::nullopt);
+  }
 }
 
 void AppsContainerView::TransitionChanged() {
@@ -626,8 +644,10 @@ bool AppsContainerView::IsPointWithinBottomDragBuffer(
 }
 
 void AppsContainerView::MaybeCreateGradientMask() {
-  if (!features::IsBackgroundBlurEnabled())
+  if (!features::IsBackgroundBlurEnabled() ||
+      !chromeos::features::IsSystemBlurEnabled()) {
     return;
+  }
 
   if (!scrollable_container_->layer()->HasGradientMask())
     UpdateGradientMaskBounds();
@@ -666,7 +686,7 @@ void AppsContainerView::OnNudgeRemoved() {
 }
 
 void AppsContainerView::UpdateForNewSortingOrder(
-    const absl::optional<AppListSortOrder>& new_order,
+    const std::optional<AppListSortOrder>& new_order,
     bool animate,
     base::OnceClosure update_position_closure,
     base::OnceClosure animation_done_closure) {
@@ -731,12 +751,12 @@ void AppsContainerView::UpdateContinueSectionVisibility() {
   if (!continue_container_)
     return;
 
-  // Get the continue container's height before Layout().
+  // Get the continue container's height before DeprecatedLayoutImmediately().
   const int initial_height = continue_container_->height();
 
   // Update continue container visibility and bounds.
   continue_container_->UpdateContinueSectionVisibility();
-  Layout();
+  DeprecatedLayoutImmediately();
 
   // Only play animations if the tablet mode app list is visible. This function
   // can be called in clamshell mode when the tablet app list is cached.
@@ -762,7 +782,7 @@ void AppsContainerView::UpdateContinueSectionVisibility() {
   }
 
   // Continue section is being shown. Transform the apps grid view up to its
-  // original pre-Layout() position.
+  // original pre-layout position.
   gfx::Transform transform;
   transform.Translate(0, vertical_offset);
   apps_grid_view_->SetTransform(transform);
@@ -815,12 +835,12 @@ void AppsContainerView::UpdateControlVisibility(
       app_list_state == AppListViewState::kFullscreenSearch);
 }
 
-void AppsContainerView::Layout() {
+void AppsContainerView::Layout(PassKey) {
   gfx::Rect rect(GetContentsBounds());
   if (rect.IsEmpty())
     return;
 
-  views::View::Layout();
+  LayoutSuperclass<views::View>(this);
 
   const int app_list_y =
       GetAppListY(contents_view_->app_list_view()->app_list_state());
@@ -912,7 +932,7 @@ void AppsContainerView::Layout() {
     // Apps grid layout depends on the continue container bounds, so explicitly
     // call layout to ensure apps grid view gets laid out even if its bounds do
     // not change.
-    apps_grid_view_->Layout();
+    apps_grid_view_->DeprecatedLayoutImmediately();
   }
 
   if (separator_) {
@@ -972,10 +992,6 @@ bool AppsContainerView::OnKeyPressed(const ui::KeyEvent& event) {
     return app_list_folder_view_->OnKeyPressed(event);
 }
 
-const char* AppsContainerView::GetClassName() const {
-  return "AppsContainerView";
-}
-
 void AppsContainerView::OnBoundsChanged(const gfx::Rect& old_bounds) {
   const bool creating_initial_config = !app_list_config_;
 
@@ -1016,13 +1032,13 @@ void AppsContainerView::OnDidChangeFocus(View* focused_before,
 
 void AppsContainerView::OnGestureEvent(ui::GestureEvent* event) {
   // Ignore tap/long-press, allow those to pass to the ancestor view.
-  if (event->type() == ui::ET_GESTURE_TAP ||
-      event->type() == ui::ET_GESTURE_LONG_PRESS) {
+  if (event->type() == ui::EventType::kGestureTap ||
+      event->type() == ui::EventType::kGestureLongPress) {
     return;
   }
 
   // Will forward events to |apps_grid_view_| if they occur in the same y-region
-  if (event->type() == ui::ET_GESTURE_SCROLL_BEGIN &&
+  if (event->type() == ui::EventType::kGestureScrollBegin &&
       event->location().y() <= apps_grid_view_->bounds().y()) {
     return;
   }
@@ -1055,7 +1071,7 @@ void AppsContainerView::OnShown() {
   if (keyboard::KeyboardUIController::HasInstance())
     keyboard::KeyboardUIController::Get()->HideKeyboardExplicitlyBySystem();
 
-  GetViewAccessibility().OverrideIsLeaf(false);
+  GetViewAccessibility().SetIsLeaf(false);
   is_active_page_ = true;
 
   // Update the continue section.
@@ -1083,7 +1099,7 @@ void AppsContainerView::OnHidden() {
   // Apps container view is shown faded behind the search results UI - hide its
   // contents from the screen reader as the apps grid is not normally
   // actionable in this state.
-  GetViewAccessibility().OverrideIsLeaf(true);
+  GetViewAccessibility().SetIsLeaf(true);
 
   is_active_page_ = false;
 
@@ -1257,7 +1273,7 @@ void AppsContainerView::SetShowState(ShowState show_state,
 
   // Layout before showing animation because the animation's target bounds are
   // calculated based on the layout.
-  Layout();
+  DeprecatedLayoutImmediately();
 
   switch (show_state_) {
     case SHOW_APPS:
@@ -1395,7 +1411,7 @@ void AppsContainerView::UpdateGradientMaskBounds() {
 }
 
 void AppsContainerView::OnAppsGridViewFadeOutAnimationEnded(
-    const absl::optional<AppListSortOrder>& new_order,
+    const std::optional<AppListSortOrder>& new_order,
     bool abort) {
   // Update item positions after the fade out animation but before the fade in
   // animation. NOTE: `update_position_closure_` can be empty in some edge
@@ -1434,7 +1450,7 @@ void AppsContainerView::OnAppsGridViewFadeOutAnimationEnded(
   // (because of calculating the visible items). Therefore trigger layout before
   // starting the fade in animation.
   if (toast_visibility_change)
-    Layout();
+    DeprecatedLayoutImmediately();
 
   ash::PaginationModel* pagination_model = apps_grid_view_->pagination_model();
   bool page_change = (pagination_model->selected_page() != 0);
@@ -1523,8 +1539,41 @@ void AppsContainerView::OnZeroStateSearchDone() {
     // so invalidating recent apps layout when recent apps visibiltiy changes
     // will not work well).
     // TODO(b/261662349): Remove explicit layout once the linked issue is fixed.
-    Layout();
+    DeprecatedLayoutImmediately();
   }
 }
+
+bool AppsContainerView::GetDropFormats(
+    int* formats,
+    std::set<ui::ClipboardFormatType>* format_types) {
+  return apps_grid_view_->GetDropFormats(formats, format_types);
+}
+
+bool AppsContainerView::CanDrop(const OSExchangeData& data) {
+  return apps_grid_view_->WillAcceptDropEvent(data);
+}
+
+void AppsContainerView::OnDragExited() {
+  apps_grid_view_->OnDragExited();
+}
+
+void AppsContainerView::OnDragEntered(const ui::DropTargetEvent& event) {
+  apps_grid_view_->OnDragEntered(
+      GetTranslatedDropTargetEvent(event, this, apps_grid_view_));
+}
+
+int AppsContainerView::OnDragUpdated(const ui::DropTargetEvent& event) {
+  return apps_grid_view_->OnDragUpdated(
+      GetTranslatedDropTargetEvent(event, this, apps_grid_view_));
+}
+
+views::View::DropCallback AppsContainerView::GetDropCallback(
+    const ui::DropTargetEvent& event) {
+  return apps_grid_view_->GetDropCallback(
+      GetTranslatedDropTargetEvent(event, this, apps_grid_view_));
+}
+
+BEGIN_METADATA(AppsContainerView)
+END_METADATA
 
 }  // namespace ash

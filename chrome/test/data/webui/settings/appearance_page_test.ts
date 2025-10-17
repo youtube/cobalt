@@ -2,31 +2,38 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// clang-format off
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {AppearanceBrowserProxy, AppearanceBrowserProxyImpl,HomeUrlInputElement, SettingsAppearancePageElement, SystemTheme} from 'chrome://settings/settings.js';
-import {assertEquals,assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-// clang-format on
+import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import type {AppearanceBrowserProxy, /*CrButtonElement,*/ CustomizeColorSchemeModeClientRemote, SettingsAppearancePageElement, SettingsDropdownMenuElement} from 'chrome://settings/settings.js';
+import {AppearanceBrowserProxyImpl, ColorSchemeMode, CustomizeColorSchemeModeBrowserProxy, CustomizeColorSchemeModeClientCallbackRouter, CustomizeColorSchemeModeHandlerRemote, SystemTheme} from 'chrome://settings/settings.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
+import {TestMock} from 'chrome://webui-test/test_mock.js';
+import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 class TestAppearanceBrowserProxy extends TestBrowserProxy implements
     AppearanceBrowserProxy {
   private defaultZoom_: number = 1;
   private isChildAccount_: boolean = false;
   private isHomeUrlValid_: boolean = true;
+  private pinnedToolbarActionsAreDefaultResponse_: boolean = true;
 
   constructor() {
     super([
       'getDefaultZoom',
       'getThemeInfo',
       'isChildAccount',
+      'openCustomizeChrome',
+      'openCustomizeChromeToolbarSection',
+      'recordHoverCardImagesEnabledChanged',
+      'resetPinnedToolbarActions',
       'useDefaultTheme',
       // <if expr="is_linux">
       'useGtkTheme',
       'useQtTheme',
       // </if>
       'validateStartupPage',
+      'pinnedToolbarActionsAreDefault',
     ]);
   }
 
@@ -56,6 +63,22 @@ class TestAppearanceBrowserProxy extends TestBrowserProxy implements
   isChildAccount() {
     this.methodCalled('isChildAccount');
     return this.isChildAccount_;
+  }
+
+  openCustomizeChrome() {
+    this.methodCalled('openCustomizeChrome');
+  }
+
+  openCustomizeChromeToolbarSection() {
+    this.methodCalled('openCustomizeChromeToolbarSection');
+  }
+
+  recordHoverCardImagesEnabledChanged(enabled: boolean) {
+    this.methodCalled('recordHoverCardImagesEnabledChanged', enabled);
+  }
+
+  resetPinnedToolbarActions() {
+    this.methodCalled('resetPinnedToolbarActions');
   }
 
   useDefaultTheme() {
@@ -88,14 +111,33 @@ class TestAppearanceBrowserProxy extends TestBrowserProxy implements
   setValidStartupPageResponse(isValid: boolean) {
     this.isHomeUrlValid_ = isValid;
   }
+
+  pinnedToolbarActionsAreDefault() {
+    this.methodCalled('pinnedToolbarActionsAreDefault');
+    return Promise.resolve(this.pinnedToolbarActionsAreDefaultResponse_);
+  }
+
+  setPinnedToolbarActionsAreDefaultResponse(areDefault: boolean) {
+    this.pinnedToolbarActionsAreDefaultResponse_ = areDefault;
+  }
 }
 
 let appearancePage: SettingsAppearancePageElement;
 let appearanceBrowserProxy: TestAppearanceBrowserProxy;
+let colorSchemeHandler: TestMock<CustomizeColorSchemeModeHandlerRemote>&
+    CustomizeColorSchemeModeHandlerRemote;
+let colorSchemeCallbackRouter: CustomizeColorSchemeModeClientRemote;
 
 function createAppearancePage() {
   appearanceBrowserProxy.reset();
   document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+  colorSchemeHandler =
+      TestMock.fromClass(CustomizeColorSchemeModeHandlerRemote);
+  CustomizeColorSchemeModeBrowserProxy.setInstance(
+      colorSchemeHandler, new CustomizeColorSchemeModeClientCallbackRouter());
+  colorSchemeCallbackRouter = CustomizeColorSchemeModeBrowserProxy.getInstance()
+                                  .callbackRouter.$.bindNewPipeAndPassRemote();
 
   appearancePage = document.createElement('settings-appearance-page');
   appearancePage.set('prefs', {
@@ -103,19 +145,38 @@ function createAppearancePage() {
       theme: {
         policy: {
           color: {
+            type: chrome.settingsPrivate.PrefType.NUMBER,
             value: 0,
           },
         },
       },
     },
+    browser: {
+      show_forward_button: {
+        type: chrome.settingsPrivate.PrefType.BOOLEAN,
+        value: true,
+      },
+      show_home_button: {
+        type: chrome.settingsPrivate.PrefType.BOOLEAN,
+        value: false,
+      },
+    },
     extensions: {
       theme: {
         id: {
+          type: chrome.settingsPrivate.PrefType.STRING,
           value: '',
         },
         system_theme: {
+          type: chrome.settingsPrivate.PrefType.NUMBER,
           value: SystemTheme.DEFAULT,
         },
+      },
+    },
+    tab_search: {
+      is_right_aligned: {
+        type: chrome.settingsPrivate.PrefType.BOOLEAN,
+        value: false,
       },
     },
   });
@@ -132,6 +193,7 @@ suite('AppearanceHandler', function() {
   setup(function() {
     appearanceBrowserProxy = new TestAppearanceBrowserProxy();
     AppearanceBrowserProxyImpl.setInstance(appearanceBrowserProxy);
+
     createAppearancePage();
   });
 
@@ -144,16 +206,22 @@ suite('AppearanceHandler', function() {
   // <if expr="is_linux">
   const SYSTEM_THEME_PREF = 'prefs.extensions.theme.system_theme.value';
 
-  test('useDefaultThemeLinux', function() {
+  test('useDefaultThemeLinux', async () => {
+    await colorSchemeHandler.whenCalled('initializeColorSchemeMode');
+
     assertFalse(!!appearancePage.get(THEME_ID_PREF));
     assertEquals(appearancePage.get(SYSTEM_THEME_PREF), SystemTheme.DEFAULT);
     // No custom nor system theme in use; "USE CLASSIC" should be hidden.
     assertFalse(!!appearancePage.shadowRoot!.querySelector('#useDefault'));
+    // The color scheme toggle should be visible when the classic theme is used.
+    assertTrue(isVisible(appearancePage.$.colorSchemeModeRow));
 
     appearancePage.set(SYSTEM_THEME_PREF, SystemTheme.GTK);
     flush();
     // If the system theme is in use, "USE CLASSIC" should show.
     assertTrue(!!appearancePage.shadowRoot!.querySelector('#useDefault'));
+    // The color scheme toggle should be hidden when the GTK theme is used.
+    assertFalse(isVisible(appearancePage.$.colorSchemeModeRow));
 
     appearancePage.set(SYSTEM_THEME_PREF, SystemTheme.DEFAULT);
     appearancePage.set(THEME_ID_PREF, 'fake theme id');
@@ -164,16 +232,20 @@ suite('AppearanceHandler', function() {
         appearancePage.shadowRoot!.querySelector<HTMLElement>('#useDefault');
     assertTrue(!!button);
 
-    button!.click();
+    button.click();
     return appearanceBrowserProxy.whenCalled('useDefaultTheme');
   });
 
-  test('useGtkThemeLinux', function() {
+  test('useGtkThemeLinux', async () => {
+    await colorSchemeHandler.whenCalled('initializeColorSchemeMode');
+
     assertFalse(!!appearancePage.get(THEME_ID_PREF));
     appearancePage.set(SYSTEM_THEME_PREF, SystemTheme.GTK);
     flush();
     // The "USE GTK+" button shouldn't be showing if it's already in use.
     assertFalse(!!appearancePage.shadowRoot!.querySelector('#useGtk'));
+    // The color scheme toggle should be hidden when the GTK theme is used.
+    assertFalse(isVisible(appearancePage.$.colorSchemeModeRow));
 
     appearanceBrowserProxy.setIsChildAccount(true);
     appearancePage.set(SYSTEM_THEME_PREF, SystemTheme.DEFAULT);
@@ -185,6 +257,9 @@ suite('AppearanceHandler', function() {
     assertTrue(
         appearancePage.shadowRoot!
             .querySelector<HTMLElement>('#themesSecondaryActions')!.hidden);
+    // The color scheme toggle should be visible when the classic theme is used,
+    // for child accounts.
+    assertTrue(isVisible(appearancePage.$.colorSchemeModeRow));
 
     appearanceBrowserProxy.setIsChildAccount(false);
     appearancePage.set(THEME_ID_PREF, 'fake theme id');
@@ -194,12 +269,14 @@ suite('AppearanceHandler', function() {
     assertFalse(
         appearancePage.shadowRoot!
             .querySelector<HTMLElement>('#themesSecondaryActions')!.hidden);
+    // The color scheme toggle should be visible when a custom theme is used.
+    assertTrue(isVisible(appearancePage.$.colorSchemeModeRow));
 
     const button =
         appearancePage.shadowRoot!.querySelector<HTMLElement>('#useGtk');
     assertTrue(!!button);
 
-    button!.click();
+    button.click();
     return appearanceBrowserProxy.whenCalled('useGtkTheme');
   });
   // </if>
@@ -217,7 +294,7 @@ suite('AppearanceHandler', function() {
         appearancePage.shadowRoot!.querySelector<HTMLElement>('#useDefault');
     assertTrue(!!button);
 
-    button!.click();
+    button.click();
     return appearanceBrowserProxy.whenCalled('useDefaultTheme');
   });
 
@@ -251,13 +328,82 @@ suite('AppearanceHandler', function() {
     assertEquals(
         null, appearancePage.shadowRoot!.querySelector('managed-dialog'));
 
-    button!.click();
+    button.click();
     flush();
 
     assertFalse(
         appearancePage.shadowRoot!.querySelector('managed-dialog')!.hidden);
   });
   // </if>
+
+  test('openCustomizeChrome', function() {
+    createAppearancePage();
+    const button =
+        appearancePage.shadowRoot!.querySelector<HTMLElement>('#openTheme');
+    assertTrue(!!button);
+
+    button.click();
+    return appearanceBrowserProxy.whenCalled('openCustomizeChrome');
+  });
+
+  test('openCustomizeChromeToolbarSection', function() {
+    createAppearancePage();
+    const button = appearancePage.shadowRoot!.querySelector<HTMLElement>(
+        '#customizeToolbar');
+    assertTrue(!!button);
+
+    button.click();
+    return appearanceBrowserProxy.whenCalled(
+        'openCustomizeChromeToolbarSection');
+  });
+
+  test('resetPinnedToolbarActions', async function() {
+    appearanceBrowserProxy.setPinnedToolbarActionsAreDefaultResponse(false);
+    createAppearancePage();
+    await microtasksFinished();
+
+    const button = appearancePage.shadowRoot!.querySelector<HTMLElement>(
+        '#resetPinnedToolbarActions');
+    assertTrue(!!button);
+
+    button.click();
+    return appearanceBrowserProxy.whenCalled('resetPinnedToolbarActions');
+  });
+
+  test('resetHiddenWhenNoPinnedActions', async function() {
+    appearanceBrowserProxy.setPinnedToolbarActionsAreDefaultResponse(true);
+    createAppearancePage();
+    await microtasksFinished();
+
+    const button = appearancePage.shadowRoot!.querySelector<HTMLElement>(
+        '#resetPinnedToolbarActions');
+    assertFalse(!!button);
+  });
+
+  test('ColorSchemeMode', async () => {
+    assertFalse(isVisible(appearancePage.$.colorSchemeModeRow));
+
+    colorSchemeHandler.reset();
+    createAppearancePage();
+    await colorSchemeHandler.whenCalled('initializeColorSchemeMode');
+
+    assertTrue(isVisible(appearancePage.$.colorSchemeModeRow));
+    assertEquals(
+        1, colorSchemeHandler.getCallCount('initializeColorSchemeMode'));
+
+    // Assert that changes to the color scheme mode updates the select menu.
+    colorSchemeCallbackRouter.setColorSchemeMode(ColorSchemeMode.kLight);
+    assertEquals(
+        `${ColorSchemeMode.kLight}`,
+        appearancePage.$.colorSchemeModeSelect.value);
+
+    // Assert that changing the select menu updates the color scheme.
+    appearancePage.$.colorSchemeModeSelect.value = `${ColorSchemeMode.kDark}`;
+    appearancePage.$.colorSchemeModeSelect.dispatchEvent(new Event('change'));
+    const handlerArg =
+        await colorSchemeHandler.whenCalled('setColorSchemeMode');
+    assertEquals(ColorSchemeMode.kDark, handlerArg);
+  });
 
   test('default zoom handling', async function() {
     function getDefaultZoomText() {
@@ -295,6 +441,7 @@ suite('AppearanceHandler', function() {
       autogenerated: {theme: {policy: {color: {value: 0}}}},
       browser: {show_home_button: {value: true}},
       extensions: {theme: {id: {value: ''}}},
+      toolbar: {pinned_actions: {value: []}},
     });
     flush();
 
@@ -303,57 +450,152 @@ suite('AppearanceHandler', function() {
   });
 
   test('show side panel options', function() {
-    loadTimeData.overrideValues({
-      showSidePanelOptions: true,
-    });
     createAppearancePage();
-    assertTrue(!!appearancePage.shadowRoot!.querySelector('#side-panel'));
-
-    loadTimeData.overrideValues({
-      showSidePanelOptions: false,
-    });
-    createAppearancePage();
-    assertFalse(!!appearancePage.shadowRoot!.querySelector('#side-panel'));
+    assertTrue(
+        !!appearancePage.shadowRoot!.querySelector('#sidePanelPosition'));
   });
 
+  test('show tab search options', async function() {
+    loadTimeData.overrideValues({
+      showTabSearchPositionSettings: true,
+    });
+    createAppearancePage();
+    await microtasksFinished();
+    assertTrue(
+        !!appearancePage.shadowRoot!.querySelector('#tabSearchPositionRow'));
+  });
+
+  test('hide tab search options', async function() {
+    loadTimeData.overrideValues({
+      showTabSearchPositionSettings: false,
+    });
+    createAppearancePage();
+    await microtasksFinished();
+    assertTrue(
+        !appearancePage.shadowRoot!.querySelector('#tabSearchPositionRow'));
+  });
 });
 
-suite('HomeUrlInput', function() {
-  let homeUrlInput: HomeUrlInputElement;
+suite('TabSearchPositionSettings', () => {
+  const TAB_SEARCH_IS_RIGHT_ALIGNED_PREF_PATH = 'tab_search.is_right_aligned';
+  const DEFAULT_TAB_SEARCH_IS_RIGHT_ALIGNED = false;
+  const UI_FEATURE_ALIGN_LEFT = 'foo';
+  const UI_FEATURE_ALIGN_RIGHT = 'bar';
+  const FALSEY_STRING = 'false';
+  const TRUTHY_STRING = 'true';
 
-  setup(function() {
-    appearanceBrowserProxy = new TestAppearanceBrowserProxy();
-    AppearanceBrowserProxyImpl.setInstance(appearanceBrowserProxy);
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+  async function buildPage(startupPref: boolean, currentPref: boolean) {
+    loadTimeData.overrideValues({
+      uiFeatureAlignLeft: UI_FEATURE_ALIGN_LEFT,
+      uiFeatureAlignRight: UI_FEATURE_ALIGN_RIGHT,
+      showTabSearchPositionSettings: true,
+      tabSearchIsRightAlignedAtStartup: startupPref,
+    });
 
-    homeUrlInput = document.createElement('home-url-input');
-    homeUrlInput.set(
-        'pref', {type: chrome.settingsPrivate.PrefType.URL, value: 'test'});
+    createAppearancePage();
 
-    document.body.appendChild(homeUrlInput);
+    appearancePage.setPrefValue(
+        TAB_SEARCH_IS_RIGHT_ALIGNED_PREF_PATH, currentPref);
     flush();
+    await microtasksFinished();
+  }
+
+  function getTabSearchDropdown(): SettingsDropdownMenuElement|null {
+    return appearancePage.shadowRoot!
+        .querySelector<SettingsDropdownMenuElement>(
+            '#tabSearchPositionDropdown');
+  }
+
+  function getTabSearchRestartButton(): HTMLElement|null {
+    return appearancePage.shadowRoot!.querySelector(
+        '#tabSearchPositionRestart');
+  }
+
+  async function userClicksDropdownForOption(userChoice: boolean) {
+    const dropdown: SettingsDropdownMenuElement|null = getTabSearchDropdown();
+    if (dropdown === null) {
+      return;
+    }
+
+    dropdown.$.dropdownMenu.value = userChoice ? TRUTHY_STRING : FALSEY_STRING;
+    dropdown.dispatchEvent(new CustomEvent('change'));
+
+    // simulate the pref changing in the backend, This doesnt get triggered
+    // because the prefs are hardcoded.
+    appearancePage.setPrefValue(
+        TAB_SEARCH_IS_RIGHT_ALIGNED_PREF_PATH, userChoice);
+    flush();
+    await microtasksFinished();
+  }
+
+  setup(async () => {
+    await buildPage(
+        DEFAULT_TAB_SEARCH_IS_RIGHT_ALIGNED,
+        DEFAULT_TAB_SEARCH_IS_RIGHT_ALIGNED);
   });
 
-  test('home button urls', async function() {
-    assertFalse(homeUrlInput.invalid);
-    assertEquals(homeUrlInput.value, 'test');
+  test('shows when showTabSearchPositionSettings is true', () => {
+    assertTrue(!!getTabSearchDropdown());
+  });
 
-    homeUrlInput.value = '@@@';
-    appearanceBrowserProxy.setValidStartupPageResponse(false);
-    homeUrlInput.$.input.dispatchEvent(
-        new CustomEvent('input', {bubbles: true, composed: true}));
+  test('dropdown has expected options', () => {
+    const dropdown: SettingsDropdownMenuElement|null = getTabSearchDropdown();
 
-    const url = await appearanceBrowserProxy.whenCalled('validateStartupPage');
+    assertTrue(!!dropdown);
+    assertEquals(2, dropdown?.menuOptions.length);
+    assertTrue(!!dropdown?.menuOptions.some(
+        option => option.name === UI_FEATURE_ALIGN_LEFT &&
+            option.value === FALSEY_STRING));
+    assertTrue(!!dropdown?.menuOptions.some(
+        option => option.name === UI_FEATURE_ALIGN_RIGHT &&
+            option.value === TRUTHY_STRING));
+  });
 
-    assertEquals(homeUrlInput.value, url);
-    flush();
-    assertEquals(homeUrlInput.value, '@@@');  // Value hasn't changed.
-    assertTrue(homeUrlInput.invalid);
+  test('dropdown sets the value', async () => {
+    const dropdown: SettingsDropdownMenuElement|null = getTabSearchDropdown();
 
-    // Should reset to default value on change event.
-    homeUrlInput.$.input.dispatchEvent(
-        new CustomEvent('change', {bubbles: true, composed: true}));
-    flush();
-    assertEquals(homeUrlInput.value, 'test');
+    // Should be set to initial option of "False" based on pref.
+    assertEquals(FALSEY_STRING, dropdown?.getSelectedValue());
+
+    // on user click of true, the dropdown should now show truthy
+    await userClicksDropdownForOption(/*userChoice=*/ true);
+    assertEquals(TRUTHY_STRING, dropdown?.getSelectedValue());
+
+    // on user click of false, the dropdown should now show falsey
+    await userClicksDropdownForOption(/*userChoice=*/ false);
+    assertEquals(FALSEY_STRING, dropdown?.getSelectedValue());
+  });
+
+  test('restart button A11y', async () => {
+    await buildPage(/*startupPref=*/ false, /*currentPref=*/ true);
+    const button = getTabSearchRestartButton();
+    assertTrue(!!button);
+
+    // The restart button needs to have the "alert" aria attribute.
+    assertEquals('alert', button.role);
+  });
+
+  test('restart button steady state', async () => {
+    await buildPage(/*startupPref=*/ false, /*currentPref=*/ false);
+    assertFalse(!!getTabSearchRestartButton());
+
+    await buildPage(/*startupPref=*/ false, /*currentPref=*/ true);
+    assertTrue(!!getTabSearchRestartButton());
+
+    await buildPage(/*startupPref=*/ true, /*currentPref=*/ false);
+    assertTrue(!!getTabSearchRestartButton());
+
+    await buildPage(/*startupPref=*/ true, /*currentPref=*/ true);
+    assertFalse(!!getTabSearchRestartButton());
+  });
+
+  test('restart button shows on change', async () => {
+    assertFalse(!!getTabSearchRestartButton());
+
+    await userClicksDropdownForOption(/*userChoice=*/ true);
+    assertTrue(!!getTabSearchRestartButton());
+
+    await userClicksDropdownForOption(/*userChoice=*/ false);
+    assertFalse(!!getTabSearchRestartButton());
   });
 });

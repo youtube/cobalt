@@ -4,6 +4,8 @@
 
 package org.chromium.components.browser_ui.settings;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.util.AttributeSet;
@@ -13,22 +15,21 @@ import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import androidx.annotation.VisibleForTesting;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
 
-/**
- * A preference that takes value from a specified list of objects, presented as a dropdown.
- */
-public class SpinnerPreference extends Preference {
-    private Spinner mSpinner;
-    private ArrayAdapter<Object> mAdapter;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** A preference that takes value from a specified list of objects, presented as a dropdown. */
+@NullMarked
+public class SpinnerPreference extends Preference implements Preference.OnPreferenceClickListener {
+    private @Nullable Spinner mSpinner;
+    private @Nullable ArrayAdapter<Object> mAdapter;
     private int mSelectedIndex;
     private final boolean mSingleLine;
 
-    /**
-     * Constructor for inflating from XML.
-     */
+    /** Constructor for inflating from XML. */
     public SpinnerPreference(Context context, AttributeSet attrs) {
         super(context, attrs);
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.SpinnerPreference);
@@ -39,6 +40,7 @@ public class SpinnerPreference extends Preference {
         } else {
             setLayoutResource(R.layout.preference_spinner);
         }
+        setOnPreferenceClickListener(this);
     }
 
     /**
@@ -60,11 +62,8 @@ public class SpinnerPreference extends Preference {
         mSelectedIndex = selectedIndex;
     }
 
-    /**
-     * Returns the Spinner instance for introspection during tests.
-     */
-    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
-    public Spinner getSpinnerForTesting() {
+    /** Returns the Spinner instance for introspection during tests. */
+    public @Nullable Spinner getSpinnerForTesting() {
         return mSpinner;
     }
 
@@ -82,13 +81,11 @@ public class SpinnerPreference extends Preference {
         mSelectedIndex = selectedIndex;
     }
 
-    /**
-     * @return The currently selected option.
-     */
-    public Object getSelectedOption() {
+    /** @return The currently selected option. */
+    public @Nullable Object getSelectedOption() {
         if (mSpinner == null) {
             // Use the adapter directly if the view hasn't been created yet.
-            return mAdapter.getItem(mSelectedIndex);
+            return assumeNonNull(mAdapter).getItem(mSelectedIndex);
         }
         return mSpinner.getSelectedItem();
     }
@@ -99,21 +96,32 @@ public class SpinnerPreference extends Preference {
 
         ((TextView) holder.findViewById(R.id.title)).setText(getTitle());
         mSpinner = (Spinner) holder.findViewById(R.id.spinner);
-        mSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                mSelectedIndex = position;
-                if (getOnPreferenceChangeListener() != null) {
-                    getOnPreferenceChangeListener().onPreferenceChange(
-                            SpinnerPreference.this, getSelectedOption());
-                }
-            }
+        assert mSpinner != null;
+        // Set the inner spinner to non-focusable/clickable, this allows the screen reader to
+        // include the content description of all the Preference's inner elements in a single
+        // announcement. The click action of the inner spinner will instead be handled by
+        // onPreferenceClick().
+        mSpinner.setFocusable(false);
+        mSpinner.setClickable(false);
+        mSpinner.setLongClickable(false);
+        mSpinner.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(
+                            AdapterView<?> parent, View view, int position, long id) {
+                        mSelectedIndex = position;
+                        if (getOnPreferenceChangeListener() != null) {
+                            getOnPreferenceChangeListener()
+                                    .onPreferenceChange(
+                                            SpinnerPreference.this, getSelectedOption());
+                        }
+                    }
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                // No callback. Only update listeners when an actual option is selected.
-            }
-        });
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) {
+                        // No callback. Only update listeners when an actual option is selected.
+                    }
+                });
 
         // Screen readers notice the setAdapter() call and announce it. We do not want the spinner
         // to be announced every time the view is bound (e.g. when the user scrolls away from it
@@ -122,5 +130,13 @@ public class SpinnerPreference extends Preference {
             mSpinner.setAdapter(mAdapter);
         }
         mSpinner.setSelection(mSelectedIndex);
+    }
+
+    @Override
+    public boolean onPreferenceClick(Preference preference) {
+        if (mSpinner != null) {
+            mSpinner.performClick();
+        }
+        return true;
     }
 }

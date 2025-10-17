@@ -50,17 +50,19 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
  public:
   // String for the generic "default" ALSA device that has the highest
   // compatibility and chance of working.
-  static const char kDefaultDevice[];
+  static constexpr char kDefaultDevice[] = "default";
 
   // Pass this to the AlsaPcmOutputStream if you want to attempt auto-selection
   // of the audio device.
-  static const char kAutoSelectDevice[];
+  static constexpr char kAutoSelectDevice[] = "";
 
   // Prefix for device names to enable ALSA library resampling.
-  static const char kPlugPrefix[];
+  static constexpr char kPlugPrefix[] = "plug:";
 
   // The minimum latency that is accepted by the device.
-  static const uint32_t kMinLatencyMicros;
+  // We use 40ms as our minimum required latency. If it is needed, we may be
+  // able to get it down to 20ms.
+  static constexpr uint32_t kMinLatencyMicros = 40 * 1000;
 
   // Create a PCM Output stream for the ALSA device identified by
   // |device_name|.  The AlsaPcmOutputStream uses |wrapper| to communicate with
@@ -154,7 +156,7 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
   //
   // TODO(ajwong): This is necessary because the ownership semantics for the
   // |source_callback_| object are incorrect in AudioRenderHost. The callback
-  // is passed into the output stream, but ownership is not transfered which
+  // is passed into the output stream, but ownership is not transferred which
   // requires a synchronization on access of the |source_callback_| to avoid
   // using a deleted callback.
   int RunDataCallback(base::TimeDelta delay,

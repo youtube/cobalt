@@ -5,17 +5,16 @@
 #include "ui/base/clipboard/url_file_parser.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/span.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 
 namespace ui::clipboard_util::internal {
 
-std::string ExtractURLFromURLFileContents(
-    const base::StringPiece& file_contents) {
+std::string ExtractURLFromURLFileContents(std::string_view file_contents) {
   // NB: This code is written with the single goal of obvious correctness. It is
   // deliberately not optimized by any other measure.
 
@@ -32,14 +31,14 @@ std::string ExtractURLFromURLFileContents(
   const std::string kURL("URL=");
 
   // Start by splitting the file content into lines.
-  std::vector<base::StringPiece> lines_vector = base::SplitStringPiece(
+  std::vector<std::string_view> lines_vector = base::SplitStringPiece(
       file_contents, "\r\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  base::span<base::StringPiece> lines(lines_vector);
+  base::span<std::string_view> lines(lines_vector);
 
   // Search for the [InternetShortcut] section by discarding lines one by one
   // until either the section is found or there are no lines left.
   while (!lines.empty() && lines.front() != kInternetShortcut) {
-    lines = lines.subspan(1);
+    lines = lines.subspan<1>();
   }
 
   // At this point, either the section was found or there are no lines left. If
@@ -49,7 +48,7 @@ std::string ExtractURLFromURLFileContents(
   }
 
   // This is now the [InternetShortcut] section. Discard that section header.
-  lines = lines.subspan(1);
+  lines = lines.subspan<1>();
 
   // At this point, examine the lines.
   while (!lines.empty()) {
@@ -64,13 +63,13 @@ std::string ExtractURLFromURLFileContents(
     // Otherwise, it should be a key-value pair delimited by "=". However,
     // splitting on "=" doesn't work because URLs can contain that character, so
     // just look for the prefix.
-    if (base::StartsWith(line, kURL)) {
+    if (line.starts_with(kURL)) {
       // Success! Strip off the prefix and return what was found.
       return std::string(line.substr(kURL.length()));
     }
 
     // Otherwise, this isn't a useful line; discard it and move on.
-    lines = lines.subspan(1);
+    lines = lines.subspan<1>();
   }
 
   // If control has reached here, the file was searched and it contains no URL.

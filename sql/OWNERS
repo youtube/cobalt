@@ -1,8 +1,7 @@
 set noparent
 
-# Primary:
-asully@chromium.org
-
-# Secondary:
-ayui@chromium.org
-estade@chromium.org
+asully@chromium.org   #{LAST_RESORT_SUGGESTION}
+evanstade@microsoft.com
+etienneb@chromium.org
+grt@chromium.org
+olivierli@chromium.org

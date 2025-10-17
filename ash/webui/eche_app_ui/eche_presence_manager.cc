@@ -4,6 +4,7 @@
 
 #include "ash/webui/eche_app_ui/eche_presence_manager.h"
 
+#include "ash/constants/ash_features.h"
 #include "ash/webui/eche_app_ui/eche_connector.h"
 #include "ash/webui/eche_app_ui/proto/exo_messages.pb.h"
 #include "chromeos/ash/components/multidevice/logging/logging.h"
@@ -11,8 +12,7 @@
 #include "chromeos/ash/services/device_sync/public/cpp/device_sync_client.h"
 #include "chromeos/ash/services/secure_channel/public/cpp/client/presence_monitor_client.h"
 
-namespace ash {
-namespace eche_app {
+namespace ash::eche_app {
 
 namespace {
 
@@ -72,23 +72,19 @@ void EchePresenceManager::UpdateMonitoringStatus() {
       eche_feature_status_provider_->GetStatus();
   switch (feature_status) {
     case FeatureStatus::kIneligible:
-      ABSL_FALLTHROUGH_INTENDED;
     case FeatureStatus::kDisabled:
-      ABSL_FALLTHROUGH_INTENDED;
     case FeatureStatus::kDependentFeature:
-      ABSL_FALLTHROUGH_INTENDED;
     case FeatureStatus::kDependentFeaturePending:
-      ABSL_FALLTHROUGH_INTENDED;
     case FeatureStatus::kDisconnected:
       stream_running_ = false;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case FeatureStatus::kConnecting:
       StopMonitoring();
       break;
 
     case FeatureStatus::kConnected:
       if (stream_running_) {
-        StartMonitoring();
+        InitializeMonitoring();
       } else {
         StopMonitoring();
       }
@@ -96,34 +92,57 @@ void EchePresenceManager::UpdateMonitoringStatus() {
   }
 }
 
-void EchePresenceManager::StartMonitoring() {
+void EchePresenceManager::InitializeMonitoring() {
   if (is_monitoring_) {
-    return;
-  }
-
-  const absl::optional<multidevice::RemoteDeviceRef> remote_device_ref =
-      multidevice_setup_client_->GetHostStatus().second;
-  const absl::optional<multidevice::RemoteDeviceRef> local_device_ref =
-      device_sync_client_->GetLocalDeviceMetadata();
-  if (!remote_device_ref || !local_device_ref) {
     return;
   }
 
   // Assume a successful proximity check at the beginning. It gives us a cushon
   // in case the first one or two pings get lost.
   device_last_seen_time_ = base::TimeTicks::Now();
-  is_monitoring_ = true;
 
-  if (timer_.IsRunning()) {
-    timer_.Reset();
-  } else {
-    timer_.Start(FROM_HERE, kTimerInterval,
-                 base::BindRepeating(&EchePresenceManager::OnTimerExpired,
-                                     weak_ptr_factory_.GetWeakPtr()));
+  StartMonitoring();
+}
+
+void EchePresenceManager::StartMonitoring() {
+  if (is_monitoring_) {
+    return;
+  }
+
+  const std::optional<multidevice::RemoteDeviceRef> remote_device_ref =
+      multidevice_setup_client_->GetHostStatus().second;
+  const std::optional<multidevice::RemoteDeviceRef> local_device_ref =
+      device_sync_client_->GetLocalDeviceMetadata();
+  if (!remote_device_ref || !local_device_ref) {
+    return;
   }
 
   presence_monitor_client_->StartMonitoring(remote_device_ref.value(),
                                             local_device_ref.value());
+
+  is_monitoring_ = true;
+
+  if (features::IsEcheShorterScanningDutyCycleEnabled()) {
+    if (shorter_duty_cycle_timer_.IsRunning()) {
+      // We cannot simply reset the timer here because the timer could be used
+      // to restart the monitoring.
+      shorter_duty_cycle_timer_.Stop();
+    }
+
+    shorter_duty_cycle_timer_.Start(
+        FROM_HERE, features::kEcheScanningCycleOnTime.Get(),
+        base::BindRepeating(&EchePresenceManager::OnTimerExpired,
+                            weak_ptr_factory_.GetWeakPtr()));
+
+  } else {
+    if (timer_.IsRunning()) {
+      timer_.Reset();
+    } else {
+      timer_.Start(FROM_HERE, kTimerInterval,
+                   base::BindRepeating(&EchePresenceManager::OnTimerExpired,
+                                       weak_ptr_factory_.GetWeakPtr()));
+    }
+  }
 }
 
 void EchePresenceManager::StopMonitoring() {
@@ -131,7 +150,12 @@ void EchePresenceManager::StopMonitoring() {
     return;
   }
 
-  timer_.Stop();
+  if (features::IsEcheShorterScanningDutyCycleEnabled()) {
+    shorter_duty_cycle_timer_.Stop();
+  } else {
+    timer_.Stop();
+  }
+
   presence_monitor_client_->StopMonitoring();
   is_monitoring_ = false;
 }
@@ -147,6 +171,16 @@ void EchePresenceManager::OnTimerExpired() {
     proto::ExoMessage message;
     *message.mutable_proximity_ping() = std::move(ping);
     eche_connector_->SendMessage(message);
+
+    if (features::IsEcheShorterScanningDutyCycleEnabled()) {
+      PA_LOG(INFO)
+          << "Stopping persistent monitoring, restarting after timeout";
+      StopMonitoring();
+      shorter_duty_cycle_timer_.Start(
+          FROM_HERE, features::kEcheScanningCycleOffTime.Get(),
+          base::BindOnce(&EchePresenceManager::StartMonitoring,
+                         weak_ptr_factory_.GetWeakPtr()));
+    }
   }
 }
 
@@ -154,8 +188,8 @@ void EchePresenceManager::OnDeviceSeen() {
   // It is the responsibility of the scanner to ensure outdated advertisements
   // are not forwarded through, so we will treat all received advertisements as
   // valid.
+  PA_LOG(INFO) << "Device advertisement found. Updating device last seen time";
   device_last_seen_time_ = base::TimeTicks::Now();
 }
 
-}  // namespace eche_app
-}  // namespace ash
+}  // namespace ash::eche_app

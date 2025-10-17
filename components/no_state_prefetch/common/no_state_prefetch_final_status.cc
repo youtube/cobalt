@@ -4,13 +4,15 @@
 
 #include "components/no_state_prefetch/common/no_state_prefetch_final_status.h"
 
+#include <array>
+
 #include "base/check_op.h"
 
 namespace prerender {
 
 namespace {
 
-const char* kFinalStatusNames[] = {
+auto kFinalStatusNames = std::to_array<const char*>({
     "Used",
     "Timed Out",
     "Evicted",
@@ -77,7 +79,7 @@ const char* kFinalStatusNames[] = {
     "Link Rel Next Not Allowed",
     "NoStatePrefetch Holdback",
     "Max",
-};
+});
 static_assert(std::size(kFinalStatusNames) == FINAL_STATUS_MAX + 1,
               "status name count mismatch");
 

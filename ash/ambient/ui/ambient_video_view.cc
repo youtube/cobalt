@@ -4,17 +4,22 @@
 
 #include "ash/ambient/ui/ambient_video_view.h"
 
+#include <string_view>
+
+#include "ash/ambient/ambient_ui_settings.h"
+#include "ash/ambient/metrics/ambient_metrics.h"
 #include "ash/ambient/ui/ambient_slideshow_peripheral_ui.h"
 #include "ash/ambient/ui/ambient_view_ids.h"
 #include "ash/public/cpp/ambient/ambient_ui_model.h"
 #include "ash/public/cpp/ash_web_view.h"
 #include "ash/public/cpp/ash_web_view_factory.h"
+#include "ash/webui/personalization_app/mojom/personalization_app.mojom-shared.h"
 #include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
+
 #include "base/time/time.h"
 #include "net/base/url_util.h"
 #include "ui/views/layout/fill_layout.h"
@@ -25,7 +30,7 @@ namespace ash {
 
 namespace {
 
-constexpr base::StringPiece kAmbientVideoSrcQueryParam = "video_src";
+constexpr std::string_view kAmbientVideoFileQueryParam = "video_file";
 
 // Apply the same jitter interval to the peripheral elements as the slideshow
 // theme does (which applies jitter each time the photo switches).
@@ -38,30 +43,45 @@ GURL BuildFileUrl(const base::FilePath& file_path) {
 
 }  // namespace
 
-AmbientVideoView::AmbientVideoView(const base::FilePath& video_path,
+AmbientVideoView::AmbientVideoView(std::string_view video_file,
                                    const base::FilePath& html_path,
+                                   AmbientVideo video,
                                    AmbientViewDelegate* view_delegate)
-    : peripheral_ui_(
+    : video_(video),
+      peripheral_ui_(
           std::make_unique<AmbientSlideshowPeripheralUi>(view_delegate)) {
-  DCHECK(!video_path.empty());
+  DCHECK(!video_file.empty());
   DCHECK(!html_path.empty());
   DCHECK(AshWebViewFactory::Get());
   SetUseDefaultFillLayout(true);
-  AshWebView* ash_web_view =
-      AddChildView(AshWebViewFactory::Get()->Create(AshWebView::InitParams()));
-  ash_web_view->SetID(kAmbientVideoWebView);
-  ash_web_view->SetUseDefaultFillLayout(true);
+  AshWebView::InitParams web_view_params;
+  // Disables wake locks so the video doesn't stop the device from going to
+  // sleep.
+  web_view_params.enable_wake_locks = false;
+  ash_web_view_ =
+      AddChildView(AshWebViewFactory::Get()->Create(web_view_params));
+  ash_web_view_->SetID(kAmbientVideoWebView);
+  ash_web_view_->SetUseDefaultFillLayout(true);
   GURL ambient_video_url = net::AppendQueryParameter(
-      BuildFileUrl(html_path), kAmbientVideoSrcQueryParam,
-      BuildFileUrl(video_path).spec());
-  ash_web_view->Navigate(ambient_video_url);
+      BuildFileUrl(html_path), kAmbientVideoFileQueryParam, video_file);
+  ash_web_view_->Navigate(ambient_video_url);
 
-  AddChildView(peripheral_ui_.get());
+  AddChildViewRaw(peripheral_ui_.get());
+  peripheral_ui_->UpdateLeftPaddingToMatchBottom();
+  // Update details label to empty string as details info is not shown for
+  // ambient video.
+  peripheral_ui_->UpdateImageDetails(u"", u"");
   peripheral_ui_jitter_timer_.Start(
       FROM_HERE, kPeripheralUiJitterPeriod, peripheral_ui_.get(),
       &AmbientSlideshowPeripheralUi::UpdateGlanceableInfoPosition);
 }
 
-AmbientVideoView::~AmbientVideoView() = default;
+AmbientVideoView::~AmbientVideoView() {
+  AmbientUiSettings ui_settings(
+      personalization_app::mojom::AmbientTheme::kVideo, video_);
+  ambient::RecordAmbientModeVideoSessionStatus(ash_web_view_.get(),
+                                               ui_settings);
+  ambient::RecordAmbientModeVideoSmoothness(ash_web_view_.get(), ui_settings);
+}
 
 }  // namespace ash

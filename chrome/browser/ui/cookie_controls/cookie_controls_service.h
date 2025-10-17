@@ -10,12 +10,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_multi_source_observation.h"
-#include "chrome/browser/profiles/profile.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
-#include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/cookie_controls_enforcement.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "url/gurl.h"
 
 class Profile;
 
@@ -37,6 +34,9 @@ class CookieControlsService : public KeyedService,
     virtual void OnThirdPartyCookieBlockingPolicyChanged() {}
   };
 
+  // Use |CookieControlsServiceFactory::GetForProfile(..)| to get
+  // an instance of this service.
+  explicit CookieControlsService(Profile* profile);
   CookieControlsService(const CookieControlsService&) = delete;
   CookieControlsService& operator=(const CookieControlsService&) = delete;
 
@@ -56,10 +56,6 @@ class CookieControlsService : public KeyedService,
 
  private:
   friend class CookieControlsServiceFactory;
-
-  // Use |CookieControlsServiceFactory::GetForProfile(..)| to get
-  // an instance of this service.
-  explicit CookieControlsService(Profile* profile);
 
   void OnThirdPartyCookieBlockingChanged(
       bool block_third_party_cookies) override;

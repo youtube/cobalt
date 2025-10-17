@@ -6,17 +6,21 @@
 #define COMPONENTS_PASSWORD_MANAGER_CORE_BROWSER_PASSWORD_MANAGER_TEST_UTILS_H_
 
 #include <iosfwd>
+#include <variant>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "components/password_manager/core/browser/fake_password_store_backend.h"
+#include "base/memory/weak_ptr.h"
+#include "base/run_loop.h"
+#include "base/scoped_observation.h"
 #include "components/password_manager/core/browser/origin_credential_store.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_hash_data.h"
 #include "components/password_manager/core/browser/password_reuse_detector.h"
 #include "components/password_manager/core/browser/password_reuse_detector_consumer.h"
 #include "components/password_manager/core/browser/password_reuse_manager.h"
-#include "components/password_manager/core/browser/password_store.h"
+#include "components/password_manager/core/browser/password_store/fake_password_store_backend.h"
+#include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "url/gurl.h"
 
@@ -91,15 +95,21 @@ std::unique_ptr<PasswordForm> PasswordFormFromData(
 // function will set the form's |federation_origin|.
 std::unique_ptr<PasswordForm> FillPasswordFormWithData(
     const PasswordFormData& form_data,
+    bool is_account_store,
     bool use_federated_login = false);
+
+PasswordForm CreateEntry(const std::string& username,
+                         const std::string& password,
+                         const GURL& origin_url,
+                         PasswordForm::MatchType match_type);
 
 // Creates a new vector entry. Callers are expected to call .get() to get a raw
 // pointer to the underlying PasswordForm.
-std::unique_ptr<PasswordForm> CreateEntry(const std::string& username,
-                                          const std::string& password,
-                                          const GURL& origin_url,
-                                          bool is_psl_match,
-                                          bool is_affiliation_based_match);
+std::unique_ptr<PasswordForm> CreateUniquePtrEntry(
+    const std::string& username,
+    const std::string& password,
+    const GURL& origin_url,
+    PasswordForm::MatchType match_type);
 
 // Checks whether the PasswordForms pointed to in |actual_values| are in some
 // permutation pairwise equal to those in |expectations|. Returns true in case
@@ -118,13 +128,40 @@ MATCHER_P(UnorderedPasswordFormElementsAre, expectations, "") {
 }
 
 MATCHER_P(LoginsResultsOrErrorAre, expectations, "") {
-  if (absl::holds_alternative<PasswordStoreBackendError>(arg))
+  if (std::holds_alternative<PasswordStoreBackendError>(arg)) {
     return false;
+  }
 
   return ContainsEqualPasswordFormsUnordered(
-      *expectations, std::move(absl::get<LoginsResult>(arg)),
+      *expectations, std::move(std::get<LoginsResult>(arg)),
       result_listener->stream());
 }
+
+// Matches a password form that has the primary_key field set, and that other
+// fields (except `primary_key` and `keychain_identifier`) are the same as in
+// |expected_form|.
+MATCHER_P(HasPrimaryKeyAndEquals, expected_form, "") {
+  PasswordForm expected_with_key = expected_form;
+  expected_with_key.primary_key = arg.primary_key;
+  expected_with_key.keychain_identifier = arg.keychain_identifier;
+  return ExplainMatchResult(testing::Optional(testing::_), arg.primary_key,
+                            result_listener) &&
+         ExplainMatchResult(testing::Eq(expected_with_key), arg,
+                            result_listener);
+}
+
+MATCHER_P(EqualsIgnorePrimaryKey, expected_form, "") {
+  PasswordForm expected_with_key = expected_form;
+  expected_with_key.primary_key = arg.primary_key;
+  expected_with_key.keychain_identifier = arg.keychain_identifier;
+  return ExplainMatchResult(testing::Eq(expected_with_key), arg,
+                            result_listener);
+}
+
+// Matcher for `forms` that ignores PasswordForm::primary_key and
+// PasswordForm::keychain_identifier.
+std::vector<::testing::Matcher<PasswordForm>> FormsIgnoringPrimaryKey(
+    const std::vector<PasswordForm>& forms);
 
 class MockPasswordStoreObserver : public PasswordStoreInterface::Observer {
  public:
@@ -143,7 +180,36 @@ class MockPasswordStoreObserver : public PasswordStoreInterface::Observer {
               (override));
 };
 
-class MockPasswordReuseDetectorConsumer : public PasswordReuseDetectorConsumer {
+// Can be used to wait for changes (add or change password) in the password
+// store passed to the constructor. Do not rely on it for passwords being
+// removed (see `PasswordStoreInterface::Observer`).
+class PasswordStoreWaiter : public PasswordStoreInterface::Observer {
+ public:
+  explicit PasswordStoreWaiter(PasswordStoreInterface* store);
+  ~PasswordStoreWaiter() override;
+
+  // Synchronously waits until password data was added or changed. If the change
+  // has already happened, simply return.
+  void WaitOrReturn();
+
+ private:
+  // PasswordStoreInterface::Observer:
+  void OnLoginsChanged(PasswordStoreInterface* store,
+                       const PasswordStoreChangeList& changes) override;
+
+  // PasswordStoreInterface::Observer:
+  void OnLoginsRetained(
+      PasswordStoreInterface* store,
+      const std::vector<PasswordForm>& retained_passwords) override {}
+
+  base::ScopedObservation<PasswordStoreInterface,
+                          PasswordStoreInterface::Observer>
+      password_store_observer_{this};
+  base::RunLoop run_loop_;
+};
+
+class MockPasswordReuseDetectorConsumer final
+    : public PasswordReuseDetectorConsumer {
  public:
   MockPasswordReuseDetectorConsumer();
   ~MockPasswordReuseDetectorConsumer() override;
@@ -152,19 +218,25 @@ class MockPasswordReuseDetectorConsumer : public PasswordReuseDetectorConsumer {
               OnReuseCheckDone,
               (bool,
                size_t,
-               absl::optional<PasswordHashData>,
+               std::optional<PasswordHashData>,
                const std::vector<MatchingReusedCredential>&,
                int,
                const std::string&,
                uint64_t),
               (override));
+
+  base::WeakPtr<PasswordReuseDetectorConsumer> AsWeakPtr() override;
+
+ private:
+  base::WeakPtrFactory<MockPasswordReuseDetectorConsumer> weak_ptr_factory_{
+      this};
 };
 
 // Matcher class used to compare PasswordHashData in tests.
 class PasswordHashDataMatcher
-    : public ::testing::MatcherInterface<absl::optional<PasswordHashData>> {
+    : public ::testing::MatcherInterface<std::optional<PasswordHashData>> {
  public:
-  explicit PasswordHashDataMatcher(absl::optional<PasswordHashData> expected);
+  explicit PasswordHashDataMatcher(std::optional<PasswordHashData> expected);
 
   PasswordHashDataMatcher(const PasswordHashDataMatcher&) = delete;
   PasswordHashDataMatcher& operator=(const PasswordHashDataMatcher&) = delete;
@@ -172,17 +244,17 @@ class PasswordHashDataMatcher
   ~PasswordHashDataMatcher() override;
 
   // ::testing::MatcherInterface overrides
-  bool MatchAndExplain(absl::optional<PasswordHashData> hash_data,
+  bool MatchAndExplain(std::optional<PasswordHashData> hash_data,
                        ::testing::MatchResultListener* listener) const override;
   void DescribeTo(::std::ostream* os) const override;
   void DescribeNegationTo(::std::ostream* os) const override;
 
  private:
-  const absl::optional<PasswordHashData> expected_;
+  const std::optional<PasswordHashData> expected_;
 };
 
-::testing::Matcher<absl::optional<PasswordHashData>> Matches(
-    absl::optional<PasswordHashData> expected);
+::testing::Matcher<std::optional<PasswordHashData>> Matches(
+    std::optional<PasswordHashData> expected);
 
 }  // namespace password_manager
 

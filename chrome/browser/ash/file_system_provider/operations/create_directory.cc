@@ -9,9 +9,7 @@
 #include "chrome/common/extensions/api/file_system_provider.h"
 #include "chrome/common/extensions/api/file_system_provider_internal.h"
 
-namespace ash {
-namespace file_system_provider {
-namespace operations {
+namespace ash::file_system_provider::operations {
 
 CreateDirectory::CreateDirectory(
     RequestDispatcher* dispatcher,
@@ -24,8 +22,7 @@ CreateDirectory::CreateDirectory(
       recursive_(recursive),
       callback_(std::move(callback)) {}
 
-CreateDirectory::~CreateDirectory() {
-}
+CreateDirectory::~CreateDirectory() = default;
 
 bool CreateDirectory::Execute(int request_id) {
   using extensions::api::file_system_provider::CreateDirectoryRequestedOptions;
@@ -48,20 +45,18 @@ bool CreateDirectory::Execute(int request_id) {
           options));
 }
 
-void CreateDirectory::OnSuccess(int /* request_id */,
-                                const RequestValue& /* result */,
+void CreateDirectory::OnSuccess(/*request_id=*/int,
+                                /*result=*/const RequestValue&,
                                 bool has_more) {
   DCHECK(callback_);
   std::move(callback_).Run(base::File::FILE_OK);
 }
 
-void CreateDirectory::OnError(int /* request_id */,
-                              const RequestValue& /* result */,
+void CreateDirectory::OnError(/*request_id=*/int,
+                              /*result=*/const RequestValue&,
                               base::File::Error error) {
   DCHECK(callback_);
   std::move(callback_).Run(error);
 }
 
-}  // namespace operations
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider::operations

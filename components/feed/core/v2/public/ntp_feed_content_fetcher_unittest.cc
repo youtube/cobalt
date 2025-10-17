@@ -90,7 +90,7 @@ class NtpFeedContentFetcherTest : public testing::Test {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   std::unique_ptr<NtpFeedContentFetcher> ntp_feed_content_fetcher_;
   signin::IdentityTestEnvironment identity_test_env_;
-  raw_ptr<TestFeedNetwork> feed_network_;
+  raw_ptr<TestFeedNetwork, DanglingUntriaged> feed_network_;
   network::TestURLLoaderFactory test_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
   TestingPrefServiceSimple profile_prefs_;
@@ -114,10 +114,10 @@ TEST_F(NtpFeedContentFetcherTest, FetchFollowingFeedArticles) {
   ntp_feed_content_fetcher_->FetchFollowingFeedArticles(callback.Get());
 
   EXPECT_EQ(kEmail, feed_network_->last_account_info.email);
-  absl::optional<feedwire::Request> sent_request =
+  std::optional<feedwire::Request> sent_request =
       feed_network_->GetApiRequestSent<WebFeedListContentsDiscoverApi>();
   ASSERT_TRUE(sent_request.has_value());
-  // TODO(https://crbug.com/1328951): Add a Chrome Desktop client type.
+  // TODO(crbug.com/40842320): Add a Chrome Desktop client type.
   EXPECT_EQ(feedwire::ClientInfo::ANDROID_ID,
             sent_request->feed_request().client_info().platform_type());
   EXPECT_EQ(feedwire::ClientInfo::CHROME_ANDROID,

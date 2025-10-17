@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "cppgc/internal/conditional-stack-allocated.h"  // NOLINT(build/include_directory)
 #include "v8-internal.h"  // NOLINT(build/include_directory)
 #include "v8config.h"     // NOLINT(build/include_directory)
 
@@ -29,8 +30,10 @@ V8_EXPORT void FromJustIsNothing();
  * "Nothing" value is returned.
  */
 template <class T>
-class Maybe {
+class Maybe : public cppgc::internal::ConditionalStackAllocatedBase<T> {
  public:
+  constexpr Maybe() = default;
+
   V8_INLINE bool IsNothing() const { return !has_value_; }
   V8_INLINE bool IsJust() const { return has_value_; }
 
@@ -92,15 +95,12 @@ class Maybe {
   }
 
  private:
-  Maybe() : has_value_(false) {}
   explicit Maybe(const T& t) : has_value_(true), value_(t) {}
   explicit Maybe(T&& t) : has_value_(true), value_(std::move(t)) {}
 
-  bool has_value_;
+  bool has_value_ = false;
   T value_;
 
-  template <class U>
-  friend Maybe<U> Nothing();
   template <class U>
   friend Maybe<U> Just(const U& u);
   template <class U, std::enable_if_t<!std::is_lvalue_reference_v<U>>*>
@@ -108,8 +108,8 @@ class Maybe {
 };
 
 template <class T>
-inline Maybe<T> Nothing() {
-  return Maybe<T>();
+inline constexpr Maybe<T> Nothing() {
+  return {};
 }
 
 template <class T>
@@ -129,6 +129,8 @@ inline Maybe<T> Just(T&& t) {
 template <>
 class Maybe<void> {
  public:
+  constexpr Maybe() = default;
+
   V8_INLINE bool IsNothing() const { return !is_valid_; }
   V8_INLINE bool IsJust() const { return is_valid_; }
 
@@ -143,13 +145,10 @@ class Maybe<void> {
  private:
   struct JustTag {};
 
-  Maybe() : is_valid_(false) {}
   explicit Maybe(JustTag) : is_valid_(true) {}
 
-  bool is_valid_;
+  bool is_valid_ = false;
 
-  template <class U>
-  friend Maybe<U> Nothing();
   friend Maybe<void> JustVoid();
 };
 

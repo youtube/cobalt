@@ -10,40 +10,54 @@ build_webui("build") {
 
   static_files = [
     "history.html",
+    "images/compare_sync_promo.svg",
+    "images/compare_sync_promo_dark.svg",
+    "images/history_embeddings_promo.svg",
+    "images/history_embeddings_promo_dark.svg",
     "images/list.svg",
-    "images/sign_in_promo_dark.svg",
     "images/sign_in_promo.svg",
+    "images/sign_in_promo_dark.svg",
   ]
 
   # Files holding a Polymer element definition and have an equivalent .html file.
   web_component_files = [
     "app.ts",
+    "history_embeddings_promo.ts",
     "history_item.ts",
     "history_list.ts",
     "history_toolbar.ts",
-    "router.ts",
+    "product_specifications_item.ts",
+    "product_specifications_lists.ts",
     "side_bar.ts",
     "synced_device_card.ts",
     "synced_device_manager.ts",
   ]
 
-  non_web_component_files = [
+  ts_files = [
     "browser_service.ts",
     "constants.ts",
     "externs.ts",
     "history.ts",
     "lazy_load.ts",
     "query_manager.ts",
+    "router.ts",
     "searched_label.ts",
   ]
 
   # Files that are passed as input to css_to_wrapper().
   css_files = [
+    "history_embeddings_promo.css",
+    "history_item.css",
+    "history_toolbar.css",
     "shared_style.css",
+    "shared_style_lit.css",
     "shared_vars.css",
+    "synced_device_card.css",
+    "synced_device_manager.css",
   ]
 
   icons_html_files = [ "shared_icons.html" ]
+  html_to_wrapper_template = "detect"
 
   ts_composite = true
   ts_definitions = [
@@ -51,15 +65,29 @@ build_webui("build") {
     "//tools/typescript/definitions/metrics_private.d.ts",
   ]
 
+  mojo_files_deps =
+      [ "//components/commerce/core/mojom:mojo_bindings_ts__generator" ]
+  mojo_files = [
+    "$root_gen_dir/components/commerce/core/mojom/product_specifications.mojom-webui.ts",
+    "$root_gen_dir/components/commerce/core/mojom/shared.mojom-webui.ts",
+    "$root_gen_dir/components/commerce/core/mojom/shopping_service.mojom-webui.ts",
+  ]
+
   ts_deps = [
+    "//third_party/lit/v3_0:build_ts",
     "//third_party/polymer/v3_0:library",
+    "//ui/webui/resources/cr_components/commerce:build_ts",
+    "//ui/webui/resources/cr_components/help_bubble:build_ts",
+    "//ui/webui/resources/cr_components/history:build_ts",
     "//ui/webui/resources/cr_components/history_clusters:build_ts",
+    "//ui/webui/resources/cr_components/history_embeddings:build_ts",
     "//ui/webui/resources/cr_components/managed_footnote:build_ts",
     "//ui/webui/resources/cr_elements:build_ts",
     "//ui/webui/resources/js:build_ts",
     "//ui/webui/resources/mojo:build_ts",
   ]
 
+  webui_context_type = "trusted"
   optimize = optimize_webui
   if (optimize) {
     optimize_webui_host = "history"
@@ -68,6 +96,4 @@ build_webui("build") {
       "lazy_load.js",
     ]
   }
-
-  enable_source_maps = enable_webui_inline_sourcemaps
 }

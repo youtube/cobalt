@@ -7,6 +7,8 @@
 
 #include <stddef.h>
 
+#include <array>
+
 namespace device {
 
 struct RgbTupleF32 {
@@ -24,7 +26,7 @@ struct RgbTupleF32 {
   float blue() const { return components[2]; }
   void set_blue(float blue) { components[2] = blue; }
 
-  float components[kNumComponents];
+  std::array<float, kNumComponents> components;
 };
 
 static_assert(sizeof(RgbTupleF32) ==

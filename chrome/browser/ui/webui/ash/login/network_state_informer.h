@@ -7,20 +7,21 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/cancelable_callback.h"
+#include "base/check_is_test.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
 #include "base/values.h"
 #include "chrome/browser/ash/login/screens/network_error.h"
-#include "chrome/browser/ash/login/ui/captive_portal_window_proxy.h"
+#include "chrome/browser/ui/ash/login/captive_portal_window_proxy.h"
 #include "chromeos/ash/components/network/network_state.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/network/network_state_handler_observer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -68,10 +69,13 @@ class NetworkStateInformer : public NetworkStateHandlerObserver,
   std::string network_path() const { return network_path_; }
 
   static std::string GetNetworkName(const std::string& service_path);
-  static bool IsOnline(State state, NetworkError::ErrorReason reason);
-  static bool IsBehindCaptivePortal(State state,
-                                    NetworkError::ErrorReason reason);
   static bool IsProxyError(State state, NetworkError::ErrorReason reason);
+
+  // Method to get proxy_config_ for testing.
+  const std::optional<base::Value::Dict>& GetProxyConfigForTesting() const {
+    CHECK_IS_TEST();
+    return proxy_config_;
+  }
 
  private:
   friend class base::RefCounted<NetworkStateInformer>;
@@ -85,7 +89,7 @@ class NetworkStateInformer : public NetworkStateHandlerObserver,
 
   State state_;
   std::string network_path_;
-  absl::optional<base::Value::Dict> proxy_config_;
+  std::optional<base::Value::Dict> proxy_config_;
 
   base::ObserverList<NetworkStateInformerObserver>::Unchecked observers_;
 

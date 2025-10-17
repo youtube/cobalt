@@ -44,9 +44,16 @@ enum class OptimizationTypeDecision {
   // Guide Service was started, but was not available in time to make a
   // decision.
   kHintFetchStartedButNotAvailableInTime = 10,
+  // A fetch to get the hint for the page load from the remote Optimization
+  // Guide Service was started, but requested optimization type was not
+  // registered.
+  kRequestedUnregisteredType = 11,
+  // A fetch to get the hint for the page load from the remote Optimization
+  // Guide Service was started, but requested URL was invalid.
+  kInvalidURL = 12,
 
   // Add new values above this line.
-  kMaxValue = kHintFetchStartedButNotAvailableInTime,
+  kMaxValue = kInvalidURL,
 };
 
 // The statuses for racing a hints fetch with the current navigation based
@@ -119,24 +126,6 @@ enum class PredictionModelDownloadStatus {
   kMaxValue = kFailedInvalidAdditionalFile,
 };
 
-// The status for the page content annotations being stored.
-//
-// Keep in sync with OptimizationGuidePageContentAnnotationsStorageStatus in
-// enums.xml.
-enum PageContentAnnotationsStorageStatus {
-  kUnknown = 0,
-  // The content annotations were requested to be stored in the History Service.
-  kSuccess = 1,
-  // There were no visits for the URL found in the History Service.
-  kNoVisitsForUrl = 2,
-  // The specific visit that we wanted to annotate could not be found in the
-  // History Service.
-  kSpecificVisitForUrlNotFound = 3,
-
-  // Add new values above this line.
-  kMaxValue = kSpecificVisitForUrlNotFound,
-};
-
 // Different events of the prediction model delivery lifecycle for an
 // OptimizationTarget.
 // Keep in sync with OptimizationGuideModelDeliveryEvent in enums.xml.
@@ -181,6 +170,206 @@ enum class ModelDeliveryEvent {
 
   // Add new values above this line.
   kMaxValue = kModelDownloadDueToModelLoadFailure,
+};
+
+// The various model quality user feedback.
+enum class ModelQualityUserFeedback {
+  kUnknown = 0,
+  kThumbsDown = 1,
+  kThumbsUp = 2,
+
+  // Keep in sync with OptimizationGuideUserFeedback in
+  // tools/metrics/histograms/metadata/optimization/enums.xml.
+  kMaxValue = kThumbsUp,
+};
+
+// The various results of an access token request.
+//
+// Keep in sync with OptimizationGuideAccessTokenResult in enums.xml.
+enum class OptimizationGuideAccessTokenResult {
+  kUnknown = 0,
+  // The access token was received successfully.
+  kSuccess = 1,
+  // User was not signed-in.
+  kUserNotSignedIn = 2,
+  // Failed with a transient error.
+  kTransientError = 3,
+  // Failed with a persistent error.
+  kPersistentError = 4,
+
+  // Add new values above this line.
+  kMaxValue = kPersistentError,
+};
+
+// Status of a request to fetch from the optimization guide service.
+// This enum must remain synchronized with the enum
+// |OptimizationGuideFetcherRequestStatus| in
+// tools/metrics/histograms/enums.xml.
+enum class FetcherRequestStatus {
+  // No fetch status known. Used in testing.
+  kUnknown,
+  // Fetch request was sent and a response received.
+  kSuccess,
+  // Fetch request was sent but no response received.
+  kResponseError,
+  // DEPRECATED: Fetch request not sent because of offline network status.
+  kDeprecatedNetworkOffline,
+  // Fetch request not sent because fetcher was busy with another request.
+  kFetcherBusy,
+  // Hints fetch request not sent because the host and URL lists were empty.
+  kNoHostsOrURLsToFetchHints,
+  // Hints fetch request not sent because no supported optimization types were
+  // provided.
+  kNoSupportedOptimizationTypesToFetchHints,
+  // Fetch request was canceled before completion.
+  kRequestCanceled,
+  // Fetch request was not started because user was not signed-in.
+  kUserNotSignedIn,
+
+  // Insert new values before this line.
+  kMaxValue = kUserNotSignedIn
+};
+
+// Status of a model quality logs upload request.
+enum class ModelQualityLogsUploadStatus {
+  kUnknown = 0,
+  // Logs upload was successful.
+  kUploadSuccessful = 1,
+  // Upload is disabled due to logging feature not enabled.
+  kLoggingNotEnabled = 2,
+  // Upload was not successful because of network error.
+  kNetError = 3,
+  // Upload is disabled due to metrics reporting being disabled in
+  // chrome://settings.
+  kMetricsReportingDisabled = 4,
+  // Upload is disabled due to enterprise policy.
+  kDisabledDueToEnterprisePolicy = 5,
+  // Upload is disabled because the feature is not enabled for the user.
+  kFeatureNotEnabledForUser = 6,
+
+  // Insert new values before this line.
+  // This enum must remain synchronized with the enum
+  // |OptimizationGuideModelQualityLogsUploadStatus| in
+  // tools/metrics/histograms/metadata/optimization/enums.xml.
+  kMaxValue = kFeatureNotEnabledForUser,
+};
+
+// Performance class of this device.
+//
+// These values are persisted to logs and prefs. Entries should not be
+// renumbered and numeric values should never be reused.
+enum class OnDeviceModelPerformanceClass : int {
+  kUnknown = 0,
+
+  // See on_device_model::mojom::PerformanceClass for explanation of these.
+  kError = 1,
+  kVeryLow = 2,
+  kLow = 3,
+  kMedium = 4,
+  kHigh = 5,
+  kVeryHigh = 6,
+
+  // WARNING!: If you add a new performance class, please be aware of
+  // `IsPerformanceClassCompatibleWithOnDeviceModel`.
+
+  // The service crashed, so a valid value was not returned.
+  kServiceCrash = 7,
+
+  // GPU was blocklisted.
+  kGpuBlocked = 8,
+
+  // Native library failed to load.
+  kFailedToLoadLibrary = 9,
+
+  // This must be kept in sync with
+  // OnDeviceModelPerformanceClass in optimization/enums.xml.
+
+  // Insert new values before this line.
+  kMaxValue = kFailedToLoadLibrary,
+};
+
+// The validity of the model metadata packaged with the text safety model.
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class TextSafetyModelMetadataValidity {
+  kUnknown = 0,
+
+  // No metadata packaged with model.
+  kNoMetadata = 1,
+
+  // Metadata packaged with model is of the wrong type.
+  kMetadataWrongType = 2,
+
+  // Metadata packaged with model has no feature configs.
+  kNoFeatureConfigs = 3,
+
+  // Metadata was valid.
+  kValid = 4,
+
+  // This must be kept in sync with TextSafetyModelMetadataValidity in
+  // optimization/enums.xml.
+
+  kMaxValue = kValid,
+};
+
+enum class OnDeviceModelAdaptationAvailability {
+  // Adaptation model was available.
+  kAvailable = 0,
+
+  // Base model was not available.
+  kBaseModelUnavailable = 1,
+
+  // Base model spec was invalid, so adaptation model cannot be fetched.
+  kBaseModelSpecInvalid = 2,
+
+  // Adaptation model was not available.
+  kAdaptationModelUnavailable = 3,
+
+  // The received adaptation model was invalid.
+  kAdaptationModelInvalid = 4,
+
+  // The received adaptation model was incompatible with the base model.
+  kAdaptationModelIncompatible = 5,
+
+  // The execution config in the adaptation model was invalid.
+  kAdaptationModelExecutionConfigInvalid = 6,
+
+  // The model execution feature was not recently used.
+  kFeatureNotRecentlyUsed = 7,
+
+  // This must be kept in sync with OnDeviceModelAdaptationAvailability in
+  // optimization/enums.xml.
+  kMaxValue = kFeatureNotRecentlyUsed,
+};
+
+// The result of running validation prompts for the on-device model.
+//
+// Keep in sync with OnDeviceModelValidationResult in enums.xml.
+enum class OnDeviceModelValidationResult {
+  kUnknown = 0,
+  // The validation is currently running or was interrupted.
+  kPending = 1,
+  // The validation test succeeded.
+  kSuccess = 2,
+  // The validation test produced non-matching output.
+  kNonMatchingOutput = 3,
+  // The service crashed while running the validation test.
+  kServiceCrash = 4,
+  // The validation test was interrupted by another session.
+  kInterrupted = 5,
+
+  // This must be kept in sync with OnDeviceModelValidationResult in
+  // optimization/enums.xml.
+  kMaxValue = kInterrupted,
+};
+
+// Whether a response is complete or not.
+enum class ResponseCompleteness {
+  // This is a partial response, more output may follow.
+  kPartial,
+  // The response is complete and no more output will be produced.
+  kComplete,
 };
 
 }  // namespace optimization_guide

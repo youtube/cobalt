@@ -4,31 +4,38 @@
 
 #include "content/public/browser/tracing_delegate.h"
 
-#include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#if BUILDFLAG(IS_WIN)
+#include <utility>
+
+#include "base/functional/callback.h"
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace content {
 
-bool TracingDelegate::IsAllowedToBeginBackgroundScenario(
-    const std::string& scenario_name,
-    bool requires_anonymized_data,
-    bool is_crash_scenario) {
+bool TracingDelegate::IsRecordingAllowed(bool requires_anonymized_data) const {
   return false;
 }
 
-bool TracingDelegate::IsAllowedToEndBackgroundScenario(
-    const std::string& scenario_name,
-    bool requires_anonymized_data,
-    bool is_crash_scenario) {
+bool TracingDelegate::ShouldSaveUnuploadedTrace() const {
   return false;
 }
 
-bool TracingDelegate::IsSystemWideTracingEnabled() {
-  return false;
+#if BUILDFLAG(IS_WIN)
+void TracingDelegate::GetSystemTracingState(
+    base::OnceCallback<void(bool service_supported, bool service_enabled)>
+        on_tracing_state) {
+  std::move(on_tracing_state).Run(false, false);
 }
 
-absl::optional<base::Value::Dict> TracingDelegate::GenerateMetadataDict() {
-  return absl::nullopt;
+void TracingDelegate::EnableSystemTracing(
+    base::OnceCallback<void(bool success)> on_complete) {
+  std::move(on_complete).Run(false);
 }
+
+void TracingDelegate::DisableSystemTracing(
+    base::OnceCallback<void(bool success)> on_complete) {
+  std::move(on_complete).Run(false);
+}
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace content

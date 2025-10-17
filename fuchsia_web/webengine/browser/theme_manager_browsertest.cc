@@ -4,10 +4,12 @@
 
 #include <fuchsia/settings/cpp/fidl_test_base.h>
 
+#include <optional>
+#include <string_view>
+
 #include "base/fuchsia/scoped_service_binding.h"
 #include "base/fuchsia/test_component_context_for_process.h"
 #include "base/json/json_writer.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -19,7 +21,6 @@
 #include "fuchsia_web/webengine/test/test_data.h"
 #include "fuchsia_web/webengine/test/web_engine_browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -80,33 +81,30 @@ class ThemeManagerTest : public WebEngineBrowserTest,
     theme.set_theme_type(theme_type);
     settings.set_theme(std::move(theme));
     (*watch_callback_)(std::move(settings));
-    watch_callback_ = absl::nullopt;
+    watch_callback_ = std::nullopt;
     base::RunLoop().RunUntilIdle();
   }
 
   // Returns the name of the color scheme selected by the CSS feature matcher.
-  base::StringPiece QueryThemeFromCssFeature() {
+  std::string_view QueryThemeFromCssFeature() {
     content::WebContents* web_contents =
         context_impl()
             ->GetFrameImplForTest(&frame_.ptr())
             ->web_contents_for_test();
 
     for (const char* scheme : {kCssDark, kCssLight}) {
-      bool matches;
-      EXPECT_TRUE(ExecuteScriptAndExtractBool(
-          web_contents,
-          base::StringPrintf(
-              "window.domAutomationController.send(window."
-              "matchMedia('(prefers-color-scheme: %s)').matches)",
-              scheme),
-          &matches));
+      bool matches =
+          EvalJs(web_contents,
+                 base::StringPrintf(
+                     "window.matchMedia('(prefers-color-scheme: %s)').matches",
+                     scheme))
+              .ExtractBool();
 
       if (matches)
         return scheme;
     }
 
     NOTREACHED();
-    return "";
   }
 
   bool SetTheme(fuchsia::settings::ThemeType theme) {
@@ -129,13 +127,13 @@ class ThemeManagerTest : public WebEngineBrowserTest,
     ADD_FAILURE() << "Unexpected call: " << name;
   }
 
-  absl::optional<base::TestComponentContextForProcess> component_context_;
-  absl::optional<base::ScopedServiceBinding<fuchsia::settings::Display>>
+  std::optional<base::TestComponentContextForProcess> component_context_;
+  std::optional<base::ScopedServiceBinding<fuchsia::settings::Display>>
       display_binding_;
   FrameForTest frame_;
 
   base::OnceClosure on_watch_closure_;
-  absl::optional<WatchCallback> watch_callback_;
+  std::optional<WatchCallback> watch_callback_;
 };
 
 IN_PROC_BROWSER_TEST_F(ThemeManagerTest, Default) {
@@ -160,7 +158,7 @@ IN_PROC_BROWSER_TEST_F(ThemeManagerTest, UseDisplayService) {
 
 // Verify that the Frame connection will drop if the Display service is
 // required but missing.
-// TODO(crbug.com/1148454): Re-enable this test once the service availability
+// TODO(crbug.com/40731307): Re-enable this test once the service availability
 // validation is back in place.
 IN_PROC_BROWSER_TEST_F(ThemeManagerTest, DISABLED_DefaultWithMissingService) {
   SetTheme(fuchsia::settings::ThemeType::DEFAULT);
@@ -168,7 +166,7 @@ IN_PROC_BROWSER_TEST_F(ThemeManagerTest, DISABLED_DefaultWithMissingService) {
 
   ASSERT_TRUE(display_binding_->has_clients());
 
-  display_binding_ = absl::nullopt;
+  display_binding_ = std::nullopt;
   base::RunLoop().RunUntilIdle();
 
   ASSERT_FALSE(display_binding_);

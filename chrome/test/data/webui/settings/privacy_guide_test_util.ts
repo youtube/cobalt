@@ -4,14 +4,17 @@
 
 // clang-format off
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
-import {CookiePrimarySetting, PrivacyGuideStep, SafeBrowsingSetting, SettingsPrivacyGuidePageElement} from 'chrome://settings/lazy_load.js';
-import {Router, routes, SettingsPrefsElement, StatusAction} from 'chrome://settings/settings.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {SettingsPrivacyGuidePageElement, ThirdPartyCookieBlockingSetting} from 'chrome://settings/lazy_load.js';
+import {ContentSetting, CookieControlsMode, PrivacyGuideStep, SafeBrowsingSetting} from 'chrome://settings/lazy_load.js';
+import type {SettingsPrefsElement} from 'chrome://settings/settings.js';
+import {Router, routes, SignedInState, StatusAction} from 'chrome://settings/settings.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {isChildVisible} from 'chrome://webui-test/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 import {getSyncAllPrefs} from './sync_test_util.js';
-import {TestSyncBrowserProxy} from './test_sync_browser_proxy.js';
+import type {TestSyncBrowserProxy} from './test_sync_browser_proxy.js';
 
 // clang-format on
 
@@ -54,8 +57,10 @@ export function setupSync({
   if (typedUrlsSynced) {
     assertTrue(syncOn);
   }
+  const signedInState =
+      syncOn ? SignedInState.SYNCING : SignedInState.SIGNED_OUT;
   syncBrowserProxy.testSyncStatus = {
-    signedIn: syncOn,
+    signedInState: signedInState,
     hasError: false,
     statusAction: StatusAction.NO_ACTION,
   };
@@ -68,11 +73,26 @@ export function setupSync({
   webUIListenerCallback('sync-prefs-changed', event);
 }
 
-// Set the cookies setting for the privacy guide.
-export function setCookieSetting(
+export function setFirstPartyCookieSetting(
+    page: SettingsPrivacyGuidePageElement, setting: ContentSetting) {
+  page.set('prefs.generated.cookie_default_content_setting', {
+    type: chrome.settingsPrivate.PrefType.STRING,
+    value: setting,
+  });
+}
+
+export function setThirdPartyCookieSetting(
+    page: SettingsPrivacyGuidePageElement, setting: CookieControlsMode): void {
+  page.set('prefs.profile.cookie_controls_mode', {
+    type: chrome.settingsPrivate.PrefType.NUMBER,
+    value: setting,
+  });
+}
+
+export function setThirdPartyCookieBlockingSetting(
     page: SettingsPrivacyGuidePageElement,
-    setting: CookiePrimarySetting): void {
-  page.set('prefs.generated.cookie_primary_setting', {
+    setting: ThirdPartyCookieBlockingSetting): void {
+  page.set('prefs.generated.third_party_cookie_blocking_setting', {
     type: chrome.settingsPrivate.PrefType.NUMBER,
     value: setting,
   });
@@ -80,9 +100,11 @@ export function setCookieSetting(
 
 export function shouldShowCookiesCard(page: SettingsPrivacyGuidePageElement):
     boolean {
-  const setting = page.getPref('generated.cookie_primary_setting').value;
-  return setting === CookiePrimarySetting.BLOCK_THIRD_PARTY ||
-      setting === CookiePrimarySetting.BLOCK_THIRD_PARTY_INCOGNITO;
+  return page.getPref('generated.cookie_default_content_setting').value !==
+      ContentSetting.BLOCK &&
+      (page.getPref('profile.cookie_controls_mode').value !==
+           CookieControlsMode.OFF ||
+       loadTimeData.getBoolean('isAlwaysBlock3pcsIncognitoEnabled'));
 }
 
 // Set the safe browsing setting for the privacy guide.
@@ -104,7 +126,7 @@ export function shouldShowSafeBrowsingCard(
 export function shouldShowHistorySyncCard(
     syncBrowserProxy: TestSyncBrowserProxy): boolean {
   return !syncBrowserProxy.testSyncStatus ||
-      !!syncBrowserProxy.testSyncStatus.signedIn;
+      syncBrowserProxy.testSyncStatus.signedInState === SignedInState.SYNCING;
 }
 
 // Bundles functionality to create the page object for tests.
@@ -126,8 +148,12 @@ export function setupPrivacyGuidePageForTest(
     page: SettingsPrivacyGuidePageElement,
     syncBrowserProxy: TestSyncBrowserProxy): void {
   setSafeBrowsingSetting(page, SafeBrowsingSetting.STANDARD);
-  setCookieSetting(page, CookiePrimarySetting.BLOCK_THIRD_PARTY_INCOGNITO);
-  setupSync({
+  // TODO(b:306414714): Clean up with Mode B.
+  if (!loadTimeData.getBoolean('is3pcdCookieSettingsRedesignEnabled')) {
+    setThirdPartyCookieSetting(page, CookieControlsMode.INCOGNITO_ONLY);
+  }
+  setFirstPartyCookieSetting(page, ContentSetting.ALLOW);
+    setupSync({
     syncBrowserProxy: syncBrowserProxy,
     syncOn: true,
     syncAllDataTypes: true,
@@ -163,9 +189,9 @@ export function setParametersForSafeBrowsingStep(
 export function setParametersForCookiesStep(
     page: SettingsPrivacyGuidePageElement, isEligible: boolean): void {
   page.setPrefValue(
-      'generated.cookie_primary_setting',
-      isEligible ? CookiePrimarySetting.BLOCK_THIRD_PARTY :
-                   CookiePrimarySetting.ALLOW_ALL);
+      'profile.cookie_controls_mode',
+      isEligible ? CookieControlsMode.BLOCK_THIRD_PARTY :
+                   CookieControlsMode.OFF);
   assertEquals(
       isEligible, shouldShowCookiesCard(page),
       'Parameters for Cookies are set incorrectly.');

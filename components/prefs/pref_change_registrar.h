@@ -5,8 +5,10 @@
 #ifndef COMPONENTS_PREFS_PREF_CHANGE_REGISTRAR_H_
 #define COMPONENTS_PREFS_PREF_CHANGE_REGISTRAR_H_
 
+#include <functional>
 #include <map>
 #include <string>
+#include <string_view>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -16,9 +18,8 @@
 class PrefService;
 
 // Automatically manages the registration of one or more pref change observers
-// with a PrefStore. Functions much like NotificationRegistrar, but specifically
-// manages observers of preference changes. When the Registrar is destroyed,
-// all registered observers are automatically unregistered with the PrefStore.
+// with a PrefStore. When the Registrar is destroyed, all registered observers
+// are automatically unregistered with the PrefStore.
 class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar final : public PrefObserver {
  public:
   // You can register this type of callback if you need to know the
@@ -36,6 +37,10 @@ class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar final : public PrefObserver {
   // than once as long as the value of |service| doesn't change.
   void Init(PrefService* service);
 
+  // Removes all observers and clears the reference to `PrefService`.
+  // `Init` must be called before adding or removing any observers.
+  void Reset();
+
   // Adds a pref observer for the specified pref |path| and |obs| observer
   // object. All registered observers will be automatically unregistered
   // when the registrar's destructor is called.
@@ -44,11 +49,11 @@ class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar final : public PrefObserver {
   // the preference that is changing as its parameter.
   //
   // Only one observer may be registered per path.
-  void Add(const std::string& path, const base::RepeatingClosure& obs);
-  void Add(const std::string& path, const NamedChangeCallback& obs);
+  void Add(std::string_view path, const base::RepeatingClosure& obs);
+  void Add(std::string_view path, const NamedChangeCallback& obs);
 
   // Removes the pref observer registered for |path|.
-  void Remove(const std::string& path);
+  void Remove(std::string_view path);
 
   // Removes all observers that have been previously added with a call to Add.
   void RemoveAll();
@@ -57,7 +62,7 @@ class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar final : public PrefObserver {
   bool IsEmpty() const;
 
   // Check whether |pref| is in the set of preferences being observed.
-  bool IsObserved(const std::string& pref);
+  bool IsObserved(std::string_view pref);
 
   // Return the PrefService for this registrar.
   PrefService* prefs();
@@ -66,15 +71,15 @@ class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar final : public PrefObserver {
  private:
   // PrefObserver:
   void OnPreferenceChanged(PrefService* service,
-                           const std::string& pref_name) override;
+                           std::string_view pref_name) override;
 
   static void InvokeUnnamedCallback(const base::RepeatingClosure& callback,
                                     const std::string& pref_name);
 
-  using ObserverMap = std::map<std::string, NamedChangeCallback>;
+  using ObserverMap = std::map<std::string, NamedChangeCallback, std::less<>>;
 
   ObserverMap observers_;
-  raw_ptr<PrefService, DanglingUntriaged> service_;
+  raw_ptr<PrefService, AcrossTasksDanglingUntriaged> service_;
 };
 
 #endif  // COMPONENTS_PREFS_PREF_CHANGE_REGISTRAR_H_

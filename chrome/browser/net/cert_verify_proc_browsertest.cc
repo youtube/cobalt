@@ -9,19 +9,16 @@
 #include "base/json/json_reader.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "chrome/browser/ssl/ssl_browsertest_util.h"
 #include "chrome/test/base/chrome_test_utils.h"
+#include "chrome/test/base/platform_browser_test.h"
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_switches.h"
-
-#if BUILDFLAG(IS_ANDROID)
-#include "chrome/test/base/android/android_browser_test.h"
-#else
-#include "chrome/test/base/in_process_browser_test.h"
-#endif
 
 // Base class for tests that want to record a net log. The subclass should
 // implement the VerifyNetLog method which will be called after the test body
@@ -45,7 +42,7 @@ class NetLogPlatformBrowserTestBase : public PlatformBrowserTest {
     constexpr auto kWaitInterval = base::Milliseconds(50);
     int tries_left = kMaxWaitTime / kWaitInterval;
 
-    absl::optional<base::Value> parsed_net_log;
+    std::optional<base::Value> parsed_net_log;
     while (true) {
       std::string file_contents;
       ASSERT_TRUE(base::ReadFileToString(net_log_path_, &file_contents));
@@ -106,11 +103,11 @@ class CertVerifyProcNetLogBrowserTest : public NetLogPlatformBrowserTestBase {
     for (const auto& event_val : *events) {
       ASSERT_TRUE(event_val.is_dict());
       const base::Value::Dict& event = event_val.GetDict();
-      absl::optional<int> event_type = event.FindInt("type");
+      std::optional<int> event_type = event.FindInt("type");
       ASSERT_TRUE(event_type.has_value());
       if (event_type ==
           static_cast<int>(net::NetLogEventType::CERT_VERIFY_PROC)) {
-        absl::optional<int> phase = event.FindInt("phase");
+        std::optional<int> phase = event.FindInt("phase");
         if (!phase.has_value() ||
             *phase != static_cast<int>(net::NetLogEventPhase::BEGIN)) {
           continue;
@@ -152,4 +149,23 @@ IN_PROC_BROWSER_TEST_F(CertVerifyProcNetLogBrowserTest, Test) {
   // Hopefully this won't be flaky.
   base::RunLoop().RunUntilIdle();
   content::FlushNetworkServiceInstanceForTesting();
+}
+
+using AIABrowserTest = PlatformBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(AIABrowserTest, TestHTTPSAIA) {
+  net::EmbeddedTestServer::ServerCertificateConfig cert_config;
+  cert_config.intermediate = net::EmbeddedTestServer::IntermediateType::kByAIA;
+
+  net::EmbeddedTestServer https_server{net::EmbeddedTestServer::TYPE_HTTPS};
+  https_server.SetSSLConfig(cert_config);
+  https_server.ServeFilesFromSourceDirectory("chrome/test/data/");
+  ASSERT_TRUE(https_server.Start());
+
+  EXPECT_TRUE(
+      content::NavigateToURL(chrome_test_utils::GetActiveWebContents(this),
+                             https_server.GetURL("/simple.html")));
+  ssl_test_util::CheckAuthenticatedState(
+      chrome_test_utils::GetActiveWebContents(this),
+      ssl_test_util::AuthState::NONE);
 }

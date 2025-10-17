@@ -4,8 +4,11 @@
 
 #include "content/browser/attribution_reporting/sql_query_plan_test_util.h"
 
+#include <algorithm>
+#include <optional>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -13,27 +16,27 @@
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/files/file_util.h"
+#include "base/logging.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
 #include "base/process/process.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/types/expected.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
 namespace {
 
-base::FilePath GetExecPath(base::StringPiece name) {
+base::FilePath GetExecPath(std::string_view name) {
   base::FilePath path;
   base::PathService::Get(base::DIR_EXE, &path);
   return path.AppendASCII(name);
 }
 
+// TODO(apaseltiner): Instead of making each index-check opt-in, we should parse
+// the entire query plan and verify the entire set of indexes.
 class SqlIndexMatcher {
  public:
   using is_gtest_matcher = void;
@@ -41,9 +44,9 @@ class SqlIndexMatcher {
   // Specifies the type of index that we should match with. Note this also
   // covers primary keys which are implemented as indexes in sqlite.
   enum class Type {
-    kAny,         // USING INDEX, or any of the other options with match
-    kCovering,    // USING COVERING INDEX
-    kPrimaryKey,  // USING PRIMARY KEY
+    kNonCovering,  // USING INDEX
+    kCovering,     // USING COVERING INDEX
+    kPrimaryKey,   // USING PRIMARY KEY
   };
 
   // Every sqlite index includes a list of indexed columns. However, some query
@@ -54,7 +57,7 @@ class SqlIndexMatcher {
   SqlIndexMatcher(std::string name, std::vector<std::string> columns, Type type)
       : name_(std::move(name)), columns_(std::move(columns)), type_(type) {
     switch (type_) {
-      case Type::kAny:
+      case Type::kNonCovering:
       case Type::kCovering:
         CHECK_NE(name_, "");
         break;
@@ -76,7 +79,7 @@ class SqlIndexMatcher {
 
  private:
   void DescribeTo(std::ostream*, bool negated) const;
-  size_t FindIndexStart(base::StringPiece plan) const;
+  size_t FindIndexStart(std::string_view plan) const;
 
   std::string name_;
   std::vector<std::string> columns_;
@@ -85,7 +88,7 @@ class SqlIndexMatcher {
 
 bool SqlIndexMatcher::MatchAndExplain(const SqlQueryPlan& plan,
                                       std::ostream*) const {
-  base::StringPiece plan_piece(plan.plan);
+  std::string_view plan_piece(plan.plan);
 
   size_t start_pos = FindIndexStart(plan_piece);
   if (start_pos == std::string::npos) {
@@ -94,39 +97,27 @@ bool SqlIndexMatcher::MatchAndExplain(const SqlQueryPlan& plan,
 
   size_t end_pos = plan_piece.find("\n", start_pos);
 
-  base::StringPiece index_text =
+  std::string_view index_text =
       plan_piece.substr(start_pos, end_pos - start_pos);
 
-  return base::ranges::all_of(columns_, [index_text](const std::string& col) {
+  return std::ranges::all_of(columns_, [index_text](const std::string& col) {
     return base::Contains(index_text, col);
   });
 }
 
-size_t SqlIndexMatcher::FindIndexStart(base::StringPiece plan) const {
-  std::string covering_prefix = base::StrCat({"USING COVERING INDEX ", name_});
-  std::string noncovering_prefix = base::StrCat({"USING INDEX ", name_});
-  std::string primary_prefix = "USING PRIMARY KEY ";
-  std::string integer_primary_prefix = "USING INTEGER PRIMARY KEY ";
+size_t SqlIndexMatcher::FindIndexStart(std::string_view plan) const {
   switch (type_) {
     case SqlIndexMatcher::Type::kCovering:
-      return plan.find(covering_prefix);
+      return plan.find(base::StrCat({"USING COVERING INDEX ", name_}));
+    case SqlIndexMatcher::Type::kNonCovering:
+      return plan.find(base::StrCat({"USING INDEX ", name_}));
     case SqlIndexMatcher::Type::kPrimaryKey: {
-      size_t pos = plan.find(primary_prefix);
+      size_t pos = plan.find("USING PRIMARY KEY ");
       if (pos != std::string::npos) {
         return pos;
       }
-      return plan.find(integer_primary_prefix);
+      return plan.find("USING INTEGER PRIMARY KEY ");
     }
-    case SqlIndexMatcher::Type::kAny:
-      for (const base::StringPiece prefix :
-           {covering_prefix, noncovering_prefix, primary_prefix,
-            integer_primary_prefix}) {
-        size_t pos = plan.find(prefix);
-        if (pos != std::string::npos) {
-          return pos;
-        }
-      }
-      return std::string::npos;
   }
 }
 
@@ -138,7 +129,7 @@ void SqlIndexMatcher::DescribeTo(std::ostream* out, bool negated) const {
   }
 
   switch (type_) {
-    case Type::kAny:
+    case Type::kNonCovering:
       *out << "index " << name_;
       break;
     case Type::kCovering:
@@ -162,6 +153,8 @@ void SqlIndexMatcher::DescribeTo(std::ostream* out, bool negated) const {
   }
 }
 
+// TODO(apaseltiner): This check is not robust, as some "scans" are optimized
+// using an index.
 bool HasFullTableScan(const SqlQueryPlan& plan) {
   return base::Contains(plan.plan, "SCAN");
 }
@@ -171,7 +164,7 @@ bool HasFullTableScan(const SqlQueryPlan& plan) {
 testing::Matcher<SqlQueryPlan> UsesIndex(std::string name,
                                          std::vector<std::string> columns) {
   return SqlIndexMatcher(std::move(name), std::move(columns),
-                         SqlIndexMatcher::Type::kAny);
+                         SqlIndexMatcher::Type::kNonCovering);
 }
 
 testing::Matcher<SqlQueryPlan> UsesCoveringIndex(
@@ -198,7 +191,7 @@ SqlQueryPlanExplainer::~SqlQueryPlanExplainer() = default;
 base::expected<SqlQueryPlan, SqlQueryPlanExplainer::Error>
 SqlQueryPlanExplainer::GetPlan(
     std::string query,
-    absl::optional<SqlFullScanReason> full_scan_reason) {
+    std::optional<SqlFullScanReason> full_scan_reason) {
   base::CommandLine command_line(shell_path_);
   command_line.AppendArgPath(db_path_);
 
@@ -206,8 +199,12 @@ SqlQueryPlanExplainer::GetPlan(
   command_line.AppendArg(explain_query);
 
   std::string output;
-  if (!base::GetAppOutputAndError(command_line, &output) ||
-      !base::StartsWith(output, "QUERY PLAN")) {
+  if (!base::GetAppOutput(command_line, &output)) {
+    LOG(ERROR) << "command failed output: " << output;
+    return base::unexpected(Error::kCommandFailed);
+  }
+  if (!base::StartsWith(output, "QUERY PLAN")) {
+    LOG(ERROR) << "invalid query plan output: " << output;
     return base::unexpected(Error::kInvalidOutput);
   }
 
@@ -232,6 +229,8 @@ SqlQueryPlanExplainer::GetPlan(
 std::ostream& operator<<(std::ostream& out,
                          SqlQueryPlanExplainer::Error error) {
   switch (error) {
+    case SqlQueryPlanExplainer::Error::kCommandFailed:
+      return out << "kCommandFailed";
     case SqlQueryPlanExplainer::Error::kInvalidOutput:
       return out << "kInvalidOutput";
     case SqlQueryPlanExplainer::Error::kMissingFullScanAnnotation:

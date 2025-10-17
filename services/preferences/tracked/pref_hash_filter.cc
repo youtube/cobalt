@@ -12,7 +12,9 @@
 
 #include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
@@ -28,17 +30,34 @@
 
 namespace {
 
+std::vector<const char*>* GetDeprecatedPrefs() {
+  // Add deprecated previously tracked preferences below for them to be cleaned
+  // up from both the pref files and the hash store.
+  static base::NoDestructor<std::vector<const char*>> prefs({
+#if BUILDFLAG(IS_WIN)
+      // TODO(crbug.com/40265803): Remove after Oct 2024
+      "software_reporter.prompt_version",
+      "software_reporter.prompt_seed",
+      "settings_reset_prompt.prompt_wave",
+      "settings_reset_prompt.last_triggered_for_default_search",
+      "settings_reset_prompt.last_triggered_for_startup_urls",
+      "settings_reset_prompt.last_triggered_for_homepage",
+      "software_reporter.reporting",
+      // Also delete the now empty dictionaries.
+      "software_reporter",
+      "settings_reset_prompt",
+      // Added Aug'24. Remove after Aug'25.
+      "google.services.last_account_id",
+#endif
+  });
+
+  return prefs.get();
+}
+
 void CleanupDeprecatedTrackedPreferences(
     base::Value::Dict& pref_store_contents,
     PrefHashStoreTransaction* hash_store_transaction) {
-  // Add deprecated previously tracked preferences below for them to be cleaned
-  // up from both the pref files and the hash store.
-  static const char* const kDeprecatedTrackedPreferences[] = {
-      // TODO(pmonette): Remove in 2022+.
-      "module_blacklist_cache_md5_digest"};
-
-  for (size_t i = 0; i < std::size(kDeprecatedTrackedPreferences); ++i) {
-    const char* key = kDeprecatedTrackedPreferences[i];
+  for (const char* key : *GetDeprecatedPrefs()) {
     pref_store_contents.RemoveByDottedPath(key);
     hash_store_transaction->ClearHash(key);
   }
@@ -63,9 +82,9 @@ PrefHashFilter::PrefHashFilter(
     : pref_hash_store_(std::move(pref_hash_store)),
       external_validation_hash_store_pair_(
           external_validation_hash_store_pair.first
-              ? absl::make_optional(
+              ? std::make_optional(
                     std::move(external_validation_hash_store_pair))
-              : absl::nullopt),
+              : std::nullopt),
       reset_on_load_observer_(std::move(reset_on_load_observer)),
       delegate_(std::move(delegate)) {
   DCHECK(pref_hash_store_);
@@ -132,7 +151,6 @@ base::Time PrefHashFilter::GetResetTime(PrefService* user_prefs) {
           &internal_value)) {
     // Somehow the value stored on disk is not a valid int64_t.
     NOTREACHED();
-    return base::Time();
   }
   return base::Time::FromInternalValue(internal_value);
 }
@@ -157,7 +175,7 @@ void PrefHashFilter::Initialize(base::Value::Dict& pref_store_contents) {
 
 // Marks |path| has having changed if it is part of |tracked_paths_|. A new hash
 // will be stored for it the next time FilterSerializeData() is invoked.
-void PrefHashFilter::FilterUpdate(const std::string& path) {
+void PrefHashFilter::FilterUpdate(std::string_view path) {
   auto it = tracked_paths_.find(path);
   if (it != tracked_paths_.end())
     changed_paths_.insert(std::make_pair(path, it->second.get()));
@@ -260,6 +278,10 @@ void PrefHashFilter::FinalizeFilterOnLoad(
       .Run(std::move(pref_store_contents), prefs_altered);
 }
 
+base::WeakPtr<InterceptablePrefFilter> PrefHashFilter::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 // static
 void PrefHashFilter::ClearFromExternalStore(
     HashStoreContents* external_validation_hash_store_contents,
@@ -358,4 +380,10 @@ PrefFilter::OnWriteCallbackPair PrefHashFilter::GetOnWriteSynchronousCallbacks(
                      base::Unretained(raw_changed_paths_macs)),
       base::BindOnce(&FlushToExternalStore, std::move(hash_store_contents_copy),
                      std::move(changed_paths_macs)));
+}
+
+// static
+void PrefHashFilter::SetDeprecatedPrefsForTesting(
+    const std::vector<const char*>& deprecated_prefs) {
+  *GetDeprecatedPrefs() = deprecated_prefs;
 }

@@ -8,9 +8,16 @@ Used for interacting with the Skia Gold image diffing service.
 
 import os
 import shutil
+import time
 
 from devil.utils import cmd_helper
 from pylib.base.output_manager import Datatype
+from pathlib import Path
+import sys
+
+build_android_path = Path(__file__).parents[2]
+sys.path.append(str(build_android_path))
+
 from pylib.constants import host_paths
 from pylib.utils import repo_utils
 
@@ -39,6 +46,10 @@ class AndroidSkiaGoldSession(skia_gold_session.SkiaGoldSession):
         diff_path = filepath
     results = self._comparison_results.setdefault(image_name,
                                                   self.ComparisonResults())
+    # We include the timestamp in the PNG filename so that multiple tries from
+    # the same run do not clobber each other.
+    timestamp = _GetTimestamp()
+    image_name = f'{image_name}_{timestamp}'
     if given_path:
       with output_manager.ArchivedTempfile('given_%s.png' % image_name,
                                            'gold_local_diffs',
@@ -63,6 +74,10 @@ class AndroidSkiaGoldSession(skia_gold_session.SkiaGoldSession):
     rc, stdout, _ = cmd_helper.GetCmdStatusOutputAndError(cmd,
                                                           merge_stderr=True)
     return rc, stdout
+
+
+def _GetTimestamp():
+  return time.strftime('%Y%m%dT%H%M%S-UTC', time.gmtime())
 
 
 class AndroidSkiaGoldSessionManager(

@@ -10,7 +10,6 @@
 #include "ash/public/cpp/shelf_item_delegate.h"
 #include "ash/public/cpp/shelf_model.h"
 #include "ash/public/cpp/shelf_types.h"
-#include "ash/public/cpp/tablet_mode.h"
 #include "base/check.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -22,13 +21,17 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
+#include "chrome/browser/apps/app_service/package_id_util.h"
 #include "chrome/browser/ash/app_list/app_list_controller_delegate.h"
 #include "chrome/browser/ash/app_list/app_service/app_service_context_menu.h"
+#include "chrome/browser/ash/app_list/apps_collections_util.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
 #include "chrome/browser/ash/remote_apps/remote_apps_manager.h"
 #include "chrome/browser/ash/remote_apps/remote_apps_manager_factory.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
 #include "components/services/app_service/public/cpp/app_types.h"
+#include "components/services/app_service/public/cpp/types_util.h"
+#include "ui/display/screen.h"
 
 namespace {
 
@@ -45,14 +48,9 @@ bool IsNewInstall(const apps::AppUpdate& app_update) {
 
   switch (app_update.AppType()) {
     case apps::AppType::kUnknown:
-    case apps::AppType::kBuiltIn:
-    case apps::AppType::kStandaloneBrowser:
     case apps::AppType::kSystemWeb:
     case apps::AppType::kRemote:
-      // Chrome, Lacros, Settings, etc. are built-in.
-      return false;
-    case apps::AppType::kMacOs:
-      NOTREACHED();
+      // Chrome, Settings, etc. are built-in.
       return false;
     case apps::AppType::kArc:
     case apps::AppType::kCrostini:
@@ -62,8 +60,6 @@ bool IsNewInstall(const apps::AppUpdate& app_update) {
     case apps::AppType::kPluginVm:
     case apps::AppType::kBorealis:
     case apps::AppType::kBruschetta:
-    case apps::AppType::kStandaloneBrowserChromeApp:
-    case apps::AppType::kStandaloneBrowserExtension:
       // Other app types are user-installed.
       return true;
   }
@@ -107,20 +103,26 @@ AppServiceAppItem::AppServiceAppItem(
         SetChromeFolderId(app_info->folder_id);
     }
 
-    if (!position().IsValid()) {
-      // If there is no default positions, the model builder will handle it when
-      // the item is inserted.
-      SetPosition(CalculateDefaultPositionIfApplicable());
-    }
-
-    // Crostini apps start in the crostini folder.
+    // Crostini and Bruschetta apps start in their respective folders.
     if (app_type_ == apps::AppType::kCrostini) {
       DCHECK(folder_id().empty());
       SetChromeFolderId(ash::kCrostiniFolderId);
+    } else if (app_type_ == apps::AppType::kBruschetta) {
+      DCHECK(folder_id().empty());
+      SetChromeFolderId(ash::kBruschettaFolderId);
     }
   }
 
-  const bool is_new_install = !sync_item && IsNewInstall(app_update);
+  std::optional<apps::PackageId> package_id =
+      apps_util::GetPackageIdForApp(profile, app_update);
+  if (package_id.has_value()) {
+    SetPromisePackageId(package_id.value().ToString());
+  }
+
+  SetCollectionId(apps_util::GetCollectionIdForAppId(app_update.AppId()));
+
+  const bool is_new_install =
+      (!sync_item || sync_item->is_new) && IsNewInstall(app_update);
   DVLOG(1) << "New AppServiceAppItem is_new_install " << is_new_install
            << " from update " << app_update;
   SetIsNewInstall(is_new_install);
@@ -137,8 +139,10 @@ void AppServiceAppItem::OnAppUpdate(const apps::AppUpdate& app_update) {
 
 void AppServiceAppItem::OnAppUpdate(const apps::AppUpdate& app_update,
                                     bool in_constructor) {
-  if (in_constructor || app_update.NameChanged()) {
-    SetName(app_update.Name());
+  if (in_constructor || app_update.ShortNameChanged()) {
+    // We display the short name rather than the full name here since
+    // each launcher item only has a limited space.
+    SetName(app_update.ShortName());
   }
 
   if (in_constructor || app_update.IconKeyChanged()) {
@@ -152,7 +156,7 @@ void AppServiceAppItem::OnAppUpdate(const apps::AppUpdate& app_update,
 
   if (in_constructor || app_update.ReadinessChanged() ||
       app_update.PausedChanged()) {
-    if (app_update.Readiness() == apps::Readiness::kDisabledByPolicy) {
+    if (apps_util::IsDisabled(app_update.Readiness())) {
       SetAppStatus(ash::AppStatus::kBlocked);
     } else if (app_update.Paused().value_or(false)) {
       SetAppStatus(ash::AppStatus::kPaused);
@@ -165,7 +169,7 @@ void AppServiceAppItem::OnAppUpdate(const apps::AppUpdate& app_update,
 void AppServiceAppItem::ExecuteLaunchCommand(int event_flags) {
   Launch(event_flags, apps::LaunchSource::kFromAppListGridContextMenu);
 
-  // TODO(crbug.com/826982): drop the if, and call MaybeDismissAppList
+  // TODO(crbug.com/40569217): drop the if, and call MaybeDismissAppList
   // unconditionally?
   if (app_type_ == apps::AppType::kArc || app_type_ == apps::AppType::kRemote) {
     MaybeDismissAppList();
@@ -184,7 +188,7 @@ void AppServiceAppItem::Activate(int event_flags) {
   // apps, Crostini apps treat activations as a launch. The app can decide
   // whether to show a new window or focus an existing window as it sees fit.
   //
-  // TODO(crbug.com/1022541): Move the Chrome special case to ExtensionApps,
+  // TODO(crbug.com/40106663): Move the Chrome special case to ExtensionApps,
   // when AppService Instance feature is done.
   bool is_active_app = false;
   apps::AppServiceProxyFactory::GetForProfile(profile())
@@ -193,8 +197,6 @@ void AppServiceAppItem::Activate(int event_flags) {
         if (update.AppType() == apps::AppType::kCrostini ||
             update.AppType() == apps::AppType::kWeb ||
             update.AppType() == apps::AppType::kSystemWeb ||
-            (update.AppType() == apps::AppType::kStandaloneBrowserChromeApp &&
-             !update.IsPlatformApp().value_or(true)) ||
             (update.AppType() == apps::AppType::kChromeApp &&
              update.IsPlatformApp().value_or(true))) {
           is_active_app = true;
@@ -240,8 +242,7 @@ void AppServiceAppItem::ResetIsNewInstall() {
 
   // Record metric for approximate time from installation to launch.
   base::TimeDelta time_since_install = base::TimeTicks::Now() - creation_time_;
-  // TabletMode may be null in unit tests.
-  if (ash::TabletMode::Get() && ash::TabletMode::Get()->InTabletMode()) {
+  if (display::Screen::GetScreen()->InTabletMode()) {
     base::UmaHistogramCustomTimes(
         "Apps.TimeBetweenAppInstallAndLaunch.TabletMode", time_since_install,
         kTimeMetricsMin, kTimeMetricsMax, kTimeMetricsBucketCount);
@@ -263,7 +264,7 @@ void AppServiceAppItem::Launch(int event_flags,
 
 void AppServiceAppItem::CallLoadIcon(bool allow_placeholder_icon) {
   apps::AppServiceProxyFactory::GetForProfile(profile())->LoadIcon(
-      app_type_, id(), apps::IconType::kStandard,
+      id(), apps::IconType::kStandard,
       ash::SharedAppListConfig::instance().default_grid_icon_dimension(),
       allow_placeholder_icon,
       base::BindOnce(&AppServiceAppItem::OnLoadIcon,

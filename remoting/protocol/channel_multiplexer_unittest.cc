@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/protocol/channel_multiplexer.h"
 
 #include <memory>
@@ -39,11 +44,6 @@ const char kMuxChannelName[] = "mux";
 
 const char kTestChannelName[] = "test";
 const char kTestChannelName2[] = "test2";
-
-void QuitCurrentThread() {
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::RunLoop::QuitCurrentWhenIdleClosureDeprecated());
-}
 
 class MockConnectCallback {
  public:
@@ -89,14 +89,17 @@ class ChannelMultiplexerTest : public testing::Test {
                      std::unique_ptr<P2PStreamSocket>* host_socket,
                      std::unique_ptr<P2PStreamSocket>* client_socket) {
     int counter = 2;
+    base::RunLoop loop;
     host_mux_->CreateChannel(
         name, base::BindOnce(&ChannelMultiplexerTest::OnChannelConnected,
-                             base::Unretained(this), host_socket, &counter));
+                             base::Unretained(this), host_socket, &counter,
+                             loop.QuitWhenIdleClosure()));
     client_mux_->CreateChannel(
         name, base::BindOnce(&ChannelMultiplexerTest::OnChannelConnected,
-                             base::Unretained(this), client_socket, &counter));
+                             base::Unretained(this), client_socket, &counter,
+                             loop.QuitWhenIdleClosure()));
 
-    base::RunLoop().Run();
+    loop.Run();
 
     EXPECT_TRUE(host_socket->get());
     EXPECT_TRUE(client_socket->get());
@@ -104,12 +107,13 @@ class ChannelMultiplexerTest : public testing::Test {
 
   void OnChannelConnected(std::unique_ptr<P2PStreamSocket>* storage,
                           int* counter,
+                          base::OnceClosure quit_closure,
                           std::unique_ptr<P2PStreamSocket> socket) {
     *storage = std::move(socket);
     --(*counter);
     EXPECT_GE(*counter, 0);
     if (*counter == 0) {
-      QuitCurrentThread();
+      std::move(quit_closure).Run();
     }
   }
 

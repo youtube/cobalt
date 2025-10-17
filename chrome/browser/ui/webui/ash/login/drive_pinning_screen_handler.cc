@@ -5,7 +5,6 @@
 #include "chrome/browser/ui/webui/ash/login/drive_pinning_screen_handler.h"
 
 #include "base/logging.h"
-
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ui/webui/ash/login/base_screen_handler.h"
@@ -24,23 +23,26 @@ void DrivePinningScreenHandler::DeclareLocalizedValues(
   builder->Add("DevicePinningScreenTitle", IDS_OOBE_DRIVE_PINNING_TITLE);
   builder->Add("DevicePinningScreenDescription",
                IDS_OOBE_DRIVE_PINNING_SUBTITLE);
-  builder->Add("DevicePinningScreenSpaceDescription",
-               IDS_OOBE_DRIVE_PINNING_ADDITIONAL_SUBTITLE);
+  builder->Add("DevicePinningScreenToggleTitle",
+               IDS_OOBE_DRIVE_PINNING_TOGGLE_TITLE);
+  builder->Add("DevicePinningScreenToggleSubtitle",
+               IDS_OOBE_DRIVE_PINNING_TOGGLE_SUBTITLE);
 
-  builder->Add("DevicePinningScreenAcceptButton",
-               IDS_OOBE_DRIVE_PINNING_ACCEPT_BUTTON);
-  builder->Add("DevicePinningScreenDeclineButton",
-               IDS_OOBE_DRIVE_PINNING_DECLINE_BUTTON);
+  builder->Add("choobeDrivePinningTitle",
+               IDS_OOBE_CHOOBE_DRIVE_PINNING_TILE_TITLE);
+
+  builder->Add("choobeDevicePinningSubtitleEnabled",
+               IDS_OOBE_CHOOBE_DRIVE_PINNING_SUBTITLE_ENABLED);
+  builder->Add("choobeDevicePinningSubtitleDisabled",
+               IDS_OOBE_CHOOBE_DRIVE_PINNING_SUBTITLE_DISABLED);
 }
 
-void DrivePinningScreenHandler::SetRequiredSpaceInfo(
-    std::u16string required_space,
-    std::u16string free_space) {
-  CallExternalAPI("setRequiredSpaceInfo", required_space, free_space);
+void DrivePinningScreenHandler::Show(base::Value::Dict data) {
+  ShowInWebUI(std::move(data));
 }
 
-void DrivePinningScreenHandler::Show() {
-  ShowInWebUI();
+base::WeakPtr<DrivePinningScreenView> DrivePinningScreenHandler::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace ash

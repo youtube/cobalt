@@ -12,15 +12,14 @@ import org.chromium.base.test.params.ParameterizedRunner.ParameterizedTestInstan
 
 import java.util.List;
 
-/**
- * Class runner delegate that extends BaseJUnit4ClassRunner
- */
-public final class BaseJUnit4RunnerDelegate
-        extends BaseJUnit4ClassRunner implements ParameterizedRunnerDelegate {
-    private ParameterizedRunnerDelegateCommon mDelegateCommon;
+/** Class runner delegate that extends BaseJUnit4ClassRunner */
+public final class BaseJUnit4RunnerDelegate extends BaseJUnit4ClassRunner
+        implements ParameterizedRunnerDelegate {
+    private final ParameterizedRunnerDelegateCommon mDelegateCommon;
 
-    public BaseJUnit4RunnerDelegate(Class<?> klass,
-            ParameterizedRunnerDelegateCommon delegateCommon) throws InitializationError {
+    public BaseJUnit4RunnerDelegate(
+            Class<?> klass, ParameterizedRunnerDelegateCommon delegateCommon)
+            throws InitializationError {
         super(klass);
         mDelegateCommon = delegateCommon;
     }

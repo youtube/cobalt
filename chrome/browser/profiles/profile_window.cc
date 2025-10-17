@@ -10,7 +10,6 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/escape.h"
@@ -33,21 +32,21 @@
 #include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_dialogs.h"
-#include "chrome/browser/ui/profile_chooser_constants.h"
-#include "chrome/browser/ui/startup/launch_mode_recorder.h"
+#include "chrome/browser/ui/startup/startup_types.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
-#include "components/flags_ui/pref_service_flags_storage.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/webui/flags/pref_service_flags_storage.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/buildflags/buildflags.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/extension_service.h"
 #include "extensions/browser/extension_prefs.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_registry_factory.h"
 #include "extensions/browser/extension_system.h"
@@ -61,13 +60,9 @@
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #endif  // !defined (OS_ANDROID)
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ui/profile_picker.h"
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/profiles/profiles_state.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#if !BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ui/profiles/profile_picker.h"
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 using base::UserMetricsAction;
 using content::BrowserThread;
@@ -76,9 +71,7 @@ namespace {
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 void UnblockExtensions(Profile* profile) {
-  extensions::ExtensionService* extension_service =
-      extensions::ExtensionSystem::Get(profile)->extension_service();
-  extension_service->UnblockAllExtensions();
+  extensions::ExtensionRegistrar::Get(profile)->UnblockAllExtensions();
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -91,14 +84,6 @@ void ProfileLoadedCallback(base::OnceCallback<void(Profile*)> callback,
   }
   if (callback) {
     std::move(callback).Run(profile);
-  }
-}
-
-// Runs `callback` with a nullptr browser. Note: this takes the callback by
-// reference, so that this can be used without consuming the callback.
-void RunWithNullBrowser(base::OnceCallback<void(Browser*)>& callback) {
-  if (callback) {
-    std::move(callback).Run(nullptr);
   }
 }
 
@@ -129,7 +114,7 @@ void FindOrCreateNewWindowForProfile(
   // This is not a browser launch from the user; don't record the launch mode.
   browser_creator.LaunchBrowser(command_line, profile, base::FilePath(),
                                 process_startup, is_first_run,
-                                /*launch_mode_recorder=*/nullptr);
+                                /*restore_tabbed_browser=*/true);
 }
 
 void OpenBrowserWindowForProfile(base::OnceCallback<void(Browser*)> callback,
@@ -143,9 +128,12 @@ void OpenBrowserWindowForProfile(base::OnceCallback<void(Browser*)> callback,
   // `error_closure_runner` runs the callback  with nullptr to signal an error
   // if the function reaches a return statement without consuming callback. If
   // the callback is consumed by std::move(), then `callback` will be empty
-  // after that and the closure runner does nothing.
-  base::ScopedClosureRunner error_closure_runner(
-      base::BindOnce(&RunWithNullBrowser, std::ref(callback)));
+  // after that and the scoped cleanup does nothing.
+  absl::Cleanup error_closure_runner([&callback] {
+    if (callback) {
+      std::move(callback).Run(nullptr);
+    }
+  });
   chrome::startup::IsProcessStartup process_startup =
       chrome::startup::IsProcessStartup::kNo;
   chrome::startup::IsFirstRun is_first_run = chrome::startup::IsFirstRun::kNo;
@@ -156,7 +144,7 @@ void OpenBrowserWindowForProfile(base::OnceCallback<void(Browser*)> callback,
     is_first_run = chrome::startup::IsFirstRun::kYes;
   }
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   if (!profile->IsGuestSession()) {
     ProfileAttributesEntry* entry =
         g_browser_process->profile_manager()
@@ -168,15 +156,7 @@ void OpenBrowserWindowForProfile(base::OnceCallback<void(Browser*)> callback,
       return;
     }
   }
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  if (!AreSecondaryProfilesAllowed() && !profile->IsMainProfile()) {
-    ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
-        ProfilePicker::EntryPoint::kProfileLocked));
-    return;
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   if (unblock_extensions) {
@@ -268,7 +248,7 @@ BrowserAddedForProfileObserver::BrowserAddedForProfileObserver(
   browser_list_observation_.Observe(BrowserList::GetInstance());
 }
 
-BrowserAddedForProfileObserver::~BrowserAddedForProfileObserver() {}
+BrowserAddedForProfileObserver::~BrowserAddedForProfileObserver() = default;
 
 void BrowserAddedForProfileObserver::OnBrowserAdded(Browser* browser) {
   if (browser_) {

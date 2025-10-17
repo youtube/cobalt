@@ -21,7 +21,6 @@ std::string GetChannelName(WithExtendedStable with_extended_stable) {
     case version_info::Channel::STABLE: return std::string();
   }
   NOTREACHED() << "Unknown channel " << static_cast<int>(GetChannel());
-  return std::string();
 }
 
 version_info::Channel GetChannel() {

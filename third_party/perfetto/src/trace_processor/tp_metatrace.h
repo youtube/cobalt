@@ -172,17 +172,15 @@ class ScopedEvent {
     record_->duration_ns = now - record_->timestamp_ns;
   }
 
-  ScopedEvent(ScopedEvent&& value) {
+  ScopedEvent(ScopedEvent&& value) noexcept {
     record_ = value.record_;
     record_idx_ = value.record_idx_;
     value.record_ = nullptr;
   }
 
   template <typename Fn = void(Record*)>
-  static ScopedEvent Create(
-      Category category,
-      const char* event_id,
-      Fn args_fn = [](Record*) {}) {
+  static ScopedEvent
+  Create(Category category, const char* event_id, Fn args_fn = [](Record*) {}) {
     if (PERFETTO_LIKELY((category & g_enabled_categories) == 0))
       return ScopedEvent();
 

@@ -35,7 +35,7 @@ void SecurePaymentConfirmationNoCreds::ShowDialog(
     OptOutCallback opt_out_callback) {
 #if BUILDFLAG(IS_ANDROID)
   NOTREACHED();
-#endif  // BUILDFLAG(IS_ANDROID)
+#else
   DCHECK(!view_);
 
   model_.set_no_creds_text(l10n_util::GetStringFUTF16(
@@ -50,6 +50,7 @@ void SecurePaymentConfirmationNoCreds::ShowDialog(
   view_ = SecurePaymentConfirmationNoCredsView::Create();
   view_->ShowDialog(web_contents, model_.GetWeakPtr(),
                     std::move(response_callback), std::move(opt_out_callback));
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void SecurePaymentConfirmationNoCreds::CloseDialog() {

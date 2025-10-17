@@ -2,14 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/cert/ct_objects_extractor.h"
 
 #include <string.h>
 
+#include <string_view>
+
+#include "base/compiler_specific.h"
 #include "base/hash/sha1.h"
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
+#include "crypto/hash.h"
 #include "crypto/sha2.h"
 #include "net/cert/asn1_util.h"
 #include "net/cert/signed_certificate_timestamp.h"
@@ -20,11 +28,6 @@
 namespace net::ct {
 
 namespace {
-
-// The wire form of the OID 1.3.6.1.4.1.11129.2.4.2. See Section 3.3 of
-// RFC6962.
-const uint8_t kEmbeddedSCTOid[] = {0x2B, 0x06, 0x01, 0x04, 0x01,
-                                   0xD6, 0x79, 0x02, 0x04, 0x02};
 
 // The wire form of the OID 1.3.6.1.4.1.11129.2.4.5 - OCSP SingleExtension for
 // X.509v3 Certificate Transparency Signed Certificate Timestamp List, see
@@ -66,23 +69,23 @@ bool SkipOptionalElement(CBS* cbs, unsigned tag) {
 // must be a subset of |outer|.
 bool CopyBefore(const CBS& outer, const CBS& inner, CBB* out) {
   CHECK_LE(CBS_data(&outer), CBS_data(&inner));
-  CHECK_LE(CBS_data(&inner) + CBS_len(&inner),
-           CBS_data(&outer) + CBS_len(&outer));
+  CHECK_LE(UNSAFE_TODO(CBS_data(&inner) + CBS_len(&inner)),
+           UNSAFE_TODO(CBS_data(&outer) + CBS_len(&outer)));
 
   return !!CBB_add_bytes(out, CBS_data(&outer),
-                         CBS_data(&inner) - CBS_data(&outer));
+                         UNSAFE_TODO(CBS_data(&inner) - CBS_data(&outer)));
 }
 
 // Copies all the bytes in |outer| which are after |inner| to |out|. |inner|
 // must be a subset of |outer|.
 bool CopyAfter(const CBS& outer, const CBS& inner, CBB* out) {
   CHECK_LE(CBS_data(&outer), CBS_data(&inner));
-  CHECK_LE(CBS_data(&inner) + CBS_len(&inner),
-           CBS_data(&outer) + CBS_len(&outer));
+  CHECK_LE(UNSAFE_TODO(CBS_data(&inner) + CBS_len(&inner)),
+           UNSAFE_TODO(CBS_data(&outer) + CBS_len(&outer)));
 
-  return !!CBB_add_bytes(
-      out, CBS_data(&inner) + CBS_len(&inner),
-      CBS_data(&outer) + CBS_len(&outer) - CBS_data(&inner) - CBS_len(&inner));
+  return !!CBB_add_bytes(out, UNSAFE_TODO(CBS_data(&inner) + CBS_len(&inner)),
+                         UNSAFE_TODO(CBS_data(&outer) + CBS_len(&outer) -
+                                     CBS_data(&inner) - CBS_len(&inner)));
 }
 
 // Skips |tbs_cert|, which must be a TBSCertificate body, to just before the
@@ -175,13 +178,13 @@ bool FindMatchingSingleResponse(CBS* responses,
                                 const CRYPTO_BUFFER* issuer,
                                 const std::string& cert_serial_number,
                                 CBS* out_single_response) {
-  base::StringPiece issuer_spki;
+  std::string_view issuer_spki;
   if (!asn1::ExtractSPKIFromDERCert(
           x509_util::CryptoBufferAsStringPiece(issuer), &issuer_spki))
     return false;
 
   // In OCSP, only the key itself is under hash.
-  base::StringPiece issuer_spk;
+  std::string_view issuer_spk;
   if (!asn1::ExtractSubjectPublicKeyFromSPKI(issuer_spki, &issuer_spk))
     return false;
 
@@ -322,7 +325,7 @@ bool GetPrecertSignedEntry(const CRYPTO_BUFFER* leaf,
   bssl::UniquePtr<uint8_t> scoped_new_tbs_cert_der(new_tbs_cert_der);
 
   // Extract the issuer's public key.
-  base::StringPiece issuer_key;
+  std::string_view issuer_key;
   if (!asn1::ExtractSPKIFromDERCert(
           x509_util::CryptoBufferAsStringPiece(issuer), &issuer_key)) {
     return false;
@@ -332,8 +335,8 @@ bool GetPrecertSignedEntry(const CRYPTO_BUFFER* leaf,
   result->type = ct::SignedEntryData::LOG_ENTRY_TYPE_PRECERT;
   result->tbs_certificate.assign(
       reinterpret_cast<const char*>(new_tbs_cert_der), new_tbs_cert_len);
-  crypto::SHA256HashString(issuer_key, result->issuer_key_hash.data,
-                           sizeof(result->issuer_key_hash.data));
+  result->issuer_key_hash =
+      crypto::hash::Sha256(base::as_byte_span(issuer_key));
 
   return true;
 }
@@ -350,11 +353,11 @@ bool GetX509SignedEntry(const CRYPTO_BUFFER* leaf, SignedEntryData* result) {
 
 bool ExtractSCTListFromOCSPResponse(const CRYPTO_BUFFER* issuer,
                                     const std::string& cert_serial_number,
-                                    base::StringPiece ocsp_response,
+                                    std::string_view ocsp_response,
                                     std::string* sct_list) {
-  // The input is an OCSPResponse. See RFC2560, section 4.2.1. The SCT list is
-  // in the extensions field of the SingleResponse which matches the input
-  // certificate.
+  // The input is an bssl::OCSPResponse. See RFC2560, section 4.2.1. The SCT
+  // list is in the extensions field of the SingleResponse which matches the
+  // input certificate.
   CBS cbs;
   CBS_init(&cbs, reinterpret_cast<const uint8_t*>(ocsp_response.data()),
            ocsp_response.size());

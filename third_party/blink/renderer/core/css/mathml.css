@@ -1,5 +1,5 @@
 /*
- * The default style sheet used to render MathML (MathMLCore enabled).
+ * The default style sheet used to render MathML.
  *
  * Copyright (C) 2014 Google Inc. All rights reserved.
  *
@@ -57,11 +57,6 @@ math[display="block" i] {
 math[display="inline" i] {
   display: inline math;
   math-style: compact;
-}
-
-:-internal-spatial-navigation-interest {
-    outline: auto 1px -webkit-focus-ring-color;
-    box-shadow: none !important;
 }
 
 :focus {

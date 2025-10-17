@@ -6,7 +6,9 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_GL_STRING_QUERY_H_
 
 #include "base/check_op.h"
+#include "base/memory/raw_ptr.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/khronos/GLES2/gl2ext.h"
 
@@ -72,19 +74,18 @@ class GLStringQuery {
     Traits::LengthFunction(gl_, id, &length);
     if (!length)
       return WTF::g_empty_string;
-    LChar* log_ptr;
-    scoped_refptr<WTF::StringImpl> name_impl =
-        WTF::StringImpl::CreateUninitialized(length, log_ptr);
     GLsizei returned_length = 0;
-    Traits::LogFunction(gl_, id, length, &returned_length, log_ptr);
+    StringBuffer<LChar> log_buffer(length);
+    Traits::LogFunction(gl_, id, length, &returned_length,
+                        log_buffer.Span().data());
     // The returnedLength excludes the null terminator. If this check wasn't
     // true, then we'd need to tell the returned String the real length.
     DCHECK_EQ(returned_length + 1, length);
-    return String(std::move(name_impl));
+    return String::Adopt(log_buffer);
   }
 
  private:
-  gpu::gles2::GLES2Interface* gl_;
+  raw_ptr<gpu::gles2::GLES2Interface> gl_;
 };
 
 }  // namespace blink

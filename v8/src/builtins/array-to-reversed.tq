@@ -4,13 +4,13 @@
 
 namespace array {
 
-macro FastPackedDoubleArrayToReversed(implicit context: Context)(
-    elements: FixedDoubleArray, length: Smi): JSArray {
+macro FastPackedDoubleArrayToReversed(
+    implicit context: Context)(elements: FixedDoubleArray,
+    length: Smi): JSArray {
   // 3. Let A be ? ArrayCreate(𝔽(len)).
   const copy: FixedDoubleArray =
       UnsafeCast<FixedDoubleArray>(AllocateFixedArray(
-          ElementsKind::PACKED_DOUBLE_ELEMENTS, SmiUntag(length),
-          AllocationFlag::kAllowLargeObjectAllocation));
+          ElementsKind::PACKED_DOUBLE_ELEMENTS, SmiUntag(length)));
 
   // 4. Let k be 0.
   let k: Smi = 0;
@@ -23,7 +23,8 @@ macro FastPackedDoubleArrayToReversed(implicit context: Context)(
 
     // c. Let fromValue be ? Get(O, from).
     const fromValue: float64 =
-        elements.floats[from].Value() otherwise unreachable;
+        elements.values[from].Value() otherwise unreachable,
+                     unreachable;
 
     // d. Perform ! CreateDataPropertyOrThrow(A, Pk, fromValue).
     StoreFixedDoubleArrayElement(copy, k, fromValue);
@@ -39,12 +40,11 @@ macro FastPackedDoubleArrayToReversed(implicit context: Context)(
 }
 
 macro FastArrayToReversed<FromElements : type extends FixedArrayBase>(
-    implicit context: Context)(
-    kind: constexpr ElementsKind, elements: FromElements, length: Smi,
+    implicit context: Context)(kind: constexpr ElementsKind,
+    elements: FromElements, length: Smi,
     initializeArray: constexpr bool): JSArray {
   // 3. Let A be ? ArrayCreate(𝔽(len)).
-  const copy: FixedArrayBase = AllocateFixedArray(
-      kind, SmiUntag(length), AllocationFlag::kAllowLargeObjectAllocation);
+  const copy: FixedArrayBase = AllocateFixedArray(kind, SmiUntag(length));
 
   // Reversing HOLEY_DOUBLE_ELEMENTS array may allocate heap numbers.
   // We need to initialize the array to avoid running GC with garbage values.
@@ -78,8 +78,8 @@ macro FastArrayToReversed<FromElements : type extends FixedArrayBase>(
   return NewJSArray(map, copy);
 }
 
-macro TryFastArrayToReversed(implicit context: Context)(receiver: JSAny):
-    JSArray labels Slow {
+macro TryFastArrayToReversed(implicit context: Context)(
+                                receiver: JSAny): JSArray labels Slow {
   const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
   if (array.length < 1) return ArrayCreate(0);
@@ -115,8 +115,8 @@ macro TryFastArrayToReversed(implicit context: Context)(receiver: JSAny):
   }
 }
 
-transitioning builtin GenericArrayToReversed(implicit context: Context)(
-    receiver: JSAny): JSAny {
+transitioning builtin GenericArrayToReversed(
+    implicit context: Context)(receiver: JSAny): JSAny {
   // 1. Let O be ? ToObject(this value).
   const object: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -150,6 +150,7 @@ transitioning builtin GenericArrayToReversed(implicit context: Context)(
 }
 
 // https://tc39.es/proposal-change-array-by-copy/#sec-array.prototype.toReversed
+@incrementUseCounter('v8::Isolate::kArrayByCopy')
 transitioning javascript builtin ArrayPrototypeToReversed(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {

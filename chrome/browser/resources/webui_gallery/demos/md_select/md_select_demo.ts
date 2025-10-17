@@ -1,39 +1,45 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import '//resources/cr_elements/md_select.css.js';
 
-import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {getTemplate} from './md_select_demo.html.js';
+import {getCss} from './md_select_demo.css.js';
+import {getHtml} from './md_select_demo.html.js';
 
-interface MdSelectDemoElement {
+export interface MdSelectDemoElement {
   $: {
     select: HTMLSelectElement,
   };
 }
 
-class MdSelectDemoElement extends PolymerElement {
+export class MdSelectDemoElement extends CrLitElement {
   static get is() {
     return 'md-select-demo';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      selectedOption_: String,
+      selectedOption_: {type: String},
     };
   }
 
-  private selectedOption_: string = 'two';
+  protected accessor selectedOption_: string = 'two';
 
-  private onSelectValueChanged_() {
+  protected onSelectValueChanged_() {
     this.selectedOption_ = this.$.select.value;
   }
 }
+
+export const tagName = MdSelectDemoElement.is;
 
 customElements.define(MdSelectDemoElement.is, MdSelectDemoElement);

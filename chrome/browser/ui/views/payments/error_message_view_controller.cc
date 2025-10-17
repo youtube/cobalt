@@ -21,8 +21,9 @@
 namespace {
 
 class PaymentsErrorLabel : public views::Label {
+  METADATA_HEADER(PaymentsErrorLabel, views::Label)
+
  public:
-  METADATA_HEADER(PaymentsErrorLabel);
   PaymentsErrorLabel()
       : Label(l10n_util::GetStringUTF16(IDS_PAYMENTS_ERROR_MESSAGE)) {
     SetMultiLine(true);
@@ -37,7 +38,7 @@ class PaymentsErrorLabel : public views::Label {
   }
 };
 
-BEGIN_METADATA(PaymentsErrorLabel, views::Label)
+BEGIN_METADATA(PaymentsErrorLabel)
 END_METADATA
 
 }  // namespace
@@ -50,7 +51,7 @@ ErrorMessageViewController::ErrorMessageViewController(
     base::WeakPtr<PaymentRequestDialogView> dialog)
     : PaymentRequestSheetController(spec, state, dialog) {}
 
-ErrorMessageViewController::~ErrorMessageViewController() {}
+ErrorMessageViewController::~ErrorMessageViewController() = default;
 
 std::u16string ErrorMessageViewController::GetPrimaryButtonLabel() {
   return l10n_util::GetStringUTF16(IDS_CLOSE);

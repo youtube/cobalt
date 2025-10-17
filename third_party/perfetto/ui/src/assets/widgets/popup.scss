@@ -17,6 +17,17 @@
 .pf-popup-portal {
   position: absolute;
   z-index: 10; // Hack to show popups over certain other elements
+
+  // When width = 0 it can cause layout issues in popup content, so we give this
+  // element some width manually
+  width: 100%;
+
+  // Move the portal to the top of the page. This appears to fix issues where
+  // popups can sometimes be rendered below the rest of the page momentarily,
+  // causing the whole page to judder up and down while popper.js sorts out the
+  // positioning.
+  // TODO(stevegolton): There is probably a better way to fix this issue.
+  top: 0;
 }
 
 .pf-popup {
@@ -24,9 +35,12 @@
   border: solid 1px $pf-colour-thin-border;
   border-radius: $pf-border-radius;
   box-shadow: 2px 2px 16px rgba(0, 0, 0, 0.2);
+
   .pf-popup-content {
     // Ensures all content is rendered above the arrow
     position: relative;
+    // Default padding set to some sensible value that works for most content
+    padding: 4px;
   }
 }
 

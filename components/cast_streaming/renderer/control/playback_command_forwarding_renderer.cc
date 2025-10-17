@@ -4,6 +4,7 @@
 
 #include "components/cast_streaming/renderer/control/playback_command_forwarding_renderer.h"
 
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -44,14 +45,12 @@ class RendererCommandForwarder : public media::mojom::Renderer {
   // media::mojom::Renderer overrides.
   void Initialize(
       ::mojo::PendingAssociatedRemote<media::mojom::RendererClient> client,
-      absl::optional<
+      std::optional<
           std::vector<::mojo::PendingRemote<::media::mojom::DemuxerStream>>>
           streams,
-      media::mojom::MediaUrlParamsPtr media_url_params,
       InitializeCallback callback) override {
     owning_renderer_->MojoRendererInitialize(
-        std::move(client), std::move(streams), std::move(media_url_params),
-        std::move(callback));
+        std::move(client), std::move(streams), std::move(callback));
   }
 
   void StartPlayingFrom(::base::TimeDelta time) override {
@@ -70,13 +69,17 @@ class RendererCommandForwarder : public media::mojom::Renderer {
     owning_renderer_->MojoRendererSetVolume(volume);
   }
 
-  void SetCdm(const absl::optional<::base::UnguessableToken>& cdm_id,
+  void SetCdm(const std::optional<::base::UnguessableToken>& cdm_id,
               SetCdmCallback callback) override {
     owning_renderer_->MojoRendererSetCdm(cdm_id, std::move(callback));
   }
 
+  void SetLatencyHint(std::optional<base::TimeDelta> latency_hint) override {
+    NOTIMPLEMENTED();
+  }
+
  private:
-  PlaybackCommandForwardingRenderer* const owning_renderer_;
+  const raw_ptr<PlaybackCommandForwardingRenderer> owning_renderer_;
   mojo::Receiver<media::mojom::Renderer> playback_controller_;
 };
 
@@ -119,7 +122,7 @@ void PlaybackCommandForwardingRenderer::SetCdm(media::CdmContext* cdm_context,
 }
 
 void PlaybackCommandForwardingRenderer::SetLatencyHint(
-    absl::optional<base::TimeDelta> latency_hint) {
+    std::optional<base::TimeDelta> latency_hint) {
   // Not relevant for current mirroring use cases.
 }
 
@@ -161,12 +164,10 @@ void PlaybackCommandForwardingRenderer::OnRealRendererInitializationComplete(
 // TODO(b/205307190): Bind the mojo pipe to the task runner directly.
 void PlaybackCommandForwardingRenderer::MojoRendererInitialize(
     ::mojo::PendingAssociatedRemote<media::mojom::RendererClient> client,
-    absl::optional<
+    std::optional<
         std::vector<::mojo::PendingRemote<::media::mojom::DemuxerStream>>>
         streams,
-    media::mojom::MediaUrlParamsPtr media_url_params,
     media::mojom::Renderer::InitializeCallback callback) {
-  DCHECK(!media_url_params);
   DCHECK(client);
 
   // NOTE: To maintain existing functionality, and ensure mirroring continues
@@ -181,7 +182,7 @@ void PlaybackCommandForwardingRenderer::MojoRendererInitialize(
         base::BindOnce(
             &PlaybackCommandForwardingRenderer::MojoRendererInitialize,
             weak_factory_.GetWeakPtr(), std::move(client), std::move(streams),
-            std::move(media_url_params), std::move(callback)));
+            std::move(callback)));
     return;
   }
 
@@ -247,7 +248,7 @@ void PlaybackCommandForwardingRenderer::MojoRendererSetVolume(float volume) {
 }
 
 void PlaybackCommandForwardingRenderer::MojoRendererSetCdm(
-    const absl::optional<::base::UnguessableToken>& cdm_id,
+    const std::optional<::base::UnguessableToken>& cdm_id,
     media::mojom::Renderer::SetCdmCallback callback) {
   NOTREACHED() << "Use of a CDM is not supported by the remoting protocol.";
 }
@@ -359,7 +360,7 @@ void PlaybackCommandForwardingRenderer::OnVideoOpacityChange(bool opaque) {
 }
 
 void PlaybackCommandForwardingRenderer::OnVideoFrameRateChange(
-    absl::optional<int> fps) {
+    std::optional<int> fps) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // media::mojom::RendererClient does not support this call.

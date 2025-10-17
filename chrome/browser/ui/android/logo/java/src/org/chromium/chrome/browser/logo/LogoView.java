@@ -4,8 +4,11 @@
 
 package org.chromium.chrome.browser.logo;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.animation.Animator;
 import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
@@ -19,40 +22,46 @@ import android.util.FloatProperty;
 import android.view.Gravity;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.animation.LinearInterpolator;
 import android.widget.FrameLayout;
 
-import org.chromium.chrome.browser.logo.LogoBridge.Logo;
-import org.chromium.ui.widget.LoadingView;
-import org.chromium.ui.widget.LoadingView.Observer;
+import androidx.annotation.VisibleForTesting;
 
 import jp.tomorrowkey.android.gifplayer.BaseGifDrawable;
 import jp.tomorrowkey.android.gifplayer.BaseGifImage;
+
+import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.logo.LogoBridge.Logo;
+import org.chromium.ui.widget.LoadingView;
 
 /**
  * This view shows the default search provider's logo and fades in a new logo if one becomes
  * available. It also maintains a {@link BaseGifDrawable} that will be played when the user clicks
  * this view and we have an animated GIF logo ready.
  */
+@NullMarked
 public class LogoView extends FrameLayout implements OnClickListener {
     // Number of milliseconds for a new logo to fade in.
     private static final int LOGO_TRANSITION_TIME_MS = 400;
 
     // mLogo and mNewLogo are remembered for cross fading animation.
-    private Bitmap mLogo;
-    private Bitmap mNewLogo;
-    private Bitmap mDefaultGoogleLogo;
-    private BaseGifDrawable mAnimatedLogoDrawable;
+    private @Nullable Bitmap mLogo;
+    private @Nullable Bitmap mNewLogo;
+    private @Nullable Bitmap mDefaultGoogleLogo;
+    private @Nullable BaseGifDrawable mAnimatedLogoDrawable;
 
-    private ObjectAnimator mFadeAnimation;
-    private Paint mPaint;
-    private Matrix mLogoMatrix;
-    private Matrix mNewLogoMatrix;
-    private Matrix mAnimatedLogoMatrix;
+    private @Nullable ObjectAnimator mFadeAnimation;
+    private final Paint mPaint;
+    private @Nullable Matrix mLogoMatrix;
+    private @Nullable Matrix mNewLogoMatrix;
+    private @Nullable Matrix mAnimatedLogoMatrix;
     private boolean mLogoIsDefault;
     private boolean mNewLogoIsDefault;
     private boolean mAnimationEnabled = true;
 
-    private LoadingView mLoadingView;
+    private final LoadingView mLoadingView;
 
     /**
      * A measure from 0 to 1 of how much the new logo has faded in. 0 shows the old logo, 1 shows
@@ -61,7 +70,9 @@ public class LogoView extends FrameLayout implements OnClickListener {
      */
     private float mTransitionAmount;
 
-    private ClickHandler mClickHandler;
+    private @Nullable ClickHandler mClickHandler;
+    private @Nullable Callback<LogoBridge.Logo> mOnLogoAvailableCallback;
+    private int mDoodleSize;
 
     private final FloatProperty<LogoView> mTransitionProperty =
             new FloatProperty<LogoView>("") {
@@ -129,7 +140,20 @@ public class LogoView extends FrameLayout implements OnClickListener {
         mClickHandler = clickHandler;
     }
 
-    /** Jumps to the end of the logo cross-fading animation, if any.*/
+    /** Sets the onLogoAvailableCallback to notify when the new logo has faded in. */
+    void setLogoAvailableCallback(Callback<Logo> onLogoAvailableCallback) {
+        mOnLogoAvailableCallback = onLogoAvailableCallback;
+    }
+
+    /**
+     * Sets the logo size to use when logo is a google doodle. When logo is not a google doodle,
+     * this value should be invalid.
+     */
+    void setDoodleSize(int doodleSize) {
+        mDoodleSize = doodleSize;
+    }
+
+    /** Jumps to the end of the logo cross-fading animation, if any. */
     void endFadeAnimation() {
         if (mFadeAnimation != null) {
             mFadeAnimation.end();
@@ -142,13 +166,16 @@ public class LogoView extends FrameLayout implements OnClickListener {
         return mAnimatedLogoDrawable != null;
     }
 
-    /** Starts playing the given animated GIF logo.*/
+    /** Starts playing the given animated GIF logo. */
     void playAnimatedLogo(BaseGifImage gifImage) {
-        mLoadingView.hideLoadingUI();
+        mLoadingView.hideLoadingUi();
         mAnimatedLogoDrawable = new BaseGifDrawable(gifImage, Config.ARGB_8888);
         mAnimatedLogoMatrix = new Matrix();
-        setMatrix(mAnimatedLogoDrawable.getIntrinsicWidth(),
-                mAnimatedLogoDrawable.getIntrinsicHeight(), mAnimatedLogoMatrix, false);
+        setMatrix(
+                mAnimatedLogoDrawable.getIntrinsicWidth(),
+                mAnimatedLogoDrawable.getIntrinsicHeight(),
+                mAnimatedLogoMatrix,
+                false);
         // Set callback here to ensure #invalidateDrawable() is called.
         mAnimatedLogoDrawable.setCallback(this);
         mAnimatedLogoDrawable.start();
@@ -158,7 +185,7 @@ public class LogoView extends FrameLayout implements OnClickListener {
     void showLoadingView() {
         mLogo = null;
         invalidate();
-        mLoadingView.showLoadingUI();
+        mLoadingView.showLoadingUi();
     }
 
     /**
@@ -176,20 +203,35 @@ public class LogoView extends FrameLayout implements OnClickListener {
      *
      * @param logo The new logo to fade in.
      */
-    void updateLogo(Logo logo) {
+    @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
+    public void updateLogo(Logo logo) {
         if (logo == null) {
-            if (maybeShowDefaultLogo()) return;
+            if (!maybeShowDefaultLogo()) {
+                mLogo = null;
+                invalidate();
+            }
 
-            mLogo = null;
-            invalidate();
+            if (mOnLogoAvailableCallback != null) {
+                mOnLogoAvailableCallback.onResult(logo);
+            }
             return;
         }
 
-        String contentDescription = TextUtils.isEmpty(logo.altText)
-                ? null
-                : getResources().getString(R.string.accessibility_google_doodle, logo.altText);
+        String contentDescription =
+                TextUtils.isEmpty(logo.altText)
+                        ? null
+                        : getResources()
+                                .getString(R.string.accessibility_google_doodle, logo.altText);
+        Runnable onAnimationFinished = null;
+        if (mOnLogoAvailableCallback != null) {
+            onAnimationFinished = mOnLogoAvailableCallback.bind(logo);
+        }
         updateLogoImpl(
-                logo.image, contentDescription, /* isDefaultLogo = */ false, isLogoClickable(logo));
+                logo.image,
+                contentDescription,
+                /* isDefaultLogo= */ false,
+                isLogoClickable(logo),
+                onAnimationFinished);
     }
 
     void setAnimationEnabled(boolean animationEnabled) {
@@ -200,13 +242,17 @@ public class LogoView extends FrameLayout implements OnClickListener {
         return !TextUtils.isEmpty(logo.animatedLogoUrl) || !TextUtils.isEmpty(logo.onClickUrl);
     }
 
-    private void updateLogoImpl(Bitmap logo, final String contentDescription, boolean isDefaultLogo,
-            boolean isClickable) {
+    private void updateLogoImpl(
+            Bitmap logo,
+            final @Nullable String contentDescription,
+            boolean isDefaultLogo,
+            boolean isClickable,
+            @Nullable Runnable onAnimationFinished) {
         assert logo != null;
 
         if (mFadeAnimation != null) mFadeAnimation.end();
 
-        mLoadingView.hideLoadingUI();
+        mLoadingView.hideLoadingUi();
 
         // Don't crossfade if the new logo is the same as the old one.
         if (mLogo == logo) return;
@@ -214,37 +260,86 @@ public class LogoView extends FrameLayout implements OnClickListener {
         mNewLogo = logo;
         mNewLogoMatrix = new Matrix();
         mNewLogoIsDefault = isDefaultLogo;
+
+        MarginLayoutParams logoViewLayoutParams = (MarginLayoutParams) getLayoutParams();
+        int oldLogoHeight = logoViewLayoutParams.height;
+        int oldLogoTopMargin = logoViewLayoutParams.topMargin;
+        int[] newLogoViewLayoutParams =
+                LogoUtils.getLogoViewLayoutParams(getResources(), !isDefaultLogo, mDoodleSize);
+        int newLogoHeight = newLogoViewLayoutParams[0];
+        int newLogoTopMargin = newLogoViewLayoutParams[1];
+
         setMatrix(mNewLogo.getWidth(), mNewLogo.getHeight(), mNewLogoMatrix, mNewLogoIsDefault);
 
         mFadeAnimation = ObjectAnimator.ofFloat(this, mTransitionProperty, 0f, 1f);
+        mFadeAnimation.setInterpolator(new LinearInterpolator());
         mFadeAnimation.setDuration(mAnimationEnabled ? LOGO_TRANSITION_TIME_MS : 0);
-        mFadeAnimation.addListener(new Animator.AnimatorListener() {
-            @Override
-            public void onAnimationStart(Animator animation) {}
+        mFadeAnimation.addUpdateListener(
+                new ValueAnimator.AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        if (newLogoHeight == oldLogoHeight) return;
 
-            @Override
-            public void onAnimationRepeat(Animator animation) {}
+                        float animationValue = (Float) animation.getAnimatedValue();
+                        if (animationValue <= 0.5f) {
+                            return;
+                        }
 
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                mLogo = mNewLogo;
-                mLogoMatrix = mNewLogoMatrix;
-                mLogoIsDefault = mNewLogoIsDefault;
-                mNewLogo = null;
-                mNewLogoMatrix = null;
-                mTransitionAmount = 0f;
-                mFadeAnimation = null;
-                setContentDescription(contentDescription);
-                setClickable(isClickable);
-                setFocusable(isClickable || !TextUtils.isEmpty(contentDescription));
-            }
+                        // Interpolate height
+                        int logoHeight =
+                                Math.round(
+                                        (oldLogoHeight
+                                                + (newLogoHeight - oldLogoHeight)
+                                                        * 2
+                                                        * (animationValue - 0.5f)));
 
-            @Override
-            public void onAnimationCancel(Animator animation) {
-                onAnimationEnd(animation);
-                invalidate();
-            }
-        });
+                        // Interpolate top margin
+                        int logoTopMargin =
+                                Math.round(
+                                        (oldLogoTopMargin
+                                                + (newLogoTopMargin - oldLogoTopMargin)
+                                                        * 2
+                                                        * (animationValue - 0.5f)));
+
+                        LogoUtils.setLogoViewLayoutParamsForDoodle(
+                                LogoView.this, logoHeight, logoTopMargin);
+                    }
+                });
+        mFadeAnimation.addListener(
+                new Animator.AnimatorListener() {
+                    @Override
+                    public void onAnimationStart(Animator animation) {}
+
+                    @Override
+                    public void onAnimationRepeat(Animator animation) {}
+
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        mLogo = mNewLogo;
+                        mLogoMatrix = mNewLogoMatrix;
+                        mLogoIsDefault = mNewLogoIsDefault;
+                        mNewLogo = null;
+                        mNewLogoMatrix = null;
+                        mTransitionAmount = 0f;
+                        mFadeAnimation = null;
+                        if (newLogoHeight != oldLogoHeight) {
+                            LogoUtils.setLogoViewLayoutParamsForDoodle(
+                                    LogoView.this, newLogoHeight, newLogoTopMargin);
+                        }
+                        setContentDescription(contentDescription);
+                        setClickable(isClickable);
+                        setFocusable(isClickable || !TextUtils.isEmpty(contentDescription));
+                        if (!isDefaultLogo && onAnimationFinished != null) {
+                            onAnimationFinished.run();
+                        }
+                    }
+
+                    @Override
+                    public void onAnimationCancel(Animator animation) {
+                        onAnimationEnd(animation);
+                        invalidate();
+                    }
+                });
         mFadeAnimation.start();
     }
 
@@ -258,8 +353,12 @@ public class LogoView extends FrameLayout implements OnClickListener {
      */
     private boolean maybeShowDefaultLogo() {
         if (mDefaultGoogleLogo != null) {
-            updateLogoImpl(mDefaultGoogleLogo, null, /* isDefaultLogo = */ true,
-                    /* isClickable = */ false);
+            updateLogoImpl(
+                    mDefaultGoogleLogo,
+                    /* contentDescription= */ null,
+                    /* isDefaultLogo= */ true,
+                    /* isClickable= */ false,
+                    /* onAnimationFinished= */ null);
             return true;
         }
         return false;
@@ -275,7 +374,7 @@ public class LogoView extends FrameLayout implements OnClickListener {
      * and scaled to fit within the LogoView.
      *
      * @param preventUpscaling Whether the image should not be scaled up. If true, the image might
-     *                         not fill the entire view but will still be centered.
+     *     not fill the entire view but will still be centered.
      */
     private void setMatrix(
             int imageWidth, int imageHeight, Matrix matrix, boolean preventUpscaling) {
@@ -322,7 +421,7 @@ public class LogoView extends FrameLayout implements OnClickListener {
 
             canvas.save();
             canvas.concat(mAnimatedLogoMatrix);
-            mAnimatedLogoDrawable.draw(canvas);
+            assumeNonNull(mAnimatedLogoDrawable).draw(canvas);
             canvas.restore();
         } else {
             if (mLogo != null && mTransitionAmount < 0.5f) {
@@ -334,7 +433,7 @@ public class LogoView extends FrameLayout implements OnClickListener {
             }
 
             if (mNewLogo != null && mTransitionAmount > 0.5f) {
-                mPaint.setAlpha((int) (255 * 2 * (mTransitionAmount - 0.5f)));
+                mPaint.setAlpha((int) (255 * Math.pow(2 * (mTransitionAmount - 0.5f), 3)));
                 canvas.save();
                 canvas.concat(mNewLogoMatrix);
                 canvas.drawBitmap(mNewLogo, 0, 0, mPaint);
@@ -346,15 +445,21 @@ public class LogoView extends FrameLayout implements OnClickListener {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         if (w != oldw || h != oldh) {
-            if (mAnimatedLogoDrawable != null) {
-                setMatrix(mAnimatedLogoDrawable.getIntrinsicWidth(),
-                        mAnimatedLogoDrawable.getIntrinsicHeight(), mAnimatedLogoMatrix, false);
+            if (mAnimatedLogoDrawable != null && mAnimatedLogoMatrix != null) {
+                setMatrix(
+                        mAnimatedLogoDrawable.getIntrinsicWidth(),
+                        mAnimatedLogoDrawable.getIntrinsicHeight(),
+                        mAnimatedLogoMatrix,
+                        false);
             }
-            if (mLogo != null) {
+            if (mLogo != null && mLogoMatrix != null) {
                 setMatrix(mLogo.getWidth(), mLogo.getHeight(), mLogoMatrix, mLogoIsDefault);
             }
-            if (mNewLogo != null) {
-                setMatrix(mNewLogo.getWidth(), mNewLogo.getHeight(), mNewLogoMatrix,
+            if (mNewLogo != null && mNewLogoMatrix != null) {
+                setMatrix(
+                        mNewLogo.getWidth(),
+                        mNewLogo.getHeight(),
+                        mNewLogoMatrix,
                         mNewLogoIsDefault);
             }
         }
@@ -367,19 +472,19 @@ public class LogoView extends FrameLayout implements OnClickListener {
         }
     }
 
-    void endAnimationsForTesting() {
-        mFadeAnimation.end();
+    public void endAnimationsForTesting() {
+        if (mFadeAnimation != null) mFadeAnimation.end();
     }
 
-    ObjectAnimator getFadeAnimationForTesting() {
+    @Nullable ObjectAnimator getFadeAnimationForTesting() {
         return mFadeAnimation;
     }
 
-    Bitmap getNewLogoForTesting() {
+    @Nullable Bitmap getNewLogoForTesting() {
         return mNewLogo;
     }
 
-    Bitmap getLogoForTesting() {
+    @Nullable Bitmap getLogoForTesting() {
         return mLogo;
     }
 
@@ -387,19 +492,11 @@ public class LogoView extends FrameLayout implements OnClickListener {
         return mAnimationEnabled;
     }
 
-    boolean checkLoadingViewObserverEmptyForTesting() {
-        return mLoadingView.isObserverListEmpty();
-    }
-
-    void addLoadingViewObserverForTesting(Observer listener) {
-        mLoadingView.addObserver(listener);
-    }
-
-    ClickHandler getClickHandlerForTesting() {
+    @Nullable ClickHandler getClickHandlerForTesting() {
         return mClickHandler;
     }
 
-    Bitmap getDefaultGoogleLogoForTesting() {
+    @Nullable Bitmap getDefaultGoogleLogoForTesting() {
         return mDefaultGoogleLogo;
     }
 
@@ -409,5 +506,9 @@ public class LogoView extends FrameLayout implements OnClickListener {
 
     void setLoadingViewVisibilityForTesting(int visibility) {
         mLoadingView.setVisibility(visibility);
+    }
+
+    int getDoodleSizeForTesting() {
+        return mDoodleSize;
     }
 }

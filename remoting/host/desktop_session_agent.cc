@@ -4,29 +4,32 @@
 
 #include "remoting/host/desktop_session_agent.h"
 
+#include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 
-#include "base/files/file_util.h"
+#include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/memory/platform_shared_memory_region.h"
-#include "base/memory/ptr_util.h"
-#include "base/memory/read_only_shared_memory_region.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
 #include "base/process/process_handle.h"
-#include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "ipc/ipc_channel_proxy.h"
 #include "ipc/ipc_message.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
+#include "mojo/public/cpp/bindings/scoped_interface_endpoint_handle.h"
+#include "mojo/public/cpp/system/message_pipe.h"
 #include "remoting/base/auto_thread_task_runner.h"
-#include "remoting/base/constants.h"
+#include "remoting/base/errors.h"
 #include "remoting/host/action_executor.h"
 #include "remoting/host/audio_capturer.h"
+#include "remoting/host/base/desktop_environment_options.h"
 #include "remoting/host/base/screen_controls.h"
 #include "remoting/host/base/screen_resolution.h"
 #include "remoting/host/crash_process.h"
@@ -35,6 +38,8 @@
 #include "remoting/host/input_injector.h"
 #include "remoting/host/keyboard_layout_monitor.h"
 #include "remoting/host/mojom/desktop_session.mojom-shared.h"
+#include "remoting/host/mojom/desktop_session.mojom.h"
+#include "remoting/host/mouse_shape_pump.h"
 #include "remoting/host/remote_input_filter.h"
 #include "remoting/host/remote_open_url/url_forwarder_configurator.h"
 #include "remoting/host/webauthn/remote_webauthn_state_change_notifier.h"
@@ -42,105 +47,14 @@
 #include "remoting/proto/audio.pb.h"
 #include "remoting/proto/control.pb.h"
 #include "remoting/proto/event.pb.h"
+#include "remoting/proto/url_forwarder_control.pb.h"
 #include "remoting/protocol/clipboard_stub.h"
-#include "remoting/protocol/desktop_capturer.h"
-#include "remoting/protocol/errors.h"
 #include "remoting/protocol/input_event_tracker.h"
-#include "third_party/webrtc/modules/desktop_capture/desktop_frame.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_geometry.h"
 #include "third_party/webrtc/modules/desktop_capture/mouse_cursor.h"
-#include "third_party/webrtc/modules/desktop_capture/shared_memory.h"
-
-#if BUILDFLAG(IS_WIN)
-#include <windows.h>
-
-#include "base/memory/writable_shared_memory_region.h"
-#endif
+#include "ui/events/types/event_type.h"
 
 namespace remoting {
-
-// webrtc::SharedMemory implementation that creates a
-// base::ReadOnlySharedMemoryRegion along with a writable mapping.
-//
-// This is declared outside the anonymous namespace so that it can be friended
-// with base::WritableSharedMemoryRegion. It is not exported in the header.
-class SharedMemoryImpl : public webrtc::SharedMemory {
- public:
-  static std::unique_ptr<SharedMemoryImpl>
-  Create(size_t size, int id, base::OnceClosure on_deleted_callback) {
-    webrtc::SharedMemory::Handle handle = webrtc::SharedMemory::kInvalidHandle;
-#if BUILDFLAG(IS_WIN)
-    // webrtc::ScreenCapturer uses webrtc::SharedMemory::handle() only on
-    // windows. This handle must be writable. A WritableSharedMemoryRegion is
-    // created, and then it is converted to read-only.  On the windows platform,
-    // it happens to be the case that converting a region to read-only does not
-    // change the status of existing handles. This is not true on all other
-    // platforms, so please don't emulate this behavior!
-    base::WritableSharedMemoryRegion region =
-        base::WritableSharedMemoryRegion::Create(size);
-    base::WritableSharedMemoryMapping mapping = region.Map();
-    // Converting |region| to read-only will close its associated handle, so we
-    // must duplicate it into the handle used for |webrtc::ScreenCapturer|.
-    HANDLE process = ::GetCurrentProcess();
-    BOOL success =
-        ::DuplicateHandle(process, region.UnsafeGetPlatformHandle(), process,
-                          &handle, 0, FALSE, DUPLICATE_SAME_ACCESS);
-    if (!success) {
-      return nullptr;
-    }
-    base::ReadOnlySharedMemoryRegion read_only_region =
-        base::WritableSharedMemoryRegion::ConvertToReadOnly(std::move(region));
-#else
-    base::MappedReadOnlyRegion region_mapping =
-        base::ReadOnlySharedMemoryRegion::Create(size);
-    base::ReadOnlySharedMemoryRegion read_only_region =
-        std::move(region_mapping.region);
-    base::WritableSharedMemoryMapping mapping =
-        std::move(region_mapping.mapping);
-#endif
-    if (!mapping.IsValid()) {
-      return nullptr;
-    }
-    // The SharedMemoryImpl ctor is private, so std::make_unique can't be
-    // used.
-    return base::WrapUnique(
-        new SharedMemoryImpl(std::move(read_only_region), std::move(mapping),
-                             handle, id, std::move(on_deleted_callback)));
-  }
-
-  SharedMemoryImpl(const SharedMemoryImpl&) = delete;
-  SharedMemoryImpl& operator=(const SharedMemoryImpl&) = delete;
-
-  ~SharedMemoryImpl() override { std::move(on_deleted_callback_).Run(); }
-
-  const base::ReadOnlySharedMemoryRegion& region() const { return region_; }
-
- private:
-  SharedMemoryImpl(base::ReadOnlySharedMemoryRegion region,
-                   base::WritableSharedMemoryMapping mapping,
-                   webrtc::SharedMemory::Handle handle,
-                   int id,
-                   base::OnceClosure on_deleted_callback)
-      : SharedMemory(mapping.memory(), mapping.size(), handle, id),
-        on_deleted_callback_(std::move(on_deleted_callback))
-#if BUILDFLAG(IS_WIN)
-        ,
-        writable_handle_(handle)
-#endif
-  {
-    region_ = std::move(region);
-    mapping_ = std::move(mapping);
-  }
-
-  base::OnceClosure on_deleted_callback_;
-  base::ReadOnlySharedMemoryRegion region_;
-  base::WritableSharedMemoryMapping mapping_;
-#if BUILDFLAG(IS_WIN)
-  // Owns the handle passed to the base class which is used by
-  // webrtc::ScreenCapturer.
-  base::win::ScopedHandle writable_handle_;
-#endif
-};
 
 namespace {
 
@@ -177,53 +91,6 @@ void DesktopSessionClipboardStub::InjectClipboardEvent(
   desktop_session_agent_->OnClipboardEvent(event);
 }
 
-class SharedMemoryFactoryImpl : public webrtc::SharedMemoryFactory {
- public:
-  using SharedMemoryCreatedCallback = base::RepeatingCallback<
-      void(int id, base::ReadOnlySharedMemoryRegion, uint32_t size)>;
-  using SharedMemoryReleasedCallback = base::RepeatingCallback<void(int id)>;
-
-  SharedMemoryFactoryImpl(
-      SharedMemoryCreatedCallback shared_memory_created_callback,
-      SharedMemoryReleasedCallback shared_memory_released_callback)
-      : shared_memory_created_callback_(
-            std::move(shared_memory_created_callback)),
-        shared_memory_released_callback_(
-            std::move(shared_memory_released_callback)) {}
-
-  SharedMemoryFactoryImpl(const SharedMemoryFactoryImpl&) = delete;
-  SharedMemoryFactoryImpl& operator=(const SharedMemoryFactoryImpl&) = delete;
-
-  std::unique_ptr<webrtc::SharedMemory> CreateSharedMemory(
-      size_t size) override {
-    base::OnceClosure release_buffer_callback = base::BindOnce(
-        shared_memory_released_callback_, next_shared_buffer_id_);
-    std::unique_ptr<SharedMemoryImpl> buffer = SharedMemoryImpl::Create(
-        size, next_shared_buffer_id_, std::move(release_buffer_callback));
-    if (buffer) {
-      // |next_shared_buffer_id_| starts from 1 and incrementing it by 2 makes
-      // sure it is always odd and therefore zero is never used as a valid
-      // buffer ID.
-      //
-      // It is very unlikely (though theoretically possible) to allocate the
-      // same ID for two different buffers due to integer overflow. It should
-      // take about a year of allocating 100 new buffers every second.
-      // Practically speaking it never happens.
-      next_shared_buffer_id_ += 2;
-
-      shared_memory_created_callback_.Run(
-          buffer->id(), buffer->region().Duplicate(), buffer->size());
-    }
-
-    return std::move(buffer);
-  }
-
- private:
-  int next_shared_buffer_id_ = 1;
-  SharedMemoryCreatedCallback shared_memory_created_callback_;
-  SharedMemoryReleasedCallback shared_memory_released_callback_;
-};
-
 }  // namespace
 
 DesktopSessionAgent::Delegate::~Delegate() = default;
@@ -243,10 +110,9 @@ DesktopSessionAgent::DesktopSessionAgent(
 bool DesktopSessionAgent::OnMessageReceived(const IPC::Message& message) {
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
   NOTREACHED() << "Received unexpected IPC type: " << message.type();
-  return false;
 }
 
-void DesktopSessionAgent::OnChannelConnected(int32_t peer_pid) {
+void DesktopSessionAgent::OnChannelConnected(std::int32_t peer_pid) {
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
 
   VLOG(1) << "IPC: desktop <- network (" << peer_pid << ")";
@@ -291,7 +157,7 @@ DesktopSessionAgent::~DesktopSessionAgent() {
   DCHECK(!desktop_environment_);
   DCHECK(!network_channel_);
   DCHECK(!screen_controls_);
-  DCHECK(!video_capturer_);
+  DCHECK(video_capturers_.IsEmpty());
   DCHECK(!session_file_operations_handler_);
 }
 
@@ -299,16 +165,24 @@ const std::string& DesktopSessionAgent::client_jid() const {
   return client_jid_;
 }
 
-void DesktopSessionAgent::DisconnectSession(protocol::ErrorCode error) {
+void DesktopSessionAgent::DisconnectSession(
+    ErrorCode error,
+    std::string_view error_details,
+    const SourceLocation& error_location) {
   if (desktop_session_state_handler_) {
-    desktop_session_state_handler_->DisconnectSession(error);
+    desktop_session_state_handler_->DisconnectSession(
+        error, std::string(error_details), error_location);
   }
 }
 
-void DesktopSessionAgent::OnLocalKeyPressed(uint32_t usb_keycode) {
+void DesktopSessionAgent::OnLocalKeyPressed(std::uint32_t usb_keycode) {
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
 
   remote_input_filter_->LocalKeyPressed(usb_keycode);
+
+  if (desktop_session_event_handler_) {
+    desktop_session_event_handler_->OnLocalKeyboardInputDetected(usb_keycode);
+  }
 }
 
 void DesktopSessionAgent::OnLocalPointerMoved(
@@ -317,6 +191,13 @@ void DesktopSessionAgent::OnLocalPointerMoved(
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
 
   remote_input_filter_->LocalPointerMoved(new_pos, type);
+
+  if (desktop_session_event_handler_) {
+    // |type| is always kMouseMoved, if this changes, we need to convey this
+    // information to the network process.
+    DCHECK_EQ(type, ui::EventType::kMouseMoved);
+    desktop_session_event_handler_->OnLocalMouseMoveDetected(new_pos);
+  }
 }
 
 void DesktopSessionAgent::SetDisableInputs(bool disable_inputs) {
@@ -350,7 +231,7 @@ void DesktopSessionAgent::Start(
   DCHECK(!desktop_environment_);
   DCHECK(!input_injector_);
   DCHECK(!screen_controls_);
-  DCHECK(!video_capturer_);
+  DCHECK(video_capturers_.IsEmpty());
   DCHECK(!session_file_operations_handler_);
 
   if (started_) {
@@ -372,118 +253,11 @@ void DesktopSessionAgent::Start(
       &desktop_session_state_handler_);
 
   // Create a desktop environment for the new session.
-  desktop_environment_ = delegate_->desktop_environment_factory().Create(
-      weak_factory_.GetWeakPtr(), /* client_session_events= */ nullptr,
-      options);
-
-  // Create the session controller and set the initial screen resolution.
-  screen_controls_ = desktop_environment_->CreateScreenControls();
-  SetScreenResolution(resolution);
-
-  // Create the input injector.
-  input_injector_ = desktop_environment_->CreateInputInjector();
-
-  action_executor_ = desktop_environment_->CreateActionExecutor();
-
-  // Hook up the input filter.
-  input_tracker_ =
-      std::make_unique<protocol::InputEventTracker>(input_injector_.get());
-  remote_input_filter_ =
-      std::make_unique<RemoteInputFilter>(input_tracker_.get());
-
-#if BUILDFLAG(IS_WIN)
-  // LocalInputMonitorWin filters out an echo of the injected input before it
-  // reaches |remote_input_filter_|.
-  remote_input_filter_->SetExpectLocalEcho(false);
-#endif  // BUILDFLAG(IS_WIN)
-
-  // Start the input injector.
-  std::unique_ptr<protocol::ClipboardStub> clipboard_stub(
-      new DesktopSessionClipboardStub(this));
-  input_injector_->Start(std::move(clipboard_stub));
-
-  // Start the audio capturer.
-  if (delegate_->desktop_environment_factory().SupportsAudioCapture()) {
-    audio_capturer_ = desktop_environment_->CreateAudioCapturer();
-    audio_capture_task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&DesktopSessionAgent::StartAudioCapturer, this));
-  }
-
-  // Start the video capturer and mouse cursor monitor.
-  video_capturer_ = desktop_environment_->CreateVideoCapturer();
-  video_capturer_->Start(this);
-  video_capturer_->SetSharedMemoryFactory(
-      std::make_unique<SharedMemoryFactoryImpl>(
-          base::BindPostTask(
-              caller_task_runner_,
-              base::BindRepeating(
-                  &DesktopSessionAgent::OnSharedMemoryRegionCreated, this)),
-          base::BindPostTask(
-              caller_task_runner_,
-              base::BindRepeating(
-                  &DesktopSessionAgent::OnSharedMemoryRegionReleased, this))));
-  mouse_cursor_monitor_ = desktop_environment_->CreateMouseCursorMonitor();
-  mouse_cursor_monitor_->Init(this,
-                              webrtc::MouseCursorMonitor::SHAPE_AND_POSITION);
-  // Unretained is sound because callback will never be invoked after
-  // |keyboard_layout_monitor_| is destroyed.
-  keyboard_layout_monitor_ = desktop_environment_->CreateKeyboardLayoutMonitor(
-      base::BindRepeating(&DesktopSessionAgent::OnKeyboardLayoutChange,
-                          base::Unretained(this)));
-  keyboard_layout_monitor_->Start();
-
-  // Begin observing the desktop display(s) for changes. Note that some
-  // desktop environments may not provide a display info monitor.
-  auto* display_info_monitor = desktop_environment_->GetDisplayInfoMonitor();
-  if (display_info_monitor) {
-    display_info_monitor->Start();
-  }
-
-  // Set up the message handler for file transfers.
-  session_file_operations_handler_.emplace(
-      desktop_environment_->CreateFileOperations());
-
-  url_forwarder_configurator_ =
-      desktop_environment_->CreateUrlForwarderConfigurator();
-
-  // Check and report the initial URL forwarder setup state.
-  url_forwarder_configurator_->IsUrlForwarderSetUp(base::BindOnce(
-      &DesktopSessionAgent::OnCheckUrlForwarderSetUpResult, this));
-
-  webauthn_state_change_notifier_ =
-      desktop_environment_->CreateRemoteWebAuthnStateChangeNotifier();
-
-  std::move(callback).Run(
-      desktop_session_control_.BindNewEndpointAndPassRemote());
-}
-
-void DesktopSessionAgent::OnCaptureResult(
-    webrtc::DesktopCapturer::Result result,
-    std::unique_ptr<webrtc::DesktopFrame> frame) {
-  DCHECK(caller_task_runner_->BelongsToCurrentThread());
-
-  mojom::CaptureResultPtr capture_result;
-  if (frame) {
-    DCHECK_EQ(result, webrtc::DesktopCapturer::Result::SUCCESS);
-    std::vector<webrtc::DesktopRect> dirty_region;
-    for (webrtc::DesktopRegion::Iterator i(frame->updated_region());
-         !i.IsAtEnd(); i.Advance()) {
-      dirty_region.push_back(i.rect());
-    }
-    capture_result =
-        mojom::CaptureResult::NewDesktopFrame(mojom::DesktopFrame::New(
-            frame->shared_memory()->id(), frame->stride(), frame->size(),
-            std::move(dirty_region), frame->capture_time_ms(), frame->dpi(),
-            frame->capturer_id()));
-  } else {
-    DCHECK_NE(result, webrtc::DesktopCapturer::Result::SUCCESS);
-    capture_result = mojom::CaptureResult::NewCaptureError(result);
-  }
-
-  last_frame_ = std::move(frame);
-
-  desktop_session_event_handler_->OnCaptureResult(std::move(capture_result));
+  delegate_->desktop_environment_factory().Create(
+      weak_factory_.GetWeakPtr(), /* client_session_events= */ nullptr, options,
+      base::BindOnce(&DesktopSessionAgent::OnDesktopEnvironmentCreated,
+                     weak_factory_.GetWeakPtr(), resolution,
+                     std::move(callback)));
 }
 
 void DesktopSessionAgent::OnMouseCursor(webrtc::MouseCursor* cursor) {
@@ -495,18 +269,14 @@ void DesktopSessionAgent::OnMouseCursor(webrtc::MouseCursor* cursor) {
     desktop_session_event_handler_->OnMouseCursorChanged(*owned_cursor);
   }
 
-  if (video_capturer_) {
-    video_capturer_->SetMouseCursor(std::move(owned_cursor));
-  }
+  video_capturers_.SetMouseCursor(*owned_cursor);
 }
 
 void DesktopSessionAgent::OnMouseCursorPosition(
     const webrtc::DesktopVector& position) {
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
 
-  if (video_capturer_) {
-    video_capturer_->SetMouseCursorPosition(position);
-  }
+  video_capturers_.SetMouseCursorPosition(position);
 }
 
 void DesktopSessionAgent::OnClipboardEvent(
@@ -592,32 +362,17 @@ void DesktopSessionAgent::Stop() {
         FROM_HERE,
         base::BindOnce(&DesktopSessionAgent::StopAudioCapturer, this));
 
-    // Stop the video capturer.
-    video_capturer_.reset();
-    last_frame_.reset();
-    mouse_cursor_monitor_.reset();
+    // Stop the video capturers.
+    video_capturers_.Clear();
+    mouse_shape_pump_.reset();
   }
 }
 
-void DesktopSessionAgent::CaptureFrame() {
-  DCHECK(caller_task_runner_->BelongsToCurrentThread());
-  CHECK(started_);
-
-  mouse_cursor_monitor_->Capture();
-
-  // webrtc::DesktopCapturer supports a very few (currently 2) outstanding
-  // capture requests. The requests are serialized on
-  // |video_capture_task_runner()| task runner. If the client issues more
-  // requests, pixel data in captured frames will likely be corrupted but
-  // stability of webrtc::DesktopCapturer will not be affected.
-  video_capturer_->CaptureFrame();
-}
-
-void DesktopSessionAgent::SelectSource(int id) {
-  DCHECK(caller_task_runner_->BelongsToCurrentThread());
-  CHECK(started_);
-
-  video_capturer_->SelectSource(id);
+void DesktopSessionAgent::CreateVideoCapturer(
+    std::int64_t desktop_display_id,
+    CreateVideoCapturerCallback callback) {
+  std::move(callback).Run(video_capturers_.CreateVideoCapturer(
+      desktop_display_id, desktop_environment_.get(), caller_task_runner_));
 }
 
 void DesktopSessionAgent::InjectClipboardEvent(
@@ -662,10 +417,8 @@ void DesktopSessionAgent::InjectMouseEvent(const protocol::MouseEvent& event) {
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
   CHECK(started_);
 
-  if (video_capturer_) {
-    video_capturer_->SetComposeEnabled(event.has_delta_x() ||
-                                       event.has_delta_y());
-  }
+  video_capturers_.SetComposeEnabled(event.has_delta_x() ||
+                                     event.has_delta_y());
 
   // InputStub implementations must verify events themselves, so we don't need
   // verification here. This matches HostEventDispatcher.
@@ -705,31 +458,13 @@ void DesktopSessionAgent::OnKeyboardLayoutChange(
   }
 }
 
-void DesktopSessionAgent::OnSharedMemoryRegionCreated(
-    int id,
-    base::ReadOnlySharedMemoryRegion region,
-    uint32_t size) {
-  DCHECK(caller_task_runner_->BelongsToCurrentThread());
-  if (desktop_session_event_handler_) {
-    desktop_session_event_handler_->OnSharedMemoryRegionCreated(
-        id, std::move(region), size);
-  }
-}
-
-void DesktopSessionAgent::OnSharedMemoryRegionReleased(int id) {
-  DCHECK(caller_task_runner_->BelongsToCurrentThread());
-  if (desktop_session_event_handler_) {
-    desktop_session_event_handler_->OnSharedMemoryRegionReleased(id);
-  }
-}
-
 void DesktopSessionAgent::SetScreenResolution(
     const ScreenResolution& resolution) {
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
   CHECK(started_);
 
   if (screen_controls_) {
-    screen_controls_->SetScreenResolution(resolution, absl::nullopt);
+    screen_controls_->SetScreenResolution(resolution, std::nullopt);
   }
 }
 
@@ -779,6 +514,87 @@ void DesktopSessionAgent::BeginFileWrite(const base::FilePath& file_path,
                                                    std::move(callback));
 }
 
+void DesktopSessionAgent::OnDesktopEnvironmentCreated(
+    const ScreenResolution& resolution,
+    StartCallback callback,
+    std::unique_ptr<DesktopEnvironment> desktop_environment) {
+  // TODO(rkjnsn): Handle null desktop_environment once multiprocess is
+  // is supported on platforms where remote desktop session creation can fail.
+
+  desktop_environment_ = std::move(desktop_environment);
+
+  // Create the session controller and set the initial screen resolution.
+  screen_controls_ = desktop_environment_->CreateScreenControls();
+  SetScreenResolution(resolution);
+
+  // Create the input injector.
+  input_injector_ = desktop_environment_->CreateInputInjector();
+
+  action_executor_ = desktop_environment_->CreateActionExecutor();
+
+  // Hook up the input filter.
+  input_tracker_ =
+      std::make_unique<protocol::InputEventTracker>(input_injector_.get());
+  remote_input_filter_ =
+      std::make_unique<RemoteInputFilter>(input_tracker_.get());
+
+#if BUILDFLAG(IS_WIN)
+  // LocalInputMonitorWin filters out an echo of the injected input before it
+  // reaches |remote_input_filter_|.
+  remote_input_filter_->SetExpectLocalEcho(false);
+#endif  // BUILDFLAG(IS_WIN)
+
+  // Start the input injector.
+  std::unique_ptr<protocol::ClipboardStub> clipboard_stub(
+      new DesktopSessionClipboardStub(this));
+  input_injector_->Start(std::move(clipboard_stub));
+
+  // Start the audio capturer.
+  if (delegate_->desktop_environment_factory().SupportsAudioCapture()) {
+    audio_capturer_ = desktop_environment_->CreateAudioCapturer();
+    audio_capture_task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&DesktopSessionAgent::StartAudioCapturer, this));
+  }
+
+  // Start the mouse cursor monitor.
+  mouse_shape_pump_ = std::make_unique<MouseShapePump>(
+      desktop_environment_->CreateMouseCursorMonitor(),
+      /*CursorShapeStub*/ nullptr);
+  mouse_shape_pump_->SetMouseCursorMonitorCallback(this);
+
+  // Unretained is sound because callback will never be invoked after
+  // |keyboard_layout_monitor_| is destroyed.
+  keyboard_layout_monitor_ = desktop_environment_->CreateKeyboardLayoutMonitor(
+      base::BindRepeating(&DesktopSessionAgent::OnKeyboardLayoutChange,
+                          base::Unretained(this)));
+  keyboard_layout_monitor_->Start();
+
+  // Begin observing the desktop display(s) for changes. Note that some
+  // desktop environments may not provide a display info monitor.
+  auto* display_info_monitor = desktop_environment_->GetDisplayInfoMonitor();
+  if (display_info_monitor) {
+    display_info_monitor->Start();
+  }
+
+  // Set up the message handler for file transfers.
+  session_file_operations_handler_.emplace(
+      desktop_environment_->CreateFileOperations());
+
+  url_forwarder_configurator_ =
+      desktop_environment_->CreateUrlForwarderConfigurator();
+
+  // Check and report the initial URL forwarder setup state.
+  url_forwarder_configurator_->IsUrlForwarderSetUp(base::BindOnce(
+      &DesktopSessionAgent::OnCheckUrlForwarderSetUpResult, this));
+
+  webauthn_state_change_notifier_ =
+      desktop_environment_->CreateRemoteWebAuthnStateChangeNotifier();
+
+  std::move(callback).Run(
+      desktop_session_control_.BindNewEndpointAndPassRemote());
+}
+
 void DesktopSessionAgent::OnCheckUrlForwarderSetUpResult(bool is_set_up) {
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
   if (!desktop_session_event_handler_) {
@@ -811,7 +627,6 @@ void DesktopSessionAgent::OnUrlForwarderSetUpStateChanged(
       break;
     default:
       NOTREACHED() << "Unknown state: " << state;
-      mojo_state = mojom::UrlForwarderState::kUnknown;
   }
   desktop_session_event_handler_->OnUrlForwarderStateChange(mojo_state);
 }

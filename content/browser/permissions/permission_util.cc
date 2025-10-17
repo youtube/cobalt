@@ -5,6 +5,7 @@
 #include "content/browser/permissions/permission_util.h"
 
 #include "base/check.h"
+#include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -17,15 +18,22 @@ using blink::mojom::PermissionDescriptorPtr;
 
 namespace content {
 
+#if BUILDFLAG(IS_ANDROID)
+namespace {
+constexpr const char* kIsFileURLHistogram =
+    "Permissions.GetLastCommittedOriginAsURL.IsFileURL";
+}
+#endif
+
 // Due to dependency issues, this method is duplicated from
 // components/permissions/permission_util.cc.
 GURL PermissionUtil::GetLastCommittedOriginAsURL(
     content::RenderFrameHost* render_frame_host) {
   DCHECK(render_frame_host);
 
-#if BUILDFLAG(IS_ANDROID)
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(render_frame_host);
+#if BUILDFLAG(IS_ANDROID)
   // If `allow_universal_access_from_file_urls` flag is enabled, a file:/// can
   // change its url via history.pushState/replaceState to any other url,
   // including about:blank. To avoid user confusion we should always use a
@@ -33,10 +41,18 @@ GURL PermissionUtil::GetLastCommittedOriginAsURL(
   if (web_contents->GetOrCreateWebPreferences()
           .allow_universal_access_from_file_urls &&
       render_frame_host->GetLastCommittedOrigin().GetURL().SchemeIsFile()) {
+    base::UmaHistogramBoolean(kIsFileURLHistogram, true);
     return render_frame_host->GetLastCommittedURL().DeprecatedGetOriginAsURL();
+  } else {
+    base::UmaHistogramBoolean(kIsFileURLHistogram, false);
   }
 #endif
 
+  if (render_frame_host->GetLastCommittedOrigin().GetURL().is_empty()) {
+    if (!web_contents->GetVisibleURL().is_empty()) {
+      return web_contents->GetVisibleURL();
+    }
+  }
   return render_frame_host->GetLastCommittedOrigin().GetURL();
 }
 
@@ -55,13 +71,9 @@ const url::Origin& PermissionUtil::ExtractDomainOverride(
 }
 
 bool PermissionUtil::ValidateDomainOverride(
-    const std::vector<blink::PermissionType>& types,
+    const std::vector<blink::mojom::PermissionDescriptorPtr>& types,
     RenderFrameHost* rfh,
     const blink::mojom::PermissionDescriptorPtr& descriptor) {
-  if (!base::FeatureList::IsEnabled(
-          blink::features::kStorageAccessAPIForOriginExtension)) {
-    return false;
-  }
   if (types.size() > 1) {
     // Requests with domain overrides must be requested individually.
     return false;

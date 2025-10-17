@@ -4,11 +4,13 @@
 
 #include "content/browser/web_package/signed_exchange_cert_fetcher.h"
 
+#include <optional>
+#include <string_view>
+
 #include "base/base64.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/strings/string_piece.h"
 #include "base/test/task_environment.h"
 #include "components/cbor/values.h"
 #include "components/cbor/writer.h"
@@ -29,8 +31,8 @@
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
+#include "url/origin.h"
 
 namespace content {
 
@@ -101,12 +103,10 @@ class MockURLLoader final : public network::mojom::URLLoader {
                void(const std::vector<std::string>&,
                     const net::HttpRequestHeaders&,
                     const net::HttpRequestHeaders&,
-                    const absl::optional<GURL>&));
+                    const std::optional<GURL>&));
   MOCK_METHOD2(SetPriority,
                void(net::RequestPriority priority,
                     int32_t intra_priority_value));
-  MOCK_METHOD0(PauseReadingBodyFromNet, void());
-  MOCK_METHOD0(ResumeReadingBodyFromNet, void());
 
  private:
   mojo::Receiver<network::mojom::URLLoader> receiver_;
@@ -147,14 +147,14 @@ class URLLoaderFactoryForMockLoader final
   }
   void CloseClientPipe() { client_remote_.reset(); }
 
-  absl::optional<network::ResourceRequest> url_request() const {
+  std::optional<network::ResourceRequest> url_request() const {
     return url_request_;
   }
 
  private:
   std::unique_ptr<MockURLLoader> loader_;
   mojo::Remote<network::mojom::URLLoaderClient> client_remote_;
-  absl::optional<network::ResourceRequest> url_request_;
+  std::optional<network::ResourceRequest> url_request_;
 };
 
 void ForwardCertificateCallback(
@@ -172,7 +172,8 @@ void ForwardCertificateCallback(
 class SignedExchangeCertFetcherTest : public testing::Test {
  public:
   SignedExchangeCertFetcherTest()
-      : url_(GURL("https://www.example.com/cert")) {}
+      : url_(GURL("https://www.example.com/cert")),
+        origin_(url::Origin::Create(GURL("https://www.example.com/"))) {}
 
   SignedExchangeCertFetcherTest(const SignedExchangeCertFetcherTest&) = delete;
   SignedExchangeCertFetcherTest& operator=(
@@ -185,7 +186,7 @@ class SignedExchangeCertFetcherTest : public testing::Test {
     return net::ImportCertFromFile(net::GetTestCertsDirectory(), "ok_cert.pem");
   }
 
-  static std::string CreateCertMessage(const base::StringPiece& cert_data) {
+  static std::string CreateCertMessage(std::string_view cert_data) {
     cbor::Value::MapValue cbor_map;
     cbor_map[cbor::Value("sct")] =
         cbor::Value("SCT", cbor::Value::Type::BYTE_STRING);
@@ -198,7 +199,7 @@ class SignedExchangeCertFetcherTest : public testing::Test {
     cbor_array.push_back(cbor::Value("\U0001F4DC\u26D3"));
     cbor_array.push_back(cbor::Value(std::move(cbor_map)));
 
-    absl::optional<std::vector<uint8_t>> serialized =
+    std::optional<std::vector<uint8_t>> serialized =
         cbor::Writer::Write(cbor::Value(std::move(cbor_array)));
     if (!serialized)
       return std::string();
@@ -206,7 +207,7 @@ class SignedExchangeCertFetcherTest : public testing::Test {
                        serialized->size());
   }
 
-  static base::StringPiece CreateCertMessageFromCert(
+  static std::string_view CreateCertMessageFromCert(
       const net::X509Certificate& cert) {
     return net::x509_util::CryptoBufferAsStringPiece(cert.cert_buffer());
   }
@@ -240,12 +241,16 @@ class SignedExchangeCertFetcherTest : public testing::Test {
         &ForwardCertificateCallback, base::Unretained(&callback_called_),
         base::Unretained(&result_), base::Unretained(&cert_result_));
 
+    auto isolation_info = net::IsolationInfo::Create(
+        net::IsolationInfo::RequestType::kOther, origin_, origin_,
+        net::SiteForCookies::FromOrigin(origin_));
+
     return SignedExchangeCertFetcher::CreateAndStart(
         base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
             &mock_loader_factory_),
         std::move(throttles_), url, force_fetch, std::move(callback),
-        nullptr /* devtools_proxy */, absl::nullopt /* throttling_profile_id */,
-        net::IsolationInfo());
+        /*devtools_proxy=*/nullptr, /*throttling_profile_id=*/std::nullopt,
+        isolation_info, origin_);
   }
 
   void CallOnReceiveResponse(
@@ -257,7 +262,7 @@ class SignedExchangeCertFetcherTest : public testing::Test {
                                       "application/cert-chain+cbor");
     response_head->mime_type = "application/cert-chain+cbor";
     mock_loader_factory_.client_remote()->OnReceiveResponse(
-        std::move(response_head), std::move(consumer_handle), absl::nullopt);
+        std::move(response_head), std::move(consumer_handle), std::nullopt);
   }
 
   DeferringURLLoaderThrottle* InitializeDeferringURLLoaderThrottle() {
@@ -271,6 +276,7 @@ class SignedExchangeCertFetcherTest : public testing::Test {
   void CloseClientPipe() { mock_loader_factory_.CloseClientPipe(); }
 
   const GURL url_;
+  const url::Origin origin_;
   bool callback_called_ = false;
   SignedExchangeLoadResult result_;
   std::unique_ptr<SignedExchangeCertificateChain> cert_result_;
@@ -284,7 +290,7 @@ class SignedExchangeCertFetcherTest : public testing::Test {
 
 TEST_F(SignedExchangeCertFetcherTest, Simple) {
   std::unique_ptr<SignedExchangeCertFetcher> fetcher =
-      CreateFetcherAndStart(url_, false /* force_fetch */);
+      CreateFetcherAndStart(url_, /*force_fetch=*/false);
 
   ASSERT_TRUE(mock_loader_factory_.client_remote());
   ASSERT_TRUE(mock_loader_factory_.url_request());
@@ -293,11 +299,9 @@ TEST_F(SignedExchangeCertFetcherTest, Simple) {
             mock_loader_factory_.url_request()->destination);
   EXPECT_EQ(mock_loader_factory_.url_request()->credentials_mode,
             network::mojom::CredentialsMode::kOmit);
-  EXPECT_TRUE(mock_loader_factory_.url_request()->request_initiator->opaque());
-  std::string accept;
-  EXPECT_TRUE(
-      mock_loader_factory_.url_request()->headers.GetHeader("Accept", &accept));
-  EXPECT_EQ("application/cert-chain+cbor", accept);
+  EXPECT_EQ(*mock_loader_factory_.url_request()->request_initiator, origin_);
+  EXPECT_THAT(mock_loader_factory_.url_request()->headers.GetHeader("Accept"),
+              testing::Optional(std::string("application/cert-chain+cbor")));
 
   CallOnReceiveResponse(CreateTestDataFilledDataPipe());
   mock_loader_factory_.client_remote()->OnComplete(
@@ -463,7 +467,7 @@ TEST_F(SignedExchangeCertFetcherTest, MaxCertSize_ContentLengthCheck) {
   CHECK(mojo::BlockingCopyFromString(message, producer_handle));
   producer_handle.reset();
   mock_loader_factory_.client_remote()->OnReceiveResponse(
-      std::move(response_head), std::move(consumer_handle), absl::nullopt);
+      std::move(response_head), std::move(consumer_handle), std::nullopt);
   mock_loader_factory_.client_remote()->OnComplete(
       network::URLLoaderCompletionStatus(net::OK));
   RunUntilIdle();
@@ -494,7 +498,7 @@ TEST_F(SignedExchangeCertFetcherTest, Abort_404) {
       base::MakeRefCounted<net::HttpResponseHeaders>("HTTP/1.1 404 Not Found");
   mock_loader_factory_.client_remote()->OnReceiveResponse(
       std::move(response_head), mojo::ScopedDataPipeConsumerHandle(),
-      absl::nullopt);
+      std::nullopt);
   RunUntilIdle();
 
   EXPECT_TRUE(callback_called_);
@@ -512,7 +516,7 @@ TEST_F(SignedExchangeCertFetcherTest, WrongMimeType) {
   response_head->mime_type = "application/octet-stream";
   mock_loader_factory_.client_remote()->OnReceiveResponse(
       std::move(response_head), mojo::ScopedDataPipeConsumerHandle(),
-      absl::nullopt);
+      std::nullopt);
   RunUntilIdle();
 
   EXPECT_TRUE(callback_called_);
@@ -817,8 +821,7 @@ TEST_F(SignedExchangeCertFetcherTest, CloseClientPipe_AfterReceivingBody) {
 
 TEST_F(SignedExchangeCertFetcherTest, DataURL) {
   std::string data_url_string = "data:application/cert-chain+cbor";
-  std::string output;
-  base::Base64Encode(CreateTestData(), &output);
+  std::string output = base::Base64Encode(CreateTestData());
   data_url_string += ";base64," + output;
   const GURL data_url = GURL(data_url_string);
   std::unique_ptr<SignedExchangeCertFetcher> fetcher =

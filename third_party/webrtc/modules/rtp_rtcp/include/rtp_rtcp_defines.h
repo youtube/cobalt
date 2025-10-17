@@ -13,21 +13,24 @@
 
 #include <stddef.h>
 
-#include <list>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
-#include "absl/types/variant.h"
 #include "api/array_view.h"
-#include "api/audio_codecs/audio_format.h"
-#include "api/rtp_headers.h"
 #include "api/transport/network_types.h"
+#include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
-#include "modules/rtp_rtcp/source/rtcp_packet/remote_estimate.h"
-#include "system_wrappers/include/clock.h"
+#include "api/units/timestamp.h"
+#include "modules/rtp_rtcp/include/report_block_data.h"
+#include "modules/rtp_rtcp/source/rtcp_packet.h"
+#include "modules/rtp_rtcp/source/rtcp_packet/congestion_control_feedback.h"
+#include "rtc_base/checks.h"
 
 #define RTCP_CNAME_SIZE 256  // RFC 3550 page 44, including null termination
 #define IP_PACKET_SIZE 1500  // we assume ethernet
@@ -80,6 +83,7 @@ enum RTPExtensionType : int {
       kRtpExtensionDependencyDescriptor,
   kRtpExtensionColorSpace,
   kRtpExtensionVideoFrameTrackingId,
+  kRtpExtensionCorruptionDetection,
   kRtpExtensionNumberOfExtensions  // Must be the last entity in the enum.
 };
 
@@ -104,7 +108,7 @@ enum RTCPPacketType : uint32_t {
   kRtcpXrReceiverReferenceTime = 0x40000,
   kRtcpXrDlrrReportBlock = 0x80000,
   kRtcpTransportFeedback = 0x100000,
-  kRtcpXrTargetBitrate = 0x200000
+  kRtcpXrTargetBitrate = 0x200000,
 };
 
 enum class KeyFrameReqMethod : uint8_t {
@@ -122,61 +126,13 @@ enum RtxMode {
 
 const size_t kRtxHeaderSize = 2;
 
-struct RTCPReportBlock {
-  RTCPReportBlock()
-      : sender_ssrc(0),
-        source_ssrc(0),
-        fraction_lost(0),
-        packets_lost(0),
-        extended_highest_sequence_number(0),
-        jitter(0),
-        last_sender_report_timestamp(0),
-        delay_since_last_sender_report(0) {}
-
-  RTCPReportBlock(uint32_t sender_ssrc,
-                  uint32_t source_ssrc,
-                  uint8_t fraction_lost,
-                  int32_t packets_lost,
-                  uint32_t extended_highest_sequence_number,
-                  uint32_t jitter,
-                  uint32_t last_sender_report_timestamp,
-                  uint32_t delay_since_last_sender_report)
-      : sender_ssrc(sender_ssrc),
-        source_ssrc(source_ssrc),
-        fraction_lost(fraction_lost),
-        packets_lost(packets_lost),
-        extended_highest_sequence_number(extended_highest_sequence_number),
-        jitter(jitter),
-        last_sender_report_timestamp(last_sender_report_timestamp),
-        delay_since_last_sender_report(delay_since_last_sender_report) {}
-
-  // Fields as described by RFC 3550 6.4.2.
-  uint32_t sender_ssrc;  // SSRC of sender of this report.
-  uint32_t source_ssrc;  // SSRC of the RTP packet sender.
-  uint8_t fraction_lost;
-  int32_t packets_lost;  // 24 bits valid.
-  uint32_t extended_highest_sequence_number;
-  uint32_t jitter;
-  uint32_t last_sender_report_timestamp;
-  uint32_t delay_since_last_sender_report;
-};
-
-typedef std::list<RTCPReportBlock> ReportBlockList;
-
 struct RtpState {
-  RtpState()
-      : sequence_number(0),
-        start_timestamp(0),
-        timestamp(0),
-        capture_time_ms(-1),
-        last_timestamp_time_ms(-1),
-        ssrc_has_acked(false) {}
-  uint16_t sequence_number;
-  uint32_t start_timestamp;
-  uint32_t timestamp;
-  int64_t capture_time_ms;
-  int64_t last_timestamp_time_ms;
-  bool ssrc_has_acked;
+  uint16_t sequence_number = 0;
+  uint32_t start_timestamp = 0;
+  uint32_t timestamp = 0;
+  Timestamp capture_time = Timestamp::MinusInfinity();
+  Timestamp last_timestamp_time = Timestamp::MinusInfinity();
+  bool ssrc_has_acked = false;
 };
 
 class RtcpIntraFrameObserver {
@@ -198,17 +154,30 @@ class RtcpLossNotificationObserver {
                                           bool decodability_flag) = 0;
 };
 
-class RtcpBandwidthObserver {
+// Interface to watch incoming rtcp packets related to the link in general.
+// All message handlers have default empty implementation. This way users only
+// need to implement the ones they are interested in.
+// All message handles pass `receive_time` parameter, which is receive time
+// of the rtcp packet that triggered the update.
+class NetworkLinkRtcpObserver {
  public:
-  // REMB or TMMBR
-  virtual void OnReceivedEstimatedBitrate(uint32_t bitrate) = 0;
+  virtual ~NetworkLinkRtcpObserver() = default;
 
-  virtual void OnReceivedRtcpReceiverReport(
-      const ReportBlockList& report_blocks,
-      int64_t rtt,
-      int64_t now_ms) = 0;
+  virtual void OnTransportFeedback(
+      Timestamp /* receive_time */,
+      const rtcp::TransportFeedback& /* feedback */) {}
+  // RFC 8888 congestion control feedback.
+  virtual void OnCongestionControlFeedback(
+      Timestamp /* receive_time */,
+      const rtcp::CongestionControlFeedback& /* feedback */) {}
+  virtual void OnReceiverEstimatedMaxBitrate(Timestamp /* receive_time */,
+                                             DataRate /* bitrate */) {}
 
-  virtual ~RtcpBandwidthObserver() {}
+  // Called on an RTCP packet with sender or receiver reports with non zero
+  // report blocks. Report blocks are combined from all reports into one array.
+  virtual void OnReport(Timestamp /* receive_time */,
+                        ArrayView<const ReportBlockData> /* report_blocks */) {}
+  virtual void OnRttUpdate(Timestamp /* receive_time */, TimeDelta /* rtt */) {}
 };
 
 // NOTE! `kNumMediaTypes` must be kept in sync with RtpPacketMediaType!
@@ -219,16 +188,19 @@ enum class RtpPacketMediaType : size_t {
   kRetransmission,                // Retransmisions, sent as response to NACK.
   kForwardErrorCorrection,        // FEC packets.
   kPadding = kNumMediaTypes - 1,  // RTX or plain padding sent to maintain BWE.
-  // Again, don't forget to udate `kNumMediaTypes` if you add another value!
+  // Again, don't forget to update `kNumMediaTypes` if you add another value!
 };
 
 struct RtpPacketSendInfo {
+  static RtpPacketSendInfo From(const RtpPacketToSend& rtp_packet_to_send,
+                                const PacedPacketInfo& pacing_info);
+
   uint16_t transport_sequence_number = 0;
-  absl::optional<uint32_t> media_ssrc;
+  std::optional<uint32_t> media_ssrc;
   uint16_t rtp_sequence_number = 0;  // Only valid if `media_ssrc` is set.
   uint32_t rtp_timestamp = 0;
   size_t length = 0;
-  absl::optional<RtpPacketMediaType> packet_type;
+  std::optional<RtpPacketMediaType> packet_type;
   PacedPacketInfo pacing_info;
 };
 
@@ -240,11 +212,9 @@ class NetworkStateEstimateObserver {
 
 class TransportFeedbackObserver {
  public:
-  TransportFeedbackObserver() {}
-  virtual ~TransportFeedbackObserver() {}
+  virtual ~TransportFeedbackObserver() = default;
 
   virtual void OnAddPacket(const RtpPacketSendInfo& packet_info) = 0;
-  virtual void OnTransportFeedback(const rtcp::TransportFeedback& feedback) = 0;
 };
 
 // Interface for PacketRouter to send rtcp feedback on behalf of
@@ -267,7 +237,7 @@ class StreamFeedbackObserver {
 
     // `rtp_sequence_number` and `is_retransmission` are only valid if `ssrc`
     // is populated.
-    absl::optional<uint32_t> ssrc;
+    std::optional<uint32_t> ssrc;
     uint16_t rtp_sequence_number;
     bool is_retransmission;
   };
@@ -311,19 +281,6 @@ struct RtpPacketCounter {
     total_packet_delay += other.total_packet_delay;
   }
 
-  void Subtract(const RtpPacketCounter& other) {
-    RTC_DCHECK_GE(header_bytes, other.header_bytes);
-    header_bytes -= other.header_bytes;
-    RTC_DCHECK_GE(payload_bytes, other.payload_bytes);
-    payload_bytes -= other.payload_bytes;
-    RTC_DCHECK_GE(padding_bytes, other.padding_bytes);
-    padding_bytes -= other.padding_bytes;
-    RTC_DCHECK_GE(packets, other.packets);
-    packets -= other.packets;
-    RTC_DCHECK_GE(total_packet_delay, other.total_packet_delay);
-    total_packet_delay -= other.total_packet_delay;
-  }
-
   bool operator==(const RtpPacketCounter& other) const {
     return header_bytes == other.header_bytes &&
            payload_bytes == other.payload_bytes &&
@@ -356,28 +313,24 @@ struct StreamDataCounters {
     transmitted.Add(other.transmitted);
     retransmitted.Add(other.retransmitted);
     fec.Add(other.fec);
-    if (other.first_packet_time_ms != -1 &&
-        (other.first_packet_time_ms < first_packet_time_ms ||
-         first_packet_time_ms == -1)) {
-      // Use oldest time.
-      first_packet_time_ms = other.first_packet_time_ms;
+    if (other.first_packet_time < first_packet_time) {
+      // Use oldest time (excluding unsed value represented as plus infinity.
+      first_packet_time = other.first_packet_time;
     }
   }
 
-  void Subtract(const StreamDataCounters& other) {
-    transmitted.Subtract(other.transmitted);
-    retransmitted.Subtract(other.retransmitted);
-    fec.Subtract(other.fec);
-    if (other.first_packet_time_ms != -1 &&
-        (other.first_packet_time_ms > first_packet_time_ms ||
-         first_packet_time_ms == -1)) {
-      // Use youngest time.
-      first_packet_time_ms = other.first_packet_time_ms;
+  void MaybeSetFirstPacketTime(Timestamp now) {
+    if (first_packet_time == Timestamp::PlusInfinity()) {
+      first_packet_time = now;
     }
   }
 
-  int64_t TimeSinceFirstPacketInMs(int64_t now_ms) const {
-    return (first_packet_time_ms == -1) ? -1 : (now_ms - first_packet_time_ms);
+  // Return time since first packet is send/received, or zero if such event
+  // haven't happen.
+  TimeDelta TimeSinceFirstPacket(Timestamp now) const {
+    return first_packet_time == Timestamp::PlusInfinity()
+               ? TimeDelta::Zero()
+               : now - first_packet_time;
   }
 
   // Returns the number of bytes corresponding to the actual media payload (i.e.
@@ -388,27 +341,17 @@ struct StreamDataCounters {
            fec.payload_bytes;
   }
 
-  int64_t first_packet_time_ms;  // Time when first packet is sent/received.
-  // The timestamp at which the last packet was received, i.e. the time of the
-  // local clock when it was received - not the RTP timestamp of that packet.
-  // https://w3c.github.io/webrtc-stats/#dom-rtcinboundrtpstreamstats-lastpacketreceivedtimestamp
-  absl::optional<int64_t> last_packet_received_timestamp_ms;
+  // Time when first packet is sent/received.
+  Timestamp first_packet_time = Timestamp::PlusInfinity();
+
   RtpPacketCounter transmitted;    // Number of transmitted packets/bytes.
   RtpPacketCounter retransmitted;  // Number of retransmitted packets/bytes.
   RtpPacketCounter fec;            // Number of redundancy packets/bytes.
 };
 
 class RtpSendRates {
-  template <std::size_t... Is>
-  constexpr std::array<DataRate, sizeof...(Is)> make_zero_array(
-      std::index_sequence<Is...>) {
-    return {{(static_cast<void>(Is), DataRate::Zero())...}};
-  }
-
  public:
-  RtpSendRates()
-      : send_rates_(
-            make_zero_array(std::make_index_sequence<kNumMediaTypes>())) {}
+  constexpr RtpSendRates() = default;
   RtpSendRates(const RtpSendRates& rhs) = default;
   RtpSendRates& operator=(const RtpSendRates&) = default;
 
@@ -431,6 +374,10 @@ class StreamDataCountersCallback {
  public:
   virtual ~StreamDataCountersCallback() {}
 
+  // TODO: webrtc:40644448 - Make this pure virtual.
+  virtual StreamDataCounters GetDataCounters(uint32_t ssrc) const {
+    RTC_CHECK_NOTREACHED();
+  }
   virtual void DataCountersUpdated(const StreamDataCounters& counters,
                                    uint32_t ssrc) = 0;
 };
@@ -446,9 +393,12 @@ struct RtpReceiveStats {
   // Interarrival jitter in time.
   webrtc::TimeDelta interarrival_jitter = webrtc::TimeDelta::Zero();
 
-  // Timestamp and counters exposed in RTCInboundRtpStreamStats, see
+  // Time of the last packet received in unix epoch,
+  // i.e. Timestamp::Zero() represents 1st Jan 1970 00:00
+  std::optional<Timestamp> last_packet_received;
+
+  // Counters exposed in RTCInboundRtpStreamStats, see
   // https://w3c.github.io/webrtc-stats/#inboundrtpstats-dict*
-  absl::optional<int64_t> last_packet_received_timestamp_ms;
   RtpPacketCounter packet_counter;
 };
 
@@ -462,24 +412,13 @@ class BitrateStatisticsObserver {
                       uint32_t ssrc) = 0;
 };
 
-// Callback, used to notify an observer whenever the send-side delay is updated.
-class SendSideDelayObserver {
- public:
-  virtual ~SendSideDelayObserver() {}
-  virtual void SendSideDelayUpdated(int avg_delay_ms,
-                                    int max_delay_ms,
-                                    uint32_t ssrc) = 0;
-};
-
 // Callback, used to notify an observer whenever a packet is sent to the
 // transport.
-// TODO(asapersson): This class will remove the need for SendSideDelayObserver.
-// Remove SendSideDelayObserver once possible.
 class SendPacketObserver {
  public:
-  virtual ~SendPacketObserver() {}
-  virtual void OnSendPacket(uint16_t packet_id,
-                            int64_t capture_time_ms,
+  virtual ~SendPacketObserver() = default;
+  virtual void OnSendPacket(std::optional<uint16_t> packet_id,
+                            Timestamp capture_time,
                             uint32_t ssrc) = 0;
 };
 

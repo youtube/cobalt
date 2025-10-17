@@ -8,12 +8,13 @@
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/resize_area_delegate.h"
 
 namespace views {
 
 ResizeArea::ResizeArea(ResizeAreaDelegate* delegate) : delegate_(delegate) {
-  SetAccessibilityProperties(ax::mojom::Role::kSplitter);
+  GetViewAccessibility().SetRole(ax::mojom::Role::kSplitter);
 }
 
 ResizeArea::~ResizeArea() = default;
@@ -24,37 +25,43 @@ ui::Cursor ResizeArea::GetCursor(const ui::MouseEvent& event) {
 }
 
 void ResizeArea::OnGestureEvent(ui::GestureEvent* event) {
-  if (event->type() == ui::ET_GESTURE_TAP_DOWN) {
+  if (event->type() == ui::EventType::kGestureTapDown) {
     SetInitialPosition(event->x());
     event->SetHandled();
-  } else if (event->type() == ui::ET_GESTURE_SCROLL_BEGIN ||
-             event->type() == ui::ET_GESTURE_SCROLL_UPDATE) {
+  } else if (event->type() == ui::EventType::kGestureScrollBegin ||
+             event->type() == ui::EventType::kGestureScrollUpdate) {
     ReportResizeAmount(event->x(), false);
     event->SetHandled();
-  } else if (event->type() == ui::ET_GESTURE_END) {
-    ReportResizeAmount(event->x(), true);
+  } else if (event->type() == ui::EventType::kGestureEnd) {
+    if (is_resizing_) {
+      ReportResizeAmount(event->x(), true);
+    }
     event->SetHandled();
   }
 }
 
 bool ResizeArea::OnMousePressed(const ui::MouseEvent& event) {
-  if (!event.IsOnlyLeftMouseButton())
+  if (!event.IsOnlyLeftMouseButton()) {
     return false;
+  }
 
   SetInitialPosition(event.x());
   return true;
 }
 
 bool ResizeArea::OnMouseDragged(const ui::MouseEvent& event) {
-  if (!event.IsLeftMouseButton())
+  if (!event.IsLeftMouseButton()) {
     return false;
+  }
 
   ReportResizeAmount(event.x(), false);
   return true;
 }
 
 void ResizeArea::OnMouseReleased(const ui::MouseEvent& event) {
-  ReportResizeAmount(event.x(), true);
+  if (is_resizing_) {
+    ReportResizeAmount(event.x(), true);
+  }
 }
 
 void ResizeArea::OnMouseCaptureLost() {
@@ -65,6 +72,7 @@ void ResizeArea::ReportResizeAmount(int resize_amount, bool last_update) {
   gfx::Point point(resize_amount, 0);
   View::ConvertPointToScreen(this, &point);
   resize_amount = point.x() - initial_position_;
+  is_resizing_ = !last_update;
   delegate_->OnResize(base::i18n::IsRTL() ? -resize_amount : resize_amount,
                       last_update);
 }
@@ -75,7 +83,7 @@ void ResizeArea::SetInitialPosition(int event_x) {
   initial_position_ = point.x();
 }
 
-BEGIN_METADATA(ResizeArea, View)
+BEGIN_METADATA(ResizeArea)
 END_METADATA
 
 }  // namespace views

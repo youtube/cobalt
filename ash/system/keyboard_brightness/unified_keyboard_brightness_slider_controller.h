@@ -13,8 +13,9 @@ namespace ash {
 
 class UnifiedSystemTrayModel;
 
-// Controller of a read-only slider showing keyboard brightness.
-class UnifiedKeyboardBrightnessSliderController : public UnifiedSliderListener {
+// Controller of a slider showing keyboard brightness.
+class ASH_EXPORT UnifiedKeyboardBrightnessSliderController
+    : public UnifiedSliderListener {
  public:
   explicit UnifiedKeyboardBrightnessSliderController(
       UnifiedSystemTrayModel* model);
@@ -35,8 +36,11 @@ class UnifiedKeyboardBrightnessSliderController : public UnifiedSliderListener {
                           views::SliderChangeReason reason) override;
 
  private:
-  const raw_ptr<UnifiedSystemTrayModel, ExperimentalAsh> model_;
-  raw_ptr<UnifiedSliderView, ExperimentalAsh> slider_ = nullptr;
+  const raw_ptr<UnifiedSystemTrayModel> model_;
+
+#if DCHECK_IS_ON()
+  bool created_view_ = false;
+#endif
 };
 
 }  // namespace ash

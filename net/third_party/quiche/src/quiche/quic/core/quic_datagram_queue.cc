@@ -4,6 +4,11 @@
 
 #include "quiche/quic/core/quic_datagram_queue.h"
 
+#include <algorithm>
+#include <memory>
+#include <optional>
+#include <utility>
+
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_session.h"
@@ -22,8 +27,7 @@ QuicDatagramQueue::QuicDatagramQueue(QuicSession* session,
                                      std::unique_ptr<Observer> observer)
     : session_(session),
       clock_(session->connection()->clock()),
-      observer_(std::move(observer)),
-      force_flush_(false) {}
+      observer_(std::move(observer)) {}
 
 MessageStatus QuicDatagramQueue::SendOrQueueDatagram(
     quiche::QuicheMemSlice datagram) {
@@ -46,10 +50,10 @@ MessageStatus QuicDatagramQueue::SendOrQueueDatagram(
   return MESSAGE_STATUS_BLOCKED;
 }
 
-absl::optional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
+std::optional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
   RemoveExpiredDatagrams();
   if (queue_.empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   MessageResult result =
@@ -66,7 +70,7 @@ absl::optional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
 size_t QuicDatagramQueue::SendDatagrams() {
   size_t num_datagrams = 0;
   for (;;) {
-    absl::optional<MessageStatus> status = TrySendingNextDatagram();
+    std::optional<MessageStatus> status = TrySendingNextDatagram();
     if (!status.has_value()) {
       break;
     }
@@ -92,9 +96,10 @@ QuicTime::Delta QuicDatagramQueue::GetMaxTimeInQueue() const {
 void QuicDatagramQueue::RemoveExpiredDatagrams() {
   QuicTime now = clock_->ApproximateNow();
   while (!queue_.empty() && queue_.front().expiry <= now) {
+    ++expired_datagram_count_;
     queue_.pop_front();
     if (observer_) {
-      observer_->OnDatagramProcessed(absl::nullopt);
+      observer_->OnDatagramProcessed(std::nullopt);
     }
   }
 }

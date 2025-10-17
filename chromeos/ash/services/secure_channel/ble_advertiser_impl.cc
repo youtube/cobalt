@@ -11,11 +11,11 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
 #include "chromeos/ash/components/multidevice/logging/logging.h"
+#include "chromeos/ash/components/timer_factory/timer_factory.h"
 #include "chromeos/ash/services/secure_channel/bluetooth_helper.h"
 #include "chromeos/ash/services/secure_channel/error_tolerant_ble_advertisement_impl.h"
 #include "chromeos/ash/services/secure_channel/public/cpp/shared/connection_priority.h"
 #include "chromeos/ash/services/secure_channel/shared_resource_scheduler.h"
-#include "chromeos/ash/services/secure_channel/timer_factory.h"
 
 namespace ash::secure_channel {
 
@@ -38,7 +38,7 @@ std::unique_ptr<BleAdvertiser> BleAdvertiserImpl::Factory::Create(
     Delegate* delegate,
     BluetoothHelper* bluetooth_helper,
     BleSynchronizerBase* ble_synchronizer_base,
-    TimerFactory* timer_factory,
+    ash::timer_factory::TimerFactory* timer_factory,
     scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner) {
   if (test_factory_) {
     return test_factory_->CreateInstance(delegate, bluetooth_helper,
@@ -65,7 +65,7 @@ BleAdvertiserImpl::BleAdvertiserImpl(
     Delegate* delegate,
     BluetoothHelper* bluetooth_helper,
     BleSynchronizerBase* ble_synchronizer_base,
-    TimerFactory* timer_factory,
+    ash::timer_factory::TimerFactory* timer_factory,
     scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner)
     : BleAdvertiser(delegate),
       bluetooth_helper_(bluetooth_helper),
@@ -82,11 +82,10 @@ void BleAdvertiserImpl::AddAdvertisementRequest(
   requests_already_removed_due_to_failed_advertisement_.erase(request);
 
   if (base::Contains(all_requests_, request)) {
-    PA_LOG(ERROR) << "BleAdvertiserImpl::AddAdvertisementRequest(): Tried to "
-                  << "add advertisement request which was already present. "
-                  << "Request: " << request
-                  << ", Priority: " << connection_priority;
-    NOTREACHED();
+    NOTREACHED() << "BleAdvertiserImpl::AddAdvertisementRequest(): Tried to "
+                 << "add advertisement request which was already present. "
+                 << "Request: " << request
+                 << ", Priority: " << connection_priority;
   }
   all_requests_.insert(request);
 
@@ -110,14 +109,13 @@ void BleAdvertiserImpl::UpdateAdvertisementRequestPriority(
     return;
 
   if (!base::Contains(all_requests_, request)) {
-    PA_LOG(ERROR) << "BleAdvertiserImpl::UpdateAdvertisementRequestPriority(): "
-                  << "Tried to update request priority for a request, but that "
-                  << "request was not present. Request: " << request
-                  << ", Priority: " << connection_priority;
-    NOTREACHED();
+    NOTREACHED() << "BleAdvertiserImpl::UpdateAdvertisementRequestPriority(): "
+                 << "Tried to update request priority for a request, but that "
+                 << "request was not present. Request: " << request
+                 << ", Priority: " << connection_priority;
   }
 
-  absl::optional<size_t> index_for_active_request =
+  std::optional<size_t> index_for_active_request =
       GetIndexForActiveRequest(request);
 
   if (!index_for_active_request) {
@@ -171,14 +169,13 @@ void BleAdvertiserImpl::RemoveAdvertisementRequest(
   }
 
   if (!base::Contains(all_requests_, request)) {
-    PA_LOG(ERROR) << "BleAdvertiserImpl::RemoveAdvertisementRequest(): Tried "
-                  << "to remove an advertisement request, but that request was "
-                  << "not present. Request: " << request;
-    NOTREACHED();
+    NOTREACHED() << "BleAdvertiserImpl::RemoveAdvertisementRequest(): Tried "
+                 << "to remove an advertisement request, but that request was "
+                 << "not present. Request: " << request;
   }
   all_requests_.erase(request);
 
-  absl::optional<size_t> index_for_active_request =
+  std::optional<size_t> index_for_active_request =
       GetIndexForActiveRequest(request);
 
   // If the request is not currently active, remove it from the scheduler and
@@ -197,7 +194,7 @@ void BleAdvertiserImpl::RemoveAdvertisementRequest(
 
 bool BleAdvertiserImpl::ReplaceLowPriorityAdvertisementIfPossible(
     ConnectionPriority connection_priority) {
-  absl::optional<size_t> index_with_lower_priority =
+  std::optional<size_t> index_with_lower_priority =
       GetIndexWithLowerPriority(connection_priority);
   if (!index_with_lower_priority)
     return false;
@@ -210,10 +207,10 @@ bool BleAdvertiserImpl::ReplaceLowPriorityAdvertisementIfPossible(
   return true;
 }
 
-absl::optional<size_t> BleAdvertiserImpl::GetIndexWithLowerPriority(
+std::optional<size_t> BleAdvertiserImpl::GetIndexWithLowerPriority(
     ConnectionPriority connection_priority) {
   ConnectionPriority lowest_priority = ConnectionPriority::kHigh;
-  absl::optional<size_t> index_with_lowest_priority;
+  std::optional<size_t> index_with_lowest_priority;
 
   // Loop through |active_advertisement_requests_|, searching for the entry with
   // the lowest priority.
@@ -232,13 +229,13 @@ absl::optional<size_t> BleAdvertiserImpl::GetIndexWithLowerPriority(
   // requests have high priority, so they should not be replaced with the new
   // connection attempt.
   if (!index_with_lowest_priority)
-    return absl::nullopt;
+    return std::nullopt;
 
   // If the lowest priority in |active_advertisement_requests_| is at least as
   // high as |connection_priority|, this slot shouldn't be replaced with the
   // new connection attempt.
   if (lowest_priority >= connection_priority)
-    return absl::nullopt;
+    return std::nullopt;
 
   return *index_with_lowest_priority;
 }
@@ -315,7 +312,7 @@ void BleAdvertiserImpl::AttemptToAddActiveAdvertisement(size_t index_to_add) {
           pair, std::move(service_data), ble_synchronizer_base_);
 }
 
-absl::optional<size_t> BleAdvertiserImpl::GetIndexForActiveRequest(
+std::optional<size_t> BleAdvertiserImpl::GetIndexForActiveRequest(
     const DeviceIdPair& request) {
   for (size_t i = 0; i < active_advertisement_requests_.size(); ++i) {
     auto& active_request = active_advertisement_requests_[i];
@@ -323,7 +320,7 @@ absl::optional<size_t> BleAdvertiserImpl::GetIndexForActiveRequest(
       return i;
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void BleAdvertiserImpl::StopAdvertisementRequestAndUpdateActiveRequests(

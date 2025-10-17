@@ -2,18 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "ios/web_view/internal/translate/cwv_translation_language_internal.h"
-
 #import <Foundation/Foundation.h>
 
 #import "base/strings/sys_string_conversions.h"
+#import "ios/web_view/internal/translate/cwv_translation_language_internal.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace ios_web_view {
 
@@ -30,6 +25,19 @@ TEST_F(CWVTranslationLanguageTest, Initialization) {
                 nativeName:base::SysNSStringToUTF16(native_name)];
 
   EXPECT_NSEQ(language_code, language.languageCode);
+  EXPECT_NSEQ(localized_name, language.localizedName);
+  EXPECT_NSEQ(native_name, language.nativeName);
+}
+
+// Tests CWVTranslationLanguage auto language initialization.
+TEST_F(CWVTranslationLanguageTest, AutoLanguageInitialization) {
+  NSString* localized_name = @"Localized auto";
+  NSString* native_name = @"Native auto";
+  CWVTranslationLanguage* language =
+      [CWVTranslationLanguage autoLanguageWithLocalizedName:localized_name
+                                                 nativeName:native_name];
+
+  EXPECT_NSEQ(@"auto", language.languageCode);
   EXPECT_NSEQ(localized_name, language.localizedName);
   EXPECT_NSEQ(native_name, language.nativeName);
 }

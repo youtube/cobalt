@@ -9,13 +9,14 @@
 
 #include "base/callback_list.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "chrome/browser/ui/performance_controls/tab_resource_usage_collector.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "ui/events/event.h"
 #include "ui/views/animation/bubble_slide_animator.h"
 #include "ui/views/animation/widget_fade_animator.h"
@@ -32,17 +33,11 @@ class Tab;
 class TabStrip;
 
 // Controls how hover cards are shown and hidden for tabs.
-class TabHoverCardController : public views::ViewObserver {
+class TabHoverCardController : public views::ViewObserver,
+                               public TabResourceUsageCollector::Observer {
  public:
   explicit TabHoverCardController(TabStrip* tab_strip);
   ~TabHoverCardController() override;
-
-  // Returns whether the hover card preview images feature is enabled.
-  static bool AreHoverCardImagesEnabled();
-
-  // Returns whether hover card animations should be shown on the current
-  // device.
-  static bool UseAnimations();
 
   bool IsHoverCardVisible() const;
   bool IsHoverCardShowingForTab(Tab* tab) const;
@@ -65,6 +60,21 @@ class TabHoverCardController : public views::ViewObserver {
   FRIEND_TEST_ALL_PREFIXES(TabHoverCardControllerTest, ShowWrongTabDoesntCrash);
   FRIEND_TEST_ALL_PREFIXES(TabHoverCardControllerTest,
                            SetPreviewWithNoHoverCardDoesntCrash);
+  FRIEND_TEST_ALL_PREFIXES(TabHoverCardControllerTest, ShowPreviewsForTab);
+  FRIEND_TEST_ALL_PREFIXES(TabHoverCardControllerTest, DisablePreviewsForTab);
+  FRIEND_TEST_ALL_PREFIXES(TabHoverCardFadeFooterInteractiveUiTest,
+                           HoverCardFooterMemoryUsagePrefEnabled);
+  FRIEND_TEST_ALL_PREFIXES(TabHoverCardFadeFooterInteractiveUiTest,
+                           HoverCardFooterMemoryUsagePrefDisabled);
+  FRIEND_TEST_ALL_PREFIXES(TabHoverCardControllerTest,
+                           HidePreviewsForDiscardedTab);
+  FRIEND_TEST_ALL_PREFIXES(TabHoverCardControllerTest,
+                           DisableMemoryUsageForTab);
+  FRIEND_TEST_ALL_PREFIXES(TabHoverCardControllerTest,
+                           ShowPreviewsForDiscardedTabWithThumbnail);
+  FRIEND_TEST_ALL_PREFIXES(TabHoverCardControllerTest,
+                           DontCaptureUnderCriticalMemoryPressure);
+  FRIEND_TEST_ALL_PREFIXES(TabHoverCardPreviewsEnabledPrefTest, DefaultState);
   class EventSniffer;
 
   enum ThumbnailWaitState {
@@ -73,10 +83,20 @@ class TabHoverCardController : public views::ViewObserver {
     kWaitingWithoutPlaceholder
   };
 
+  // Returns whether the hover card preview images feature is enabled.
+  static bool AreHoverCardImagesEnabled();
+
+  // Returns whether hover card animations should be shown on the current
+  // device.
+  static bool UseAnimations();
+
   // views::ViewObserver:
   void OnViewIsDeleting(views::View* observed_view) override;
   void OnViewVisibilityChanged(views::View* observed_view,
                                views::View* starting_view) override;
+
+  // TabResourceUsageCollector::Observer:
+  void OnTabResourceMetricsRefreshed() override;
 
   bool ArePreviewsEnabled() const;
 
@@ -111,11 +131,11 @@ class TabHoverCardController : public views::ViewObserver {
                                   double value);
   void OnSlideAnimationComplete(views::BubbleSlideAnimator* animator);
 
-  void OnPreviewImageAvaialble(TabHoverCardThumbnailObserver* observer,
+  void OnPreviewImageAvailable(TabHoverCardThumbnailObserver* observer,
                                gfx::ImageSkia thumbnail_image);
 
-  void OnMemoryPressureChanged(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+  void OnHovercardImagesEnabledChanged();
+  void OnHovercardMemoryUsageEnabledChanged();
 
   bool waiting_for_preview() const {
     return thumbnail_wait_state_ != ThumbnailWaitState::kNotWaiting;
@@ -156,11 +176,14 @@ class TabHoverCardController : public views::ViewObserver {
   base::CallbackListSubscription slide_progressed_subscription_;
   base::CallbackListSubscription slide_complete_subscription_;
 
-  // Track memory pressure on the system. We'll delay or stop requesting
-  // previews if memory pressure gets too high.
-  base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level_ =
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
-  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  // Ensure that an instance of the TabResourceUsageCollector exists so
+  // resources are up to date when we eventually show the hover card.
+  raw_ptr<TabResourceUsageCollector> tab_resource_usage_collector_;
+
+  // Tracks changes to the hover card preferences
+  PrefChangeRegistrar pref_change_registrar_;
+  bool hover_card_image_previews_enabled_ = false;
+  bool hover_card_memory_usage_enabled_ = false;
 
   // Ensure that this timer is destroyed before anything else is cleaned up.
   base::OneShotTimer delayed_show_timer_;

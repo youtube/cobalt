@@ -2,21 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import type {BookmarkProductInfo} from '//resources/cr_components/commerce/shared.mojom-webui.js';
+import type {BookmarksTreeNode} from 'chrome://bookmarks-side-panel.top-chrome/bookmarks.mojom-webui.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 export class TestPowerBookmarksDelegate extends TestBrowserProxy {
   constructor() {
     super([
       'setCurrentUrl',
-      'setCompactDescription',
-      'setExpandedDescription',
       'setImageUrl',
       'onBookmarksLoaded',
       'onBookmarkChanged',
-      'onBookmarkCreated',
+      'onBookmarkAdded',
       'onBookmarkMoved',
       'onBookmarkRemoved',
-      'isPriceTracked',
+      'getTrackedProductInfos',
+      'getAvailableProductInfos',
+      'getSelectedBookmarks',
       'getProductImageUrl',
     ]);
   }
@@ -25,17 +27,7 @@ export class TestPowerBookmarksDelegate extends TestBrowserProxy {
     this.methodCalled('setCurrentUrl', url);
   }
 
-  setCompactDescription(
-      bookmark: chrome.bookmarks.BookmarkTreeNode, description: string) {
-    this.methodCalled('setCompactDescription', bookmark, description);
-  }
-
-  setExpandedDescription(
-      bookmark: chrome.bookmarks.BookmarkTreeNode, description: string) {
-    this.methodCalled('setExpandedDescription', bookmark, description);
-  }
-
-  setImageUrl(bookmark: chrome.bookmarks.BookmarkTreeNode, url: string) {
+  setImageUrl(bookmark: BookmarksTreeNode, url: string) {
     this.methodCalled('setImageUrl', bookmark, url);
   }
 
@@ -43,33 +35,40 @@ export class TestPowerBookmarksDelegate extends TestBrowserProxy {
     this.methodCalled('onBookmarksLoaded');
   }
 
-  onBookmarkChanged(id: string, changedInfo: chrome.bookmarks.ChangeInfo) {
-    this.methodCalled('onBookmarkChanged', id, changedInfo);
+  onBookmarkChanged(id: string) {
+    this.methodCalled('onBookmarkChanged', id);
   }
 
-  onBookmarkCreated(
-      bookmark: chrome.bookmarks.BookmarkTreeNode,
-      parent: chrome.bookmarks.BookmarkTreeNode) {
-    this.methodCalled('onBookmarkCreated', bookmark, parent);
+  onBookmarkAdded(bookmark: BookmarksTreeNode, parent: BookmarksTreeNode) {
+    this.methodCalled('onBookmarkAdded', bookmark, parent);
   }
 
   onBookmarkMoved(
-      bookmark: chrome.bookmarks.BookmarkTreeNode,
-      oldParent: chrome.bookmarks.BookmarkTreeNode,
-      newParent: chrome.bookmarks.BookmarkTreeNode) {
+      bookmark: BookmarksTreeNode, oldParent: BookmarksTreeNode,
+      newParent: BookmarksTreeNode) {
     this.methodCalled('onBookmarkMoved', bookmark, oldParent, newParent);
   }
 
-  onBookmarkRemoved(bookmark: chrome.bookmarks.BookmarkTreeNode) {
+  onBookmarkRemoved(bookmark: BookmarksTreeNode) {
     this.methodCalled('onBookmarkRemoved', bookmark);
   }
 
-  isPriceTracked(bookmark: chrome.bookmarks.BookmarkTreeNode) {
-    this.methodCalled('isPriceTracked', bookmark);
-    return false;
+  getTrackedProductInfos() {
+    this.methodCalled('getTrackedProductInfos');
+    return {};
   }
 
-  getProductImageUrl(bookmark: chrome.bookmarks.BookmarkTreeNode) {
+  getAvailableProductInfos() {
+    this.methodCalled('getAvailableProductInfos');
+    return new Map<string, BookmarkProductInfo>();
+  }
+
+  getSelectedBookmarks() {
+    this.methodCalled('getSelectedBookmarks');
+    return {};
+  }
+
+  getProductImageUrl(bookmark: BookmarksTreeNode) {
     this.methodCalled('getProductImageUrl', bookmark);
     return '';
   }

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "cobalt/shell/android/content_view_render_view.h"
+
 #include <android/bitmap.h>
 
 #include <memory>
@@ -90,7 +91,7 @@ void ContentViewRenderView::SurfaceDestroyed(JNIEnv* env,
   // detached and freed by OS.
   compositor_->PreserveChildSurfaceControls();
 
-  compositor_->SetSurface(nullptr, false);
+  compositor_->SetSurface(nullptr, false, nullptr);
   current_surface_format_ = 0;
 }
 
@@ -100,11 +101,12 @@ void ContentViewRenderView::SurfaceChanged(
     jint format,
     jint width,
     jint height,
-    const JavaParamRef<jobject>& surface) {
+    const JavaParamRef<jobject>& surface,
+    const JavaParamRef<jobject>& host_input_token) {
   if (current_surface_format_ != format) {
     current_surface_format_ = format;
-    compositor_->SetSurface(surface,
-                            true /* can_be_used_with_surface_control */);
+    compositor_->SetSurface(
+        surface, true /* can_be_used_with_surface_control */, host_input_token);
   }
   compositor_->SetWindowBounds(gfx::Size(width, height));
 }

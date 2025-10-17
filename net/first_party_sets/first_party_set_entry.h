@@ -30,28 +30,10 @@ enum class SiteType {
 // First-Party Set.
 class NET_EXPORT FirstPartySetEntry {
  public:
-  class NET_EXPORT SiteIndex {
-   public:
-    SiteIndex();
-    explicit SiteIndex(uint32_t value);
-
-    bool operator==(const SiteIndex& other) const;
-
-    uint32_t value() const { return value_; }
-
-   private:
-    uint32_t value_;
-  };
-
   FirstPartySetEntry();
   // `primary` is the primary site in the First-Party Set associated with this
   // entry.
-  FirstPartySetEntry(SchemefulSite primary,
-                     SiteType site_type,
-                     absl::optional<SiteIndex> site_index);
-  FirstPartySetEntry(SchemefulSite primary,
-                     SiteType site_type,
-                     uint32_t site_index);
+  FirstPartySetEntry(SchemefulSite primary, SiteType site_type);
 
   FirstPartySetEntry(const FirstPartySetEntry&);
   FirstPartySetEntry& operator=(const FirstPartySetEntry&);
@@ -63,28 +45,21 @@ class NET_EXPORT FirstPartySetEntry {
   bool operator==(const FirstPartySetEntry& other) const;
   bool operator!=(const FirstPartySetEntry& other) const;
 
-  static absl::optional<net::SiteType> DeserializeSiteType(int value);
+  static std::optional<net::SiteType> DeserializeSiteType(int value);
+
+  std::string GetDebugString() const;
 
   const SchemefulSite& primary() const { return primary_; }
 
   SiteType site_type() const { return site_type_; }
-
-  const absl::optional<SiteIndex>& site_index() const { return site_index_; }
 
  private:
   // The primary site associated with this site's set.
   SchemefulSite primary_;
   // The type associated with this site.
   SiteType site_type_;
-  // The index of this site in the set declaration, if a meaningful index
-  // exists. Primary sites do not have indices, nor do sites that were defined
-  // or affected by an enterprise policy set.
-  absl::optional<SiteIndex> site_index_;
 };
 
-NET_EXPORT std::ostream& operator<<(
-    std::ostream& os,
-    const FirstPartySetEntry::SiteIndex& site_index);
 NET_EXPORT std::ostream& operator<<(std::ostream& os,
                                     const FirstPartySetEntry& fpse);
 

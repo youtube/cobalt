@@ -86,7 +86,8 @@ class MockBufferD3D : public rx::BufferD3D
                           gl::BufferBinding target,
                           const void *data,
                           size_t size,
-                          gl::BufferUsage) override
+                          gl::BufferUsage,
+                          rx::BufferFeedback *feedback) override
     {
         mData.resize(size);
         if (data && size > 0)
@@ -96,17 +97,35 @@ class MockBufferD3D : public rx::BufferD3D
         return angle::Result::Continue;
     }
 
-    MOCK_METHOD5(
-        setSubData,
-        angle::Result(const gl::Context *, gl::BufferBinding, const void *, size_t, size_t));
-    MOCK_METHOD5(copySubData,
-                 angle::Result(const gl::Context *, BufferImpl *, GLintptr, GLintptr, GLsizeiptr));
-    MOCK_METHOD3(map, angle::Result(const gl::Context *context, GLenum, void **));
-    MOCK_METHOD5(mapRange, angle::Result(const gl::Context *, size_t, size_t, GLbitfield, void **));
-    MOCK_METHOD2(unmap, angle::Result(const gl::Context *context, GLboolean *));
+    MOCK_METHOD6(setSubData,
+                 angle::Result(const gl::Context *,
+                               gl::BufferBinding,
+                               const void *,
+                               size_t,
+                               size_t,
+                               rx::BufferFeedback *));
+    MOCK_METHOD6(copySubData,
+                 angle::Result(const gl::Context *,
+                               BufferImpl *,
+                               GLintptr,
+                               GLintptr,
+                               GLsizeiptr,
+                               rx::BufferFeedback *));
+    MOCK_METHOD4(map,
+                 angle::Result(const gl::Context *context, GLenum, void **, rx::BufferFeedback *));
+    MOCK_METHOD6(mapRange,
+                 angle::Result(const gl::Context *,
+                               size_t,
+                               size_t,
+                               GLbitfield,
+                               void **,
+                               rx::BufferFeedback *));
+    MOCK_METHOD3(unmap,
+                 angle::Result(const gl::Context *context, GLboolean *, rx::BufferFeedback *));
 
     // BufferD3D
-    MOCK_METHOD1(markTransformFeedbackUsage, angle::Result(const gl::Context *));
+    MOCK_METHOD2(markTransformFeedbackUsage,
+                 angle::Result(const gl::Context *, rx::BufferFeedback *));
 
     // inlined for speed
     bool supportsDirectBinding() const override { return false; }
@@ -131,11 +150,12 @@ class MockGLFactoryD3D : public rx::MockGLFactory
     rx::BufferImpl *createBuffer(const gl::BufferState &state) override
     {
         MockBufferD3D *mockBufferD3D = new MockBufferD3D(mBufferFactory);
+        rx::BufferFeedback feedback;
 
         EXPECT_CALL(*mBufferFactory, createVertexBuffer())
             .WillOnce(Return(nullptr))
             .RetiresOnSaturation();
-        mockBufferD3D->initializeStaticData(nullptr);
+        mockBufferD3D->initializeStaticData(nullptr, &feedback);
 
         return mockBufferD3D;
     }

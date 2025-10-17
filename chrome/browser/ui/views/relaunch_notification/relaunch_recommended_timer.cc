@@ -6,7 +6,7 @@
 
 #include <utility>
 
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 
 RelaunchRecommendedTimer::RelaunchRecommendedTimer(
@@ -17,7 +17,7 @@ RelaunchRecommendedTimer::RelaunchRecommendedTimer(
   ScheduleNextTitleRefresh();
 }
 
-RelaunchRecommendedTimer::~RelaunchRecommendedTimer() {}
+RelaunchRecommendedTimer::~RelaunchRecommendedTimer() = default;
 
 std::u16string RelaunchRecommendedTimer::GetWindowTitle() const {
   const base::TimeDelta elapsed = base::Time::Now() - upgrade_detected_time_;

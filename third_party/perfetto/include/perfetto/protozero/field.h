@@ -20,6 +20,7 @@
 #include <stdint.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "perfetto/base/logging.h"
@@ -41,7 +42,9 @@ struct ConstChars {
   // Allow implicit conversion to perfetto's base::StringView without depending
   // on perfetto/base or viceversa.
   static constexpr bool kConvertibleToStringView = true;
-  std::string ToStdString() const { return std::string(data, size); }
+  static constexpr bool kHashable = true;
+  std::string ToStdString() const { return {data, size}; }
+  std::string_view ToStdStringView() const { return {data, size}; }
 
   const char* data;
   size_t size;
@@ -56,7 +59,7 @@ struct ConstChars {
 class Field {
  public:
   bool valid() const { return id_ != 0; }
-  uint16_t id() const { return id_; }
+  uint32_t id() const { return id_; }
   explicit operator bool() const { return valid(); }
 
   proto_utils::ProtoWireType type() const {
@@ -152,11 +155,11 @@ class Field {
 
   uint64_t raw_int_value() const { return int_value_; }
 
-  void initialize(uint16_t id,
+  void initialize(uint32_t id,
                   uint8_t type,
                   uint64_t int_value,
                   uint32_t size) {
-    id_ = id;
+    id_ = id & kMaxId;
     type_ = type;
     int_value_ = int_value;
     size_ = size;
@@ -191,19 +194,21 @@ class Field {
   // to |dst|. |dst| is resized accordingly.
   void SerializeAndAppendTo(std::vector<uint8_t>* dst) const;
 
+  static constexpr uint32_t kMaxId = (1 << 24) - 1;  // See id_ : 24 below.
  private:
   template <typename Container>
   void SerializeAndAppendToInternal(Container* dst) const;
 
   // Fields are deliberately not initialized to keep the class trivially
   // constructible. It makes a large perf difference for ProtoDecoder.
-
   uint64_t int_value_;  // In kLengthDelimited this contains the data() addr.
   uint32_t size_;       // Only valid when when type == kLengthDelimited.
-  uint16_t id_;         // Proto field ordinal.
-  uint8_t type_;        // proto_utils::ProtoWireType.
-};
 
+  // Note: MSVC and clang-cl require bit-fields to be of the same type, hence
+  // the `: 8` below rather than uint8_t.
+  uint32_t id_ : 24;   // Proto field ordinal.
+  uint32_t type_ : 8;  // proto_utils::ProtoWireType.
+};
 // The Field struct is used in a lot of perf-sensitive contexts.
 static_assert(sizeof(Field) == 16, "Field struct too big");
 

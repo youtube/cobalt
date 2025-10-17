@@ -31,6 +31,15 @@ class HoldingSpaceSuggestionsDelegate
       const HoldingSpaceSuggestionsDelegate&) = delete;
   ~HoldingSpaceSuggestionsDelegate() override;
 
+  // Refreshes suggestions.  Note that this intentionally does *not* invalidate
+  // the file suggest service's item suggest cache which is too expensive for
+  // holding space to invalidate.
+  void RefreshSuggestions();
+
+  // Removes suggestions associated with the specified `absolute_file_paths`.
+  void RemoveSuggestions(
+      const std::vector<base::FilePath>& absolute_file_paths);
+
  private:
   // HoldingSpaceKeyedServiceDelegate:
   void OnHoldingSpaceItemsAdded(
@@ -53,7 +62,7 @@ class HoldingSpaceSuggestionsDelegate
   // Called when fetching file suggestions finishes.
   void OnSuggestionsFetched(
       FileSuggestionType type,
-      const absl::optional<std::vector<FileSuggestData>>& suggestions);
+      const std::optional<std::vector<FileSuggestData>>& suggestions);
 
   // Updates suggestions in the holding space model. The method ensures that:
   // 1. Drive file suggestions (if any) are always in front of local file

@@ -6,6 +6,8 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -17,6 +19,7 @@
 #include "chromecast/metrics/cast_event_builder_simple.h"
 #include "components/cast_receiver/browser/public/content_browser_client_mixins.h"
 #include "components/cast_receiver/browser/public/embedder_application.h"
+#include "components/cast_receiver/common/public/status.h"
 #include "third_party/cast_core/public/src/proto/common/application_config.pb.h"
 
 namespace chromecast {
@@ -28,18 +31,19 @@ constexpr base::TimeDelta kDefaultMetricsReportInterval = base::Seconds(60);
 
 RuntimeServiceImpl::RuntimeServiceImpl(
     cast_receiver::ContentBrowserClientMixins& browser_mixins,
-    CastWebService& web_service,
-    std::string runtime_id,
-    std::string runtime_service_endpoint)
-    : runtime_id_(std::move(runtime_id)),
-      runtime_service_endpoint_(std::move(runtime_service_endpoint)),
-      application_dispatcher_(
+    CastWebService& web_service)
+    : application_dispatcher_(
           browser_mixins
               .CreateApplicationDispatcher<RuntimeApplicationServiceImpl>()),
       task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       web_service_(web_service),
       metrics_recorder_(this) {
   heartbeat_timer_.SetTaskRunner(task_runner_);
+  metrics_recorder_service_.emplace(
+      &metrics_recorder_, &action_recorder_,
+      base::BindRepeating(&RuntimeServiceImpl::RecordMetrics,
+                          weak_factory_.GetWeakPtr()),
+      kDefaultMetricsReportInterval);
 }
 
 RuntimeServiceImpl::~RuntimeServiceImpl() {
@@ -49,10 +53,54 @@ RuntimeServiceImpl::~RuntimeServiceImpl() {
 
 cast_receiver::Status RuntimeServiceImpl::Start() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!grpc_server_);
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  std::string runtime_id = command_line->GetSwitchValueASCII(
+      cast::core::switches::kCastCoreRuntimeId);
+  if (runtime_id.empty()) {
+    // This may happen during unfreeze of the browser process. Usually the cast
+    // service process is dead, too, but a certain condition how this happens on
+    // Android is not known. Most probable cause is OS reboot/update etc.
+    LOG(ERROR) << "Runtime id must be specified in command line with: --"
+               << cast::core::switches::kCastCoreRuntimeId;
+    return cast_receiver::Status(
+        cast_receiver::StatusCode::kFailedPrecondition);
+  }
 
-  LOG(INFO) << "Starting runtime service: runtime_id=" << runtime_id_
-            << ", endpoint=" << runtime_service_endpoint_;
+  std::string runtime_service_path = command_line->GetSwitchValueASCII(
+      cast::core::switches::kRuntimeServicePath);
+  if (runtime_service_path.empty()) {
+    // This may happen during unfreeze of the browser process with cast service
+    // process dead.
+    LOG(ERROR)
+        << "Runtime service endpoint must be specified in command line with: --"
+        << cast::core::switches::kRuntimeServicePath;
+    return cast_receiver::Status(
+        cast_receiver::StatusCode::kFailedPrecondition);
+  }
+
+  auto status = Start(runtime_id, runtime_service_path);
+  if (!status.ok()) {
+    return status;
+  }
+
+  bool enable_grpc_over_tcpip =
+      command_line->HasSwitch(cast::core::switches::kEnableGrpcOverTcpIp);
+  std::string cast_core_service_endpoint = command_line->GetSwitchValueASCII(
+      cast::core::switches::kCastCoreServiceEndpoint);
+  std::string authentication_token = command_line->GetSwitchValueASCII(
+      cast::core::switches::kRuntimeAuthToken);
+  MaybeAuthenticateRuntime(enable_grpc_over_tcpip, runtime_id,
+                           cast_core_service_endpoint, authentication_token);
+
+  return status;
+}
+
+cast_receiver::Status RuntimeServiceImpl::Start(
+    std::string_view runtime_id,
+    std::string_view runtime_service_endpoint) {
+  CHECK(!grpc_server_);
+  CHECK(!runtime_id.empty());
+  CHECK(!runtime_service_endpoint.empty());
 
   grpc_server_.emplace();
   grpc_server_
@@ -89,31 +137,53 @@ cast_receiver::Status RuntimeServiceImpl::Start() {
                              base::BindRepeating(
                                  &RuntimeServiceImpl::HandleStopMetricsRecorder,
                                  weak_factory_.GetWeakPtr())));
-  grpc_server_->Start(runtime_service_endpoint_);
 
-  LOG(INFO) << "Runtime service started";
+  auto status = grpc_server_->Start(std::string(runtime_service_endpoint));
+  // Browser runtime must crash if the runtime service failed to start to
+  // avoid the process to dangle without any proper connection to the Cast
+  // Core.
+  if (!status.ok()) {
+    LOG(ERROR) << "Failed to start runtime service: status="
+               << status.error_message();
+    return cast_receiver::Status(cast_receiver::StatusCode::kInvalidArgument);
+  }
+
+  LOG(INFO) << "Runtime service started: runtime_id=" << runtime_id
+#if DCHECK_IS_ON()
+            << ", endpoint=" << grpc_server_->endpoint()
+#endif  // DCHECK_IS_ON()
+      ;
+
   return cast_receiver::OkStatus();
+}
+
+void RuntimeServiceImpl::ResetGrpcServices() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (heartbeat_reactor_) {
+    heartbeat_timer_.Stop();
+    // Reset the writes callback as we're not expecting any more responses
+    // from gRPC framework.
+    heartbeat_reactor_->SetWritesAvailableCallback(base::DoNothing());
+    heartbeat_reactor_->Write(grpc::Status::OK);
+    heartbeat_reactor_ = nullptr;
+    LOG(INFO) << "Heartbeat reactor is reset";
+  }
+
+  heartbeat_timer_.Stop();
+  metrics_recorder_stub_.reset();
+
+  LOG(INFO) << "Pending apps and Core services terminated";
 }
 
 cast_receiver::Status RuntimeServiceImpl::Stop() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  action_recorder_.reset();
-
-  if (heartbeat_reactor_) {
-    heartbeat_timer_.Stop();
-    // Reset the writes callback as we're not expecting any more responses from
-    // gRPC framework.
-    heartbeat_reactor_->SetWritesAvailableCallback(base::DoNothing());
-    heartbeat_reactor_->Write(grpc::Status::OK);
-    heartbeat_reactor_ = nullptr;
-  }
+  ResetGrpcServices();
 
   if (metrics_recorder_service_) {
     metrics_recorder_service_->OnCloseSoon(base::DoNothing());
     metrics_recorder_service_.reset();
-    metrics_recorder_stub_.reset();
-    action_recorder_.reset();
   }
 
   if (grpc_server_) {
@@ -133,6 +203,10 @@ void RuntimeServiceImpl::HandleLoadApplication(
     cast::runtime::LoadApplicationRequest request,
     cast::runtime::RuntimeServiceHandler::LoadApplication::Reactor* reactor) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!grpc_server_) {
+    // gRPC server has been shut down and all reactors have been cancelled.
+    return;
+  }
 
   if (request.cast_session_id().empty()) {
     LOG(ERROR) << "Session ID is empty";
@@ -183,6 +257,11 @@ void RuntimeServiceImpl::HandleLaunchApplication(
     cast::runtime::LaunchApplicationRequest request,
     cast::runtime::RuntimeServiceHandler::LaunchApplication::Reactor* reactor) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!grpc_server_) {
+    // gRPC server has been shut down and all reactors have been cancelled.
+    return;
+  }
+
   if (request.cast_session_id().empty()) {
     LOG(ERROR) << "Session id is empty";
     reactor->Write(grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
@@ -214,6 +293,11 @@ void RuntimeServiceImpl::HandleStopApplication(
     cast::runtime::StopApplicationRequest request,
     cast::runtime::RuntimeServiceHandler::StopApplication::Reactor* reactor) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!grpc_server_) {
+    // gRPC server has been shut down and all reactors have been cancelled.
+    return;
+  }
+
   if (request.cast_session_id().empty()) {
     LOG(ERROR) << "Session id is missing";
     reactor->Write(grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
@@ -242,6 +326,11 @@ void RuntimeServiceImpl::HandleHeartbeat(
     cast::runtime::HeartbeatRequest request,
     cast::runtime::RuntimeServiceHandler::Heartbeat::Reactor* reactor) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!grpc_server_) {
+    // gRPC server has been shut down and all reactors have been cancelled.
+    return;
+  }
+
   DCHECK(!heartbeat_reactor_);
 
   if (!request.has_heartbeat_period() ||
@@ -252,14 +341,22 @@ void RuntimeServiceImpl::HandleHeartbeat(
     return;
   }
 
+  if (heartbeat_reactor_) {
+    LOG(WARNING)
+        << "Heartbeats are requested with active heartbeat reactor: reactor="
+        << heartbeat_reactor_;
+    heartbeat_reactor_->Write(
+        grpc::Status(grpc::StatusCode::ABORTED, "Duplicate heartbeat aborted"));
+  }
+
   heartbeat_period_ = base::Seconds(request.heartbeat_period().seconds());
   heartbeat_reactor_ = reactor;
   // Set the write callback once for all future calls from gRPC framework.
   heartbeat_reactor_->SetWritesAvailableCallback(base::BindPostTask(
       task_runner_, base::BindRepeating(&RuntimeServiceImpl::OnHeartbeatSent,
                                         weak_factory_.GetWeakPtr())));
-  DVLOG(2) << "Starting heartbeat ticking with period: " << heartbeat_period_
-           << " seconds";
+  LOG(INFO) << "Starting heartbeat: reactor=" << heartbeat_reactor_
+            << ", period=" << heartbeat_period_;
 
   SendHeartbeat();
 }
@@ -269,9 +366,10 @@ void RuntimeServiceImpl::HandleStartMetricsRecorder(
     cast::runtime::RuntimeServiceHandler::StartMetricsRecorder::Reactor*
         reactor) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!action_recorder_);
-  DCHECK(!metrics_recorder_stub_);
-  DCHECK(!metrics_recorder_service_);
+  if (!grpc_server_) {
+    // gRPC server has been shut down and all reactors have been cancelled.
+    return;
+  }
 
   if (request.metrics_recorder_service_info().grpc_endpoint().empty()) {
     reactor->Write(grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
@@ -279,16 +377,10 @@ void RuntimeServiceImpl::HandleStartMetricsRecorder(
     return;
   }
 
-  action_recorder_.emplace();
+  DLOG(INFO) << "Started recording metrics: endpoint="
+             << request.metrics_recorder_service_info().grpc_endpoint();
   metrics_recorder_stub_.emplace(
       request.metrics_recorder_service_info().grpc_endpoint());
-  metrics_recorder_service_.emplace(
-      &metrics_recorder_, &*action_recorder_,
-      base::BindRepeating(&RuntimeServiceImpl::RecordMetrics,
-                          weak_factory_.GetWeakPtr()),
-      kDefaultMetricsReportInterval);
-  DVLOG(2) << "MetricsRecorderService connected: endpoint="
-           << request.metrics_recorder_service_info().grpc_endpoint();
   reactor->Write(cast::runtime::StartMetricsRecorderResponse());
 }
 
@@ -297,6 +389,11 @@ void RuntimeServiceImpl::HandleStopMetricsRecorder(
     cast::runtime::RuntimeServiceHandler::StopMetricsRecorder::Reactor*
         reactor) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!grpc_server_) {
+    // gRPC server has been shut down and all reactors have been cancelled.
+    return;
+  }
+
   if (!metrics_recorder_service_) {
     LOG(ERROR) << "Droping metrics recorging stop request as service is not "
                   "available anymore";
@@ -305,16 +402,18 @@ void RuntimeServiceImpl::HandleStopMetricsRecorder(
     return;
   }
 
-  metrics_recorder_service_->OnCloseSoon(
-      base::BindOnce(&RuntimeServiceImpl::OnMetricsRecorderServiceStopped,
-                     weak_factory_.GetWeakPtr(), std::move(reactor)));
+  LOG(INFO) << "Stopped recording metrics";
+  // Just reset the MetricsRecorder stub to stop sending metrics to Core.
+  metrics_recorder_stub_.reset();
+  reactor->Write(cast::runtime::StopMetricsRecorderResponse());
 }
 
 void RuntimeServiceImpl::OnApplicationLoaded(
     std::string session_id,
     cast::runtime::RuntimeServiceHandler::LoadApplication::Reactor* reactor,
     cast_receiver::Status status) {
-  if (!application_dispatcher_->GetApplication(session_id)) {
+  auto* platform_app = application_dispatcher_->GetApplication(session_id);
+  if (!platform_app) {
     LOG(ERROR) << "Application doesn't exist anymore: session_id="
                << session_id;
     reactor->Write(
@@ -323,13 +422,24 @@ void RuntimeServiceImpl::OnApplicationLoaded(
   }
 
   if (!status.ok()) {
-    reactor->Write(
-        grpc::Status(grpc::StatusCode::UNKNOWN, "Failed to load application"));
+    LOG(ERROR) << "Failed to load application: session_id=" << session_id
+               << ", status=" << status;
+    platform_app->Stop(cast::runtime::StopApplicationRequest(),
+                       base::DoNothing());
+    application_dispatcher_->DestroyApplication(session_id);
+    reactor->Write(grpc::Status(static_cast<grpc::StatusCode>(status.code()),
+                                std::string(status.message())));
     return;
   }
 
   cast::runtime::LoadApplicationResponse response;
   response.mutable_message_port_info();
+  response.mutable_runtime_application_service_info()->set_grpc_endpoint(
+      platform_app->endpoint());
+
+  DLOG(INFO) << "Runtime application service loaded: endpoint="
+             << platform_app->endpoint();
+
   reactor->Write(std::move(response));
 }
 
@@ -337,7 +447,8 @@ void RuntimeServiceImpl::OnApplicationLaunching(
     std::string session_id,
     cast::runtime::RuntimeServiceHandler::LaunchApplication::Reactor* reactor,
     cast_receiver::Status status) {
-  if (!application_dispatcher_->GetApplication(session_id)) {
+  auto* platform_app = application_dispatcher_->GetApplication(session_id);
+  if (!platform_app) {
     LOG(ERROR) << "Application doesn't exist anymore: session_id="
                << session_id;
     reactor->Write(
@@ -346,8 +457,13 @@ void RuntimeServiceImpl::OnApplicationLaunching(
   }
 
   if (!status.ok()) {
-    reactor->Write(grpc::Status(grpc::StatusCode::UNKNOWN,
-                                "Failed to launch application"));
+    LOG(ERROR) << "Failed to launch application: session_id=" << session_id
+               << ", status=" << status;
+    platform_app->Stop(cast::runtime::StopApplicationRequest(),
+                       base::DoNothing());
+    application_dispatcher_->DestroyApplication(session_id);
+    reactor->Write(grpc::Status(static_cast<grpc::StatusCode>(status.code()),
+                                std::string(status.message())));
     return;
   }
 
@@ -382,24 +498,78 @@ void RuntimeServiceImpl::SendHeartbeat() {
 }
 
 void RuntimeServiceImpl::OnHeartbeatSent(
-    cast::utils::GrpcStatusOr<
-        cast::runtime::RuntimeServiceHandler::Heartbeat::Reactor*> reactor_or) {
+    grpc::Status status,
+    cast::runtime::RuntimeServiceHandler::Heartbeat::Reactor* reactor) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  CHECK(heartbeat_reactor_);
-  if (!reactor_or.ok()) {
-    heartbeat_timer_.Stop();
-    heartbeat_reactor_ = nullptr;
-    LOG(ERROR) << "Failed to send heartbeats: " << reactor_or.ToString();
+  // There might be duplicate SendHeartbeat requests from Cast Core. The ones
+  // that are not associated with |heartbeat_reactor_| must be ignored.
+  if (reactor != heartbeat_reactor_) {
+    // The |reactor| was cancelled as the heartbeat response was scheduled
+    // for send.
+    LOG(WARNING) << "Ignoring heartbeat from previous request";
     return;
   }
 
-  // Server streaming reactor never changes.
-  CHECK(heartbeat_reactor_ == *reactor_or);
+  if (!status.ok()) {
+    // Runtime failed to send the heartbeat to Core - assume Core has crashed
+    // and reset.
+    LOG(ERROR) << "Failed to send heartbeats: "
+               << cast::utils::GrpcStatusToString(status);
+    heartbeat_reactor_ = nullptr;
+    ResetGrpcServices();
+    return;
+  }
+
+  // Everything is ok - schedule another heartbeat.
   heartbeat_timer_.Start(
       FROM_HERE, heartbeat_period_,
       base::BindPostTask(task_runner_,
                          base::BindOnce(&RuntimeServiceImpl::SendHeartbeat,
                                         weak_factory_.GetWeakPtr())));
+}
+
+void RuntimeServiceImpl::MaybeAuthenticateRuntime(
+    bool enable_grpc_over_tcpip,
+    const std::string& runtime_id,
+    const std::string& cast_core_service_endpoint,
+    const std::string& authentication_token) {
+  if (!enable_grpc_over_tcpip) {
+    LOG(INFO) << "Skipping runtime authentication as not requested";
+    return;
+  }
+
+  CHECK(!cast_core_service_endpoint.empty())
+      << "Cast Core service endpoint must be specified for authentication";
+  CHECK(!authentication_token.empty())
+      << "Auth token must be present for TCP/IP endpoints";
+
+  cast_core_service_stub_.emplace(cast_core_service_endpoint);
+  auto call =
+      cast_core_service_stub_
+          ->CreateCall<cast::core::CastCoreServiceStub::AuthenticateRuntime>();
+  call.request().set_runtime_id(runtime_id);
+  call.request().set_authentication_token(authentication_token);
+  call.request().mutable_runtime_service_info()->set_grpc_endpoint(
+      grpc_server_->endpoint());
+  call.request().set_challenge("my challenge");
+  std::move(call).InvokeAsync(base::BindPostTask(
+      task_runner_, base::BindOnce(&RuntimeServiceImpl::OnRuntimeAuthenticated,
+                                   weak_factory_.GetWeakPtr())));
+}
+
+void RuntimeServiceImpl::OnRuntimeAuthenticated(
+    cast::utils::GrpcStatusOr<cast::core::AuthenticateRuntimeResponse>
+        response_or) {
+  if (!response_or.ok()) {
+    LOG(ERROR) << "Failed to authenticate runtime";
+    return;
+  }
+
+  LOG(INFO) << "Runtime is authenticated: sig="
+            << response_or->challenge_signature()
+            << ", chain=" << response_or->certificate_chain_size();
+
+  // TODO(vigeni): Add signature verification.
 }
 
 void RuntimeServiceImpl::RecordMetrics(
@@ -440,7 +610,6 @@ void RuntimeServiceImpl::OnMetricsRecorderServiceStopped(
   DVLOG(2) << "MetricsRecorderService stopped";
   metrics_recorder_service_.reset();
   metrics_recorder_stub_.reset();
-  action_recorder_.reset();
 
   reactor->Write(cast::runtime::StopMetricsRecorderResponse());
 }

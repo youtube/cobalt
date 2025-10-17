@@ -29,7 +29,7 @@ constexpr char kListCoursesUrlPath[] = "v1/courses";
 
 constexpr char kFieldsParameterName[] = "fields";
 constexpr char kRequestedFields[] =
-    "courses(id,name,courseState),nextPageToken";
+    "courses(id,name,section,courseState),nextPageToken";
 
 constexpr char kCourseStatesParameterName[] = "courseStates";
 constexpr char kPageTokenParameterName[] = "pageToken";
@@ -53,6 +53,7 @@ ListCoursesRequest::ListCoursesRequest(RequestSender* sender,
       teacher_id_(teacher_id),
       page_token_(page_token),
       callback_(std::move(callback)) {
+  CHECK(!student_id_.empty() || !teacher_id_.empty());
   CHECK(!callback_.is_null());
 }
 

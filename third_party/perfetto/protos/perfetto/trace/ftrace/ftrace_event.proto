@@ -21,14 +21,18 @@
 syntax = "proto2";
 
 import "protos/perfetto/trace/ftrace/android_fs.proto";
+import "protos/perfetto/trace/ftrace/bcl_exynos.proto";
 import "protos/perfetto/trace/ftrace/binder.proto";
 import "protos/perfetto/trace/ftrace/block.proto";
 import "protos/perfetto/trace/ftrace/cgroup.proto";
 import "protos/perfetto/trace/ftrace/clk.proto";
 import "protos/perfetto/trace/ftrace/cma.proto";
 import "protos/perfetto/trace/ftrace/compaction.proto";
+import "protos/perfetto/trace/ftrace/cpm_trace.proto";
 import "protos/perfetto/trace/ftrace/cpuhp.proto";
 import "protos/perfetto/trace/ftrace/cros_ec.proto";
+import "protos/perfetto/trace/ftrace/dcvsh.proto";
+import "protos/perfetto/trace/ftrace/devfreq.proto";
 import "protos/perfetto/trace/ftrace/dma_fence.proto";
 import "protos/perfetto/trace/ftrace/dmabuf_heap.proto";
 import "protos/perfetto/trace/ftrace/dpu.proto";
@@ -38,8 +42,11 @@ import "protos/perfetto/trace/ftrace/f2fs.proto";
 import "protos/perfetto/trace/ftrace/fastrpc.proto";
 import "protos/perfetto/trace/ftrace/fence.proto";
 import "protos/perfetto/trace/ftrace/filemap.proto";
+import "protos/perfetto/trace/ftrace/fs.proto";
 import "protos/perfetto/trace/ftrace/ftrace.proto";
 import "protos/perfetto/trace/ftrace/g2d.proto";
+import "protos/perfetto/trace/ftrace/google_icc_trace.proto";
+import "protos/perfetto/trace/ftrace/google_irm_trace.proto";
 import "protos/perfetto/trace/ftrace/gpu_mem.proto";
 import "protos/perfetto/trace/ftrace/gpu_scheduler.proto";
 import "protos/perfetto/trace/ftrace/hyp.proto";
@@ -47,6 +54,8 @@ import "protos/perfetto/trace/ftrace/i2c.proto";
 import "protos/perfetto/trace/ftrace/ion.proto";
 import "protos/perfetto/trace/ftrace/ipi.proto";
 import "protos/perfetto/trace/ftrace/irq.proto";
+import "protos/perfetto/trace/ftrace/irq_vectors.proto";
+import "protos/perfetto/trace/ftrace/kgsl.proto";
 import "protos/perfetto/trace/ftrace/kmem.proto";
 import "protos/perfetto/trace/ftrace/kvm.proto";
 import "protos/perfetto/trace/ftrace/lowmemorykiller.proto";
@@ -57,10 +66,14 @@ import "protos/perfetto/trace/ftrace/mm_event.proto";
 import "protos/perfetto/trace/ftrace/net.proto";
 import "protos/perfetto/trace/ftrace/oom.proto";
 import "protos/perfetto/trace/ftrace/panel.proto";
+import "protos/perfetto/trace/ftrace/perf_trace_counters.proto";
+import "protos/perfetto/trace/ftrace/pixel_mm.proto";
 import "protos/perfetto/trace/ftrace/power.proto";
 import "protos/perfetto/trace/ftrace/printk.proto";
 import "protos/perfetto/trace/ftrace/raw_syscalls.proto";
 import "protos/perfetto/trace/ftrace/regulator.proto";
+import "protos/perfetto/trace/ftrace/rpm.proto";
+import "protos/perfetto/trace/ftrace/samsung.proto";
 import "protos/perfetto/trace/ftrace/sched.proto";
 import "protos/perfetto/trace/ftrace/scm.proto";
 import "protos/perfetto/trace/ftrace/sde.proto";
@@ -73,6 +86,8 @@ import "protos/perfetto/trace/ftrace/systrace.proto";
 import "protos/perfetto/trace/ftrace/task.proto";
 import "protos/perfetto/trace/ftrace/tcp.proto";
 import "protos/perfetto/trace/ftrace/thermal.proto";
+import "protos/perfetto/trace/ftrace/thermal_exynos.proto";
+import "protos/perfetto/trace/ftrace/timer.proto";
 import "protos/perfetto/trace/ftrace/trusty.proto";
 import "protos/perfetto/trace/ftrace/ufs.proto";
 import "protos/perfetto/trace/ftrace/v4l2.proto";
@@ -96,6 +111,9 @@ message FtraceEvent {
   // existence of this common field. If this becomes needed for all events:
   // consider merging with common_preempt_count to avoid extra proto tags.
   optional uint32 common_flags = 5;
+
+  // Range reserved for self-describing messages.
+  reserved 65536 to 131072;
 
   oneof event {
     PrintFtraceEvent print = 3;
@@ -595,5 +613,98 @@ message FtraceEvent {
     HostSmcFtraceEvent host_smc = 479;
     HostMemAbortFtraceEvent host_mem_abort = 480;
     SuspendResumeMinimalFtraceEvent suspend_resume_minimal = 481;
+    MaliMaliCSFINTERRUPTSTARTFtraceEvent mali_mali_CSF_INTERRUPT_START = 482;
+    MaliMaliCSFINTERRUPTENDFtraceEvent mali_mali_CSF_INTERRUPT_END = 483;
+    SamsungTracingMarkWriteFtraceEvent samsung_tracing_mark_write = 484;
+    BinderCommandFtraceEvent binder_command = 485;
+    BinderReturnFtraceEvent binder_return = 486;
+    SchedSwitchWithCtrsFtraceEvent sched_switch_with_ctrs = 487;
+    GpuWorkPeriodFtraceEvent gpu_work_period = 488;
+    RpmStatusFtraceEvent rpm_status = 489;
+    PanelWriteGenericFtraceEvent panel_write_generic = 490;
+    SchedMigrateTaskFtraceEvent sched_migrate_task = 491;
+    DpuDsiCmdFifoStatusFtraceEvent dpu_dsi_cmd_fifo_status = 492;
+    DpuDsiRxFtraceEvent dpu_dsi_rx = 493;
+    DpuDsiTxFtraceEvent dpu_dsi_tx = 494;
+    F2fsBackgroundGcFtraceEvent f2fs_background_gc = 495;
+    F2fsGcBeginFtraceEvent f2fs_gc_begin = 496;
+    F2fsGcEndFtraceEvent f2fs_gc_end = 497;
+    FastrpcDmaFreeFtraceEvent fastrpc_dma_free = 498;
+    FastrpcDmaAllocFtraceEvent fastrpc_dma_alloc = 499;
+    FastrpcDmaUnmapFtraceEvent fastrpc_dma_unmap = 500;
+    FastrpcDmaMapFtraceEvent fastrpc_dma_map = 501;
+    GoogleIccEventFtraceEvent google_icc_event = 502;
+    GoogleIrmEventFtraceEvent google_irm_event = 503;
+    DevicePmCallbackStartFtraceEvent device_pm_callback_start = 504;
+    DevicePmCallbackEndFtraceEvent device_pm_callback_end = 505;
+    ThermalExynosAcpmBulkFtraceEvent thermal_exynos_acpm_bulk = 506;
+    ThermalExynosAcpmHighOverheadFtraceEvent thermal_exynos_acpm_high_overhead =
+        507;
+    DcvshFreqFtraceEvent dcvsh_freq = 508;
+    KgslGpuFrequencyFtraceEvent kgsl_gpu_frequency = 509;
+    MaliMaliPMMCUHCTLCORESDOWNSCALENOTIFYPENDFtraceEvent
+        mali_mali_PM_MCU_HCTL_CORES_DOWN_SCALE_NOTIFY_PEND = 510;
+    MaliMaliPMMCUHCTLCORESNOTIFYPENDFtraceEvent
+        mali_mali_PM_MCU_HCTL_CORES_NOTIFY_PEND = 511;
+    MaliMaliPMMCUHCTLCOREINACTIVEPENDFtraceEvent
+        mali_mali_PM_MCU_HCTL_CORE_INACTIVE_PEND = 512;
+    MaliMaliPMMCUHCTLMCUONRECHECKFtraceEvent
+        mali_mali_PM_MCU_HCTL_MCU_ON_RECHECK = 513;
+    MaliMaliPMMCUHCTLSHADERSCOREOFFPENDFtraceEvent
+        mali_mali_PM_MCU_HCTL_SHADERS_CORE_OFF_PEND = 514;
+    MaliMaliPMMCUHCTLSHADERSPENDOFFFtraceEvent
+        mali_mali_PM_MCU_HCTL_SHADERS_PEND_OFF = 515;
+    MaliMaliPMMCUHCTLSHADERSPENDONFtraceEvent
+        mali_mali_PM_MCU_HCTL_SHADERS_PEND_ON = 516;
+    MaliMaliPMMCUHCTLSHADERSREADYOFFFtraceEvent
+        mali_mali_PM_MCU_HCTL_SHADERS_READY_OFF = 517;
+    MaliMaliPMMCUINSLEEPFtraceEvent mali_mali_PM_MCU_IN_SLEEP = 518;
+    MaliMaliPMMCUOFFFtraceEvent mali_mali_PM_MCU_OFF = 519;
+    MaliMaliPMMCUONFtraceEvent mali_mali_PM_MCU_ON = 520;
+    MaliMaliPMMCUONCOREATTRUPDATEPENDFtraceEvent
+        mali_mali_PM_MCU_ON_CORE_ATTR_UPDATE_PEND = 521;
+    MaliMaliPMMCUONGLBREINITPENDFtraceEvent
+        mali_mali_PM_MCU_ON_GLB_REINIT_PEND = 522;
+    MaliMaliPMMCUONHALTFtraceEvent mali_mali_PM_MCU_ON_HALT = 523;
+    MaliMaliPMMCUONHWCNTDISABLEFtraceEvent mali_mali_PM_MCU_ON_HWCNT_DISABLE =
+        524;
+    MaliMaliPMMCUONHWCNTENABLEFtraceEvent mali_mali_PM_MCU_ON_HWCNT_ENABLE =
+        525;
+    MaliMaliPMMCUONPENDHALTFtraceEvent mali_mali_PM_MCU_ON_PEND_HALT = 526;
+    MaliMaliPMMCUONPENDSLEEPFtraceEvent mali_mali_PM_MCU_ON_PEND_SLEEP = 527;
+    MaliMaliPMMCUONSLEEPINITIATEFtraceEvent mali_mali_PM_MCU_ON_SLEEP_INITIATE =
+        528;
+    MaliMaliPMMCUPENDOFFFtraceEvent mali_mali_PM_MCU_PEND_OFF = 529;
+    MaliMaliPMMCUPENDONRELOADFtraceEvent mali_mali_PM_MCU_PEND_ON_RELOAD = 530;
+    MaliMaliPMMCUPOWERDOWNFtraceEvent mali_mali_PM_MCU_POWER_DOWN = 531;
+    MaliMaliPMMCURESETWAITFtraceEvent mali_mali_PM_MCU_RESET_WAIT = 532;
+    BclIrqTriggerFtraceEvent bcl_irq_trigger = 533;
+    KgslAdrenoCmdbatchQueuedFtraceEvent kgsl_adreno_cmdbatch_queued = 534;
+    KgslAdrenoCmdbatchSubmittedFtraceEvent kgsl_adreno_cmdbatch_submitted = 535;
+    KgslAdrenoCmdbatchSyncFtraceEvent kgsl_adreno_cmdbatch_sync = 536;
+    KgslAdrenoCmdbatchRetiredFtraceEvent kgsl_adreno_cmdbatch_retired = 537;
+    PixelMmKswapdWakeFtraceEvent pixel_mm_kswapd_wake = 538;
+    PixelMmKswapdDoneFtraceEvent pixel_mm_kswapd_done = 539;
+    SchedWakeupTaskAttrFtraceEvent sched_wakeup_task_attr = 540;
+    DevfreqFrequencyFtraceEvent devfreq_frequency = 541;
+    KprobeEvent kprobe_event = 542;
+    ParamSetValueCpmFtraceEvent param_set_value_cpm = 543;
+    DoSysOpenFtraceEvent do_sys_open = 544;
+    OpenExecFtraceEvent open_exec = 545;
+    BlockIoStartFtraceEvent block_io_start = 546;
+    BlockIoDoneFtraceEvent block_io_done = 547;
+    MaliGpuPowerStateFtraceEvent mali_gpu_power_state = 548;
+    DpuDispDpuUnderrunFtraceEvent dpu_disp_dpu_underrun = 549;
+    DpuDispVblankIrqEnableFtraceEvent dpu_disp_vblank_irq_enable = 550;
+    HrtimerStartFtraceEvent hrtimer_start = 551;
+    HrtimerCancelFtraceEvent hrtimer_cancel = 552;
+    HrtimerExpireEntryFtraceEvent hrtimer_expire_entry = 553;
+    HrtimerExpireExitFtraceEvent hrtimer_expire_exit = 554;
+    TimerStartFtraceEvent timer_start = 555;
+    TimerCancelFtraceEvent timer_cancel = 556;
+    TimerExpireEntryFtraceEvent timer_expire_entry = 557;
+    TimerExpireExitFtraceEvent timer_expire_exit = 558;
+    LocalTimerEntryFtraceEvent local_timer_entry = 559;
+    LocalTimerExitFtraceEvent local_timer_exit = 560;
   }
 }

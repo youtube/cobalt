@@ -39,7 +39,7 @@ class LayerTreeImplTestBase {
   ~LayerTreeImplTestBase();
 
   template <typename T, typename... Args>
-  T* AddLayer(Args&&... args) {
+  T* AddLayerInActiveTree(Args&&... args) {
     return AddLayerInternal<T>(host_impl()->active_tree(),
                                std::forward<Args>(args)...);
   }
@@ -53,6 +53,7 @@ class LayerTreeImplTestBase {
   }
 
   void CalcDrawProps(const gfx::Size& viewport_size);
+  void AppendQuads(LayerImpl* layer_impl);
   void AppendQuadsWithOcclusion(LayerImpl* layer_impl,
                                 const gfx::Rect& occluded);
   void AppendQuadsForPassWithOcclusion(
@@ -98,7 +99,7 @@ class LayerTreeImplTestBase {
   void UpdatePendingTreeDrawProperties(float device_scale_factor = 1.0f);
 
   bool UpdateLayerImplListContains(int id) const {
-    for (const auto* layer : update_layer_impl_list_) {
+    for (const LayerImpl* layer : update_layer_impl_list_) {
       if (layer->id() == id)
         return true;
     }

@@ -6,6 +6,7 @@
 #define UI_VIEWS_TEST_VIEWS_TEST_BASE_H_
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/compiler_specific.h"
@@ -13,7 +14,7 @@
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
-#include "ui/accessibility/platform/ax_platform_node.h"
+#include "ui/accessibility/platform/ax_platform_for_test.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/views/test/scoped_views_test_helper.h"
 #include "ui/views/test/test_views_delegate.h"
@@ -47,6 +48,7 @@ class ViewsTestBase : public PlatformTest {
   struct WidgetCloser {
     void operator()(Widget* widget) const;
   };
+  // DEPRECATED. Use std::unique_ptr<Widget> with CLIENT_OWNS_WIDGET instead.
   using WidgetAutoclosePtr = std::unique_ptr<Widget, WidgetCloser>;
 
   // Constructs a ViewsTestBase with |traits| being forwarded to its
@@ -82,15 +84,20 @@ class ViewsTestBase : public PlatformTest {
   // CreateParamsForTestWidget() and thus by CreateTestWidget(), and may also be
   // used directly.  The default implementation sets the context to
   // GetContext().
-  virtual Widget::InitParams CreateParams(Widget::InitParams::Type type);
+  virtual Widget::InitParams CreateParams(
+      Widget::InitParams::Ownership ownership,
+      Widget::InitParams::Type type);
+
+  // TODO(crbug.com/339619005): Remove once all uses are explicitly specifying
+  // Widget ownership.
+  Widget::InitParams CreateParams(Widget::InitParams::Type type);
 
   virtual std::unique_ptr<Widget> CreateTestWidget(
+      Widget::InitParams::Ownership ownership,
       Widget::InitParams::Type type =
           Widget::InitParams::TYPE_WINDOW_FRAMELESS);
 
   virtual std::unique_ptr<Widget> CreateTestWidget(Widget::InitParams params);
-
-  bool HasCompositingManager() const;
 
   // Simulate an OS-level destruction of the native window held by non-desktop
   // |widget|.
@@ -119,9 +126,12 @@ class ViewsTestBase : public PlatformTest {
     native_widget_type_ = native_widget_type;
   }
 
-  void set_views_delegate(std::unique_ptr<TestViewsDelegate> views_delegate) {
+  template <typename T>
+  T* set_views_delegate(std::unique_ptr<T> views_delegate) {
     DCHECK(!setup_called_);
-    views_delegate_for_setup_.swap(views_delegate);
+    T* const ret = views_delegate.get();
+    views_delegate_for_setup_ = std::move(views_delegate);
+    return ret;
   }
 
 #if defined(USE_AURA)
@@ -152,11 +162,23 @@ class ViewsTestBase : public PlatformTest {
 
   // Constructs the params for CreateTestWidget().
   Widget::InitParams CreateParamsForTestWidget(
-      Widget::InitParams::Type type =
-          Widget::InitParams::TYPE_WINDOW_FRAMELESS);
+      views::Widget::InitParams::Ownership ownership,
+      views::Widget::InitParams::Type type =
+          views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
+
+  // TODO(crbug.com/339619005): Remove once all uses are explicitly specifying
+  // Widget ownership.
+  Widget::InitParams CreateParamsForTestWidget(
+      views::Widget::InitParams::Type type =
+          views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
 
  private:
+#if BUILDFLAG(IS_WIN)
+  ui::ScopedOleInitializer ole_initializer_;
+#endif
+
   std::unique_ptr<base::test::TaskEnvironment> task_environment_;
+  std::optional<ui::AXPlatformForTest> ax_platform_;
 
   // Controls what type of widget will be created by default for a test (i.e.
   // when creating a Widget and leaving InitParams::native_widget unspecified).
@@ -171,11 +193,6 @@ class ViewsTestBase : public PlatformTest {
   bool interactive_setup_called_ = false;
   bool setup_called_ = false;
   bool teardown_called_ = false;
-  bool has_compositing_manager_ = false;
-
-#if BUILDFLAG(IS_WIN)
-  ui::ScopedOleInitializer ole_initializer_;
-#endif
 };
 
 // A helper that makes it easier to declare basic views tests that want to test
@@ -197,14 +214,6 @@ class ViewsTestWithDesktopNativeWidget : public ViewsTestBase {
 
   // ViewsTestBase:
   void SetUp() override;
-};
-
-class ScopedAXModeSetter {
- public:
-  explicit ScopedAXModeSetter(ui::AXMode new_mode) {
-    ui::AXPlatformNode::SetAXMode(new_mode);
-  }
-  ~ScopedAXModeSetter() { ui::AXPlatformNode::SetAXMode(ui::AXMode::kNone); }
 };
 
 }  // namespace views

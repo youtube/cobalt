@@ -31,10 +31,12 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_CONTENT_SECURITY_POLICY_STRUCT_H_
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_CONTENT_SECURITY_POLICY_STRUCT_H_
 
+#include <optional>
+#include <vector>
+
 #include "services/network/public/mojom/content_security_policy.mojom-shared.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "services/network/public/mojom/integrity_algorithm.mojom-shared.h"
 #include "third_party/blink/public/platform/web_string.h"
-#include "third_party/blink/public/platform/web_vector.h"
 
 namespace blink {
 
@@ -48,17 +50,18 @@ struct WebCSPSource {
 };
 
 struct WebCSPHashSource {
-  network::mojom::CSPHashAlgorithm algorithm;
-  WebVector<uint8_t> value;
+  network::mojom::IntegrityAlgorithm algorithm;
+  std::vector<uint8_t> value;
 };
 
 struct WebCSPSourceList {
-  WebVector<WebCSPSource> sources;
-  WebVector<WebString> nonces;
-  WebVector<WebCSPHashSource> hashes;
+  std::vector<WebCSPSource> sources;
+  std::vector<WebString> nonces;
+  std::vector<WebCSPHashSource> hashes;
+  std::vector<WebCSPHashSource> url_hashes;
+  std::vector<WebCSPHashSource> eval_hashes;
   bool allow_self;
   bool allow_star;
-  bool allow_response_redirects;
   bool allow_inline;
   bool allow_inline_speculation_rules;
   bool allow_eval;
@@ -67,6 +70,7 @@ struct WebCSPSourceList {
   bool allow_dynamic;
   bool allow_unsafe_hashes;
   bool report_sample;
+  std::optional<network::mojom::IntegrityAlgorithm> report_hash_algorithm;
 #if BUILDFLAG(IS_COBALT)
   bool cobalt_insecure_local_network;
 #endif
@@ -83,7 +87,7 @@ struct WebContentSecurityPolicyRawDirective {
 };
 
 struct WebCSPTrustedTypes {
-  WebVector<WebString> list;
+  std::vector<WebString> list;
   bool allow_any;
   bool allow_duplicates;
 };
@@ -98,8 +102,8 @@ struct WebContentSecurityPolicyHeader {
 
 struct WebContentSecurityPolicy {
   WebCSPSource self_origin;
-  WebVector<WebContentSecurityPolicyRawDirective> raw_directives;
-  WebVector<WebContentSecurityPolicyDirective> directives;
+  std::vector<WebContentSecurityPolicyRawDirective> raw_directives;
+  std::vector<WebContentSecurityPolicyDirective> directives;
   bool upgrade_insecure_requests;
   bool treat_as_public_address;
   bool block_all_mixed_content;
@@ -107,10 +111,10 @@ struct WebContentSecurityPolicy {
       network::mojom::WebSandboxFlags::kNone;
   WebContentSecurityPolicyHeader header;
   bool use_reporting_api;
-  WebVector<WebString> report_endpoints;
+  std::vector<WebString> report_endpoints;
   network::mojom::CSPRequireTrustedTypesFor require_trusted_types_for;
-  absl::optional<WebCSPTrustedTypes> trusted_types;
-  WebVector<WebString> parsing_errors;
+  std::optional<WebCSPTrustedTypes> trusted_types;
+  std::vector<WebString> parsing_errors;
 };
 
 }  // namespace blink

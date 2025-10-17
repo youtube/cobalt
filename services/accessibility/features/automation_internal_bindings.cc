@@ -5,33 +5,43 @@
 #include "services/accessibility/features/automation_internal_bindings.h"
 
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
-#include "base/task/sequenced_task_runner.h"
+#include "base/values.h"
 #include "gin/function_template.h"
+#include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "services/accessibility/assistive_technology_controller_impl.h"
 #include "services/accessibility/automation_impl.h"
 #include "services/accessibility/features/bindings_isolate_holder.h"
+#include "services/accessibility/features/v8_utils.h"
 #include "services/accessibility/public/mojom/accessibility_service.mojom.h"
+#include "ui/accessibility/ax_event_generator.h"
 #include "ui/accessibility/ax_node_position.h"
 #include "ui/accessibility/ax_tree_id.h"
+#include "ui/accessibility/mojom/ax_event.mojom.h"
 #include "ui/accessibility/platform/automation/automation_api_util.h"
 #include "ui/accessibility/platform/automation/automation_v8_router.h"
+#include "v8-function.h"
+#include "v8-value.h"
 #include "v8/include/v8-local-handle.h"
 #include "v8/include/v8-template.h"
 
 namespace ax {
+namespace {
 
+static const char kJSAutomationInternalV8Listeners[] =
+    "automationInternalV8Listeners";
+static const char kJSCallListeners[] = "callListeners";
+
+}  // namespace
 AutomationInternalBindings::AutomationInternalBindings(
-    base::WeakPtr<BindingsIsolateHolder> isolate_holder,
-    base::WeakPtr<mojom::AccessibilityServiceClient> ax_service_client,
-    scoped_refptr<base::SequencedTaskRunner> main_runner)
+    BindingsIsolateHolder* isolate_holder,
+    mojo::PendingAssociatedReceiver<mojom::Automation> automation)
     : isolate_holder_(isolate_holder),
       automation_v8_bindings_(std::make_unique<ui::AutomationV8Bindings>(
           /*AutomationTreeManagerOwner=*/this,
           /*AutomationV8Router=*/this)) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  Bind(ax_service_client, main_runner);
+  receiver_.Bind(std::move(automation));
 }
 
 AutomationInternalBindings::~AutomationInternalBindings() = default;
@@ -43,28 +53,6 @@ void AutomationInternalBindings::AddAutomationRoutesToTemplate(
   template_ = nullptr;
 }
 
-void AutomationInternalBindings::AddAutomationInternalRoutesToTemplate(
-    v8::Local<v8::ObjectTemplate>* object_template) {
-  // Adds V8 route for "automationInternal.enableDesktop" and "disableDesktop".
-  (*object_template)
-      ->Set(GetIsolate(), "enableDesktop",
-            gin::CreateFunctionTemplate(
-                GetIsolate(),
-                base::BindRepeating(&AutomationInternalBindings::Enable,
-                                    weak_ptr_factory_.GetWeakPtr())));
-  (*object_template)
-      ->Set(GetIsolate(), "disableDesktop",
-            gin::CreateFunctionTemplate(
-                GetIsolate(),
-                base::BindRepeating(&AutomationInternalBindings::Disable,
-                                    weak_ptr_factory_.GetWeakPtr())));
-
-  // TODO(crbug.com/1357889): Add bindings for additional AutomationInternalAPI
-  // functions, like automationInternal.performAction, etc, paralleling the
-  // implementation in
-  // extensions/browser/api/automation_internal/automation_internal_api.h.
-}
-
 ui::AutomationV8Bindings* AutomationInternalBindings::GetAutomationV8Bindings()
     const {
   DCHECK(automation_v8_bindings_);
@@ -72,7 +60,17 @@ ui::AutomationV8Bindings* AutomationInternalBindings::GetAutomationV8Bindings()
 }
 
 void AutomationInternalBindings::NotifyTreeEventListenersChanged() {
-  // TODO(crbug.com/1357889): Implement.
+  // This task is posted because we need to wait for any pending mutations
+  // to be processed before sending the event.
+  CHECK(base::SequencedTaskRunner::HasCurrentDefault());
+  auto& main_runner = base::SequencedTaskRunner::GetCurrentDefault();
+
+  // `this` is safe here because this object outlives
+  // AutomationTreeManagerOwner, which in turn generates this kind of event.
+  auto task = base::BindOnce(&AutomationInternalBindings::
+                                 MaybeSendOnAllAutomationEventListenersRemoved,
+                             base::Unretained(this));
+  main_runner->PostTask(FROM_HERE, std::move(task));
 }
 
 void AutomationInternalBindings::ThrowInvalidArgumentsException(
@@ -114,6 +112,23 @@ void AutomationInternalBindings::RouteHandlerFunction(
 ui::TreeChangeObserverFilter
 AutomationInternalBindings::ParseTreeChangeObserverFilter(
     const std::string& filter) const {
+  // TODO(b:327258691): Share const strings between c++ and js for event names.
+  if (filter == "none") {
+    return ui::TreeChangeObserverFilter::kNone;
+  }
+  if (filter == "noTreeChanges") {
+    return ui::TreeChangeObserverFilter::kNoTreeChanges;
+  }
+  if (filter == "liveRegionTreeChanges") {
+    return ui::TreeChangeObserverFilter::kLiveRegionTreeChanges;
+  }
+  if (filter == "textMarkerChanges") {
+    return ui::TreeChangeObserverFilter::kTextMarkerChanges;
+  }
+  if (filter == "allTreeChanges") {
+    return ui::TreeChangeObserverFilter::kAllTreeChanges;
+  }
+
   return ui::TreeChangeObserverFilter::kAllTreeChanges;
 }
 
@@ -142,112 +157,97 @@ AutomationInternalBindings::GetLocalizedStringForImageAnnotationStatus(
 
 std::string AutomationInternalBindings::GetTreeChangeTypeString(
     ax::mojom::Mutation change_type) const {
-  // TODO(crbug.com/1357889): Implement based on Automation API.
-  return ui::ToString(change_type);
+  // TODO(b:327258691): Share const strings between c++ and js for event names.
+  switch (change_type) {
+    case ax::mojom::Mutation::kNone:
+      return "none";
+    case ax::mojom::Mutation::kNodeCreated:
+      return "nodeCreated";
+    case ax::mojom::Mutation::kSubtreeCreated:
+      return "subtreeCreated";
+    case ax::mojom::Mutation::kNodeChanged:
+      return "nodeChanged";
+    case ax::mojom::Mutation::kTextChanged:
+      return "textChanged";
+    case ax::mojom::Mutation::kNodeRemoved:
+      return "nodeRemoved";
+    case ax::mojom::Mutation::kSubtreeUpdateEnd:
+      return "subtreeUpdateEnd";
+  }
 }
 
 std::string AutomationInternalBindings::GetEventTypeString(
     const std::tuple<ax::mojom::Event, ui::AXEventGenerator::Event>& event_type)
     const {
-  // TODO(crbug.com/1357889): Implement based on Automation API.
+  // TODO(b:327258691): Share const strings between c++ and js for event names.
+  const ui::AXEventGenerator::Event& generated_event = std::get<1>(event_type);
+
+  // Resolve the proper event based on generated or non-generated event sources.
+  if (generated_event != ui::AXEventGenerator::Event::NONE &&
+      !ui::ShouldIgnoreGeneratedEventForAutomation(generated_event)) {
+    return ui::ToString(generated_event);
+  }
+
+  const ax::mojom::Event& event = std::get<0>(event_type);
+  if (event != ax::mojom::Event::kNone &&
+      !ui::ShouldIgnoreAXEventForAutomation(event)) {
+    return ui::ToString(event);
+  }
   return "";
 }
 
 void AutomationInternalBindings::DispatchEvent(
     const std::string& event_name,
     const base::Value::List& event_args) const {
-  // TODO(crbug.com/1357889): Send the event to V8.
-}
+  v8::Isolate* isolate = GetIsolate();
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = GetContext();
+  v8::Context::Scope context_scope(context);
 
-void AutomationInternalBindings::Enable(gin::Arguments* args) {
-  // TODO(crbug.com/1357889): Send to the OS AutomationClient.
-  // automation_client_remote_->Enable(
-  //     base::BindOnce(&AutomationInternalBindings::OnTreeID,
-  //     weak_ptr_factory_.GetWeakPtr()));
+  // Here, a helper function defined in js is invoked to retrieve the event
+  // object that contains all the listeners. Then, we dispatch the event to all
+  // listeners.
+  v8::Local<v8::String> func_name =
+      v8::String::NewFromUtf8(isolate, kJSAutomationInternalV8Listeners)
+          .ToLocalChecked();
+  v8::Local<v8::Value> func_value =
+      context->Global()->Get(context, func_name).ToLocalChecked();
+  v8::Local<v8::Function> get_event_listeners_from_name_function =
+      v8::Local<v8::Function>::Cast(func_value);
 
-  // TODO(crbug.com/1357889): Need to figure out how to RespondLater to these
-  // args in order to send the tree ID back to the JS caller as a callback.
-}
+  // Prepare the argument for the 'getEventListenersFromName' call
+  v8::Local<v8::Value> args[] = {
+      v8::String::NewFromUtf8(isolate, event_name.c_str()).ToLocalChecked()};
 
-void AutomationInternalBindings::Disable(gin::Arguments* args) {
-  // TODO(crbug.com/1357889): Send to the OS AutomationClient.
-  // automation_client_remote_->Disable();
-  // Execute the return value on the args so that the JS callback
-  // will execute.
-  args->Return(true);
-}
+  // Call the 'getEventListenersFromName' function using the event that needs to
+  // be dispatched. The return value is an object containing all listeners to
+  // that event.
+  v8::Local<v8::Value> result = get_event_listeners_from_name_function
+                                    ->Call(context, context->Global(), 1, args)
+                                    .ToLocalChecked();
+  CHECK(result->IsObject()) << "Unknown event type: " << event_name;
 
-void AutomationInternalBindings::EnableTree(const ui::AXTreeID& tree_id) {
-  // TODO(crbug.com/1357889): Send to the OS AutomationClient.
-  // automation_client_remote_->EnableTree(tree_id);
-}
+  v8::Local<v8::Object> event_listeners_object =
+      v8::Local<v8::Object>::Cast(result);
 
-void AutomationInternalBindings::PerformAction(
-    const ui::AXActionData& action_data) {
-  // TODO(crbug.com/1357889): Send to the OS AutomationClient.
-  // automation_client_remote_->PerformAction(action_data);
-}
+  v8::Local<v8::String> method_name =
+      v8::String::NewFromUtf8(isolate, kJSCallListeners).ToLocalChecked();
+  v8::Local<v8::Value> method_value =
+      event_listeners_object->Get(context, method_name).ToLocalChecked();
+  v8::Local<v8::Function> method = v8::Local<v8::Function>::Cast(method_value);
 
-void AutomationInternalBindings::Bind(
-    base::WeakPtr<mojom::AccessibilityServiceClient> ax_service_client,
-    scoped_refptr<base::SequencedTaskRunner> main_runner) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  main_runner->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](base::WeakPtr<mojom::AccessibilityServiceClient> ax_service_client,
-             mojo::PendingReceiver<mojom::AutomationClient> remote,
-             mojo::PendingRemote<mojom::Automation> receiver) {
-            if (ax_service_client) {
-              ax_service_client->BindAutomation(std::move(receiver),
-                                                std::move(remote));
-            }
-          },
-          ax_service_client,
-          automation_client_remote_.BindNewPipeAndPassReceiver(),
-          automation_receiver_.BindNewPipeAndPassRemote()));
-}
+  std::vector<v8::Local<v8::Value>> js_event_args;
+  for (const base::Value& value : event_args) {
+    v8::Local<v8::Value> js_event_arg =
+        V8ValueConverter ::GetInstance()->ConvertToV8Value(value, context);
+    js_event_args.push_back(js_event_arg);
+  }
 
-void AutomationInternalBindings::DispatchTreeDestroyedEvent(
-    const ui::AXTreeID& tree_id) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(crbug.com/1357889): Dispatch to V8, via
-  // automationInternal.OnAccessibilityTreeDestroyed, paralleling
-  // extensions/browser/api/automation_internal/automation_event_router.cc.
-}
-
-void AutomationInternalBindings::DispatchActionResult(
-    const ui::AXActionData& data,
-    bool result) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(crbug.com/1357889): Dispatch to V8 paralleling the implementation
-  // in extensions/browser/api/automation_internal/automation_event_router.cc.
-}
-
-void AutomationInternalBindings::DispatchAccessibilityEvents(
-    const ui::AXTreeID& tree_id,
-    const std::vector<ui::AXTreeUpdate>& updates,
-    const gfx::Point& mouse_location,
-    const std::vector<ui::AXEvent>& events) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  OnAccessibilityEvents(tree_id, events, updates, mouse_location,
-                        /*is_active_profile=*/true);
-}
-
-void AutomationInternalBindings::DispatchAccessibilityLocationChange(
-    const ui::AXTreeID& tree_id,
-    int node_id,
-    const ui::AXRelativeBounds& bounds) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  OnAccessibilityLocationChange(tree_id, node_id, bounds);
-}
-
-void AutomationInternalBindings::DispatchGetTextLocationResult(
-    const ax::mojom::AXActionData& data,
-    gfx::Rect rect) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(crbug.com/1357889): Dispatch to V8 paralleling the implementation
-  // in extensions/browser/api/automation_internal/automation_event_router.cc.
+  v8::MaybeLocal<v8::Value> unused_result =
+      method->Call(context, event_listeners_object, js_event_args.size(),
+                   js_event_args.data());
+  CHECK(!unused_result.IsEmpty());
 }
 
 }  // namespace ax

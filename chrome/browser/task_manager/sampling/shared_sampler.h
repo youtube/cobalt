@@ -7,9 +7,11 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
@@ -18,7 +20,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace task_manager {
 
@@ -47,7 +48,7 @@ class SharedSampler : public base::RefCountedThreadSafe<SharedSampler> {
     base::Time start_time;
   };
   using OnSamplingCompleteCallback =
-      base::RepeatingCallback<void(absl::optional<SamplingResult>)>;
+      base::RepeatingCallback<void(std::optional<SamplingResult>)>;
 
   // Returns a combination of refresh flags supported by the shared sampler.
   int64_t GetSupportedFlags() const;
@@ -64,8 +65,7 @@ class SharedSampler : public base::RefCountedThreadSafe<SharedSampler> {
 
 #if BUILDFLAG(IS_WIN)
   // Specifies a function to use in place of NtQuerySystemInformation.
-  typedef int (*QuerySystemInformationForTest)(unsigned char* buffer,
-                                               int buffer_size);
+  typedef int (*QuerySystemInformationForTest)(base::span<uint8_t> buffer);
   static void SetQuerySystemInformationForTest(
       QuerySystemInformationForTest query_system_information);
 #endif  // BUILDFLAG(IS_WIN)
@@ -95,7 +95,7 @@ class SharedSampler : public base::RefCountedThreadSafe<SharedSampler> {
 
   // Used to filter process information.
   static std::vector<base::FilePath> GetSupportedImageNames();
-  bool IsSupportedImageName(base::FilePath::StringPieceType image_name) const;
+  bool IsSupportedImageName(base::FilePath::StringViewType image_name) const;
 
   // Captures a snapshot of data for all chrome processes.
   // Runs on the worker thread.

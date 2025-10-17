@@ -37,17 +37,14 @@ perfetto_proto_library("@TYPE@") {
     "log_message.proto",
     "process_descriptor.proto",
     "range_of_interest.proto",
+    "screenshot.proto",
     "source_location.proto",
     "task_execution.proto",
     "thread_descriptor.proto",
     "track_descriptor.proto",
     "track_event.proto",
   ]
-}
-
-perfetto_proto_library("@TYPE@") {
-  proto_generators = [ "descriptor" ]
   generate_descriptor = "track_event.descriptor"
-  sources = [ "track_event.proto" ]
-  deps = [ ":source_set" ]
+  generator_visibility = [ "../../../../src/trace_processor/importers/proto:gen_cc_track_event_descriptor" ]
+  descriptor_root_source = "track_event.proto"
 }

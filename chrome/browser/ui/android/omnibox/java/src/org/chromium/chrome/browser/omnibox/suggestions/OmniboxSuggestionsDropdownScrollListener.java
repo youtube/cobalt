@@ -4,18 +4,16 @@
 
 package org.chromium.chrome.browser.omnibox.suggestions;
 
-/**
- * Interface that will receive notifications and callbacks when the user scroll the suggestion
- * list.
- */
-public interface OmniboxSuggestionsDropdownScrollListener {
-    /**
-     * Invoked whenever the User scrolls the list.
-     */
-    default void onSuggestionDropdownScroll(){};
+import org.chromium.build.annotations.NullMarked;
 
-    /**
-     * Invoked whenever the User scrolls the list to the top.
-     */
-    default void onSuggestionDropdownOverscrolledToTop(){};
+/**
+ * Interface that will receive notifications and callbacks when the user scroll the suggestion list.
+ */
+@NullMarked
+public interface OmniboxSuggestionsDropdownScrollListener {
+    /** Invoked whenever the User scrolls the list. */
+    void onSuggestionDropdownScroll();
+
+    /** Invoked whenever the User scrolls the list to the top. */
+    void onSuggestionDropdownOverscrolledToTop();
 }

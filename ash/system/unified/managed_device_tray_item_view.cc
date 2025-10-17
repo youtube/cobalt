@@ -15,8 +15,10 @@
 #include "ash/system/tray/tray_constants.h"
 #include "ash/system/tray/tray_utils.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/chromeos/devicetype_utils.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -47,10 +49,6 @@ void ManagedDeviceTrayItemView::OnDeviceEnterpriseInfoChanged() {
 
 void ManagedDeviceTrayItemView::OnEnterpriseAccountDomainChanged() {}
 
-const char* ManagedDeviceTrayItemView::GetClassName() const {
-  return "ManagedDeviceTrayItemView";
-}
-
 void ManagedDeviceTrayItemView::OnThemeChanged() {
   TrayItemView::OnThemeChanged();
   UpdateIcon();
@@ -58,6 +56,17 @@ void ManagedDeviceTrayItemView::OnThemeChanged() {
 
 void ManagedDeviceTrayItemView::HandleLocaleChange() {
   UpdateTooltipText();
+}
+
+void ManagedDeviceTrayItemView::UpdateLabelOrImageViewColor(bool active) {
+  TrayItemView::UpdateLabelOrImageViewColor(active);
+
+  auto* icon = GetIcon();
+  if (icon) {
+    image_view()->SetImage(ui::ImageModel::FromVectorIcon(
+        *icon, active ? cros_tokens::kCrosSysSystemOnPrimaryContainer
+                      : cros_tokens::kCrosSysOnSurface));
+  }
 }
 
 void ManagedDeviceTrayItemView::Update() {
@@ -72,17 +81,22 @@ void ManagedDeviceTrayItemView::Update() {
   SetVisible(true);
 }
 
-void ManagedDeviceTrayItemView::UpdateIcon() {
+const gfx::VectorIcon* ManagedDeviceTrayItemView::GetIcon() {
   const gfx::VectorIcon* icon = nullptr;
   SessionControllerImpl* session = Shell::Get()->session_controller();
-  if (session->IsUserPublicAccount())
+  if (session->IsUserPublicAccount()) {
     icon = &kSystemTrayManagedIcon;
-  else if (session->IsUserChild())
+  } else if (session->IsUserChild()) {
     icon = &kSystemTraySupervisedUserIcon;
+  }
+  return icon;
+}
+
+void ManagedDeviceTrayItemView::UpdateIcon() {
+  auto* icon = GetIcon();
 
   if (icon) {
-    image_view()->SetImage(
-        ui::ImageModel::FromVectorIcon(*icon, kColorAshIconColorPrimary));
+    UpdateLabelOrImageViewColor(is_active());
   }
 }
 
@@ -107,5 +121,8 @@ void ManagedDeviceTrayItemView::UpdateTooltipText() {
         l10n_util::GetStringUTF16(IDS_ASH_STATUS_TRAY_FAMILY_LINK_LABEL));
   }
 }
+
+BEGIN_METADATA(ManagedDeviceTrayItemView)
+END_METADATA
 
 }  // namespace ash

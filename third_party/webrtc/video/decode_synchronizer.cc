@@ -10,17 +10,21 @@
 
 #include "video/decode_synchronizer.h"
 
-#include <iterator>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <utility>
-#include <vector>
 
+#include "api/metronome/metronome.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/trace_event.h"
+#include "system_wrappers/include/clock.h"
 #include "video/frame_decode_scheduler.h"
 #include "video/frame_decode_timing.h"
 
@@ -58,11 +62,11 @@ DecodeSynchronizer::SynchronizedFrameDecodeScheduler::
   RTC_DCHECK(stopped_);
 }
 
-absl::optional<uint32_t>
+std::optional<uint32_t>
 DecodeSynchronizer::SynchronizedFrameDecodeScheduler::ScheduledRtpTimestamp() {
   return next_frame_.has_value()
-             ? absl::make_optional(next_frame_->rtp_timestamp())
-             : absl::nullopt;
+             ? std::make_optional(next_frame_->rtp_timestamp())
+             : std::nullopt;
 }
 
 DecodeSynchronizer::ScheduledFrame
@@ -175,6 +179,10 @@ void DecodeSynchronizer::RemoveFrameScheduler(
 
 void DecodeSynchronizer::ScheduleNextTick() {
   RTC_DCHECK_RUN_ON(worker_queue_);
+  if (tick_scheduled_) {
+    return;
+  }
+  tick_scheduled_ = true;
   metronome_->RequestCallOnNextTick(
       SafeTask(safety_.flag(), [this] { OnTick(); }));
 }
@@ -182,6 +190,7 @@ void DecodeSynchronizer::ScheduleNextTick() {
 void DecodeSynchronizer::OnTick() {
   TRACE_EVENT0("webrtc", __func__);
   RTC_DCHECK_RUN_ON(worker_queue_);
+  tick_scheduled_ = false;
   expected_next_tick_ = clock_->CurrentTime() + metronome_->TickPeriod();
 
   for (auto* scheduler : schedulers_) {

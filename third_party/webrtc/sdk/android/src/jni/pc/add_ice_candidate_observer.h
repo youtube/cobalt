@@ -21,7 +21,7 @@ namespace webrtc {
 namespace jni {
 
 class AddIceCandidateObserverJni final
-    : public rtc::RefCountedNonVirtual<AddIceCandidateObserverJni> {
+    : public RefCountedNonVirtual<AddIceCandidateObserverJni> {
  public:
   AddIceCandidateObserverJni(JNIEnv* env, const JavaRef<jobject>& j_observer);
   ~AddIceCandidateObserverJni() = default;

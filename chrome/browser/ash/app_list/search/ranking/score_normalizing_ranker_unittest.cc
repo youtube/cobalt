@@ -18,7 +18,7 @@ namespace app_list::test {
 namespace {
 
 Results MakeResults(const std::vector<std::string>& ids,
-                    const std::vector<double> scores,
+                    const std::vector<double>& scores,
                     ResultType result_type) {
   Results res;
   CHECK_EQ(ids.size(), scores.size());
@@ -42,8 +42,9 @@ class ScoreNormalizingRankerTest : public testing::Test {
 
   base::FilePath GetPath() { return temp_dir_.GetPath().Append("proto"); }
 
-  PersistentProto<ScoreNormalizerProto> GetProto() {
-    return PersistentProto<ScoreNormalizerProto>(GetPath(), base::Seconds(0));
+  ash::PersistentProto<ScoreNormalizerProto> GetProto() {
+    return ash::PersistentProto<ScoreNormalizerProto>(GetPath(),
+                                                      base::Seconds(0));
   }
 
   base::test::TaskEnvironment task_environment_{

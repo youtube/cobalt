@@ -4,12 +4,14 @@
 
 #include "services/network/public/cpp/content_security_policy/csp_source_list.h"
 
+#include <algorithm>
+
 #include "base/check_op.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/containers/flat_set.h"
-#include "base/ranges/algorithm.h"
+#include "base/feature_list.h"
 #include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "services/network/public/cpp/content_security_policy/csp_source.h"
+#include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/content_security_policy.mojom-shared.h"
 
 namespace network {
@@ -48,6 +50,7 @@ void IntersectHashes(base::flat_set<mojom::CSPHashSourcePtr>& a,
 
 bool IsScriptDirective(CSPDirectiveName directive) {
   return directive == CSPDirectiveName::ScriptSrc ||
+         directive == CSPDirectiveName::ScriptSrcV2 ||
          directive == CSPDirectiveName::ScriptSrcAttr ||
          directive == CSPDirectiveName::ScriptSrcElem ||
          directive == CSPDirectiveName::DefaultSrc;
@@ -185,8 +188,8 @@ bool UrlSourceListSubsumes(
 
   // Every item in |source_list_b| must be subsumed by at least one item in
   // |source_list_a|.
-  return base::ranges::all_of(source_list_b, [&](const auto& source_b) {
-    return base::ranges::any_of(source_list_a, [&](const auto& source_a) {
+  return std::ranges::all_of(source_list_b, [&](const auto& source_b) {
+    return std::ranges::any_of(source_list_a, [&](const auto& source_a) {
       return CSPSourceSubsumes(*source_a, *source_b);
     });
   });
@@ -194,22 +197,14 @@ bool UrlSourceListSubsumes(
 
 }  // namespace
 
-bool CheckCSPSourceList(mojom::CSPDirectiveName directive_name,
-                        const mojom::CSPSourceList& source_list,
-                        const GURL& url,
-                        const mojom::CSPSource& self_source,
-                        bool has_followed_redirect,
-                        bool is_response_check,
-                        bool is_opaque_fenced_frame) {
+CSPCheckResult CheckCSPSourceList(mojom::CSPDirectiveName directive_name,
+                                  const mojom::CSPSourceList& source_list,
+                                  const GURL& url,
+                                  const mojom::CSPSource& self_source,
+                                  bool has_followed_redirect,
+                                  bool is_opaque_fenced_frame) {
   if (is_opaque_fenced_frame)
     DCHECK_EQ(directive_name, mojom::CSPDirectiveName::FencedFrameSrc);
-
-  // If the source list allows all redirects, the decision can't be made until
-  // the response is received.
-  if (directive_name == mojom::CSPDirectiveName::NavigateTo &&
-      source_list.allow_response_redirects && !is_response_check) {
-    return true;
-  }
 
   // Wildcards match network schemes ('http', 'https', 'ftp', 'ws', 'wss'), and
   // the scheme of the protected resource:
@@ -218,27 +213,39 @@ bool CheckCSPSourceList(mojom::CSPDirectiveName directive_name,
   // list.
   // Note: Opaque fenced frames only allow https urls, therefore it's fine to
   // allow '*'.
-  // TODO(crbug.com/1243568): Update the return condition below if opaque
+  // TODO(crbug.com/40195488): Update the return condition below if opaque
   // fenced frames can map to non-https potentially trustworthy urls to avoid
   // privacy leak.
   if (source_list.allow_star) {
-    if (url.SchemeIsHTTPOrHTTPS() || url.SchemeIsWSOrWSS() ||
-        url.SchemeIs("ftp")) {
-      return true;
+    if (url.SchemeIsHTTPOrHTTPS()) {
+      return CSPCheckResult::Allowed();
     }
     if (!self_source.scheme.empty() && url.SchemeIs(self_source.scheme))
-      return true;
+      return CSPCheckResult::Allowed();
   }
 
   if (source_list.allow_self &&
       CheckCSPSource(self_source, url, self_source,
                      CSPSourceContext::ContentSecurityPolicy,
                      has_followed_redirect, is_opaque_fenced_frame)) {
-    return true;
+    return CSPCheckResult::Allowed();
   }
 
-  return AllowFromSources(url, source_list.sources, self_source,
-                          has_followed_redirect, is_opaque_fenced_frame);
+  if (AllowFromSources(url, source_list.sources, self_source,
+                       has_followed_redirect, is_opaque_fenced_frame)) {
+    return CSPCheckResult::Allowed();
+  }
+
+  if (source_list.allow_star) {
+    if (url.SchemeIsWSOrWSS()) {
+      return CSPCheckResult::AllowedOnlyIfWildcardMatchesWs();
+    }
+    if (url.SchemeIs("ftp")) {
+      return CSPCheckResult::Blocked();
+    }
+  }
+
+  return CSPCheckResult::Blocked();
 }
 
 bool CSPSourceListSubsumes(

@@ -10,7 +10,8 @@
 
 #include "modules/audio_processing/test/audio_processing_simulator.h"
 
-#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -18,52 +19,30 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
-#include "api/audio/echo_canceller3_config_json.h"
-#include "api/audio/echo_canceller3_factory.h"
-#include "api/audio/echo_detector_creator.h"
+#include "api/audio/audio_processing.h"
+#include "api/scoped_refptr.h"
+#include "common_audio/channel_buffer.h"
+#include "common_audio/include/audio_util.h"
+#include "common_audio/wav_file.h"
 #include "modules/audio_processing/aec_dump/aec_dump_factory.h"
-#include "modules/audio_processing/echo_control_mobile_impl.h"
-#include "modules/audio_processing/include/audio_processing.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
+#include "modules/audio_processing/test/api_call_statistics.h"
 #include "modules/audio_processing/test/fake_recording_device.h"
+#include "modules/audio_processing/test/test_utils.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/strings/json.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 namespace test {
 namespace {
-// Helper for reading JSON from a file and parsing it to an AEC3 configuration.
-EchoCanceller3Config ReadAec3ConfigFromJsonFile(absl::string_view filename) {
-  std::string json_string;
-  std::string s;
-  std::ifstream f(std::string(filename).c_str());
-  if (f.fail()) {
-    std::cout << "Failed to open the file " << filename << std::endl;
-    RTC_CHECK_NOTREACHED();
-  }
-  while (std::getline(f, s)) {
-    json_string += s;
-  }
-
-  bool parsing_successful;
-  EchoCanceller3Config cfg;
-  Aec3ConfigFromJsonString(json_string, &cfg, &parsing_successful);
-  if (!parsing_successful) {
-    std::cout << "Parsing of json string failed: " << std::endl
-              << json_string << std::endl;
-    RTC_CHECK_NOTREACHED();
-  }
-  RTC_CHECK(EchoCanceller3Config::Validate(&cfg));
-
-  return cfg;
-}
 
 std::string GetIndexedOutputWavFilename(absl::string_view wav_name,
                                         int counter) {
-  rtc::StringBuilder ss;
+  StringBuilder ss;
   ss << wav_name.substr(0, wav_name.size() - 4) << "_" << counter
      << wav_name.substr(wav_name.size() - 4);
   return ss.Release();
@@ -92,12 +71,12 @@ class ScopedTimer {
  public:
   ScopedTimer(ApiCallStatistics* api_call_statistics,
               ApiCallStatistics::CallType call_type)
-      : start_time_(rtc::TimeNanos()),
+      : start_time_(TimeNanos()),
         call_type_(call_type),
         api_call_statistics_(api_call_statistics) {}
 
   ~ScopedTimer() {
-    api_call_statistics_->Add(rtc::TimeNanos() - start_time_, call_type_);
+    api_call_statistics_->Add(TimeNanos() - start_time_, call_type_);
   }
 
  private:
@@ -114,8 +93,7 @@ SimulationSettings::~SimulationSettings() = default;
 
 AudioProcessingSimulator::AudioProcessingSimulator(
     const SimulationSettings& settings,
-    rtc::scoped_refptr<AudioProcessing> audio_processing,
-    std::unique_ptr<AudioProcessingBuilder> ap_builder)
+    absl_nonnull scoped_refptr<AudioProcessing> audio_processing)
     : settings_(settings),
       ap_(std::move(audio_processing)),
       applied_input_volume_(settings.initial_mic_level),
@@ -149,55 +127,6 @@ AudioProcessingSimulator::AudioProcessingSimulator(
 
   if (settings_.simulate_mic_gain)
     RTC_LOG(LS_VERBOSE) << "Simulating analog mic gain";
-
-  // Create the audio processing object.
-  RTC_CHECK(!(ap_ && ap_builder))
-      << "The AudioProcessing and the AudioProcessingBuilder cannot both be "
-         "specified at the same time.";
-
-  if (ap_) {
-    RTC_CHECK(!settings_.aec_settings_filename);
-    RTC_CHECK(!settings_.print_aec_parameter_values);
-  } else {
-    // Use specied builder if such is provided, otherwise create a new builder.
-    std::unique_ptr<AudioProcessingBuilder> builder =
-        !!ap_builder ? std::move(ap_builder)
-                     : std::make_unique<AudioProcessingBuilder>();
-
-    // Create and set an EchoCanceller3Factory if needed.
-    const bool use_aec = settings_.use_aec && *settings_.use_aec;
-    if (use_aec) {
-      EchoCanceller3Config cfg;
-      if (settings_.aec_settings_filename) {
-        if (settings_.use_verbose_logging) {
-          std::cout << "Reading AEC Parameters from JSON input." << std::endl;
-        }
-        cfg = ReadAec3ConfigFromJsonFile(*settings_.aec_settings_filename);
-      }
-
-      if (settings_.linear_aec_output_filename) {
-        cfg.filter.export_linear_aec_output = true;
-      }
-
-      if (settings_.print_aec_parameter_values) {
-        if (!settings_.use_quiet_output) {
-          std::cout << "AEC settings:" << std::endl;
-        }
-        std::cout << Aec3ConfigToJsonString(cfg) << std::endl;
-      }
-
-      auto echo_control_factory = std::make_unique<EchoCanceller3Factory>(cfg);
-      builder->SetEchoControlFactory(std::move(echo_control_factory));
-    }
-
-    if (settings_.use_ed && *settings.use_ed) {
-      builder->SetEchoDetector(CreateEchoDetector());
-    }
-
-    // Create an audio processing object.
-    ap_ = builder->Create();
-    RTC_CHECK(ap_);
-  }
 }
 
 AudioProcessingSimulator::~AudioProcessingSimulator() {
@@ -362,24 +291,24 @@ void AudioProcessingSimulator::SetupBuffersConfigsOutputs(
     int reverse_output_num_channels) {
   in_config_ = StreamConfig(input_sample_rate_hz, input_num_channels);
   in_buf_.reset(new ChannelBuffer<float>(
-      rtc::CheckedDivExact(input_sample_rate_hz, kChunksPerSecond),
+      CheckedDivExact(input_sample_rate_hz, kChunksPerSecond),
       input_num_channels));
 
   reverse_in_config_ =
       StreamConfig(reverse_input_sample_rate_hz, reverse_input_num_channels);
   reverse_in_buf_.reset(new ChannelBuffer<float>(
-      rtc::CheckedDivExact(reverse_input_sample_rate_hz, kChunksPerSecond),
+      CheckedDivExact(reverse_input_sample_rate_hz, kChunksPerSecond),
       reverse_input_num_channels));
 
   out_config_ = StreamConfig(output_sample_rate_hz, output_num_channels);
   out_buf_.reset(new ChannelBuffer<float>(
-      rtc::CheckedDivExact(output_sample_rate_hz, kChunksPerSecond),
+      CheckedDivExact(output_sample_rate_hz, kChunksPerSecond),
       output_num_channels));
 
   reverse_out_config_ =
       StreamConfig(reverse_output_sample_rate_hz, reverse_output_num_channels);
   reverse_out_buf_.reset(new ChannelBuffer<float>(
-      rtc::CheckedDivExact(reverse_output_sample_rate_hz, kChunksPerSecond),
+      CheckedDivExact(reverse_output_sample_rate_hz, kChunksPerSecond),
       reverse_output_num_channels));
 
   fwd_frame_.SetFormat(input_sample_rate_hz, input_num_channels);
@@ -387,7 +316,7 @@ void AudioProcessingSimulator::SetupBuffersConfigsOutputs(
                        reverse_input_num_channels);
 
   if (settings_.use_verbose_logging) {
-    rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
+    LogMessage::LogToDebug(LS_VERBOSE);
 
     std::cout << "Sample rates:" << std::endl;
     std::cout << " Forward input: " << input_sample_rate_hz << std::endl;
@@ -515,6 +444,10 @@ void AudioProcessingSimulator::ConfigureAudioProcessor() {
       apm_config.gain_controller2.adaptive_digital.enabled =
           *settings_.agc2_use_adaptive_gain;
     }
+    if (settings_.agc2_use_input_volume_controller) {
+      apm_config.gain_controller2.input_volume_controller.enabled =
+          *settings_.agc2_use_input_volume_controller;
+    }
   }
   if (settings_.use_pre_amplifier) {
     apm_config.pre_amplifier.enabled = *settings_.use_pre_amplifier;
@@ -570,7 +503,7 @@ void AudioProcessingSimulator::ConfigureAudioProcessor() {
   }
   if (settings_.agc_mode) {
     apm_config.gain_controller1.mode =
-        static_cast<webrtc::AudioProcessing::Config::GainController1::Mode>(
+        static_cast<AudioProcessing::Config::GainController1::Mode>(
             *settings_.agc_mode);
   }
   if (settings_.use_agc_limiter) {
@@ -622,7 +555,7 @@ void AudioProcessingSimulator::ConfigureAudioProcessor() {
 
   if (settings_.aec_dump_output_filename) {
     ap_->AttachAecDump(AecDumpFactory::Create(
-        *settings_.aec_dump_output_filename, -1, &worker_queue_));
+        *settings_.aec_dump_output_filename, -1, worker_queue_.Get()));
   }
 }
 

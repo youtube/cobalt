@@ -4,13 +4,9 @@
 
 #import "ios/chrome/browser/shared/ui/util/named_guide.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/check.h"
-#import "base/mac/foundation_util.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 // The key path for whether NSLayoutConstraints are active.
@@ -48,7 +44,7 @@ NSString* const kActiveKeyPath = @"active";
 @synthesize constrainedFrameView = _constrainedFrameView;
 
 - (instancetype)initWithName:(GuideName*)name {
-  if (self = [super init]) {
+  if ((self = [super init])) {
     _name = name;
     _constrainedFrame = CGRectNull;
   }
@@ -153,7 +149,7 @@ NSString* const kActiveKeyPath = @"active";
 + (instancetype)guideWithName:(GuideName*)name view:(UIView*)view {
   while (view) {
     for (UILayoutGuide* guide in view.layoutGuides) {
-      NamedGuide* namedGuide = base::mac::ObjCCast<NamedGuide>(guide);
+      NamedGuide* namedGuide = base::apple::ObjCCast<NamedGuide>(guide);
       if ([namedGuide.name isEqualToString:name]) {
         return namedGuide;
       }
@@ -177,7 +173,7 @@ NSString* const kActiveKeyPath = @"active";
                        context:(void*)context {
   DCHECK([key isEqualToString:kActiveKeyPath]);
   DCHECK([self.constraints containsObject:object]);
-  DCHECK(!base::mac::ObjCCastStrict<NSLayoutConstraint>(object).active);
+  DCHECK(!base::apple::ObjCCastStrict<NSLayoutConstraint>(object).active);
   [self checkForInactiveConstraints];
 }
 

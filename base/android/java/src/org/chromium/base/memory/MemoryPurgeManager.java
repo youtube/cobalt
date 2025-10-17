@@ -6,23 +6,27 @@ package org.chromium.base.memory;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ApplicationState;
 import org.chromium.base.ApplicationStatus;
-import org.chromium.base.BaseFeatureList;
-import org.chromium.base.BaseFeatures;
 import org.chromium.base.MemoryPressureLevel;
 import org.chromium.base.MemoryPressureListener;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TimeUtils;
+import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
 
 /**
  * This class is similar in principle to MemoryPurgeManager in blink, but on the browser process
  * side. It triggers a critical memory pressure notification once the application has been in the
  * background for more than a few minutes.
  *
- * UI thread only.
+ * <p>UI thread only.
  */
+@NullMarked
 public class MemoryPurgeManager implements ApplicationStatus.ApplicationStateListener {
     private boolean mStarted;
     private long mLastBackgroundPeriodStart = NEVER;
@@ -31,11 +35,16 @@ public class MemoryPurgeManager implements ApplicationStatus.ApplicationStateLis
 
     // Arbitrary delay, a few minutes is what is used for background renderer purge, and 5 minutes
     // for freezing.
-    // TODO(crbug.com/1356242): Should ideally be tuned according to the distribution of background
+    // TODO(crbug.com/40860286): Should ideally be tuned according to the distribution of background
     // time residency.
-    @VisibleForTesting
-    static final long PURGE_DELAY_MS = 4 * 60 * 1000;
+    @VisibleForTesting static final long PURGE_DELAY_MS = 4 * 60 * 1000;
+    // Arbitrary delay for compacting our process memory. This should be longer
+    // than |PURGE_DELAY_MS|, so that we don't touch memory again right after
+    // compacting it. It should also be longer than 70s, so that we can avoid
+    // compacting memory if App Freezer does it for us (on Android 14+).
+    @VisibleForTesting static final long SELF_FREEZE_DELAY_MS = 5 * 60 * 1000;
     private static final long NEVER = -1;
+
     @VisibleForTesting
     static final String BACKGROUND_DURATION_HISTOGRAM_NAME =
             "Android.ApplicationState.TimeInBackgroundBeforeForegroundedAgain";
@@ -59,10 +68,7 @@ public class MemoryPurgeManager implements ApplicationStatus.ApplicationStateLis
         ThreadUtils.assertOnUiThread();
         if (mStarted) return;
         mStarted = true;
-        if (!BaseFeatureList.isEnabled(BaseFeatures.BROWSER_PROCESS_MEMORY_PURGE)) return;
-
         ApplicationStatus.registerApplicationStateListener(this);
-
         // We may already be in background, capture the initial state.
         onApplicationStateChange(getApplicationState());
     }
@@ -86,6 +92,7 @@ public class MemoryPurgeManager implements ApplicationStatus.ApplicationStateLis
                 if (mLastBackgroundPeriodStart == NEVER) {
                     mLastBackgroundPeriodStart = TimeUtils.elapsedRealtimeMillis();
                     maybePostDelayedPurgingTask(PURGE_DELAY_MS);
+                    maybePostDelayedSelfFreezeTask();
                 }
                 break;
             case ApplicationState.HAS_DESTROYED_ACTIVITIES:
@@ -95,16 +102,23 @@ public class MemoryPurgeManager implements ApplicationStatus.ApplicationStateLis
         }
     }
 
-    private void delayedPurge() {
+    @CalledByNative
+    public static void doDelayedPurge(boolean mustPurgeNow) {
+        getInstance().delayedPurgeTask(mustPurgeNow);
+    }
+
+    private void delayedPurge(boolean mustPurgeNow) {
         // Came back to foreground in the meantime, do not repost a task, this will happen next time
         // we go to background.
         if (mLastBackgroundPeriodStart == NEVER) return;
 
-        assert mLastBackgroundPeriodStart < TimeUtils.elapsedRealtimeMillis();
-        long inBackgroundFor = TimeUtils.elapsedRealtimeMillis() - mLastBackgroundPeriodStart;
-        if (inBackgroundFor < PURGE_DELAY_MS) {
-            maybePostDelayedPurgingTask(PURGE_DELAY_MS - inBackgroundFor);
-            return;
+        if (!mustPurgeNow) {
+            assert mLastBackgroundPeriodStart < TimeUtils.elapsedRealtimeMillis();
+            long inBackgroundFor = TimeUtils.elapsedRealtimeMillis() - mLastBackgroundPeriodStart;
+            if (inBackgroundFor < PURGE_DELAY_MS) {
+                maybePostDelayedPurgingTask(PURGE_DELAY_MS - inBackgroundFor);
+                return;
+            }
         }
 
         notifyMemoryPressure();
@@ -112,6 +126,12 @@ public class MemoryPurgeManager implements ApplicationStatus.ApplicationStateLis
 
     protected void notifyMemoryPressure() {
         MemoryPressureListener.notifyMemoryPressure(MemoryPressureLevel.CRITICAL);
+    }
+
+    protected void notifySelfFreeze() {
+        if (MemoryPurgeManagerJni.get() == null) return;
+
+        MemoryPressureListener.notifySelfFreeze();
     }
 
     protected int getApplicationState() {
@@ -122,10 +142,69 @@ public class MemoryPurgeManager implements ApplicationStatus.ApplicationStateLis
         ThreadUtils.assertOnUiThread();
         if (mDelayedPurgeTaskPending) return;
 
-        ThreadUtils.postOnUiThreadDelayed(() -> {
-            mDelayedPurgeTaskPending = false;
-            delayedPurge();
-        }, delayMillis);
+        if (!shouldTrimMemoryOnPreFreeze()) {
+            ThreadUtils.postOnUiThreadDelayed(
+                    () -> {
+                        delayedPurgeTask(false);
+                    },
+                    delayMillis);
+        } else {
+            MemoryPurgeManagerJni.get().postDelayedPurgeTaskOnUiThread(delayMillis);
+        }
         mDelayedPurgeTaskPending = true;
+    }
+
+    private void maybePostDelayedSelfFreezeTask() {
+        ThreadUtils.assertOnUiThread();
+
+        if (!shouldSelfFreeze()) return;
+
+        ThreadUtils.postOnUiThreadDelayed(
+                () -> {
+                    doSelfFreeze();
+                },
+                SELF_FREEZE_DELAY_MS);
+    }
+
+    private void delayedPurgeTask(boolean mustPurgeNow) {
+        mDelayedPurgeTaskPending = false;
+        delayedPurge(mustPurgeNow);
+    }
+
+    private void doSelfFreeze() {
+        // We are in foreground now, so do not run this task.
+        if (mLastBackgroundPeriodStart == NEVER) return;
+
+        assert mLastBackgroundPeriodStart < TimeUtils.elapsedRealtimeMillis();
+        long inBackgroundFor = TimeUtils.elapsedRealtimeMillis() - mLastBackgroundPeriodStart;
+        if (inBackgroundFor < SELF_FREEZE_DELAY_MS) {
+            return;
+        }
+
+        notifySelfFreeze();
+    }
+
+    private boolean shouldTrimMemoryOnPreFreeze() {
+        if (!LibraryLoader.getInstance().isInitialized()) return false;
+        if (MemoryPurgeManagerJni.get() == null) return false;
+
+        return MemoryPurgeManagerJni.get().isOnPreFreezeMemoryTrimEnabled();
+    }
+
+    protected boolean shouldSelfFreeze() {
+        // This is the last check before we call native.
+        if (!LibraryLoader.getInstance().isInitialized()) return false;
+        if (MemoryPurgeManagerJni.get() == null) return false;
+
+        // We don't check the feature here, because we need to forward to
+        // native in all cases, in order to record metrics.
+        return true;
+    }
+
+    @NativeMethods
+    interface Natives {
+        void postDelayedPurgeTaskOnUiThread(long delayMillis);
+
+        boolean isOnPreFreezeMemoryTrimEnabled();
     }
 }

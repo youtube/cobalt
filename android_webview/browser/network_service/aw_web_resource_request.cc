@@ -4,6 +4,7 @@
 
 #include "android_webview/browser/network_service/aw_web_resource_request.h"
 
+#include "android_webview/browser/network_service/net_helpers.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "net/http/http_request_headers.h"
@@ -12,27 +13,10 @@
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "ui/base/page_transition_types.h"
 
-using base::android::ConvertJavaStringToUTF16;
-using base::android::ConvertUTF8ToJavaString;
-using base::android::ConvertUTF16ToJavaString;
-using base::android::ToJavaArrayOfStrings;
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "android_webview/browser_jni_headers/AwWebResourceRequest_jni.h"
 
 namespace android_webview {
-namespace {
-
-void ConvertRequestHeadersToVectors(const net::HttpRequestHeaders& headers,
-                                    std::vector<std::string>* header_names,
-                                    std::vector<std::string>* header_values) {
-  DCHECK(header_names->empty());
-  DCHECK(header_values->empty());
-  net::HttpRequestHeaders::Iterator headers_iterator(headers);
-  while (headers_iterator.GetNext()) {
-    header_names->push_back(headers_iterator.name());
-    header_values->push_back(headers_iterator.value());
-  }
-}
-
-}  // namespace
 
 AwWebResourceRequest::AwWebResourceRequest(
     const network::ResourceRequest& request)
@@ -68,19 +52,16 @@ AwWebResourceRequest& AwWebResourceRequest::operator=(
     AwWebResourceRequest&& other) = default;
 AwWebResourceRequest::~AwWebResourceRequest() = default;
 
-AwWebResourceRequest::AwJavaWebResourceRequest::AwJavaWebResourceRequest() =
-    default;
-AwWebResourceRequest::AwJavaWebResourceRequest::~AwJavaWebResourceRequest() =
-    default;
-
-// static
-void AwWebResourceRequest::ConvertToJava(JNIEnv* env,
-                                         const AwWebResourceRequest& request,
-                                         AwJavaWebResourceRequest* jRequest) {
-  jRequest->jurl = ConvertUTF8ToJavaString(env, request.url);
-  jRequest->jmethod = ConvertUTF8ToJavaString(env, request.method);
-  jRequest->jheader_names = ToJavaArrayOfStrings(env, request.header_names);
-  jRequest->jheader_values = ToJavaArrayOfStrings(env, request.header_values);
-}
-
 }  // namespace android_webview
+//
+namespace jni_zero {
+template <>
+ScopedJavaLocalRef<jobject> ToJniType(
+    JNIEnv* env,
+    const android_webview::AwWebResourceRequest& request) {
+  return android_webview::Java_AwWebResourceRequest_create(
+      env, request.url, request.is_outermost_main_frame,
+      request.has_user_gesture, request.method, request.header_names,
+      request.header_values);
+}
+}  // namespace jni_zero

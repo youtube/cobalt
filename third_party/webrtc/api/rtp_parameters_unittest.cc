@@ -10,11 +10,12 @@
 
 #include "api/rtp_parameters.h"
 
+#include <vector>
+
 #include "test/gtest.h"
 
 namespace webrtc {
 
-using webrtc::RtpExtension;
 
 static const char kExtensionUri1[] = "extension-uri1";
 static const char kExtensionUri2[] = "extension-uri2";

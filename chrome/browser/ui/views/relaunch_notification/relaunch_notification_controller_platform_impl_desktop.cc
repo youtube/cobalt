@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/views/relaunch_notification/relaunch_notification_controller_platform_impl_desktop.h"
 
+#include "base/check.h"
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/ui/browser.h"
@@ -33,22 +35,26 @@ RelaunchNotificationControllerPlatformImpl::
 RelaunchNotificationControllerPlatformImpl::
     ~RelaunchNotificationControllerPlatformImpl() {
   DCHECK(!widget_);
-  if (on_visible_)
+  if (on_visible_) {
     BrowserList::RemoveObserver(this);
-  CHECK(!IsInObserverList());
+  }
+  CHECK(!WidgetObserver::IsInObserverList());
+  CHECK(!BrowserListObserver::IsInObserverList());
 }
 
 void RelaunchNotificationControllerPlatformImpl::NotifyRelaunchRecommended(
     base::Time detection_time,
     bool /*past_deadline*/) {
   // Nothing to do if the bubble is visible.
-  if (widget_)
+  if (widget_) {
     return;
+  }
 
   // Show the bubble in the most recently active browser.
   Browser* browser = FindLastActiveTabbedBrowser();
-  if (!browser)
+  if (!browser) {
     return;
+  }
 
   widget_ = RelaunchRecommendedBubbleView::ShowBubble(
       browser, detection_time, base::BindRepeating(&chrome::AttemptRelaunch));
@@ -61,8 +67,9 @@ void RelaunchNotificationControllerPlatformImpl::NotifyRelaunchRequired(
     base::Time deadline,
     base::OnceCallback<base::Time()> on_visible) {
   // Nothing to do if the dialog is visible.
-  if (widget_)
+  if (widget_) {
     return;
+  }
 
   // Show the dialog in the active tabbed browser window.
   Browser* browser = chrome::FindBrowserWithActiveWindow();
@@ -74,8 +81,9 @@ void RelaunchNotificationControllerPlatformImpl::NotifyRelaunchRequired(
 
   // If the instance is not already waiting for one to become active from a
   // previous call, start observing now.
-  if (!on_visible_)
+  if (!on_visible_) {
     BrowserList::AddObserver(this);
+  }
 
   // Hold on to the callback until an active tabbed browser is found.
   on_visible_ = std::move(on_visible);
@@ -84,8 +92,11 @@ void RelaunchNotificationControllerPlatformImpl::NotifyRelaunchRequired(
 }
 
 void RelaunchNotificationControllerPlatformImpl::CloseRelaunchNotification() {
-  if (widget_)
+  if (widget_) {
+    widget_->RemoveObserver(this);
     widget_->Close();
+    widget_ = nullptr;
+  }
   if (on_visible_) {
     BrowserList::RemoveObserver(this);
     on_visible_.Reset();
@@ -99,13 +110,17 @@ void RelaunchNotificationControllerPlatformImpl::SetDeadline(
   // Nothing to do if the dialog hasn't been shown yet (because no tabbed
   // browser has become active) or if the user has seen and dismissed the
   // dialog.
-  if (widget_)
-    RelaunchRequiredDialogView::FromWidget(widget_)->SetDeadline(deadline);
+  if (widget_) {
+    // The widget_ should always have a view; see https://crbug.com/324564051.
+    CHECK_DEREF(RelaunchRequiredDialogView::FromWidget(widget_))
+        .SetDeadline(deadline);
+  }
 
   // Hold on to the new deadline if the instance is waiting for a Browser to
   // become active.
-  if (on_visible_)
+  if (on_visible_) {
     last_relaunch_deadline_ = deadline;
+  }
 }
 
 bool RelaunchNotificationControllerPlatformImpl::IsRequiredNotificationShown()
@@ -123,8 +138,9 @@ void RelaunchNotificationControllerPlatformImpl::OnWidgetDestroying(
 void RelaunchNotificationControllerPlatformImpl::OnBrowserSetLastActive(
     Browser* browser) {
   // Ignore non-tabbed browsers.
-  if (!browser->is_type_normal())
+  if (!browser->is_type_normal()) {
     return;
+  }
 
   BrowserList::RemoveObserver(this);
 

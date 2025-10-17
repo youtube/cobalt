@@ -20,11 +20,11 @@ class SequencedTaskRunner;
 namespace gfx {
 class Animation;
 class Point;
-}
+}  // namespace gfx
 namespace views {
 class View;
 class Widget;
-}
+}  // namespace views
 
 // StatusBubble displays a bubble of text that fades in, hovers over the
 // browser chrome and fades away when not needed. It is primarily designed
@@ -65,9 +65,6 @@ class StatusBubbleViews : public StatusBubble {
 
   // Gets the width that a bubble should be for a given string
   int GetWidthForURL(const std::u16string& url_string);
-
-  // Notifies the bubble's popup that browser's theme is changed.
-  void OnThemeChanged();
 
   // Overridden from StatusBubble:
   void SetStatus(const std::u16string& status) override;
@@ -153,7 +150,7 @@ class StatusBubbleViews : public StatusBubble {
   // going outside the bounds of the hosting widget.
   std::unique_ptr<views::Widget> popup_;
 
-  raw_ptr<views::View, DanglingUntriaged> base_view_;
+  raw_ptr<views::View, AcrossTasksDanglingUntriaged> base_view_;
   raw_ptr<StatusView, DanglingUntriaged> view_ = nullptr;
 
   // Manages the expansion of a status bubble to fit a long URL.

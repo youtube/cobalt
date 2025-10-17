@@ -47,6 +47,7 @@ class V8UnionAutoKeywordOrDouble;
 class VTTCueBox;
 class VTTRegion;
 class VTTScanner;
+class V8DirectionSetting;
 
 using AlignSetting = V8AlignSetting::Enum;
 using VTTRegionMap = HeapHashMap<String, Member<VTTRegion>>;
@@ -72,7 +73,7 @@ class VTTCueBackgroundBox final : public HTMLDivElement {
   void SetTrack(TextTrack*);
   void Trace(Visitor*) const override;
 
-  const TextTrack* GetTrack() const { return track_; }
+  const TextTrack* GetTrack() const { return track_.Get(); }
 
  private:
   void DidRecalcStyle(const StyleRecalcChange) override;
@@ -104,11 +105,11 @@ class CORE_EXPORT VTTCue final : public TextTrackCue {
   VTTCue(Document&, double start_time, double end_time, const String& text);
   ~VTTCue() override;
 
-  VTTRegion* region() const { return region_; }
+  VTTRegion* region() const { return region_.Get(); }
   void setRegion(VTTRegion*);
 
-  const String& vertical() const;
-  void setVertical(const String&);
+  V8DirectionSetting vertical() const;
+  void setVertical(const V8DirectionSetting&);
 
   bool snapToLines() const { return snap_to_lines_; }
   void setSnapToLines(bool);
@@ -147,7 +148,7 @@ class CORE_EXPORT VTTCue final : public TextTrackCue {
 
   void UpdatePastAndFutureNodes(double movie_time) override;
 
-  absl::optional<double> GetNextIntraCueTime(double movie_time) const override;
+  std::optional<double> GetNextIntraCueTime(double movie_time) const override;
 
   void RemoveDisplayTree(RemovalNotification) override;
 

@@ -156,7 +156,7 @@ void CryptAuthMetadataSyncerImpl::RegisterPrefs(PrefRegistrySimple* registry) {
 }
 
 // static
-absl::optional<base::TimeDelta> CryptAuthMetadataSyncerImpl::GetTimeoutForState(
+std::optional<base::TimeDelta> CryptAuthMetadataSyncerImpl::GetTimeoutForState(
     State state) {
   switch (state) {
     case State::kWaitingForGroupKeyCreation:
@@ -169,12 +169,12 @@ absl::optional<base::TimeDelta> CryptAuthMetadataSyncerImpl::GetTimeoutForState(
       return kWaitingForSecondSyncMetadataResponseTimeout;
     default:
       // Signifies that there should not be a timeout.
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
 // static
-absl::optional<CryptAuthDeviceSyncResult::ResultCode>
+std::optional<CryptAuthDeviceSyncResult::ResultCode>
 CryptAuthMetadataSyncerImpl::ResultCodeErrorFromTimeoutDuringState(
     State state) {
   switch (state) {
@@ -191,7 +191,7 @@ CryptAuthMetadataSyncerImpl::ResultCodeErrorFromTimeoutDuringState(
       return CryptAuthDeviceSyncResult::ResultCode::
           kErrorTimeoutWaitingForSecondSyncMetadataResponse;
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
@@ -228,7 +228,7 @@ void CryptAuthMetadataSyncerImpl::SetState(State state) {
   state_ = state;
   last_state_change_timestamp_ = base::TimeTicks::Now();
 
-  absl::optional<base::TimeDelta> timeout_for_state = GetTimeoutForState(state);
+  std::optional<base::TimeDelta> timeout_for_state = GetTimeoutForState(state);
   if (!timeout_for_state)
     return;
 
@@ -239,7 +239,7 @@ void CryptAuthMetadataSyncerImpl::SetState(State state) {
 
 void CryptAuthMetadataSyncerImpl::OnTimeout() {
   // If there's a timeout specified, there should be a corresponding error code.
-  absl::optional<CryptAuthDeviceSyncResult::ResultCode> error_code =
+  std::optional<CryptAuthDeviceSyncResult::ResultCode> error_code =
       ResultCodeErrorFromTimeoutDuringState(state_);
   DCHECK(error_code);
 
@@ -310,7 +310,6 @@ void CryptAuthMetadataSyncerImpl::AttemptNextStep() {
           return;
         default:
           NOTREACHED();
-          return;
       }
     }
 
@@ -346,7 +345,6 @@ void CryptAuthMetadataSyncerImpl::AttemptNextStep() {
           return;
         default:
           NOTREACHED();
-          return;
       }
     }
 
@@ -371,19 +369,18 @@ void CryptAuthMetadataSyncerImpl::AttemptNextStep() {
     // Each CryptAuthMetadataSyncer object can only be used once.
     case State::kFinished:
       NOTREACHED();
-      return;
   }
 }
 
 bool CryptAuthMetadataSyncerImpl::
     ShouldUseCachedEncryptedLocalDeviceMetadata() {
-  absl::optional<std::string> last_synced_unencrypted_metadata =
+  std::optional<std::string> last_synced_unencrypted_metadata =
       util::DecodeFromString(pref_service_->GetString(
           prefs::kCryptAuthLastSyncedUnencryptedLocalDeviceMetadata));
-  absl::optional<std::string> last_synced_group_public_key =
+  std::optional<std::string> last_synced_group_public_key =
       util::DecodeFromString(
           pref_service_->GetString(prefs::kCryptAuthLastSyncedGroupPublicKey));
-  absl::optional<std::string> last_synced_encrypted_metadata =
+  std::optional<std::string> last_synced_encrypted_metadata =
       util::DecodeFromString(pref_service_->GetString(
           prefs::kCryptAuthLastSyncedEncryptedLocalDeviceMetadata));
 
@@ -426,7 +423,7 @@ void CryptAuthMetadataSyncerImpl::EncryptLocalDeviceMetadata() {
 }
 
 void CryptAuthMetadataSyncerImpl::OnLocalDeviceMetadataEncrypted(
-    const absl::optional<std::string>& encrypted_metadata) {
+    const std::optional<std::string>& encrypted_metadata) {
   DCHECK_EQ(State::kWaitingForLocalDeviceMetadataEncryption, state_);
 
   bool success = encrypted_metadata.has_value();
@@ -454,15 +451,15 @@ void CryptAuthMetadataSyncerImpl::CreateGroupKey() {
       {{CryptAuthKeyBundle::Name::kDeviceSyncBetterTogetherGroupKey,
         CryptAuthKeyCreator::CreateKeyData(CryptAuthKey::Status::kActive,
                                            kGroupKeyType)}},
-      absl::nullopt /* server_ephemeral_dh */,
+      std::nullopt /* server_ephemeral_dh */,
       base::BindOnce(&CryptAuthMetadataSyncerImpl::OnGroupKeyCreated,
                      base::Unretained(this)));
 }
 
 void CryptAuthMetadataSyncerImpl::OnGroupKeyCreated(
-    const base::flat_map<CryptAuthKeyBundle::Name,
-                         absl::optional<CryptAuthKey>>& new_keys,
-    const absl::optional<CryptAuthKey>& client_ephemeral_dh) {
+    const base::flat_map<CryptAuthKeyBundle::Name, std::optional<CryptAuthKey>>&
+        new_keys,
+    const std::optional<CryptAuthKey>& client_ephemeral_dh) {
   DCHECK_EQ(State::kWaitingForGroupKeyCreation, state_);
 
   const auto it = new_keys.find(
@@ -509,7 +506,6 @@ void CryptAuthMetadataSyncerImpl::MakeSyncMetadataCall() {
     default:
       // AttemptNextStep() ensures that no more than two calls are made.
       NOTREACHED();
-      return;
   }
 
   cryptauth_client_ = client_factory_->CreateInstance();
@@ -525,14 +521,15 @@ void CryptAuthMetadataSyncerImpl::OnSyncMetadataSuccess(
     const cryptauthv2::SyncMetadataResponse& response) {
   base::TimeDelta execution_time =
       base::TimeTicks::Now() - last_state_change_timestamp_;
-  if (state_ == State::kWaitingForFirstSyncMetadataResponse)
+  if (state_ == State::kWaitingForFirstSyncMetadataResponse) {
     RecordFirstSyncMetadataMetrics(execution_time,
                                    CryptAuthApiCallResult::kSuccess);
-  else if (state_ == State::kWaitingForSecondSyncMetadataResponse)
+  } else if (state_ == State::kWaitingForSecondSyncMetadataResponse) {
     RecordSecondSyncMetadataMetrics(execution_time,
                                     CryptAuthApiCallResult::kSuccess);
-  else
+  } else {
     NOTREACHED();
+  }
 
   PA_LOG(VERBOSE) << "SyncMetadata response:\n" << response;
 
@@ -558,14 +555,15 @@ void CryptAuthMetadataSyncerImpl::OnSyncMetadataFailure(
     NetworkRequestError error) {
   base::TimeDelta execution_time =
       base::TimeTicks::Now() - last_state_change_timestamp_;
-  if (state_ == State::kWaitingForFirstSyncMetadataResponse)
+  if (state_ == State::kWaitingForFirstSyncMetadataResponse) {
     RecordFirstSyncMetadataMetrics(
         execution_time, CryptAuthApiCallResultFromNetworkRequestError(error));
-  else if (state_ == State::kWaitingForSecondSyncMetadataResponse)
+  } else if (state_ == State::kWaitingForSecondSyncMetadataResponse) {
     RecordSecondSyncMetadataMetrics(
         execution_time, CryptAuthApiCallResultFromNetworkRequestError(error));
-  else
+  } else {
     NOTREACHED();
+  }
 
   FinishAttempt(SyncMetadataNetworkRequestErrorToResultCode(error));
 }
@@ -647,8 +645,8 @@ void CryptAuthMetadataSyncerImpl::FinishAttempt(
   key_creator_.reset();
   encryptor_.reset();
 
-  absl::optional<cryptauthv2::ClientDirective> new_client_directive;
-  absl::optional<cryptauthv2::EncryptedGroupPrivateKey>
+  std::optional<cryptauthv2::ClientDirective> new_client_directive;
+  std::optional<cryptauthv2::EncryptedGroupPrivateKey>
       encrypted_group_private_key;
   if (sync_metadata_response_) {
     if (sync_metadata_response_->has_client_directive())

@@ -2,7 +2,7 @@ Tests that adding a new rule creates inspector stylesheet resource and allows it
 
 Inspector stylesheet URL: inspector-stylesheet
 Inspector stylesheet content:
-#inspected {}
+
 
 Setting new content
 Inspector stylesheet content:
@@ -17,5 +17,6 @@ element.style { ()
 [expanded] 
 div { (user agent stylesheet)
     display: block;
+    unicode-bidi: isolate;
 
 

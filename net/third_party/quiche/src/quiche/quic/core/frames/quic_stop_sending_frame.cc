@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_stop_sending_frame.h"
 
+#include <ostream>
+
 #include "quiche/quic/core/quic_error_codes.h"
 
 namespace quic {
@@ -32,6 +34,16 @@ std::ostream& operator<<(std::ostream& os, const QuicStopSendingFrame& frame) {
      << ", error_code: " << frame.error_code
      << ", ietf_error_code: " << frame.ietf_error_code << " }\n";
   return os;
+}
+
+bool QuicStopSendingFrame::operator==(const QuicStopSendingFrame& rhs) const {
+  return control_frame_id == rhs.control_frame_id &&
+         stream_id == rhs.stream_id && error_code == rhs.error_code &&
+         ietf_error_code == rhs.ietf_error_code;
+}
+
+bool QuicStopSendingFrame::operator!=(const QuicStopSendingFrame& rhs) const {
+  return !(*this == rhs);
 }
 
 }  // namespace quic

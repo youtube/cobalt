@@ -11,12 +11,14 @@
 
 #include "base/android/jni_android.h"
 #include "components/payments/content/android/byte_buffer_helper.h"
-#include "components/payments/content/android/jni_headers/PaymentValidator_jni.h"
 #include "components/payments/content/payment_request_converter.h"
 #include "components/payments/core/payment_details.h"
 #include "components/payments/core/payment_details_validation.h"
 #include "components/payments/core/payments_validators.h"
 #include "third_party/blink/public/mojom/payments/payment_request.mojom.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/payments/content/android/jni_headers/PaymentValidator_jni.h"
 
 namespace payments {
 
@@ -24,9 +26,8 @@ jboolean JNI_PaymentValidator_ValidatePaymentDetailsAndroid(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& buffer) {
   mojom::PaymentDetailsPtr details;
-  if (!mojom::PaymentDetails::Deserialize(
-          std::move(android::JavaByteBufferToNativeByteVector(env, buffer)),
-          &details)) {
+  auto span = base::android::JavaByteBufferToSpan(env, buffer.obj());
+  if (!mojom::PaymentDetails::Deserialize(span.data(), span.size(), &details)) {
     return false;
   }
   std::string unused_error_message;
@@ -38,9 +39,9 @@ jboolean JNI_PaymentValidator_ValidatePaymentValidationErrorsAndroid(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& buffer) {
   mojom::PaymentValidationErrorsPtr errors;
-  if (!mojom::PaymentValidationErrors::Deserialize(
-          std::move(android::JavaByteBufferToNativeByteVector(env, buffer)),
-          &errors)) {
+  auto span = base::android::JavaByteBufferToSpan(env, buffer.obj());
+  if (!mojom::PaymentValidationErrors::Deserialize(span.data(), span.size(),
+                                                   &errors)) {
     return false;
   }
   std::string unused_error_message;

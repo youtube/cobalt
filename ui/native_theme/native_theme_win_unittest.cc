@@ -4,11 +4,15 @@
 
 #include "ui/native_theme/native_theme_win.h"
 
+#include <cmath>
+
+#include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/color_palette.h"
 
 namespace ui {
 
+using ColorMode = ColorProviderKey::ColorMode;
 using PrefScheme = NativeTheme::PreferredColorScheme;
 using SystemThemeColor = NativeTheme::SystemThemeColor;
 
@@ -18,6 +22,10 @@ class TestNativeThemeWin : public NativeThemeWin {
   TestNativeThemeWin& operator=(const TestNativeThemeWin&) = delete;
 
   ~TestNativeThemeWin() override = default;
+
+  ColorMode GetColorMode() const {
+    return GetColorProviderKey(/*custom_theme=*/nullptr).color_mode;
+  }
 
   // NativeTheme:
   void SetSystemColor(SystemThemeColor system_color, SkColor color) {
@@ -129,6 +137,48 @@ TEST(NativeThemeWinTest, GetPlatformHighContrastColorScheme) {
 
   theme.set_forced_colors(false);
   EXPECT_EQ(theme.GetPlatformHighContrastColorScheme(), HCColorScheme::kNone);
+}
+
+TEST(NativeThemeWinTest, TestColorProviderKeyColorMode) {
+  TestNativeThemeWin theme;
+
+  theme.set_forced_colors(false);
+  theme.set_use_dark_colors(true);
+  EXPECT_EQ(theme.GetColorMode(), ColorMode::kDark);
+
+  theme.set_use_dark_colors(false);
+  EXPECT_EQ(theme.GetColorMode(), ColorMode::kLight);
+
+  theme.set_forced_colors(true);
+  theme.set_preferred_color_scheme(PrefScheme::kDark);
+  EXPECT_EQ(theme.GetColorMode(), ColorMode::kDark);
+
+  theme.set_preferred_color_scheme(PrefScheme::kLight);
+  EXPECT_EQ(theme.GetColorMode(), ColorMode::kLight);
+}
+
+TEST(NativeThemeWinTest, GetCaretBlinkInterval) {
+  TestNativeThemeWin theme;
+  static const size_t system_value = ::GetCaretBlinkTime();
+  base::TimeDelta actual_interval = theme.GetCaretBlinkInterval();
+
+  if (system_value == 0) {
+    // Uses default value when there is no system value.
+    EXPECT_EQ(base::Milliseconds(500), actual_interval);
+  } else if (system_value == INFINITY) {
+    // 0 is the value meaning "don't blink" in Chromium, while Windows uses
+    // INFINITY.
+    EXPECT_EQ(base::Milliseconds(0), actual_interval);
+  } else {
+    // Uses system value without modification.
+    EXPECT_EQ(base::Milliseconds(system_value), actual_interval);
+  }
+
+  // The setter overrides the system value or the default value.
+  base::TimeDelta new_interval = base::Milliseconds(42);
+  theme.set_caret_blink_interval(new_interval);
+  actual_interval = theme.GetCaretBlinkInterval();
+  EXPECT_EQ(new_interval, actual_interval);
 }
 
 }  // namespace ui

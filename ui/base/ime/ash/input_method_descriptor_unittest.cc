@@ -5,6 +5,8 @@
 #include "ui/base/ime/ash/input_method_descriptor.h"
 
 #include <stddef.h>
+
+#include <optional>
 #include <string>
 
 #include "base/strings/utf_string_conversions.h"
@@ -23,7 +25,8 @@ InputMethodDescriptor CreateDesc(const std::string& id,
   return InputMethodDescriptor(
       extension_ime_util::GetInputMethodIDByEngineID(id), /* name= */ "",
       indicator, layout, language_codes, /* is_login_keyboard= */ true,
-      /* options_page_url= */ GURL(), /* input_view_url= */ GURL());
+      /* options_page_url= */ GURL(), /* input_view_url= */ GURL(),
+      /*handwriting_language=*/std::nullopt);
 }
 
 TEST(InputMethodDescriptorTest, GetIndicatorTest) {

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/ntlm/ntlm_client.h"
 
 #include <string.h>
@@ -217,7 +222,7 @@ std::vector<uint8_t> NtlmClient::GenerateAuthenticateMessage(
 
   // Response fields only for NTLMv2
   std::vector<uint8_t> updated_target_info;
-  std::vector<uint8_t> v2_proof_input;
+  std::array<uint8_t, kProofInputLenV2> v2_proof_input;
   uint8_t v2_proof[kNtlmProofLenV2];
   uint8_t v2_session_key[kSessionKeyLenV2];
 
@@ -242,8 +247,7 @@ std::vector<uint8_t> NtlmClient::GenerateAuthenticateMessage(
     uint8_t v2_hash[kNtlmHashLen];
     GenerateNtlmHashV2(domain, username, password, v2_hash);
     v2_proof_input = GenerateProofInputV2(timestamp, client_challenge);
-    GenerateNtlmProofV2(v2_hash, server_challenge,
-                        base::make_span<kProofInputLenV2>(v2_proof_input),
+    GenerateNtlmProofV2(v2_hash, server_challenge, v2_proof_input,
                         updated_target_info, v2_proof);
     GenerateSessionBaseKeyV2(v2_hash, v2_proof, v2_session_key);
   } else {
@@ -336,8 +340,7 @@ std::vector<uint8_t> NtlmClient::GenerateAuthenticateMessage(
     // set to zeros.
     DCHECK_LT(kMicOffsetV2 + kMicLenV2, authenticate_message_len);
 
-    base::span<uint8_t, kMicLenV2> mic(
-        const_cast<uint8_t*>(auth_msg.data()) + kMicOffsetV2, kMicLenV2);
+    auto mic = base::span(auth_msg).subspan<kMicOffsetV2, kMicLenV2>();
     GenerateMicV2(v2_session_key, negotiate_message_, server_challenge_message,
                   auth_msg, mic);
   }

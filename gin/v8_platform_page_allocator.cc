@@ -2,49 +2,59 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "v8_platform_page_allocator.h"
 
-#include "base/allocator/partition_allocator/address_space_randomization.h"
-#include "base/allocator/partition_allocator/page_allocator_constants.h"
-#include "base/allocator/partition_allocator/random.h"
 #include "base/check_op.h"
 #include "base/cpu.h"
 #include "base/memory/page_size.h"
 #include "build/build_config.h"
+#include "partition_alloc/address_space_randomization.h"
+#include "partition_alloc/page_allocator_constants.h"
+#include "partition_alloc/random.h"
 
 namespace {
+
+template <typename T>
+T IfBtiEnabledOr(T enabled_value, T disabled_value) {
+#if defined(__ARM_FEATURE_BTI_DEFAULT)
+  return base::CPU::GetInstanceNoAllocation().has_bti() ? enabled_value
+                                                        : disabled_value;
+#else
+  return disabled_value;
+#endif
+}
 
 // Maps the v8 page permissions into a page configuration from base.
 ::partition_alloc::PageAccessibilityConfiguration::Permissions
 GetPagePermissions(v8::PageAllocator::Permission permission) {
+  // The switch doesn't have a default-case by intention. This means we can
+  // detect new enum values very easily by a compile error without introducing
+  // bugs due to unknown (hence, untested) values. On the other hand it
+  // incurs a slight overhead when rolling V8.
   switch (permission) {
     case v8::PageAllocator::Permission::kRead:
       return ::partition_alloc::PageAccessibilityConfiguration::kRead;
     case v8::PageAllocator::Permission::kReadWrite:
       return ::partition_alloc::PageAccessibilityConfiguration::kReadWrite;
     case v8::PageAllocator::Permission::kReadWriteExecute:
-      // at the moment bti-protection is not enabled for this path since some
-      // projects may still be using non-bti compliant code.
-      return ::partition_alloc::PageAccessibilityConfiguration::
-          kReadWriteExecute;
+      return IfBtiEnabledOr(
+          ::partition_alloc::PageAccessibilityConfiguration::
+              kReadWriteExecuteProtected,
+          ::partition_alloc::PageAccessibilityConfiguration::kReadWriteExecute);
     case v8::PageAllocator::Permission::kReadExecute:
-#if defined(__ARM_FEATURE_BTI_DEFAULT)
-      return base::CPU::GetInstanceNoAllocation().has_bti()
-                 ? ::partition_alloc::PageAccessibilityConfiguration::
-                       kReadExecuteProtected
-                 : ::partition_alloc::PageAccessibilityConfiguration::
-                       kReadExecute;
-#else
-      return ::partition_alloc::PageAccessibilityConfiguration::kReadExecute;
-#endif
+      return IfBtiEnabledOr(
+          ::partition_alloc::PageAccessibilityConfiguration::
+              kReadExecuteProtected,
+          ::partition_alloc::PageAccessibilityConfiguration::kReadExecute);
     case v8::PageAllocator::Permission::kNoAccessWillJitLater:
-      // We could use this information to conditionally set the MAP_JIT flag
-      // on Mac-arm64; however this permissions value is intended to be a
-      // short-term solution, so we continue to set MAP_JIT for all V8 pages
-      // for now.
-      return ::partition_alloc::PageAccessibilityConfiguration::kInaccessible;
-    default:
-      DCHECK_EQ(v8::PageAllocator::Permission::kNoAccess, permission);
+      return ::partition_alloc::PageAccessibilityConfiguration::
+          kInaccessibleWillJitLater;
+    case v8::PageAllocator::Permission::kNoAccess:
       return ::partition_alloc::PageAccessibilityConfiguration::kInaccessible;
   }
 }
@@ -83,7 +93,7 @@ void* PageAllocator::AllocatePages(void* address,
   partition_alloc::PageAccessibilityConfiguration config =
       GetPageConfig(permissions);
   return partition_alloc::AllocPages(address, length, alignment, config,
-                                     partition_alloc::PageTag::kV8);
+                                     ::partition_alloc::PageTag::kV8);
 }
 
 bool PageAllocator::FreePages(void* address, size_t length) {
@@ -149,8 +159,12 @@ bool PageAllocator::DiscardSystemPages(void* address, size_t size) {
 bool PageAllocator::DecommitPages(void* address, size_t size) {
   // V8 expects the pages to be inaccessible and zero-initialized upon next
   // access.
-  partition_alloc::DecommitAndZeroSystemPages(address, size);
-  return true;
+  return partition_alloc::DecommitAndZeroSystemPages(
+      address, size, partition_alloc::PageTag::kV8);
+}
+
+bool PageAllocator::SealPages(void* address, size_t size) {
+  return partition_alloc::SealSystemPages(address, size);
 }
 
 partition_alloc::PageAccessibilityConfiguration::Permissions

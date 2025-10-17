@@ -4,6 +4,11 @@
     opacity: 0.3;
   }
 
+  wallpaper-grid-item[aria-disabled='true'][data-sea-pen]::part(image),
+  wallpaper-grid-item[aria-disabled='true'][data-sea-pen-freeform]::part(image) {
+    opacity: 0.38;
+  }
+
   wallpaper-grid-item[data-google-photos]::part(image) {
     height: 64px;
     margin: 12px;
@@ -32,9 +37,18 @@
     bottom: calc(8px + var(--cros-annotation-2-line-height));
     display: flex;
     flex-direction: row;
+    justify-content: center;
   }
 
-  wallpaper-grid-item[data-google-photos] iron-icon[icon='personalization:managed'] {
+  wallpaper-grid-item[data-sea-pen] .secondary-text,
+  wallpaper-grid-item[data-sea-pen-freeform] .secondary-text {
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  wallpaper-grid-item[data-google-photos] iron-icon[icon^='personalization:managed'] {
     --iron-icon-fill-color: var(--cros-icon-color-secondary);
     --iron-icon-height: 16px;
     --iron-icon-width: 16px;
@@ -43,7 +57,24 @@
     margin-inline-end: 8px;
   }
 
-  wallpaper-grid-item[data-google-photos][aria-disabled='true'] iron-icon[icon='personalization:managed'] {
+  wallpaper-grid-item .tooltip-icon {
+    --cr-tooltip-icon-fill-color: white;
+    --cr-icon-size: 16px;
+    display: none;
+    margin-inline-end: 8px;
+  }
+
+  wallpaper-grid-item[aria-disabled='true'] .tooltip-icon {
+    display: block;
+  }
+
+  wallpaper-grid-item[data-sea-pen][aria-disabled='true'] iron-icon[icon^='personalization:managed'],
+  wallpaper-grid-item[data-sea-pen-freeform][aria-disabled='true'] iron-icon[icon^='personalization:managed'] {
+    --iron-icon-fill-color: white;
+    display: block;
+  }
+
+  wallpaper-grid-item[data-google-photos][aria-disabled='true'] iron-icon[icon^='personalization:managed'] {
     /* Icon color should stay light even in dark mode.
      * All of the google photos tile is always light.
      */
@@ -59,7 +90,14 @@
     text-shadow: none;
   }
 
-  .outer-container {
+  wallpaper-grid-item[data-sea-pen][aria-disabled='true'] p,
+  wallpaper-grid-item[data-sea-pen-freeform][aria-disabled='true'] p {
+    color: white;
+    margin: 0;
+  }
+
+  .outer-container,
+  #promoted .outer-container-with-prompting {
     height: calc(var(--personalization-app-grid-item-height) +
       var(--personalization-app-grid-item-spacing));
     /* Media queries in trusted and untrusted code will resize to 25% at
@@ -67,6 +105,10 @@
      * iron-list. This makes sure all photo containers on a row add up to at
      * least 1px smaller than the parent width.*/
     width: calc(100% / 3 - 0.34px);
+  }
+
+  #promoted .outer-container {
+    width: calc(100% / 2 - .5px);
   }
 
   @media(min-width: 720px) {
@@ -93,15 +135,159 @@
     --personalization-app-grid-item-background-color: var(--google-grey-200);
   }
 
+  wallpaper-grid-item[is-local-no-images]::part(item) {
+    background: linear-gradient(var(--cros-sys-primary), var(--cros-sys-primary_container));
+  }
+
+  wallpaper-grid-item[is-local-no-images]::part(image) {
+    display: none;
+  }
+
+  #promoted wallpaper-grid-item,
   wallpaper-grid-item[data-is-time-of-day-collection] {
     --personalization-app-grid-item-border-radius: 80px;
+  }
+
+  #promoted {
+    padding: 10px 0;
+  }
+
+  wallpaper-grid-item[data-is-time-of-day-collection]::part(info-icon) {
+    right: 20px;
+    top: 20px;
+  }
+
+  #promoted wallpaper-grid-item[data-is-time-of-day-collection]::part(info-icon) {
+    right: 36px;
+    top: 20px;
+  }
+
+  .tile-tag {
+    background-color: var(--cros-sys-complement_variant);
+    border-radius: 36px;
+    color: var(--cros-sys-on_surface);
+    font: var(--cros-label-1-font);
+    left: 50%;
+    padding: 4px 8px;
+    pointer-events: none;
+    position: absolute;
+    text-align: center;
+    top: 32px;
+    transform: translate(-50%, 0);
+    z-index: 1;
+  }
+
+  .unavailable-tag {
+    background-color: var(--cros-sys-disabled_opaque);
   }
 </style>
 <template is="dom-if" if="[[hasError_]]">
   <wallpaper-error></wallpaper-error>
 </template>
 <main aria-label="$i18n{wallpaperCollections}" hidden$="[[hasError_]]">
+  <template is="dom-if" if="[[isSeaPenEnabled_]]" restamp>
+    <h2 class="wallpaper-collections-heading">$i18n{seaPenExclusiveWallpapersHeading}</h2>
+    <iron-list aria-setsize$="[[promotedTiles_.length]]"
+        id="promoted"
+        grid
+        items="[[promotedTiles_]]"
+        role="listbox">
+      <template>
+        <div class$="[[getOuterContainerClass_()]]">
+          <template is="dom-if" if="[[isLoadingTile_(item)]]" restamp>
+            <wallpaper-grid-item
+                aria-label="$i18n{ariaLabelLoading}"
+                aria-posinset$="[[getAriaIndex_(index)]]"
+                data-is-promoted-tile
+                disabled
+                index="[[index]]"
+                role="option"
+                tabindex$="[[tabIndex]]">
+            </wallpaper-grid-item>
+          </template>
+          <template is="dom-if" if="[[isSeaPenPromptingTile_(item)]]" restamp>
+            <div id="freeformTileTag"
+                class$="[[getSeaPenTileTagClass_(item)]]">
+              [[getSeaPenTileTagLabel_(item)]]
+            </div>
+            <wallpaper-grid-item
+                data-sea-pen-freeform
+                data-is-promoted-tile
+                aria-description$="[[getSeaPenTileAriaDescription_(item)]]"
+                aria-posinset$="[[getAriaIndex_(index)]]"
+                disabled="[[!isSelectableTile_(item)]]"
+                index="[[index]]"
+                on-wallpaper-grid-item-selected="onCollectionSelected_"
+                primary-text="$i18n{seaPenFreeformWallpaperLabel}"
+                secondary-text="$i18n{seaPenPoweredByGoogleAi}"
+                role="option"
+                src="[[item.preview]]"
+                tabindex$="[[tabIndex]]">
+              <template is="dom-if" if="[[!isSelectableTile_(item)]]" restamp>
+                <div slot="secondaryText" class="secondary-text">
+                  <cr-tooltip-icon
+                      class="tooltip-icon"
+                      icon-class="personalization:managed"
+                      tooltip-text="$i18n{managedFeature}"
+                      icon-aria-label="$i18n{managedFeature}">
+                  </cr-tooltip-icon>
+                </div>
+              </template>
+            </wallpaper-grid-item>
+          </template>
+          <template is="dom-if" if="[[isSeaPenTemplatesTile_(item)]]" restamp>
+            <div id="templatesTileTag"
+                class$="[[getSeaPenTileTagClass_(item)]]">
+              [[getSeaPenTileTagLabel_(item)]]
+            </div>
+            <wallpaper-grid-item
+                data-sea-pen
+                data-is-promoted-tile
+                aria-description$="[[getSeaPenTileAriaDescription_(item)]]"
+                aria-posinset$="[[getAriaIndex_(index)]]"
+                disabled="[[!isSelectableTile_(item)]]"
+                index="[[index]]"
+                on-wallpaper-grid-item-selected="onCollectionSelected_"
+                primary-text="[[getSeaPenTemplatesTileLabel_()]]"
+                secondary-text="$i18n{seaPenPoweredByGoogleAi}"
+                role="option"
+                src="[[item.preview]]"
+                tabindex$="[[tabIndex]]">
+              <template is="dom-if" if="[[!isSelectableTile_(item)]]" restamp>
+                <div slot="secondaryText" class="secondary-text">
+                  <cr-tooltip-icon
+                      class="tooltip-icon"
+                      icon-class="personalization:managed"
+                      tooltip-text="$i18n{managedFeature}"
+                      icon-aria-label="$i18n{managedFeature}">
+                  </cr-tooltip-icon>
+                </div>
+              </template>
+            </wallpaper-grid-item>
+          </template>
+          <template is="dom-if" if="[[isOnlineTile_(item)]]">
+            <wallpaper-grid-item aria-posinset$="[[getAriaIndex_(index)]]"
+                data-online
+                data-is-promoted-tile
+                data-is-time-of-day-collection$="[[isTimeOfDayCollection_(item)]]"
+                disabled="[[!isSelectableTile_(item)]]"
+                index="[[index]]"
+                info-text="[[item.info]]"
+                on-wallpaper-grid-item-selected="onCollectionSelected_"
+                primary-text="[[item.name]]"
+                role="option"
+                secondary-text="[[getOnlineTileSecondaryText_(item)]]"
+                src="[[item.preview]]"
+                tabindex$="[[tabIndex]]">
+            </wallpaper-grid-item>
+          </template>
+        </div>
+      </template>
+    </iron-list>
+    <h2 class="wallpaper-collections-heading">$i18n{seaPenChooseAWallpaperHeading}</h2>
+  </template>
   <iron-list aria-setsize$="[[tiles_.length]]"
+      id="grid"
       grid
       items="[[tiles_]]"
       role="listbox">
@@ -144,6 +330,7 @@
               collage
               disabled="[[!isSelectableTile_(item)]]"
               index="[[index]]"
+              is-local-no-images$="[[isLocalNoImagesTile_(item)]]"
               on-wallpaper-grid-item-selected="onCollectionSelected_"
               primary-text="[[item.name]]"
               role="option"
@@ -162,7 +349,7 @@
               on-wallpaper-grid-item-selected="onCollectionSelected_"
               primary-text="[[item.name]]"
               role="option"
-              secondary-text="[[item.count]]"
+              secondary-text="[[getOnlineTileSecondaryText_(item)]]"
               src="[[item.preview]]"
               tabindex$="[[tabIndex]]">
           </wallpaper-grid-item>

@@ -11,6 +11,14 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/html/html_iframe_element.h"
 #include "third_party/blink/renderer/core/input/event_handler.h"
+#include "third_party/blink/renderer/core/layout/constraint_space_builder.h"
+#include "third_party/blink/renderer/core/layout/hit_test_location.h"
+#include "third_party/blink/renderer/core/layout/inline/fragment_item.h"
+#include "third_party/blink/renderer/core/layout/svg/layout_svg_hidden_container.h"
+#include "third_party/blink/renderer/core/layout/svg/layout_svg_inline.h"
+#include "third_party/blink/renderer/core/layout/svg/layout_svg_inline_text.h"
+#include "third_party/blink/renderer/core/layout/svg/layout_svg_model_object.h"
+#include "third_party/blink/renderer/core/layout/svg/svg_layout_support.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
@@ -30,7 +38,7 @@ LocalFrame* SingleChildLocalFrameClient::CreateFrame(
   LocalFrame* child = MakeGarbageCollected<LocalFrame>(
       child_client, *parent_frame->GetPage(), owner_element, parent_frame,
       nullptr, FrameInsertType::kInsertInConstructor, LocalFrameToken(),
-      &parent_frame->window_agent_factory(), nullptr);
+      &parent_frame->window_agent_factory(), nullptr, mojo::NullRemote());
   child->CreateView(gfx::Size(500, 500), Color::kTransparent);
 
   // The initial empty document's policy container is inherited from its parent.
@@ -68,9 +76,8 @@ void LocalFrameClientWithParent::Detached(FrameDetachType) {
   parent_->RemoveChild(parent_->FirstChild());
 }
 
-void RenderingTestChromeClient::InjectGestureScrollEvent(
+void RenderingTestChromeClient::InjectScrollbarGestureScroll(
     LocalFrame& local_frame,
-    WebGestureDevice device,
     const gfx::Vector2dF& delta,
     ui::ScrollGranularity granularity,
     CompositorElementId scrollable_area_element_id,
@@ -79,15 +86,19 @@ void RenderingTestChromeClient::InjectGestureScrollEvent(
   // would be added to the event queue and handled asynchronously but immediate
   // handling is sufficient to test scrollbar dragging.
   std::unique_ptr<WebGestureEvent> gesture_event =
-      WebGestureEvent::GenerateInjectedScrollGesture(
-          injected_type, base::TimeTicks::Now(), device, gfx::PointF(0, 0),
-          delta, granularity);
+      WebGestureEvent::GenerateInjectedScrollbarGestureScroll(
+          injected_type, base::TimeTicks::Now(), gfx::PointF(0, 0), delta,
+          granularity);
   if (injected_type == WebInputEvent::Type::kGestureScrollBegin) {
     gesture_event->data.scroll_begin.scrollable_area_element_id =
         scrollable_area_element_id.GetInternalValue();
   }
   local_frame.GetEventHandler().HandleGestureEvent(*gesture_event);
 }
+
+RenderingTest::RenderingTest(
+    base::test::TaskEnvironment::TimeSource time_source)
+    : PageTestBase(time_source) {}
 
 RenderingTestChromeClient& RenderingTest::GetChromeClient() const {
   DEFINE_STATIC_LOCAL(Persistent<RenderingTestChromeClient>, client,
@@ -108,7 +119,7 @@ const Node* RenderingTest::HitTest(int x, int y) {
   return result.InnerNode();
 }
 
-HitTestResult::NodeSet RenderingTest::RectBasedHitTest(
+const HitTestResult::NodeSet& RenderingTest::RectBasedHitTest(
     const PhysicalRect& rect) {
   HitTestLocation location(rect);
   HitTestResult result(
@@ -134,7 +145,7 @@ void RenderingTest::SetUp() {
   UpdateAllLifecyclePhasesForTest();
 
   // Allow ASSERT_DEATH and EXPECT_DEATH for multiple threads.
-  testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 }
 
 void RenderingTest::TearDown() {
@@ -157,6 +168,62 @@ void RenderingTest::SetChildFrameHTML(const String& html) {
   ChildDocument().OverrideIsInitialEmptyDocument();
   // And let the frame view exit the initial throttled state.
   ChildDocument().View()->BeginLifecycleUpdates();
+}
+
+ConstraintSpace RenderingTest::ConstraintSpaceForAvailableSize(
+    LayoutUnit inline_size) const {
+  ConstraintSpaceBuilder builder(
+      WritingMode::kHorizontalTb,
+      {WritingMode::kHorizontalTb, TextDirection::kLtr},
+      /* is_new_fc */ false);
+  builder.SetAvailableSize(LogicalSize(inline_size, LayoutUnit::Max()));
+  return builder.ToConstraintSpace();
+}
+
+PhysicalRect VisualRectInDocument(const LayoutObject& object,
+                                  VisualRectFlags flags) {
+  if (IsA<LayoutSVGInlineText>(object)) {
+    return VisualRectInDocument(*object.Parent(), flags);
+  }
+  if (IsA<LayoutSVGHiddenContainer>(object)) {
+    return PhysicalRect();
+  }
+  if (object.IsSVG() || IsA<LayoutSVGInline>(object)) {
+    return SVGLayoutSupport::VisualRectInAncestorSpace(object, *object.View(),
+                                                       flags);
+  }
+  if (const auto* layout_inline = DynamicTo<LayoutInline>(object)) {
+    PhysicalRect rect = layout_inline->VisualOverflowRect();
+    object.MapToVisualRectInAncestorSpace(object.View(), rect, flags);
+    return rect;
+  }
+  PhysicalRect rect = LocalVisualRect(object);
+  object.MapToVisualRectInAncestorSpace(object.View(), rect, flags);
+  return rect;
+}
+
+PhysicalRect LocalVisualRect(const LayoutObject& object) {
+  if (object.StyleRef().Visibility() != EVisibility::kVisible &&
+      object.VisualRectRespectsVisibility()) {
+    return PhysicalRect();
+  }
+
+  if (const auto* text = DynamicTo<LayoutText>(object)) {
+    return UnionRect(text->VisualOverflowRect(),
+                     text->LocalSelectionVisualRect());
+  } else if (const auto* layout_inline = DynamicTo<LayoutInline>(object)) {
+    if (layout_inline->IsInLayoutNGInlineFormattingContext()) {
+      return FragmentItem::LocalVisualRectFor(*layout_inline);
+    }
+    return PhysicalRect();
+  } else if (const auto* view = DynamicTo<LayoutView>(object)) {
+    PhysicalRect rect = view->VisualOverflowRect();
+    rect.Unite(PhysicalRect(rect.offset, view->ViewRect().size));
+    return rect;
+  } else if (const auto* box = DynamicTo<LayoutBox>(object)) {
+    return box->SelfVisualOverflowRect();
+  }
+  NOTREACHED() << object;
 }
 
 }  // namespace blink

@@ -18,10 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using base::test::ios::WaitUntilConditionOrTimeout;
 using base::test::ios::kWaitForCookiesTimeout;
 using base::test::ios::kWaitForActionTimeout;
@@ -175,9 +171,9 @@ class ClipboardRecentContentIOSTest : public ::testing::Test {
     VerifyClipboardTypeExists(ClipboardContentType::URL, true);
 
     __block BOOL callback_called = NO;
-    __block absl::optional<GURL> optional_gurl;
+    __block std::optional<GURL> optional_gurl;
     clipboard_content_->GetRecentURLFromClipboard(
-        base::BindOnce(^(absl::optional<GURL> copied_url) {
+        base::BindOnce(^(std::optional<GURL> copied_url) {
           optional_gurl = copied_url;
           callback_called = YES;
         }));
@@ -190,7 +186,7 @@ class ClipboardRecentContentIOSTest : public ::testing::Test {
   }
 
   bool VerifyCacheClipboardContentTypeExists(ClipboardContentType type) {
-    absl::optional<std::set<ClipboardContentType>> cached_content_types =
+    std::optional<std::set<ClipboardContentType>> cached_content_types =
         clipboard_content_->GetCachedClipboardContentTypes();
     if (cached_content_types.has_value()) {
       return cached_content_types.value().find(type) !=
@@ -201,19 +197,12 @@ class ClipboardRecentContentIOSTest : public ::testing::Test {
   }
 
   void VerifiyClipboardURLIsInvalid() {
-    // On iOS 13, the url can be instantly read and marked as "does not exist".
-    // On iOS 14, the URL will appear as "exists" until it is actually checked.
-    if (@available(iOS 14, *)) {
-      VerifyClipboardTypeExists(ClipboardContentType::URL, true);
-    } else {
-      VerifyClipboardTypeExists(ClipboardContentType::URL, false);
-      return;
-    }
+    VerifyClipboardTypeExists(ClipboardContentType::URL, true);
 
     __block BOOL callback_called = NO;
-    __block absl::optional<GURL> optional_gurl;
+    __block std::optional<GURL> optional_gurl;
     clipboard_content_->GetRecentURLFromClipboard(
-        base::BindOnce(^(absl::optional<GURL> copied_url) {
+        base::BindOnce(^(std::optional<GURL> copied_url) {
           optional_gurl = copied_url;
           callback_called = YES;
         }));
@@ -361,9 +350,10 @@ TEST_F(ClipboardRecentContentIOSTest, SuppressedPasteboardContent) {
   VerifyClipboardURLExists(kRecognizedURL2);
 }
 
+// TODO(crbug.com/40275048): This test is flaky.
 // Checks that if the user suppresses content, no image will be returned,
 // and if the image changes, the new image will be returned again.
-TEST_F(ClipboardRecentContentIOSTest, SuppressedPasteboardImage) {
+TEST_F(ClipboardRecentContentIOSTest, DISABLED_SuppressedPasteboardImage) {
   SetPasteboardImage(TestUIImage());
 
   // Test that recent pasteboard data is provided.
@@ -392,20 +382,16 @@ TEST_F(ClipboardRecentContentIOSTest, SuppressedPasteboardImage) {
   VerifyClipboardTypeExists(ClipboardContentType::Image, true);
 }
 
+// TODO(crbug.com/40275048): This test is flaky.
 // Checks that if user copies something other than a string we don't cache the
 // string in pasteboard.
-TEST_F(ClipboardRecentContentIOSTest, AddingNonStringRemovesCachedString) {
+TEST_F(ClipboardRecentContentIOSTest,
+       DISABLED_AddingNonStringRemovesCachedString) {
   SetPasteboardContent(kRecognizedURL);
 
   // Test that recent pasteboard data is provided as url.
   VerifyClipboardURLExists(kRecognizedURL);
-  // Because iOS 14 has to use a different API to detect clipboard contents, it
-  // is empty, while the clipboard type should exist on iOS 13.
-  if (@available(iOS 14, *)) {
-    VerifyClipboardTypeExists(ClipboardContentType::Text, false);
-  } else {
-    VerifyClipboardTypeExists(ClipboardContentType::Text, true);
-  }
+  VerifyClipboardTypeExists(ClipboardContentType::Text, false);
   // Image pasteboard should be empty.
   VerifyClipboardTypeExists(ClipboardContentType::Image, false);
 
@@ -421,13 +407,7 @@ TEST_F(ClipboardRecentContentIOSTest, AddingNonStringRemovesCachedString) {
   // Tests that if URL is added again, pasteboard provides it normally.
   SetPasteboardContent(kRecognizedURL);
   VerifyClipboardURLExists(kRecognizedURL);
-  // Because iOS 14 has to use a different API to detect clipboard contents, it
-  // is empty, while the clipboard type should exist on iOS 13.
-  if (@available(iOS 14, *)) {
-    VerifyClipboardTypeExists(ClipboardContentType::Text, false);
-  } else {
-    VerifyClipboardTypeExists(ClipboardContentType::Text, true);
-  }
+  VerifyClipboardTypeExists(ClipboardContentType::Text, false);
   // Image pasteboard should be empty.
   VerifyClipboardTypeExists(ClipboardContentType::Image, false);
 }

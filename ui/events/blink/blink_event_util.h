@@ -12,10 +12,10 @@
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/input/web_touch_event.h"
 #include "ui/events/event_constants.h"
-#include "ui/events/gesture_detection/motion_event.h"
 #include "ui/events/types/event_type.h"
 #include "ui/events/types/scroll_input_type.h"
 #include "ui/events/types/scroll_types.h"
+#include "ui/events/velocity_tracker/motion_event.h"
 
 namespace gfx {
 class PointF;
@@ -23,15 +23,11 @@ class Vector2dF;
 }
 
 namespace ui {
-enum class DomCode;
+enum class DomCode : uint32_t;
 class GestureEventAndroid;
 struct GestureEventData;
 struct GestureEventDetails;
 class MotionEvent;
-
-// The scroll percentage per mousewheel tick. Used to determine scroll delta
-// if percent based scrolling is enabled.
-const float kScrollPercentPerLineOrChar = 0.05f;
 
 blink::WebTouchEvent CreateWebTouchEventFromMotionEvent(
     const MotionEvent& event,
@@ -54,7 +50,7 @@ int EventFlagsToWebEventModifiers(int flags);
 std::unique_ptr<blink::WebInputEvent> ScaleWebInputEvent(
     const blink::WebInputEvent& event,
     float scale,
-    absl::optional<int64_t> trace_id = absl::nullopt);
+    std::optional<int64_t> trace_id = std::nullopt);
 
 // Transforms coordinates and other properties of |event|, by
 // 1) translating / shifting by |delta| and
@@ -65,7 +61,7 @@ std::unique_ptr<blink::WebInputEvent> TranslateAndScaleWebInputEvent(
     const blink::WebInputEvent& event,
     const gfx::Vector2dF& delta,
     float scale,
-    absl::optional<int64_t> trace_id = absl::nullopt);
+    std::optional<int64_t> trace_id = std::nullopt);
 
 blink::WebInputEvent::Type ToWebMouseEventType(MotionEvent::Action action);
 

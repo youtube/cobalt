@@ -2,20 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/test/video_frame_validator.h"
 
-#include <sys/mman.h>
+#include <string_view>
 
+#include "base/containers/span.h"
 #include "base/cpu.h"
 #include "base/files/file.h"
 #include "base/functional/bind.h"
 #include "base/hash/md5.h"
 #include "base/memory/ptr_util.h"
-#include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
 #include "build/build_config.h"
+#include "gpu/command_buffer/client/test_shared_image_interface.h"
 #include "media/base/video_frame.h"
 #include "media/gpu/buildflags.h"
 #include "media/gpu/macros.h"
@@ -28,13 +34,17 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/gpu_memory_buffer.h"
 
-namespace media {
-namespace test {
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+#include <sys/mman.h>
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+
+namespace media::test {
 
 VideoFrameValidator::VideoFrameValidator(
     std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor,
     CropHelper crop_helper)
     : corrupt_frame_processor_(std::move(corrupt_frame_processor)),
+      test_sii_(base::MakeRefCounted<gpu::TestSharedImageInterface>()),
       crop_helper_(crop_helper),
       num_frames_validating_(0),
       frame_validator_thread_("FrameValidatorThread"),
@@ -147,13 +157,13 @@ void VideoFrameValidator::ProcessVideoFrameTask(
 
   scoped_refptr<const VideoFrame> frame = video_frame;
   // If this is a DMABuf-backed memory frame we need to map it before accessing.
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   if (frame->storage_type() == VideoFrame::STORAGE_GPU_MEMORY_BUFFER) {
     // TODO(andrescj): This is a workaround. ClientNativePixmapFactoryDmabuf
-    // creates ClientNativePixmapOpaque for SCANOUT_VDA_WRITE buffers which does
-    // not allow us to map GpuMemoryBuffers easily for testing. Therefore, we
-    // extract the dma-buf FDs. Alternatively, we could consider creating our
-    // own ClientNativePixmapFactory for testing.
+    // creates ClientNativePixmapOpaque for SCANOUT_VDA_WRITE buffers which
+    // does not allow us to map GpuMemoryBuffers easily for testing.
+    // Therefore, we extract the dma-buf FDs. Alternatively, we could consider
+    // creating our own ClientNativePixmapFactory for testing.
     frame = CreateDmabufVideoFrame(frame.get());
     if (!frame) {
       LOG(ERROR) << "Failed to create Dmabuf-backed VideoFrame from "
@@ -178,7 +188,7 @@ void VideoFrameValidator::ProcessVideoFrameTask(
       return;
     }
   }
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
   ASSERT_TRUE(frame->IsMappable());
 
@@ -205,7 +215,8 @@ scoped_refptr<VideoFrame> VideoFrameValidator::CloneAndCropFrame(
     scoped_refptr<const VideoFrame> frame) const {
   const auto crop = crop_helper_.Run(*frame);
   const auto& visible = frame->visible_rect();
-  auto cloned_frame = CloneVideoFrame(frame.get(), frame->layout());
+  auto cloned_frame =
+      CloneVideoFrame(frame.get(), frame->layout(), test_sii_.get());
   // Ensures that the crop is within the previous visible rectangle.
   if (!visible.Contains(crop)) {
     LOG(ERROR) << "Crop " << crop.ToString()
@@ -293,13 +304,17 @@ MD5VideoFrameValidator::Validate(scoped_refptr<const VideoFrame> frame,
   // devices, we also filter by the processor.
   const static std::string kernel_version = base::SysInfo::KernelVersion();
   if (base::StartsWith(kernel_version, "3.18")) {
-    constexpr int kPentiumAndLaterFamily = 0x06;
-    constexpr int kSkyLakeModelId = 0x5E;
-    constexpr int kSkyLake_LModelId = 0x4E;
-    static base::NoDestructor<base::CPU> cpuid;
-    static bool is_skylake = cpuid->family() == kPentiumAndLaterFamily &&
-                             (cpuid->model() == kSkyLakeModelId ||
-                              cpuid->model() == kSkyLake_LModelId);
+    static const bool is_skylake = []() {
+      constexpr int kPentiumAndLaterFamily = 0x06;
+      constexpr int kSkyLakeModelId = 0x5E;
+      constexpr int kSkyLake_LModelId = 0x4E;
+
+      const base::CPU& cpuid = base::CPU::GetInstanceNoAllocation();
+      return cpuid.family() == kPentiumAndLaterFamily &&
+             (cpuid.model() == kSkyLakeModelId ||
+              cpuid.model() == kSkyLake_LModelId);
+    }();
+
     if (is_skylake)
       usleep(10);
   }
@@ -333,14 +348,14 @@ std::string MD5VideoFrameValidator::ComputeMD5FromVideoFrame(
   const VideoPixelFormat format = video_frame.format();
   const gfx::Rect& visible_rect = video_frame.visible_rect();
   for (size_t i = 0; i < VideoFrame::NumPlanes(format); ++i) {
-    const int visible_row_bytes =
+    const size_t visible_row_bytes =
         VideoFrame::RowBytes(i, format, visible_rect.width());
     const int visible_rows = VideoFrame::Rows(i, format, visible_rect.height());
-    const char* data = reinterpret_cast<const char*>(video_frame.data(i));
     const size_t stride = video_frame.stride(i);
     for (int row = 0; row < visible_rows; ++row) {
-      base::MD5Update(&context, base::StringPiece(data + (stride * row),
-                                                  visible_row_bytes));
+      base::MD5Update(&context, base::span<const uint8_t>(
+                                    video_frame.data(i) + (stride * row),
+                                    visible_row_bytes));
     }
   }
   base::MD5Digest digest;
@@ -639,5 +654,4 @@ LogLikelihoodRatioVideoFrameValidator::Validate(
   return nullptr;
 }
 
-}  // namespace test
-}  // namespace media
+}  // namespace media::test

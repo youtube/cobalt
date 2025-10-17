@@ -5,25 +5,20 @@
 #ifndef CONTENT_BROWSER_PRELOADING_PREFETCH_PREFETCH_CANARY_CHECKER_H_
 #define CONTENT_BROWSER_PRELOADING_PREFETCH_PREFETCH_CANARY_CHECKER_H_
 
+#include <optional>
+
 #include "base/containers/lru_cache.h"
-#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "base/values.h"
 #include "build/build_config.h"
 #include "content/common/content_export.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/address_list.h"
 #include "net/base/backoff_entry.h"
-#include "net/base/net_errors.h"
-#include "net/http/http_request_headers.h"
-#include "services/network/public/cpp/network_connection_tracker.h"
 #include "services/network/public/mojom/host_resolver.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace network {
@@ -113,7 +108,7 @@ class CONTENT_EXPORT PrefetchCanaryChecker {
   // this may trigger new checks. This updates the
   // PrefetchProxy.CanaryChecker.CacheLookupStatus histogram, so avoid calling
   // this method repeatedly when its result can be reused.
-  absl::optional<bool> CanaryCheckSuccessful();
+  std::optional<bool> CanaryCheckSuccessful();
 
   // Triggers new canary checks if there is no cached status or if the cached
   // status is stale. Use this method over CanaryCheckSuccessful if you only
@@ -128,15 +123,13 @@ class CONTENT_EXPORT PrefetchCanaryChecker {
  private:
   void ResetState();
   void StartDNSResolution(const GURL& url);
-  void OnDNSResolved(
-      int net_error,
-      const absl::optional<net::AddressList>& resolved_addresses);
+  void OnDNSResolved(int net_error,
+                     const std::optional<net::AddressList>& resolved_addresses);
   void ProcessTimeout();
   void ProcessFailure(int net_error);
   void ProcessSuccess();
-  void RecordResult(bool success);
   std::string AppendNameToHistogram(const std::string& histogram) const;
-  absl::optional<bool> LookupAndRunChecksIfNeeded();
+  std::optional<bool> LookupAndRunChecksIfNeeded();
   // Sends a check now if the checker is currently inactive. If the check is
   // active (i.e.: there are DNS resolutions in flight), this is a no-op.
   void SendNowIfInactive();
@@ -194,7 +187,7 @@ class CONTENT_EXPORT PrefetchCanaryChecker {
   std::unique_ptr<base::OneShotTimer> timeout_timer_;
 
   // Remembers the last time the checker became active.
-  absl::optional<base::Time> time_when_set_active_;
+  std::optional<base::Time> time_when_set_active_;
 
   // This reference is kept around for unregistering |this| as an observer on
   // any thread.

@@ -4,18 +4,18 @@
 
 #include "chrome/browser/feedback/feedback_dialog_utils.h"
 
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/devtools/devtools_window.h"
+#include "chrome/browser/feedback/show_feedback_page.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/public/cpp/multi_user_window_manager.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
@@ -60,7 +60,7 @@ Profile* GetFeedbackProfile(const Browser* browser) {
   profile = profile->GetOriginalProfile();
   DCHECK(profile);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Obtains the display profile ID on which the Feedback window should show.
   auto* const window_manager = MultiUserWindowManagerHelper::GetWindowManager();
   const AccountId display_account_id =
@@ -75,11 +75,11 @@ Profile* GetFeedbackProfile(const Browser* browser) {
 
 void ShowFeedbackDialogForWebUI(WebUIFeedbackSource webui_source,
                                 const std::string& extra_diagnostics) {
-  FeedbackSource source;
+  feedback::FeedbackSource source;
   std::string category;
   switch (webui_source) {
     case WebUIFeedbackSource::kConnectivityDiagnostics:
-      source = FeedbackSource::kFeedbackSourceConnectivityDiagnostics;
+      source = feedback::FeedbackSource::kFeedbackSourceConnectivityDiagnostics;
       category = "connectivity-diagnostics";
       break;
   }

@@ -260,6 +260,67 @@ TEST_P(ShaderStorageBufferTest31, ExceedMaxCombinedShaderStorageBlocks)
     EXPECT_EQ(0u, program);
 }
 
+// Linking should not fail if block size in shader equals to GL_MAX_SHADER_STORAGE_BLOCK_SIZE.
+// Linking should fail if block size in shader exceeds GL_MAX_SHADER_STORAGE_BLOCK_SIZE.
+TEST_P(ShaderStorageBufferTest31, ExceedMaxShaderStorageBlockSize)
+{
+    GLint maxShaderStorageBlockSize = 0;
+    glGetIntegerv(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &maxShaderStorageBlockSize);
+    EXPECT_GL_NO_ERROR();
+
+    // Linking should not fail if block size in shader equals to GL_MAX_SHADER_STORAGE_BLOCK_SIZE.
+    std::ostringstream blockArraySize;
+    blockArraySize << (maxShaderStorageBlockSize / 4);
+    const std::string &computeShaderSource =
+        "#version 310 es\n"
+        "layout (local_size_x = 1) in;\n"
+        "layout(std430) buffer FullSizeBlock\n"
+        "{\n"
+        "uint data[" +
+        blockArraySize.str() +
+        "];\n"
+        "};\n"
+        "void main()\n"
+        "{\n"
+        "for (int i=0; i<" +
+        blockArraySize.str() +
+        "; i++)\n"
+        "{\n"
+        "data[i] = uint(0);\n"
+        "};\n"
+        "}\n";
+
+    GLuint ComputeProgram = CompileComputeProgram(computeShaderSource.c_str(), true);
+    EXPECT_NE(0u, ComputeProgram);
+    glDeleteProgram(ComputeProgram);
+
+    // Linking should fail if block size in shader exceeds GL_MAX_SHADER_STORAGE_BLOCK_SIZE.
+    std::ostringstream exceedBlockArraySize;
+    exceedBlockArraySize << (maxShaderStorageBlockSize / 4 + 1);
+    const std::string &exceedComputeShaderSource =
+        "#version 310 es\n"
+        "layout (local_size_x = 1) in;\n"
+        "layout(std430) buffer FullSizeBlock\n"
+        "{\n"
+        "uint data[" +
+        exceedBlockArraySize.str() +
+        "];\n"
+        "};\n"
+        "void main()\n"
+        "{\n"
+        "for (int i=0; i<" +
+        exceedBlockArraySize.str() +
+        "; i++)\n"
+        "{\n"
+        "data[i] = uint(0);\n"
+        "};\n"
+        "}\n";
+
+    GLuint exceedComputeProgram = CompileComputeProgram(exceedComputeShaderSource.c_str(), true);
+    EXPECT_EQ(0u, exceedComputeProgram);
+    glDeleteProgram(exceedComputeProgram);
+}
+
 // Test shader storage buffer read write.
 TEST_P(ShaderStorageBufferTest31, ShaderStorageBufferReadWrite)
 {
@@ -277,7 +338,7 @@ TEST_P(ShaderStorageBufferTest31, ShaderStorageBufferReadWrite)
 
     ANGLE_GL_COMPUTE_PROGRAM(program, kCS);
 
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     constexpr unsigned int kElementCount = 2;
     // The array stride are rounded up to the base alignment of a vec4 for std140 layout.
@@ -330,7 +391,7 @@ TEST_P(ShaderStorageBufferTest31, ShaderStorageBufferReadWriteAndBufferSubData)
 
     ANGLE_GL_COMPUTE_PROGRAM(program, kCS);
 
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     int bufferAlignOffset;
     glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &bufferAlignOffset);
@@ -638,7 +699,7 @@ TEST_P(ShaderStorageBufferTest31, ShaderStorageBufferVector)
 // Test that the shader works well with an active SSBO but not statically used.
 TEST_P(ShaderStorageBufferTest31, ActiveSSBOButNotStaticallyUsed)
 {
-    // http://anglebug.com/3725
+    // http://anglebug.com/42262382
     ANGLE_SKIP_TEST_IF(IsAndroid() && IsPixel2() && IsVulkan());
 
     constexpr char kComputeShaderSource[] =
@@ -791,7 +852,7 @@ TEST_P(ShaderStorageBufferTest31, VectorSwizzleInRowMajorMatrixTest)
 TEST_P(ShaderStorageBufferTest31, ScalarDataInMatrixInSSBOWithRowMajorQualifier)
 {
     // TODO(jiajia.qin@intel.com): Figure out why it fails on Intel Linux platform.
-    // http://anglebug.com/1951
+    // http://anglebug.com/40644618
     ANGLE_SKIP_TEST_IF(IsIntel() && IsLinux());
     ANGLE_SKIP_TEST_IF(IsAndroid());
 
@@ -894,7 +955,7 @@ void main()
 TEST_P(ShaderStorageBufferTest31, ScalarDataInMatrixInStructureInSSBOWithRowMajorQualifier)
 {
     // TODO(jiajia.qin@intel.com): Figure out why it fails on Intel Linux platform.
-    // http://anglebug.com/1951
+    // http://anglebug.com/40644618
     ANGLE_SKIP_TEST_IF(IsIntel() && IsLinux());
     ANGLE_SKIP_TEST_IF(IsAndroid());
 
@@ -1529,7 +1590,7 @@ void main()
 
     ANGLE_GL_COMPUTE_PROGRAM(program, kCS);
 
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     constexpr unsigned int kElementCount = 2;
     // The array stride are rounded up to the base alignment of a vec4 for std140 layout.
@@ -1601,8 +1662,8 @@ void main()
     EXPECT_GL_NO_ERROR();
 
     unsigned int outVarIndex1 =
-        glGetProgramResourceIndex(program1.get(), GL_BUFFER_VARIABLE, "Output.result1");
-    glGetProgramResourceiv(program1.get(), GL_BUFFER_VARIABLE, outVarIndex1, 1, props, 1, 0,
+        glGetProgramResourceIndex(program1, GL_BUFFER_VARIABLE, "Output.result1");
+    glGetProgramResourceiv(program1, GL_BUFFER_VARIABLE, outVarIndex1, 1, props, 1, 0,
                            &arrayStride1);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderStorageBuffer1);
     glBufferData(GL_SHADER_STORAGE_BUFFER, numInvocations * arrayStride1, nullptr, GL_STREAM_READ);
@@ -1610,18 +1671,18 @@ void main()
     EXPECT_GL_NO_ERROR();
 
     unsigned int outVarIndex2 =
-        glGetProgramResourceIndex(program2.get(), GL_BUFFER_VARIABLE, "Output.result2");
-    glGetProgramResourceiv(program2.get(), GL_BUFFER_VARIABLE, outVarIndex2, 1, props, 1, 0,
+        glGetProgramResourceIndex(program2, GL_BUFFER_VARIABLE, "Output.result2");
+    glGetProgramResourceiv(program2, GL_BUFFER_VARIABLE, outVarIndex2, 1, props, 1, 0,
                            &arrayStride2);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderStorageBuffer2);
     glBufferData(GL_SHADER_STORAGE_BUFFER, numInvocations * arrayStride2, nullptr, GL_STREAM_READ);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, shaderStorageBuffer2);
     EXPECT_GL_NO_ERROR();
 
-    glUseProgram(program1.get());
+    glUseProgram(program1);
     glDispatchCompute(1, 1, 1);
     EXPECT_GL_NO_ERROR();
-    glUseProgram(program2.get());
+    glUseProgram(program2);
     glDispatchCompute(1, 1, 1);
     EXPECT_GL_NO_ERROR();
 
@@ -1722,7 +1783,7 @@ void main()
 TEST_P(ShaderStorageBufferTest31, LoadAndStoreBooleanValue)
 {
     // TODO(jiajia.qin@intel.com): Figure out why it fails on Intel Linux platform.
-    // http://anglebug.com/1951
+    // http://anglebug.com/40644618
     ANGLE_SKIP_TEST_IF(IsIntel() && IsLinux());
 
     constexpr char kComputeShaderSource[] = R"(#version 310 es
@@ -1795,7 +1856,7 @@ void main()
 TEST_P(ShaderStorageBufferTest31, LoadAndStoreBooleanVec3)
 {
     // TODO(jiajia.qin@intel.com): Figure out why it fails on Intel Linux platform.
-    // http://anglebug.com/1951
+    // http://anglebug.com/40644618
     ANGLE_SKIP_TEST_IF(IsIntel() && IsLinux());
 
     ANGLE_SKIP_TEST_IF(IsAMD() && IsWindows() && IsOpenGL());
@@ -1859,7 +1920,7 @@ void main()
 TEST_P(ShaderStorageBufferTest31, LoadAndStoreBooleanVarAndVec2)
 {
     // TODO(jiajia.qin@intel.com): Figure out why it fails on Intel Linux platform.
-    // http://anglebug.com/1951
+    // http://anglebug.com/40644618
     ANGLE_SKIP_TEST_IF(IsIntel() && IsLinux());
 
     ANGLE_SKIP_TEST_IF(IsAMD() && IsWindows() && IsOpenGL());
@@ -2097,7 +2158,7 @@ void main()
 // size to be smaller than the first
 TEST_P(ShaderStorageBufferTest31, UnsizedArrayLengthRespecifySize)
 {
-    // http://anglebug.com/4566
+    // http://anglebug.com/42263171
     ANGLE_SKIP_TEST_IF(IsD3D11() || (IsAndroid() && IsOpenGLES()));
 
     constexpr char kComputeShaderSource[] =
@@ -2243,7 +2304,7 @@ void main()
 // Test that BufferData change propagate to context state.
 TEST_P(ShaderStorageBufferTest31, DependentBufferChange)
 {
-    // Test fail on Nexus devices. http://anglebug.com/6251
+    // Test fail on Nexus devices. http://anglebug.com/42264770
     ANGLE_SKIP_TEST_IF(IsNexus5X() && IsOpenGLES());
 
     constexpr char kComputeShaderSource[] =
@@ -2536,7 +2597,7 @@ void main()
 // Verify the size of the buffer with unsized struct array is calculated correctly
 TEST_P(ShaderStorageBufferTest31, BigStructUnsizedStructArraySize)
 {
-    // TODO(http://anglebug.com/3596)
+    // TODO(http://anglebug.com/42262259)
     ANGLE_SKIP_TEST_IF(IsAMD() && IsWindows() && IsOpenGL());
 
     constexpr char kComputeShaderSource[] =
@@ -2589,7 +2650,7 @@ void main()
 // Verify the size of the buffer with unsized float array is calculated correctly
 TEST_P(ShaderStorageBufferTest31, BigStructUnsizedFloatArraySize)
 {
-    // TODO(http://anglebug.com/3596)
+    // TODO(http://anglebug.com/42262259)
     ANGLE_SKIP_TEST_IF(IsAMD() && IsWindows() && IsOpenGL());
 
     constexpr char kComputeShaderSource[] =
@@ -3044,6 +3105,53 @@ void main() {
 
     EXPECT_EQ(static_cast<const GLfloat *>(bufferData)[0], 123.0f);
     EXPECT_EQ(static_cast<const GLint *>(bufferData)[1], 321);
+
+    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+
+    EXPECT_GL_NO_ERROR();
+}
+
+// Test that certain floating-point values are unchanged after constant folding.
+TEST_P(ShaderStorageBufferTest31, ConstantFoldingPrecision)
+{
+    constexpr char kCS[] = R"(#version 310 es
+
+layout(std430, binding = 0) buffer block {
+    float f;
+} instance;
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+void main() {
+    instance.f = intBitsToFloat(0x0da5cc2f);
+})";
+
+    ANGLE_GL_COMPUTE_PROGRAM(program, kCS);
+
+    glUseProgram(program);
+
+    constexpr size_t kSize = sizeof(GLfloat);
+
+    // Create shader storage buffer
+    GLBuffer shaderStorageBuffer;
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderStorageBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, kSize, nullptr, GL_STATIC_DRAW);
+
+    // Bind shader storage buffer
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, shaderStorageBuffer);
+
+    glDispatchCompute(1, 1, 1);
+
+    glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, shaderStorageBuffer);
+    const void *bufferData = glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, kSize, GL_MAP_READ_BIT);
+
+    int32_t result = static_cast<const int32_t *>(bufferData)[0];
+
+    // Compare against the int32_t representation of the float passed to
+    // intBitsToFloat() in the shader.
+    EXPECT_EQ(result, 0x0da5cc2f);
 
     glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 

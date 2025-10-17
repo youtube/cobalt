@@ -31,11 +31,24 @@ class DummySegmentationPlatformService : public SegmentationPlatformService {
                                const PredictionOptions& prediction_options,
                                scoped_refptr<InputContext> input_context,
                                ClassificationResultCallback callback) override;
+  void GetAnnotatedNumericResult(
+      const std::string& segmentation_key,
+      const PredictionOptions& prediction_options,
+      scoped_refptr<InputContext> input_context,
+      AnnotatedNumericResultCallback callback) override;
+  void GetInputKeysForModel(const std::string& segmentation_key,
+                            InputContextKeysCallback callback) override;
   SegmentSelectionResult GetCachedSegmentResult(
       const std::string& segmentation_key) override;
-  void GetSelectedSegmentOnDemand(const std::string& segmentation_key,
-                                  scoped_refptr<InputContext> input_context,
-                                  SegmentSelectionCallback callback) override;
+  void CollectTrainingData(proto::SegmentId segment_id,
+                           TrainingRequestId request_id,
+                           const TrainingLabels& param,
+                           SuccessCallback callback) override;
+  void CollectTrainingData(proto::SegmentId segment_id,
+                           TrainingRequestId request_id,
+                           ukm::SourceId ukm_source_id,
+                           const TrainingLabels& param,
+                           SuccessCallback callback) override;
   void EnableMetrics(bool signal_collection_allowed) override;
   bool IsPlatformInitialized() override;
 };

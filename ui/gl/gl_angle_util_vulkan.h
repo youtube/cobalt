@@ -18,6 +18,9 @@ GL_EXPORT uint32_t QueryVkVersionFromANGLE();
 GL_EXPORT VkPhysicalDevice QueryVkPhysicalDeviceFromANGLE();
 GL_EXPORT VkDevice QueryVkDeviceFromANGLE();
 GL_EXPORT VkQueue QueryVkQueueFromANGLE();
+GL_EXPORT void* QueryDisplayFromANGLE();
+GL_EXPORT void LockVkQueueInANGLE(void* display);
+GL_EXPORT void UnlockVkQueueInANGLE(void* display);
 GL_EXPORT int QueryVkQueueFramiliyIndexFromANGLE();
 GL_EXPORT gfx::ExtensionSet QueryVkInstanceExtensionsFromANGLE();
 GL_EXPORT gfx::ExtensionSet QueryVkDeviceExtensionsFromANGLE();
@@ -27,4 +30,4 @@ GL_EXPORT PFN_vkGetInstanceProcAddr QueryVkGetInstanceProcAddrFromANGLE();
 
 }  // namespace gl
 
-#endif  // UI_GL_GL_ANGLE_UTIL_H_
+#endif  // UI_GL_GL_ANGLE_UTIL_VULKAN_H_

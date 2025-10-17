@@ -13,10 +13,11 @@ import android.text.style.StyleSpan;
 
 import androidx.annotation.DrawableRes;
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.core.content.res.ResourcesCompat;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.merchant_viewer.RatingStarSpan.RatingStarType;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.commerce.core.ShoppingService.MerchantInfo;
@@ -30,23 +31,25 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.text.NumberFormat;
 
-/**
- * This is a util class for creating the property model of the MerchantTrustMessage.
- */
+/** This is a util class for creating the property model of the MerchantTrustMessage. */
+@NullMarked
 class MerchantTrustMessageViewModel {
     private static final int BASELINE_RATING = 5;
 
-    @IntDef({MessageTitleUI.VIEW_STORE_INFO, MessageTitleUI.SEE_STORE_REVIEWS})
+    @IntDef({MessageTitleUi.VIEW_STORE_INFO, MessageTitleUi.SEE_STORE_REVIEWS})
     @Retention(RetentionPolicy.SOURCE)
-    @interface MessageTitleUI {
+    @interface MessageTitleUi {
         int VIEW_STORE_INFO = 0;
         int SEE_STORE_REVIEWS = 1;
     }
 
-    @IntDef({MessageDescriptionUI.NONE, MessageDescriptionUI.RATING_AND_REVIEWS,
-            MessageDescriptionUI.REVIEWS_FROM_GOOGLE})
+    @IntDef({
+        MessageDescriptionUi.NONE,
+        MessageDescriptionUi.RATING_AND_REVIEWS,
+        MessageDescriptionUi.REVIEWS_FROM_GOOGLE
+    })
     @Retention(RetentionPolicy.SOURCE)
-    @interface MessageDescriptionUI {
+    @interface MessageDescriptionUi {
         int NONE = 0;
         int RATING_AND_REVIEWS = 1;
         int REVIEWS_FROM_GOOGLE = 2;
@@ -56,37 +59,50 @@ class MerchantTrustMessageViewModel {
     interface MessageActionsHandler {
         /**
          * Called when message is dismissed.
+         *
          * @param dismissReason The reason why the message is dismissed.
          * @param messageAssociatedUrl The url associated with this message context.
          */
-        void onMessageDismissed(@DismissReason int dismissReason, String messageAssociatedUrl);
+        void onMessageDismissed(
+                @DismissReason int dismissReason, @Nullable String messageAssociatedUrl);
 
         /**
          * Called when message primary action is tapped.
+         *
          * @param trustSignals The signal associated with this message.
          * @param messageAssociatedUrl The url associated with this message context.
          */
-        void onMessagePrimaryAction(MerchantInfo merchantInfo, String messageAssociatedUrl);
+        void onMessagePrimaryAction(
+                MerchantInfo merchantInfo, @Nullable String messageAssociatedUrl);
     }
 
-    public static PropertyModel create(Context context, MerchantInfo merchantInfo,
-            String messageAssociatedUrl, MessageActionsHandler actionsHandler) {
+    public static PropertyModel create(
+            Context context,
+            MerchantInfo merchantInfo,
+            @Nullable String messageAssociatedUrl,
+            MessageActionsHandler actionsHandler) {
+        var resources = context.getResources();
         return new PropertyModel.Builder(MessageBannerProperties.ALL_KEYS)
                 .with(MessageBannerProperties.MESSAGE_IDENTIFIER, MessageIdentifier.MERCHANT_TRUST)
-                .with(MessageBannerProperties.ICON,
-                        ResourcesCompat.getDrawable(
-                                context.getResources(), getIconRes(), context.getTheme()))
+                .with(
+                        MessageBannerProperties.ICON,
+                        ResourcesCompat.getDrawable(resources, getIconRes(), context.getTheme()))
                 .with(MessageBannerProperties.ICON_TINT_COLOR, MessageBannerProperties.TINT_NONE)
-                .with(MessageBannerProperties.TITLE,
-                        context.getResources().getString(getTitleStringRes()))
-                .with(MessageBannerProperties.DESCRIPTION,
-                        getMessageDescription(context, merchantInfo,
-                                MerchantViewerConfig.getTrustSignalsMessageDescriptionUI()))
-                .with(MessageBannerProperties.PRIMARY_BUTTON_TEXT,
-                        context.getResources().getString(R.string.merchant_viewer_message_action))
-                .with(MessageBannerProperties.ON_DISMISSED,
+                .with(MessageBannerProperties.TITLE, resources.getString(getTitleStringRes()))
+                .with(
+                        MessageBannerProperties.DESCRIPTION,
+                        getMessageDescription(
+                                context,
+                                merchantInfo,
+                                MerchantViewerConfig.getTrustSignalsMessageDescriptionUi()))
+                .with(
+                        MessageBannerProperties.PRIMARY_BUTTON_TEXT,
+                        resources.getString(R.string.merchant_viewer_message_action))
+                .with(
+                        MessageBannerProperties.ON_DISMISSED,
                         (reason) -> actionsHandler.onMessageDismissed(reason, messageAssociatedUrl))
-                .with(MessageBannerProperties.ON_PRIMARY_ACTION,
+                .with(
+                        MessageBannerProperties.ON_PRIMARY_ACTION,
                         () -> {
                             actionsHandler.onMessagePrimaryAction(
                                     merchantInfo, messageAssociatedUrl);
@@ -95,19 +111,24 @@ class MerchantTrustMessageViewModel {
                 .build();
     }
 
-    @Nullable
-    public static Spannable getMessageDescription(
-            Context context, MerchantInfo merchantInfo, int descriptionUI) {
-        if (descriptionUI == MessageDescriptionUI.NONE) return null;
+    public static @Nullable Spannable getMessageDescription(
+            Context context, MerchantInfo merchantInfo, int descriptionUi) {
+        if (descriptionUi == MessageDescriptionUi.NONE) {
+            return null;
+        }
+        var resources = context.getResources();
 
         SpannableStringBuilder builder = new SpannableStringBuilder();
         NumberFormat numberFormatter = NumberFormat.getIntegerInstance();
         numberFormatter.setMaximumFractionDigits(1);
-        if (descriptionUI == MessageDescriptionUI.REVIEWS_FROM_GOOGLE
+        if (descriptionUi == MessageDescriptionUi.REVIEWS_FROM_GOOGLE
                 && merchantInfo.countRating > 0) {
-            builder.append(context.getResources().getQuantityString(
-                    R.plurals.merchant_viewer_message_description_reviews_from_google,
-                    merchantInfo.countRating, numberFormatter.format(merchantInfo.countRating)));
+            String message =
+                    resources.getQuantityString(
+                            R.plurals.merchant_viewer_message_description_reviews_from_google,
+                            merchantInfo.countRating,
+                            numberFormatter.format(merchantInfo.countRating));
+            builder.append(message);
             return builder;
         }
 
@@ -124,20 +145,27 @@ class MerchantTrustMessageViewModel {
             builder.append(" ");
             builder.append(getRatingBarSpan(context, ratingValue));
         } else {
-            builder.append(context.getResources().getString(
-                    R.string.merchant_viewer_message_description_rating,
-                    numberFormatter.format(ratingValue), numberFormatter.format(BASELINE_RATING)));
-            builder.setSpan(new StyleSpan(Typeface.BOLD), 0, builder.length(),
+            builder.append(
+                    resources.getString(
+                            R.string.merchant_viewer_message_description_rating,
+                            numberFormatter.format(ratingValue),
+                            numberFormatter.format(BASELINE_RATING)));
+            builder.setSpan(
+                    new StyleSpan(Typeface.BOLD),
+                    0,
+                    builder.length(),
                     Spannable.SPAN_INCLUSIVE_EXCLUSIVE);
         }
         builder.append(" ");
         if (merchantInfo.countRating > 0) {
-            builder.append(context.getResources().getQuantityString(
-                    R.plurals.merchant_viewer_message_description_reviews, merchantInfo.countRating,
-                    numberFormatter.format(merchantInfo.countRating)));
+            builder.append(
+                    resources.getQuantityString(
+                            R.plurals.merchant_viewer_message_description_reviews,
+                            merchantInfo.countRating,
+                            numberFormatter.format(merchantInfo.countRating)));
         } else {
-            builder.append(context.getResources().getString(
-                    R.string.page_info_store_info_description_with_no_review));
+            builder.append(
+                    resources.getString(R.string.page_info_store_info_description_with_no_review));
         }
         return builder;
     }
@@ -149,36 +177,43 @@ class MerchantTrustMessageViewModel {
         int ceilRatingValue = (int) Math.ceil(ratingValue);
         for (int i = 0; i < floorRatingValue; i++) {
             ratingBarSpan.append(" ");
-            ratingBarSpan.setSpan(new RatingStarSpan(context, RatingStarType.FULL), i, i + 1,
+            ratingBarSpan.setSpan(
+                    new RatingStarSpan(context, RatingStarType.FULL),
+                    i,
+                    i + 1,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         if (ratingValue - floorRatingValue > 0) {
             ratingBarSpan.append(" ");
-            ratingBarSpan.setSpan(new RatingStarSpan(context, RatingStarType.HALF),
-                    floorRatingValue, floorRatingValue + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            ratingBarSpan.setSpan(
+                    new RatingStarSpan(context, RatingStarType.HALF),
+                    floorRatingValue,
+                    floorRatingValue + 1,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         for (int i = ceilRatingValue; i < BASELINE_RATING; i++) {
             ratingBarSpan.append(" ");
-            ratingBarSpan.setSpan(new RatingStarSpan(context, RatingStarType.OUTLINE), i, i + 1,
+            ratingBarSpan.setSpan(
+                    new RatingStarSpan(context, RatingStarType.OUTLINE),
+                    i,
+                    i + 1,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         return ratingBarSpan;
     }
 
-    @DrawableRes
-    private static int getIconRes() {
+    private static @DrawableRes int getIconRes() {
         return MerchantViewerConfig.doesTrustSignalsMessageUseGoogleIcon()
                 ? R.drawable.ic_logo_googleg_24dp
                 : R.drawable.ic_storefront_blue;
     }
 
-    @StringRes
-    private static int getTitleStringRes() {
-        int titleUI = MerchantViewerConfig.getTrustSignalsMessageTitleUI();
-        if (titleUI == MessageTitleUI.SEE_STORE_REVIEWS) {
+    private static @StringRes int getTitleStringRes() {
+        int titleUi = MerchantViewerConfig.getTrustSignalsMessageTitleUi();
+        if (titleUi == MessageTitleUi.SEE_STORE_REVIEWS) {
             return R.string.merchant_viewer_message_title_see_reviews;
         }
-        assert titleUI == MessageTitleUI.VIEW_STORE_INFO : "Invalid title UI";
+        assert titleUi == MessageTitleUi.VIEW_STORE_INFO : "Invalid title UI";
         return R.string.merchant_viewer_message_title;
     }
 }

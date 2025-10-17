@@ -5,6 +5,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 
 #include <cstdint>
+#include <string>
 
 #include "openssl/ssl.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -60,7 +61,7 @@ TEST_F(QuicErrorCodesTest, QuicIetfTransportErrorCodeString) {
 }
 
 TEST_F(QuicErrorCodesTest, QuicErrorCodeToTransportErrorCode) {
-  for (int internal_error_code = 0; internal_error_code < QUIC_LAST_ERROR;
+  for (uint32_t internal_error_code = 0; internal_error_code < QUIC_LAST_ERROR;
        ++internal_error_code) {
     std::string internal_error_code_string =
         QuicErrorCodeToString(static_cast<QuicErrorCode>(internal_error_code));

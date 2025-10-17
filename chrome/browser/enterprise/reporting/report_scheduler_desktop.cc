@@ -4,23 +4,25 @@
 
 #include "chrome/browser/enterprise/reporting/report_scheduler_desktop.h"
 
+#include <optional>
+
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/notreached.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/enterprise/reporting/extension_request/extension_request_report_generator.h"
 #include "chrome/browser/enterprise/reporting/prefs.h"
 #include "chrome/browser/profiles/reporting_util.h"
 #include "chrome/browser/upgrade_detector/build_state.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
+#include "components/device_signals/core/common/signals_features.h"
 #include "components/enterprise/browser/reporting/report_scheduler.h"
 #include "components/policy/core/common/cloud/dm_token.h"
 #include "components/prefs/pref_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "content/public/browser/storage_partition.h"
 
 namespace em = enterprise_management;
 
@@ -30,10 +32,10 @@ namespace {
 
 // Returns true if this build should generate basic reports when an update is
 // detected.
-// TODO(crbug.com/1102047): Get rid of this function after Chrome OS reporting
+// TODO(crbug.com/40703888): Get rid of this function after Chrome OS reporting
 // logic has been split to its own delegates.
 constexpr bool ShouldReportUpdates() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   return false;
 #else
   return true;
@@ -47,24 +49,19 @@ PrefService* LocalState() {
 }  // namespace
 
 ReportSchedulerDesktop::ReportSchedulerDesktop()
-    : ReportSchedulerDesktop(nullptr, false) {}
+    : profile_(nullptr), prefs_(LocalState()) {}
 
-ReportSchedulerDesktop::ReportSchedulerDesktop(Profile* profile,
-                                               bool profile_reporting) {
-  if (profile_reporting) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    // Profile reporting is on LaCrOs instead of Ash.
+ReportSchedulerDesktop::ReportSchedulerDesktop(Profile* profile)
+    : profile_(profile), prefs_(profile->GetPrefs()) {
+  if (profile) {
+#if BUILDFLAG(IS_CHROMEOS)
     NOTREACHED();
+#else
+    if (enterprise_signals::features::IsProfileSignalsReportingEnabled()) {
+      user_security_signals_service_ =
+          std::make_unique<UserSecuritySignalsService>(prefs_, this);
+    }
 #endif
-    profile_ = profile;
-    prefs_ = profile->GetPrefs();
-    // Extension request hasn't support profile report yet. When we do, we also
-    // need to refactor the code to avoid multiple extension request observer.
-  } else {
-    profile_ = nullptr;
-    prefs_ = LocalState();
-    extension_request_observer_factory_ =
-        std::make_unique<ExtensionRequestObserverFactory>(profile);
   }
 }
 
@@ -80,6 +77,12 @@ ReportSchedulerDesktop::~ReportSchedulerDesktop() {
 
 PrefService* ReportSchedulerDesktop::GetPrefService() {
   return prefs_;
+}
+
+void ReportSchedulerDesktop::OnInitializationCompleted() {
+  if (user_security_signals_service_) {
+    user_security_signals_service_->Start();
+  }
 }
 
 void ReportSchedulerDesktop::StartWatchingUpdatesIfNeeded(
@@ -102,8 +105,7 @@ void ReportSchedulerDesktop::StartWatchingUpdatesIfNeeded(
           chrome::kChromeVersion &&
       last_upload + upload_interval > base::Time::Now() &&
       !trigger_report_callback_.is_null()) {
-    trigger_report_callback_.Run(
-        ReportScheduler::ReportTrigger::kTriggerNewVersion);
+    trigger_report_callback_.Run(ReportTrigger::kTriggerNewVersion);
   }
 }
 
@@ -120,35 +122,43 @@ void ReportSchedulerDesktop::OnBrowserVersionUploaded() {
   }
 }
 
-void ReportSchedulerDesktop::StartWatchingExtensionRequestIfNeeded() {
-  if (!extension_request_observer_factory_)
-    return;
-
-  // On CrOS, the function may be called twice during startup.
-  if (extension_request_observer_factory_->IsReportEnabled())
-    return;
-
-  extension_request_observer_factory_->EnableReport(
-      base::BindRepeating(&ReportSchedulerDesktop::TriggerExtensionRequest,
-                          base::Unretained(this)));
-}
-
-void ReportSchedulerDesktop::StopWatchingExtensionRequest() {
-  if (extension_request_observer_factory_)
-    extension_request_observer_factory_->DisableReport();
-}
-
-void ReportSchedulerDesktop::OnExtensionRequestUploaded() {}
-
 policy::DMToken ReportSchedulerDesktop::GetProfileDMToken() {
-  absl::optional<std::string> dm_token = reporting::GetUserDmToken(profile_);
+  std::optional<std::string> dm_token = reporting::GetUserDmToken(profile_);
   if (!dm_token || dm_token->empty())
-    return policy::DMToken();
-  return policy::DMToken(policy::DMToken::Status::kValid, *dm_token);
+    return policy::DMToken::CreateEmptyToken();
+  return policy::DMToken::CreateValidToken(*dm_token);
 }
 
 std::string ReportSchedulerDesktop::GetProfileClientId() {
   return reporting::GetUserClientId(profile_).value_or(std::string());
+}
+
+bool ReportSchedulerDesktop::AreSecurityReportsEnabled() {
+  return user_security_signals_service_ &&
+         user_security_signals_service_->IsSecuritySignalsReportingEnabled();
+}
+
+bool ReportSchedulerDesktop::UseCookiesInUploads() {
+  return user_security_signals_service_ &&
+         user_security_signals_service_->ShouldUseCookies();
+}
+
+void ReportSchedulerDesktop::OnSecuritySignalsUploaded() {
+  if (user_security_signals_service_) {
+    user_security_signals_service_->OnReportUploaded();
+  }
+}
+
+void ReportSchedulerDesktop::OnReportEventTriggered(
+    SecurityReportTrigger trigger) {
+  if (!trigger_report_callback_.is_null()) {
+    trigger_report_callback_.Run(ReportTrigger::kTriggerSecurity);
+  }
+}
+
+network::mojom::CookieManager* ReportSchedulerDesktop::GetCookieManager() {
+  return profile_->GetDefaultStoragePartition()
+      ->GetCookieManagerForBrowserProcess();
 }
 
 void ReportSchedulerDesktop::OnUpdate(const BuildState* build_state) {
@@ -157,16 +167,7 @@ void ReportSchedulerDesktop::OnUpdate(const BuildState* build_state) {
   // for it to take effect. Send a basic report (without profile info)
   // immediately.
   if (!trigger_report_callback_.is_null()) {
-    trigger_report_callback_.Run(
-        ReportScheduler::ReportTrigger::kTriggerUpdate);
-  }
-}
-
-void ReportSchedulerDesktop::TriggerExtensionRequest(Profile* profile) {
-  if (!trigger_realtime_report_callback_.is_null()) {
-    trigger_realtime_report_callback_.Run(
-        ReportScheduler::ReportTrigger::kTriggerExtensionRequestRealTime,
-        ExtensionRequestReportGenerator::ExtensionRequestData(profile));
+    trigger_report_callback_.Run(ReportTrigger::kTriggerUpdate);
   }
 }
 

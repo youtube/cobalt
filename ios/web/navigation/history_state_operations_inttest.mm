@@ -20,10 +20,6 @@
 #import "testing/gtest_mac.h"
 #import "url/url_canon.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using base::ASCIIToUTF16;
 
 namespace {
@@ -289,7 +285,7 @@ TEST_F(HistoryStateOperationsTest, StateReplacement) {
 #else
 #define MAYBE_StateReplacementReload DISABLED_StateReplacementReload
 #endif
-// TODO(crbug.com/720381): Enable this test on device.
+// TODO(crbug.com/40519813): Enable this test on device.
 TEST_F(HistoryStateOperationsTest, MAYBE_StateReplacementReload) {
   // Set up the state parameters and tap the replace state button.
   std::string new_state("STATE OBJECT");

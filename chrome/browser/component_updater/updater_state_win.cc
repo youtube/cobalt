@@ -4,8 +4,6 @@
 
 #include "chrome/browser/component_updater/updater_state.h"
 
-#include <windows.h>
-
 #include <string>
 #include <utility>
 
@@ -14,12 +12,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/registry.h"
 #include "base/win/win_util.h"
-
-// TODO(sorin): implement this in terms of
-// chrome/installer/util/google_update_settings (crbug.com/615187).
+#include "base/win/windows_types.h"
 
 namespace component_updater {
-
 namespace {
 
 // Google Update group policy settings.
@@ -94,6 +89,11 @@ base::Time UpdaterState::StateReaderOmaha::GetUpdaterLastChecked(
 
 int UpdaterState::StateReaderOmaha::GetUpdatePolicy() const {
   return UpdaterState::GetUpdatePolicy();
+}
+
+update_client::CategorizedError
+UpdaterState::StateReaderOmaha::GetLastUpdateCheckError() const {
+  return {};
 }
 
 bool UpdaterState::IsAutoupdateCheckEnabled() {

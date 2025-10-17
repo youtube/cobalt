@@ -11,7 +11,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "components/nacl/common/buildflags.h"
 #include "crypto/crypto_export.h"
 #include "crypto/scoped_nss_types.h"
@@ -56,7 +56,7 @@ class CRYPTO_EXPORT AutoSECMODListReadLock {
   raw_ptr<SECMODListLock> lock_;
 };
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_MINIMAL_TOOLCHAIN)
+#if BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_MINIMAL_TOOLCHAIN)
 // Returns path to the NSS database file in the provided profile
 // directory.
 CRYPTO_EXPORT base::FilePath GetSoftwareNSSDBPath(
@@ -87,9 +87,16 @@ CRYPTO_EXPORT void ResetTokenManagerForTesting();
 
 // Prepare per-user NSS slot mapping. It is safe to call this function multiple
 // times. Returns true if the user was added, or false if it already existed.
+// Loads the database from `path` to use as a public slot.
 CRYPTO_EXPORT bool InitializeNSSForChromeOSUser(
     const std::string& username_hash,
     const base::FilePath& path);
+
+// Prepare per-user NSS slot mapping. It is safe to call this function multiple
+// times. Returns true if the user was added, or false if it already existed.
+CRYPTO_EXPORT bool InitializeNSSForChromeOSUserWithSlot(
+    const std::string& username_hash,
+    ScopedPK11Slot public_slot);
 
 // Returns whether TPM for ChromeOS user still needs initialization. If
 // true is returned, the caller can proceed to initialize TPM slot for the
@@ -141,7 +148,7 @@ CRYPTO_EXPORT void CloseChromeOSUserForTesting(
 CRYPTO_EXPORT void SetPrivateSoftwareSlotForChromeOSUserForTesting(
     ScopedPK11Slot slot);
 
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_MINIMAL_TOOLCHAIN)
+#endif  // BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_MINIMAL_TOOLCHAIN)
 
 // Loads the given module for this NSS session.
 SECMODModule* LoadNSSModule(const char* name,

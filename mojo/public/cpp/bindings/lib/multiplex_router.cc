@@ -2,23 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "mojo/public/cpp/bindings/lib/multiplex_router.h"
 
 #include <stdint.h>
 
 #include <utility>
 
+#include "base/auto_reset.h"
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/memory/ptr_util.h"
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/string_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/pass_key.h"
+#include "mojo/public/cpp/bindings/features.h"
 #include "mojo/public/cpp/bindings/interface_endpoint_client.h"
 #include "mojo/public/cpp/bindings/interface_endpoint_controller.h"
 #include "mojo/public/cpp/bindings/lib/may_auto_lock.h"
@@ -73,11 +80,11 @@ class MultiplexRouter::InterfaceEndpoint
     handle_created_ = true;
   }
 
-  const absl::optional<DisconnectReason>& disconnect_reason() const {
+  const std::optional<DisconnectReason>& disconnect_reason() const {
     return disconnect_reason_;
   }
   void set_disconnect_reason(
-      const absl::optional<DisconnectReason>& disconnect_reason) {
+      const std::optional<DisconnectReason>& disconnect_reason) {
     router_->AssertLockAcquired();
     disconnect_reason_ = disconnect_reason;
   }
@@ -184,7 +191,7 @@ class MultiplexRouter::InterfaceEndpoint
 
   void OnSyncEventSignaled() {
     DCHECK(task_runner_->RunsTasksInCurrentSequence());
-    scoped_refptr<MultiplexRouter> router_protector(router_.get());
+    scoped_refptr<MultiplexRouter> router_protector(router_);
 
     MayAutoLock locker(&router_->lock_);
     scoped_refptr<InterfaceEndpoint> self_protector(this);
@@ -220,7 +227,8 @@ class MultiplexRouter::InterfaceEndpoint
   // ---------------------------------------------------------------------------
   // The following members are safe to access from any sequence.
 
-  const raw_ptr<MultiplexRouter> router_;
+  // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of speedometer3).
+  RAW_PTR_EXCLUSION MultiplexRouter* const router_ = nullptr;
   const InterfaceId id_;
 
   // ---------------------------------------------------------------------------
@@ -235,12 +243,13 @@ class MultiplexRouter::InterfaceEndpoint
   // endpoint.
   bool handle_created_;
 
-  absl::optional<DisconnectReason> disconnect_reason_;
+  std::optional<DisconnectReason> disconnect_reason_;
 
   // The task runner on which |client_|'s methods can be called.
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
   // Not owned. It is null if no client is attached to this endpoint.
-  raw_ptr<InterfaceEndpointClient> client_;
+  // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of speedometer3).
+  RAW_PTR_EXCLUSION InterfaceEndpointClient* client_ = nullptr;
 
   // Indicates whether the sync watcher should be signaled for this endpoint.
   bool sync_message_event_signaled_ = false;
@@ -300,8 +309,8 @@ class MultiplexRouter::MessageWrapper {
   }
 
  private:
-  // `router_` is not a raw_ptr<...> for performance reasons (based on analysis
-  // of sampling profiler data and tab_search:top100:2020).
+  // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of sampling
+  // profiler data and tab_search:top100:2020).
   RAW_PTR_EXCLUSION MultiplexRouter* router_ = nullptr;
 
   Message value_;
@@ -493,7 +502,7 @@ ScopedInterfaceEndpointHandle MultiplexRouter::CreateLocalEndpointHandle(
 
 void MultiplexRouter::CloseEndpointHandle(
     InterfaceId id,
-    const absl::optional<DisconnectReason>& reason) {
+    const std::optional<DisconnectReason>& reason) {
   if (!IsValidInterfaceId(id))
     return;
 
@@ -509,6 +518,20 @@ void MultiplexRouter::CloseEndpointHandle(
     control_message_proxy_.NotifyPeerEndpointClosed(id, reason);
   }
 
+  ProcessTasks(NO_DIRECT_CLIENT_CALLS, nullptr);
+}
+
+void MultiplexRouter::NotifyLocalEndpointOfPeerClosure(InterfaceId id) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&MultiplexRouter::NotifyLocalEndpointOfPeerClosure,
+                       base::WrapRefCounted(this), id));
+    return;
+  }
+  OnPeerAssociatedEndpointClosed(id, std::nullopt);
+
+  MayAutoLock locker(&lock_);
   ProcessTasks(NO_DIRECT_CLIENT_CALLS, nullptr);
 }
 
@@ -742,7 +765,7 @@ bool MultiplexRouter::Accept(Message* message) {
 
 bool MultiplexRouter::OnPeerAssociatedEndpointClosed(
     InterfaceId id,
-    const absl::optional<DisconnectReason>& reason) {
+    const std::optional<DisconnectReason>& reason) {
   MayAutoLock locker(&lock_);
   InterfaceEndpoint* endpoint = FindOrInsertEndpoint(id, nullptr);
 
@@ -900,9 +923,10 @@ void MultiplexRouter::ProcessTasks(
     base::SequencedTaskRunner* current_task_runner) {
   AssertLockAcquired();
 
-  if (posted_to_process_tasks_)
+  if (posted_to_process_tasks_ || processing_tasks_)
     return;
 
+  base::AutoReset<bool> processing_tasks(&processing_tasks_, true);
   while (!tasks_.empty() && !paused_) {
     std::unique_ptr<Task> task(std::move(tasks_.front()));
     tasks_.pop_front();
@@ -997,7 +1021,7 @@ bool MultiplexRouter::ProcessNotifyErrorTask(
   DCHECK(endpoint->task_runner()->RunsTasksInCurrentSequence());
 
   InterfaceEndpointClient* client = endpoint->client();
-  absl::optional<DisconnectReason> disconnect_reason(
+  std::optional<DisconnectReason> disconnect_reason(
       endpoint->disconnect_reason());
 
   {
@@ -1237,7 +1261,7 @@ void MultiplexRouter::CloseEndpointsForMessage(const Message& message) {
 
     UpdateEndpointStateMayRemove(endpoint, ENDPOINT_CLOSED);
     MayAutoUnlock unlocker(&lock_);
-    control_message_proxy_.NotifyPeerEndpointClosed(ids[i], absl::nullopt);
+    control_message_proxy_.NotifyPeerEndpointClosed(ids[i], std::nullopt);
   }
 
   ProcessTasks(NO_DIRECT_CLIENT_CALLS, nullptr);

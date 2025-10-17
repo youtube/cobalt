@@ -21,7 +21,7 @@ class SystemNodeImpl
     : public PublicNodeImpl<SystemNodeImpl, SystemNode>,
       public TypedNodeBase<SystemNodeImpl, SystemNode, SystemNodeObserver> {
  public:
-  static constexpr NodeTypeEnum Type() { return NodeTypeEnum::kSystem; }
+  using TypedNodeBase<SystemNodeImpl, SystemNode, SystemNodeObserver>::FromNode;
 
   SystemNodeImpl();
 
@@ -31,7 +31,7 @@ class SystemNodeImpl
   ~SystemNodeImpl() override;
 
   // Implements NodeBase:
-  void RemoveNodeAttachedData() override;
+  void CleanUpNodeState() override;
 
   // This should be called after refreshing the memory usage data of the process
   // nodes.

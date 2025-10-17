@@ -8,6 +8,8 @@
 #include <memory>
 #include <string>
 
+#include "components/enterprise/connectors/core/enterprise_interstitial_base.h"
+#include "components/safe_browsing/content/browser/safe_browsing_blocking_page.h"
 #include "components/security_interstitials/content/security_interstitial_page.h"
 
 class GURL;
@@ -16,7 +18,8 @@ class GURL;
 // occurs when a url is suspicious and needs to be blocked as per
 // rules configured by the admin of an enterprise managed browser.
 class EnterpriseBlockPage
-    : public security_interstitials::SecurityInterstitialPage {
+    : public security_interstitials::SecurityInterstitialPage,
+      public enterprise_connectors::EnterpriseInterstitialBase {
  public:
   // Interstitial type, used in tests.
   static const security_interstitials::SecurityInterstitialPage::TypeID
@@ -27,6 +30,8 @@ class EnterpriseBlockPage
   EnterpriseBlockPage(
       content::WebContents* web_contents,
       const GURL& request_url,
+      const safe_browsing::SafeBrowsingBlockingPage::UnsafeResourceList&
+          unsafe_resources,
       std::unique_ptr<
           security_interstitials::SecurityInterstitialControllerClient>
           controller);
@@ -36,9 +41,17 @@ class EnterpriseBlockPage
 
   ~EnterpriseBlockPage() override;
 
-  // SecurityInterstitialPage method:
+  // SecurityInterstitialPage:
   security_interstitials::SecurityInterstitialPage::TypeID GetTypeForTesting()
       override;
+
+  // EnterpriseInterstitialBase:
+  enterprise_connectors::EnterpriseInterstitialBase::Type type() const override;
+  const std::vector<security_interstitials::UnsafeResource>& unsafe_resources()
+      const override;
+  GURL request_url() const override;
+
+  std::string GetCustomMessageForTesting();
 
  protected:
   void CommandReceived(const std::string& command) override;
@@ -47,7 +60,8 @@ class EnterpriseBlockPage
   int GetHTMLTemplateId() override;
 
  private:
-  void PopulateStringsForSharedHTML(base::Value::Dict& load_time_data);
+  const safe_browsing::SafeBrowsingBlockingPage::UnsafeResourceList
+      unsafe_resources_;
 };
 
 #endif  // CHROME_BROWSER_ENTERPRISE_CONNECTORS_INTERSTITIALS_ENTERPRISE_BLOCK_PAGE_H_

@@ -4,17 +4,19 @@
 
 #include "content/browser/web_package/signed_exchange_envelope.h"
 
+#include <string_view>
 #include <utility>
 
+#include "base/containers/fixed_flat_set.h"
 #include "base/format_macros.h"
 #include "base/functional/callback.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
 #include "components/cbor/reader.h"
 #include "content/browser/web_package/signed_exchange_consts.h"
 #include "content/browser/web_package/signed_exchange_utils.h"
+#include "crypto/hash.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "url/origin.h"
@@ -23,10 +25,10 @@ namespace content {
 
 namespace {
 
-bool IsUncachedHeader(base::StringPiece name) {
+bool IsUncachedHeader(std::string_view name) {
   DCHECK_EQ(name, base::ToLowerASCII(name));
 
-  const char* const kUncachedHeaders[] = {
+  constexpr auto kUncachedHeaders = base::MakeFixedFlatSet<std::string_view>({
       // "Hop-by-hop header fields listed in the Connection header field
       // (Section 6.1 of {{!RFC7230}})." [spec text]
       // Note: The Connection header field itself is banned as uncached headers,
@@ -59,13 +61,9 @@ bool IsUncachedHeader(base::StringPiece name) {
       "trailer",
       "transfer-encoding",
       "upgrade",
-  };
+  });
 
-  for (const char* field : kUncachedHeaders) {
-    if (name == field)
-      return true;
-  }
-  return false;
+  return kUncachedHeaders.contains(name);
 }
 
 // Returns if the response is cacheble by a shared cache, as per Section 3 of
@@ -101,11 +99,11 @@ bool IsCacheableBySharedCache(const SignedExchangeEnvelope::HeaderMap& headers,
   if (found == headers.end())
     return true;
   net::HttpUtil::NameValuePairsIterator it(
-      found->second.begin(), found->second.end(), ',',
+      found->second, /*delimiter=*/',',
       net::HttpUtil::NameValuePairsIterator::Values::NOT_REQUIRED,
       net::HttpUtil::NameValuePairsIterator::Quotes::STRICT_QUOTES);
   while (it.GetNext()) {
-    base::StringPiece name = it.name_piece();
+    std::string_view name = it.name();
     if (name == "no-store" || name == "private") {
       signed_exchange_utils::ReportErrorAndTraceEvent(
           devtools_proxy,
@@ -150,7 +148,7 @@ bool ParseResponseMap(const cbor::Value& value,
         devtools_proxy, ":status is not found or not a bytestring.");
     return false;
   }
-  base::StringPiece response_code_str =
+  std::string_view response_code_str =
       status_iter->second.GetBytestringAsString();
   int response_code;
   if (!base::StringToInt(response_code_str, &response_code)) {
@@ -174,7 +172,7 @@ bool ParseResponseMap(const cbor::Value& value,
           devtools_proxy, "Non-bytestring value in the response map.");
       return false;
     }
-    base::StringPiece name_str = it.first.GetBytestringAsString();
+    std::string_view name_str = it.first.GetBytestringAsString();
     if (name_str == kStatusKey)
       continue;
     if (!net::HttpUtil::IsValidHeaderName(name_str)) {
@@ -210,7 +208,7 @@ bool ParseResponseMap(const cbor::Value& value,
       return false;
     }
 
-    base::StringPiece value_str = it.second.GetBytestringAsString();
+    std::string_view value_str = it.second.GetBytestringAsString();
     if (!net::HttpUtil::IsValidHeaderValue(value_str)) {
       signed_exchange_utils::ReportErrorAndTraceEvent(devtools_proxy,
                                                       "Invalid header value.");
@@ -285,10 +283,10 @@ bool ParseResponseMap(const cbor::Value& value,
 }  // namespace
 
 // static
-absl::optional<SignedExchangeEnvelope> SignedExchangeEnvelope::Parse(
+std::optional<SignedExchangeEnvelope> SignedExchangeEnvelope::Parse(
     SignedExchangeVersion version,
     const signed_exchange_utils::URLWithRawString& fallback_url,
-    base::StringPiece signature_header_field,
+    std::string_view signature_header_field,
     base::span<const uint8_t> cbor_header,
     SignedExchangeDevToolsProxy* devtools_proxy) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("loading"),
@@ -297,13 +295,13 @@ absl::optional<SignedExchangeEnvelope> SignedExchangeEnvelope::Parse(
   const auto& request_url = fallback_url;
 
   cbor::Reader::DecoderError error;
-  absl::optional<cbor::Value> value = cbor::Reader::Read(cbor_header, &error);
+  std::optional<cbor::Value> value = cbor::Reader::Read(cbor_header, &error);
   if (!value.has_value()) {
     signed_exchange_utils::ReportErrorAndTraceEvent(
         devtools_proxy,
         base::StringPrintf("Failed to decode Value. CBOR error: %s",
                            cbor::Reader::ErrorCodeToString(error)));
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   SignedExchangeEnvelope ret;
@@ -313,19 +311,19 @@ absl::optional<SignedExchangeEnvelope> SignedExchangeEnvelope::Parse(
   if (!ParseResponseMap(*value, &ret, devtools_proxy)) {
     signed_exchange_utils::ReportErrorAndTraceEvent(
         devtools_proxy, "Failed to parse response map.");
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  absl::optional<std::vector<SignedExchangeSignatureHeaderField::Signature>>
+  std::optional<std::vector<SignedExchangeSignatureHeaderField::Signature>>
       signatures = SignedExchangeSignatureHeaderField::ParseSignature(
           signature_header_field, devtools_proxy);
   if (!signatures || signatures->empty()) {
     signed_exchange_utils::ReportErrorAndTraceEvent(
         devtools_proxy, "Failed to parse signature header field.");
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  // TODO(https://crbug.com/850475): Support multiple signatures.
+  // TODO(crbug.com/40579739): Support multiple signatures.
   ret.signature_ = (*signatures)[0];
 
   // https://wicg.github.io/webpackage/draft-yasskin-http-origin-signed-responses.html#cross-origin-trust
@@ -336,7 +334,7 @@ absl::optional<SignedExchangeEnvelope> SignedExchangeEnvelope::Parse(
   if (!url::IsSameOriginWith(request_url.url, validity_url)) {
     signed_exchange_utils::ReportErrorAndTraceEvent(
         devtools_proxy, "Validity URL must be same-origin with request URL.");
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return std::move(ret);
@@ -351,8 +349,8 @@ SignedExchangeEnvelope::~SignedExchangeEnvelope() = default;
 SignedExchangeEnvelope& SignedExchangeEnvelope::operator=(
     SignedExchangeEnvelope&&) = default;
 
-bool SignedExchangeEnvelope::AddResponseHeader(base::StringPiece name,
-                                               base::StringPiece value) {
+bool SignedExchangeEnvelope::AddResponseHeader(std::string_view name,
+                                               std::string_view value) {
   std::string name_str(name);
   DCHECK_EQ(name_str, base::ToLowerASCII(name))
       << "Response header names should be always lower-cased.";
@@ -363,8 +361,8 @@ bool SignedExchangeEnvelope::AddResponseHeader(base::StringPiece name,
   return true;
 }
 
-void SignedExchangeEnvelope::SetResponseHeader(base::StringPiece name,
-                                               base::StringPiece value) {
+void SignedExchangeEnvelope::SetResponseHeader(std::string_view name,
+                                               std::string_view value) {
   std::string name_str(name);
   DCHECK_EQ(name_str, base::ToLowerASCII(name))
       << "Response header names should be always lower-cased.";
@@ -394,12 +392,7 @@ void SignedExchangeEnvelope::set_cbor_header(base::span<const uint8_t> data) {
 }
 
 net::SHA256HashValue SignedExchangeEnvelope::ComputeHeaderIntegrity() const {
-  net::SHA256HashValue hash;
-  crypto::SHA256HashString(
-      base::StringPiece(reinterpret_cast<const char*>(cbor_header().data()),
-                        cbor_header().size()),
-      &hash, sizeof(net::SHA256HashValue));
-  return hash;
+  return crypto::hash::Sha256(cbor_header());
 }
 
 }  // namespace content

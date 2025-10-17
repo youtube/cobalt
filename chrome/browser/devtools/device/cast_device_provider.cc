@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/memory/weak_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/task/single_thread_task_runner.h"
@@ -90,15 +91,14 @@ AndroidDeviceManager::DeviceInfo ServiceDescriptionToDeviceInfo(
 // different threads in undefined order.
 //
 // TODO(crbug.com/963216): Consolidate DNS-SD implementations for Cast.
-class CastDeviceProvider::DeviceListerDelegate
-    : public ServiceDiscoveryDeviceLister::Delegate,
-      public base::SupportsWeakPtr<DeviceListerDelegate> {
+class CastDeviceProvider::DeviceListerDelegate final
+    : public ServiceDiscoveryDeviceLister::Delegate {
  public:
   DeviceListerDelegate(base::WeakPtr<CastDeviceProvider> provider,
                        scoped_refptr<base::SingleThreadTaskRunner> runner)
       : provider_(provider), runner_(runner) {}
 
-  virtual ~DeviceListerDelegate() {}
+  ~DeviceListerDelegate() = default;
 
   void StartDiscovery() {
     // This must be called on the UI thread; ServiceDiscoverySharedClient and
@@ -136,6 +136,16 @@ class CastDeviceProvider::DeviceListerDelegate
                                      provider_, service_type));
   }
 
+  void OnPermissionRejected() override {
+    runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&CastDeviceProvider::OnPermissionRejected, provider_));
+  }
+
+  base::WeakPtr<DeviceListerDelegate> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
   // The device provider to notify of device changes.
   base::WeakPtr<CastDeviceProvider> provider_;
@@ -144,11 +154,12 @@ class CastDeviceProvider::DeviceListerDelegate
   scoped_refptr<base::SingleThreadTaskRunner> runner_;
   scoped_refptr<ServiceDiscoverySharedClient> service_discovery_client_;
   std::unique_ptr<ServiceDiscoveryDeviceLister> device_lister_;
+  base::WeakPtrFactory<DeviceListerDelegate> weak_ptr_factory_{this};
 };
 
-CastDeviceProvider::CastDeviceProvider() {}
+CastDeviceProvider::CastDeviceProvider() = default;
 
-CastDeviceProvider::~CastDeviceProvider() {}
+CastDeviceProvider::~CastDeviceProvider() = default;
 
 void CastDeviceProvider::QueryDevices(SerialsCallback callback) {
   if (!lister_delegate_) {
@@ -212,6 +223,12 @@ void CastDeviceProvider::OnDeviceRemoved(const std::string& service_type,
 
 void CastDeviceProvider::OnDeviceCacheFlushed(const std::string& service_type) {
   VLOG(1) << "Device cache flushed";
+  service_hostname_map_.clear();
+  device_info_map_.clear();
+}
+
+void CastDeviceProvider::OnPermissionRejected() {
+  VLOG(1) << "Permission for local discovery is rejected.";
   service_hostname_map_.clear();
   device_info_map_.clear();
 }

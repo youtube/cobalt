@@ -5,8 +5,9 @@
 #ifndef COMPONENTS_SYNC_PREFERENCES_PREF_MODEL_ASSOCIATOR_CLIENT_H_
 #define COMPONENTS_SYNC_PREFERENCES_PREF_MODEL_ASSOCIATOR_CLIENT_H_
 
-#include <string>
+#include <string_view>
 
+#include "base/memory/ref_counted.h"
 #include "base/values.h"
 
 namespace sync_preferences {
@@ -16,28 +17,19 @@ class SyncablePrefsDatabase;
 // This class allows the embedder to configure the PrefModelAssociator to
 // have a different behaviour when receiving preference synchronisations
 // events from the server.
-class PrefModelAssociatorClient {
+class PrefModelAssociatorClient
+    : public base::RefCounted<PrefModelAssociatorClient> {
  public:
   PrefModelAssociatorClient(const PrefModelAssociatorClient&) = delete;
   PrefModelAssociatorClient& operator=(const PrefModelAssociatorClient&) =
       delete;
-
-  // Returns true if the preference named |pref_name| is a list preference
-  // whose server value is merged with local value during synchronisation.
-  virtual bool IsMergeableListPreference(
-      const std::string& pref_name) const = 0;
-
-  // Returns true if the preference named |pref_name| is a dictionary preference
-  // whose server value is merged with local value during synchronisation.
-  virtual bool IsMergeableDictionaryPreference(
-      const std::string& pref_name) const = 0;
 
   // Returns the merged value if the client wants to apply a custom merging
   // strategy to the preference named |pref_name| with local value |local_value|
   // and server-provided value |server_value|. Otherwise, returns |nullptr| and
   // the server's value will be chosen.
   virtual base::Value MaybeMergePreferenceValues(
-      const std::string& pref_name,
+      std::string_view pref_name,
       const base::Value& local_value,
       const base::Value& server_value) const = 0;
 
@@ -46,8 +38,9 @@ class PrefModelAssociatorClient {
   virtual const SyncablePrefsDatabase& GetSyncablePrefsDatabase() const = 0;
 
  protected:
-  PrefModelAssociatorClient() {}
-  virtual ~PrefModelAssociatorClient() {}
+  friend class base::RefCounted<PrefModelAssociatorClient>;
+  PrefModelAssociatorClient() = default;
+  virtual ~PrefModelAssociatorClient() = default;
 };
 
 }  // namespace sync_preferences

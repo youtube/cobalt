@@ -4,10 +4,6 @@
 
 #import "ios/chrome/test/fakes/fake_download_manager_consumer.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation FakeDownloadManagerConsumer
 @synthesize fileName = _fileName;
 @synthesize countOfBytesReceived = _countOfBytesReceived;
@@ -18,6 +14,23 @@
 
 - (void)setInstallDriveButtonVisible:(BOOL)visible animated:(BOOL)animated {
   _installDriveButtonVisible = visible;
+}
+
+- (void)setMultipleDestinationsAvailable:(BOOL)multipleDestinationsAvailable {
+}
+
+- (void)setDownloadFileDestination:(DownloadFileDestination)destination {
+}
+
+- (void)setSaveToDriveUserEmail:(NSString*)userEmail {
+}
+
+- (void)setCanOpenFile:(BOOL)canOpenFile {
+}
+
+- (void)setOriginatingHost:(NSString*)originatingHost display:(BOOL)display {
+  _originatingHost = originatingHost;
+  _originatingHostDisplayed = display;
 }
 
 @end

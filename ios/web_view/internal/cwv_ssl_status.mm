@@ -3,16 +3,11 @@
 // found in the LICENSE file.
 
 #import "ios/web/public/security/ssl_status.h"
-
 #import "ios/web_view/internal/cwv_ssl_status_internal.h"
 #import "ios/web_view/internal/cwv_ssl_util.h"
 #import "ios/web_view/internal/cwv_x509_certificate_internal.h"
-#include "net/base/net_errors.h"
-#include "net/cert/cert_status_flags.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "net/base/net_errors.h"
+#import "net/cert/cert_status_flags.h"
 
 namespace {
 CWVSecurityStyle CWVSecurityStyleFromWebSecurityStyle(

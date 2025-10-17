@@ -18,6 +18,7 @@
 #include "components/policy/core/browser/url_blocklist_policy_handler.h"  // nogncheck http://crbug.com/1227148
 #include "components/policy/core/common/async_policy_provider.h"  // nogncheck http://crbug.com/1227148
 #include "components/policy/core/common/policy_logger.h"
+#include "components/policy/core/common/policy_paths.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/policy/policy_constants.h"
 #include "headless/lib/browser/policy/headless_prefs.h"
@@ -27,7 +28,7 @@
 #include "components/policy/core/common/policy_loader_win.h"
 #elif BUILDFLAG(IS_MAC)
 #include <CoreFoundation/CoreFoundation.h>
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "components/policy/core/common/policy_loader_mac.h"
 #include "components/policy/core/common/preferences_mac.h"
@@ -83,9 +84,7 @@ scoped_refptr<PrefStore> HeadlessBrowserPolicyConnector::CreatePrefStore(
 void HeadlessBrowserPolicyConnector::Init(
     PrefService* local_state,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
-  if (PolicyLogger::GetInstance()->IsPolicyLoggingEnabled()) {
     PolicyLogger::GetInstance()->EnableLogDeletion();
-  }
 }
 
 bool HeadlessBrowserPolicyConnector::IsDeviceEnterpriseManaged() const {
@@ -140,28 +139,22 @@ HeadlessBrowserPolicyConnector::CreatePlatformProvider() {
   // policies.
   CFStringRef bundle_id = CFSTR("com.google.Chrome");
 #else
-  base::ScopedCFTypeRef<CFStringRef> bundle_id(
-      base::SysUTF8ToCFStringRef(base::mac::BaseBundleID()));
+  base::apple::ScopedCFTypeRef<CFStringRef> bundle_id_scoper =
+      base::SysUTF8ToCFStringRef(base::apple::BaseBundleID());
+  CFStringRef bundle_id = bundle_id_scoper.get();
 #endif
   auto loader = std::make_unique<PolicyLoaderMac>(
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
       policy::PolicyLoaderMac::GetManagedPolicyPath(bundle_id),
-      new MacPreferences(), bundle_id);
+      std::make_unique<MacPreferences>(), bundle_id);
   return std::make_unique<AsyncPolicyProvider>(GetSchemaRegistry(),
                                                std::move(loader));
-#elif BUILDFLAG(IS_POSIX)
-  // The following should match chrome::DIR_POLICY_FILES definition in
-  // chrome/common/chrome_paths.cc
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  base::FilePath config_dir_path(FILE_PATH_LITERAL("/etc/opt/chrome/policies"));
-#else
-  base::FilePath config_dir_path(FILE_PATH_LITERAL("/etc/chromium/policies"));
-#endif
+#elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<AsyncPolicyLoader> loader(new ConfigDirPolicyLoader(
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
-      config_dir_path, POLICY_SCOPE_MACHINE));
+      base::FilePath(policy::kPolicyPath), POLICY_SCOPE_MACHINE));
   return std::make_unique<AsyncPolicyProvider>(GetSchemaRegistry(),
                                                std::move(loader));
 #else

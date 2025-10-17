@@ -51,14 +51,15 @@ class CORE_EXPORT ScrollbarThemeMac : public ScrollbarTheme {
   // behavior.
   bool BlinkControlsOverlayVisibility() const override { return false; }
 
-  base::TimeDelta InitialAutoscrollTimerDelay() override;
-  base::TimeDelta AutoscrollTimerDelay() override;
+  base::TimeDelta InitialAutoscrollTimerDelay() const override;
+  base::TimeDelta AutoscrollTimerDelay() const override;
 
   void PaintTickmarks(GraphicsContext&,
                       const Scrollbar&,
                       const gfx::Rect&) override;
 
-  bool ShouldCenterOnThumb(const Scrollbar&, const WebMouseEvent&) override;
+  bool ShouldCenterOnThumb(const Scrollbar&,
+                           const WebMouseEvent&) const override;
   bool JumpOnTrackClick() const override;
 
   bool ShouldRepaintAllPartsOnInvalidation() const override { return false; }
@@ -68,22 +69,14 @@ class CORE_EXPORT ScrollbarThemeMac : public ScrollbarTheme {
       float new_position) const override;
   void UpdateEnabledState(const Scrollbar&) override;
   int ScrollbarThickness(float scale_from_dip,
-                         EScrollbarWidth scrollbar_width) override;
+                         EScrollbarWidth scrollbar_width) const override;
   bool UsesOverlayScrollbars() const override;
-  void UpdateScrollbarOverlayColorTheme(const Scrollbar&) override;
 
   void SetNewPainterForScrollbar(Scrollbar&);
 
   void PaintThumb(GraphicsContext& context,
                   const Scrollbar& scrollbar,
-                  const gfx::Rect& rect) override {
-    PaintThumbInternal(context, scrollbar, rect, 1.0f);
-  }
-  void PaintThumbWithOpacity(GraphicsContext& context,
-                             const Scrollbar& scrollbar,
-                             const gfx::Rect& rect) override {
-    PaintThumbInternal(context, scrollbar, rect, Opacity(scrollbar));
-  }
+                  const gfx::Rect& rect) override;
 
   float Opacity(const Scrollbar&) const override;
 
@@ -91,41 +84,34 @@ class CORE_EXPORT ScrollbarThemeMac : public ScrollbarTheme {
 
   // See WebScrollbarTheme for parameters description.
   static void UpdateScrollbarsWithNSDefaults(
-      absl::optional<float> initial_button_delay,
-      absl::optional<float> autoscroll_button_delay,
+      std::optional<float> initial_button_delay,
+      std::optional<float> autoscroll_button_delay,
       bool prefer_overlay_scroller_style,
       bool redraw,
       bool jump_on_track_click);
 
  protected:
-  int MaxOverlapBetweenPages() override { return 40; }
-
   bool ShouldDragDocumentInsteadOfThumb(const Scrollbar&,
-                                        const WebMouseEvent&) override;
+                                        const WebMouseEvent&) const override;
 
-  gfx::Rect TrackRect(const Scrollbar&) override;
-  gfx::Rect BackButtonRect(const Scrollbar&) override;
-  gfx::Rect ForwardButtonRect(const Scrollbar&) override;
+  gfx::Rect TrackRect(const Scrollbar&) const override;
+  gfx::Rect BackButtonRect(const Scrollbar&) const override;
+  gfx::Rect ForwardButtonRect(const Scrollbar&) const override;
 
-  bool NativeThemeHasButtons() override { return false; }
-  bool HasThumb(const Scrollbar&) override;
+  bool NativeThemeHasButtons() const override { return false; }
+  bool HasThumb(const Scrollbar&) const override;
 
-  int MinimumThumbLength(const Scrollbar&) override;
+  int MinimumThumbLength(const Scrollbar&) const override;
 
-  int TickmarkBorderWidth() override { return 1; }
+  int TickmarkBorderWidth() const override { return 1; }
 
-  void PaintTrack(GraphicsContext&,
-                  const Scrollbar&,
-                  const gfx::Rect&) override;
+  void PaintTrackBackground(GraphicsContext&,
+                            const Scrollbar&,
+                            const gfx::Rect&) override;
   void PaintScrollCorner(GraphicsContext&,
-                         const Scrollbar* vertical_scrollbar,
+                         const ScrollableArea&,
                          const DisplayItemClient&,
-                         const gfx::Rect& corner_rect,
-                         mojom::blink::ColorScheme color_scheme) override;
-  void PaintThumbInternal(GraphicsContext&,
-                          const Scrollbar&,
-                          const gfx::Rect&,
-                          float opacity);
+                         const gfx::Rect& corner_rect) override;
 };
 }  // namespace blink
 

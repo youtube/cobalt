@@ -4,12 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport"
     content="initial-scale=1, minimum-scale=1, width=device-width, interactive-widget=resizes-content">
-    <!-- TODO(crbug.com/1400469): Once fixed, "interactive-widget=resizes-content" can be removed. -->
+    <!-- TODO(crbug.com/40250276): Once fixed, "interactive-widget=resizes-content" can be removed. -->
 <title>$i18n{blockPageTitle}</title>
-<link href="https://fonts.googleapis.com/css?family=Google+Sans" rel="stylesheet">
 <link rel="stylesheet" href="../../../../../components/security_interstitials/core/common/resources/interstitial_core.css">
 <link rel="stylesheet" href="supervised_user_block_interstitial_v2.css">
-<script src="supervised_user_block_interstitial_v2.js"></script>
+<if expr="not optimize_webui">
+  <script src="%ROOT_GEN_DIR%/components/supervised_user/core/browser/resources/preprocessed/supervised_user_block_interstitial_v2.js"></script>
+</if>
+<if expr="optimize_webui">
+  <script src="%ROOT_GEN_DIR%/components/supervised_user/core/browser/resources/minified/supervised_user_block_interstitial_v2.js"></script>
+</if>
 </head>
 <body class="supervised-user-block">
 <div class="frame-blocked" id="frame-blocked" tabindex="-1">
@@ -35,9 +39,9 @@
     <div id="main-message">
       <h1 id="block-page-header" tabindex="-1">$i18n{blockPageHeader}</h1>
       <p id="block-page-message" tabindex="-1">$i18n{blockPageMessage}</p>
-      <h1 id="request-failed-message" role="alert" hidden>$i18n{requestFailedMessage}</h1>
-      <h1 id="request-sent-message" role="alert" hidden>$i18n{requestSentMessage}</h1>
-      <p id="request-sent-description" hidden>$i18n{requestSentDescription}</p>
+      <h1 id="request-failed-message" tabindex="-1" aria-live="assertive" aria-atomic="true" hidden>$i18n{requestFailedMessage}</h1>
+      <h1 id="request-sent-message" tabindex="-1" aria-live="assertive" aria-atomic="true" hidden>$i18n{requestSentMessage}</h1>
+      <p id="request-sent-description" tabindex="-1" hidden>$i18n{requestSentDescription}</p>
     </div>
     <div id="block-reason-container">
       <p id="block-reason-show-details-link" tabindex="-1">$i18n{showDetailsLink}</p>
@@ -90,7 +94,6 @@
   </div>
   <div id="details" hidden>
     <p id="details-header" role="alert" >$i18n{blockReasonHeader}</p>
-    <p id="feedback">$i18nRaw{feedbackLink}</p>
   </div>
 </div>
 </body>

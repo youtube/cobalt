@@ -5,7 +5,7 @@
 #ifndef GPU_RASTER_EXPORT_H_
 #define GPU_RASTER_EXPORT_H_
 
-#if defined(COMPONENT_BUILD) && !defined(NACL_WIN64)
+#if defined(COMPONENT_BUILD)
 #if defined(WIN32)
 
 #if defined(RASTER_IMPLEMENTATION)
@@ -15,11 +15,7 @@
 #endif  // defined(RASTER_IMPLEMENTATION)
 
 #else  // defined(WIN32)
-#if defined(RASTER_IMPLEMENTATION)
 #define RASTER_EXPORT __attribute__((visibility("default")))
-#else
-#define RASTER_EXPORT
-#endif
 #endif
 
 #else  // defined(COMPONENT_BUILD)

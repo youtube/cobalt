@@ -7,10 +7,14 @@
 
 #include <map>
 #include <string>
+#include <variant>
 
 #include "base/files/file_path.h"
 #include "base/files/scoped_file.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
+
+namespace base {
+class CommandLine;
+}
 
 namespace content {
 
@@ -20,8 +24,8 @@ namespace content {
 //
 // This mapping can be used in `content::ChildProcessLauncherFileData` when
 // constructing a ChildProcessLauncher.
-std::map<std::string, absl::variant<base::FilePath, base::ScopedFD>>
-GetV8SnapshotFilesToPreload();
+std::map<std::string, std::variant<base::FilePath, base::ScopedFD>>
+GetV8SnapshotFilesToPreload(base::CommandLine& process_command_line);
 
 }  // namespace content
 

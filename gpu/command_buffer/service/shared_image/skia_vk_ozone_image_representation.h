@@ -6,6 +6,17 @@
 #define GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_SKIA_VK_OZONE_IMAGE_REPRESENTATION_H_
 
 #include <vulkan/vulkan.h>
+// vulkan.h includes <X11/Xlib.h> when VK_USE_PLATFORM_XLIB_KHR is defined
+// after https://github.com/KhronosGroup/Vulkan-Headers/pull/534.
+// This defines some macros which break build, so undefine them here.
+#undef Always
+#undef Bool
+#undef False
+#undef None
+#undef Status
+#undef Success
+#undef True
+
 #include <memory>
 
 #include "base/memory/scoped_refptr.h"
@@ -25,7 +36,7 @@ class SkiaVkOzoneImageRepresentation : public SkiaGaneshImageRepresentation {
       SharedImageManager* manager,
       OzoneImageBacking* backing,
       scoped_refptr<SharedContextState> context_state,
-      std::unique_ptr<VulkanImage> vulkan_image,
+      std::vector<std::unique_ptr<VulkanImage>> vulkan_images,
       MemoryTypeTracker* tracker);
 
   ~SkiaVkOzoneImageRepresentation() override;
@@ -36,16 +47,16 @@ class SkiaVkOzoneImageRepresentation : public SkiaGaneshImageRepresentation {
       const gfx::Rect& update_rect,
       std::vector<GrBackendSemaphore>* begin_semaphores,
       std::vector<GrBackendSemaphore>* end_semaphores,
-      std::unique_ptr<GrBackendSurfaceMutableState>* end_state) override;
-  std::vector<sk_sp<SkPromiseImageTexture>> BeginWriteAccess(
+      std::unique_ptr<skgpu::MutableTextureState>* end_state) override;
+  std::vector<sk_sp<GrPromiseImageTexture>> BeginWriteAccess(
       std::vector<GrBackendSemaphore>* begin_semaphores,
       std::vector<GrBackendSemaphore>* end_semaphores,
-      std::unique_ptr<GrBackendSurfaceMutableState>* end_state) override;
+      std::unique_ptr<skgpu::MutableTextureState>* end_state) override;
   void EndWriteAccess() override;
-  std::vector<sk_sp<SkPromiseImageTexture>> BeginReadAccess(
+  std::vector<sk_sp<GrPromiseImageTexture>> BeginReadAccess(
       std::vector<GrBackendSemaphore>* begin_semaphores,
       std::vector<GrBackendSemaphore>* end_semaphores,
-      std::unique_ptr<GrBackendSurfaceMutableState>* end_state) override;
+      std::unique_ptr<skgpu::MutableTextureState>* end_state) override;
   void EndReadAccess() override;
 
  protected:
@@ -55,22 +66,22 @@ class SkiaVkOzoneImageRepresentation : public SkiaGaneshImageRepresentation {
 
   SharedContextState* context_state() const { return context_state_.get(); }
 
-  std::unique_ptr<VulkanImage> vulkan_image_;
-  sk_sp<SkPromiseImageTexture> promise_texture_;
+  std::vector<std::unique_ptr<VulkanImage>> vulkan_images_;
+  std::vector<sk_sp<GrPromiseImageTexture>> promise_textures_;
 
  private:
   bool BeginAccess(bool readonly,
                    std::vector<GrBackendSemaphore>* begin_semaphores,
                    std::vector<GrBackendSemaphore>* end_semaphores);
   void EndAccess(bool readonly);
-  std::unique_ptr<GrBackendSurfaceMutableState> GetEndAccessState();
+  std::unique_ptr<skgpu::MutableTextureState> GetEndAccessState();
 
   VkDevice vk_device();
   VulkanImplementation* vk_implementation();
 
   RepresentationAccessMode mode_ = RepresentationAccessMode::kNone;
   int surface_msaa_count_ = 0;
-  sk_sp<SkSurface> surface_;
+  std::vector<sk_sp<SkSurface>> surfaces_;
   scoped_refptr<SharedContextState> context_state_;
   std::vector<VkSemaphore> begin_access_semaphores_;
   VkSemaphore end_access_semaphore_ = VK_NULL_HANDLE;

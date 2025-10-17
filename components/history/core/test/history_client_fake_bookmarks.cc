@@ -20,7 +20,7 @@ namespace history {
 class FakeBookmarkDatabase
     : public base::RefCountedThreadSafe<FakeBookmarkDatabase> {
  public:
-  FakeBookmarkDatabase() {}
+  FakeBookmarkDatabase() = default;
 
   FakeBookmarkDatabase(const FakeBookmarkDatabase&) = delete;
   FakeBookmarkDatabase& operator=(const FakeBookmarkDatabase&) = delete;
@@ -35,7 +35,7 @@ class FakeBookmarkDatabase
  private:
   friend class base::RefCountedThreadSafe<FakeBookmarkDatabase>;
 
-  ~FakeBookmarkDatabase() {}
+  ~FakeBookmarkDatabase() = default;
 
   base::Lock lock_;
   std::map<GURL, std::u16string> bookmarks_;
@@ -170,7 +170,7 @@ HistoryClientFakeBookmarks::CreateBackendClient() {
 }
 
 void HistoryClientFakeBookmarks::UpdateBookmarkLastUsedTime(
-    const base::Uuid& bookmark_node_guid,
+    int64_t bookmark_node_id,
     base::Time time) {}
 
 }  // namespace history

@@ -5,12 +5,15 @@
 #include "chrome/browser/apps/app_shim/app_shim_host_bootstrap_mac.h"
 
 #include <CoreFoundation/CoreFoundation.h>
+#include <bsm/libbsm.h>
+
 #include <memory>
 #include <utility>
 
+#include "base/apple/scoped_cftyperef.h"
 #include "base/functional/bind.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/strings/sys_string_conversions.h"
+#include "components/variations/net/variations_command_line.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/system/message_pipe.h"
@@ -25,10 +28,10 @@ void NSLogv(CFStringRef, va_list);
 namespace {
 AppShimHostBootstrap::Client* g_client = nullptr;
 
-// TODO(https://crbug.com/1052131): Remove NSLog logging, and move to an
+// TODO(crbug.com/40674145): Remove NSLog logging, and move to an
 // internal debugging URL.
 void LogToNSLog(std::string format, ...) {
-  base::ScopedCFTypeRef<CFStringRef> cf_format(
+  base::apple::ScopedCFTypeRef<CFStringRef> cf_format(
       base::SysUTF8ToCFStringRef(format));
 
   va_list arguments;
@@ -45,22 +48,22 @@ void AppShimHostBootstrap::SetClient(Client* client) {
 }
 
 // static
-void AppShimHostBootstrap::CreateForChannelAndPeerID(
+void AppShimHostBootstrap::CreateForChannelAndPeerAuditToken(
     mojo::PlatformChannelEndpoint endpoint,
-    base::ProcessId peer_pid) {
+    audit_token_t audit_token) {
   // AppShimHostBootstrap is initially owned by itself until it receives a
   // OnShimConnected message or a channel error. In OnShimConnected, ownership
   // is transferred to a unique_ptr.
   DCHECK(endpoint.platform_handle().is_mach_send());
-  (new AppShimHostBootstrap(peer_pid))->ServeChannel(std::move(endpoint));
+  (new AppShimHostBootstrap(audit_token))->ServeChannel(std::move(endpoint));
 }
 
-AppShimHostBootstrap::AppShimHostBootstrap(base::ProcessId peer_pid)
-    : pid_(peer_pid) {}
+AppShimHostBootstrap::AppShimHostBootstrap(audit_token_t audit_token)
+    : audit_token_(audit_token) {}
 
 AppShimHostBootstrap::~AppShimHostBootstrap() {
   DCHECK(!shim_connected_callback_);
-  LogToNSLog("AppShim: Closing pid %d", pid_);
+  LogToNSLog("AppShim: Closing pid %d", GetAppShimPid());
 }
 
 void AppShimHostBootstrap::ServeChannel(
@@ -122,6 +125,11 @@ const std::vector<GURL>& AppShimHostBootstrap::GetLaunchUrls() const {
   return app_shim_info_->urls;
 }
 
+mojo::PendingReceiver<mac_notifications::mojom::MacNotificationActionHandler>
+AppShimHostBootstrap::TakeNotificationActionHandler() {
+  return std::move(app_shim_info_->notification_action_handler);
+}
+
 bool AppShimHostBootstrap::IsMultiProfile() const {
   // PWAs and bookmark apps are multi-profile capable.
   return app_shim_info_->app_url.is_valid();
@@ -131,7 +139,7 @@ void AppShimHostBootstrap::OnShimConnected(
     mojo::PendingReceiver<chrome::mojom::AppShimHost> app_shim_host_receiver,
     chrome::mojom::AppShimInfoPtr app_shim_info,
     OnShimConnectedCallback callback) {
-  LogToNSLog("AppShim: Received OnShimConnected from pid %d", pid_);
+  LogToNSLog("AppShim: Received OnShimConnected from pid %d", GetAppShimPid());
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!app_shim_info_);
   // Only one app launch message per channel.
@@ -157,20 +165,27 @@ void AppShimHostBootstrap::OnShimConnected(
 
 void AppShimHostBootstrap::OnConnectedToHost(
     mojo::PendingReceiver<chrome::mojom::AppShim> app_shim_receiver) {
-  LogToNSLog("AppShim: Performing OnConnectedToHost for pid %d", pid_);
+  LogToNSLog("AppShim: Performing OnConnectedToHost for pid %d",
+             GetAppShimPid());
   std::move(shim_connected_callback_)
       .Run(chrome::mojom::AppShimLaunchResult::kSuccess,
+           variations::VariationsCommandLine::GetForCurrentProcess(),
            std::move(app_shim_receiver));
 }
 
 void AppShimHostBootstrap::OnFailedToConnectToHost(
     chrome::mojom::AppShimLaunchResult result) {
   LogToNSLog("AppShim: Performing OnFailedToConnectToHost result %d for pid %d",
-             result, pid_);
+             result, GetAppShimPid());
 
   // Because there will be users of the AppShim interface in failure, just
   // return a dummy receiver.
   mojo::Remote<chrome::mojom::AppShim> dummy_remote;
   std::move(shim_connected_callback_)
-      .Run(result, dummy_remote.BindNewPipeAndPassReceiver());
+      .Run(result, variations::VariationsCommandLine(),
+           dummy_remote.BindNewPipeAndPassReceiver());
+}
+
+base::ProcessId AppShimHostBootstrap::GetAppShimPid() const {
+  return audit_token_to_pid(audit_token_);
 }

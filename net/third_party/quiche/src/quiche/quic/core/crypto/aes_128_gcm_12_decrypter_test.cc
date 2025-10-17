@@ -234,14 +234,19 @@ TEST_F(Aes128Gcm12DecrypterTest, Decrypt) {
       bool has_pt = test_vectors[j].pt;
 
       // Decode the test vector.
-      std::string key = absl::HexStringToBytes(test_vectors[j].key);
-      std::string iv = absl::HexStringToBytes(test_vectors[j].iv);
-      std::string ct = absl::HexStringToBytes(test_vectors[j].ct);
-      std::string aad = absl::HexStringToBytes(test_vectors[j].aad);
-      std::string tag = absl::HexStringToBytes(test_vectors[j].tag);
+      std::string key;
+      std::string iv;
+      std::string ct;
+      std::string aad;
+      std::string tag;
       std::string pt;
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].key, &key));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].iv, &iv));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].ct, &ct));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].aad, &aad));
+      ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].tag, &tag));
       if (has_pt) {
-        pt = absl::HexStringToBytes(test_vectors[j].pt);
+        ASSERT_TRUE(absl::HexStringToBytes(test_vectors[j].pt, &pt));
       }
 
       // The test vector's lengths should look sane. Note that the lengths
@@ -270,7 +275,7 @@ TEST_F(Aes128Gcm12DecrypterTest, Decrypt) {
           // This deliberately tests that the decrypter can
           // handle an AAD that is set to nullptr, as opposed
           // to a zero-length, non-nullptr pointer.
-          aad.length() ? aad : absl::string_view(), ciphertext));
+          !aad.empty() ? aad : absl::string_view(), ciphertext));
       if (!decrypted) {
         EXPECT_FALSE(has_pt);
         continue;

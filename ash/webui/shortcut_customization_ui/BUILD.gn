@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
-assert(is_chromeos_ash, "Shortcut Customization App is ash-chrome only")
+assert(is_chromeos, "Shortcut Customization App is ChromeOS only")
 
 static_library("shortcut_customization_ui") {
   sources = [
@@ -14,23 +12,37 @@ static_library("shortcut_customization_ui") {
     "shortcuts_app_manager.h",
     "shortcuts_app_manager_factory.cc",
     "shortcuts_app_manager_factory.h",
-    "url_constants.cc",
-    "url_constants.h",
   ]
 
+  public_deps = [ ":url_constants" ]
+
   deps = [
+    "//ash",
     "//ash/constants",
-    "//ash/webui/resources:shortcut_customization_app_resources",
+    "//ash/webui/common:trusted_types_util",
+    "//ash/webui/common/backend",
+    "//ash/webui/common/mojom",
     "//ash/webui/shortcut_customization_ui/backend",
     "//ash/webui/shortcut_customization_ui/backend/search:mojo_bindings",
     "//ash/webui/shortcut_customization_ui/mojom",
+    "//ash/webui/shortcut_customization_ui/resources:resources",
     "//ash/webui/system_apps/public:system_web_app_config",
     "//chromeos/ash/components/local_search_service/public/cpp",
     "//chromeos/strings",
     "//components/keyed_service/content:content",
+    "//components/user_prefs",
     "//content/public/browser",
-    "//ui/resources:webui_resources_grd_grit",
     "//ui/webui",
+    "//ui/webui/resources:resources_grit",
+  ]
+}
+
+# Url constants pulled out to enable depending on production url constants in
+# browser tests.
+source_set("url_constants") {
+  sources = [
+    "url_constants.cc",
+    "url_constants.h",
   ]
 }
 
@@ -39,6 +51,7 @@ source_set("unit_tests") {
 
   sources = [
     "backend/accelerator_configuration_provider_unittest.cc",
+    "backend/accelerator_layout_table_unittest.cc",
     "backend/search/search_concept_registry_unittest.cc",
     "backend/search/search_handler_unittest.cc",
     "shortcuts_app_manager_unittest.cc",
@@ -58,6 +71,7 @@ source_set("unit_tests") {
     "//chromeos/ash/components/local_search_service/public/cpp:cpp",
     "//chromeos/ash/components/local_search_service/public/mojom",
     "//chromeos/ash/components/local_search_service/public/mojom:mojom",
+    "//chromeos/ash/services/assistant/public/cpp",
     "//content/test:test_support",
     "//device/udev_linux:test_support",
     "//mojo/public/cpp/bindings:bindings",

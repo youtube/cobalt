@@ -7,7 +7,10 @@
 
 #include <stdint.h>
 
+#include <string>
+
 #include "base/functional/callback_forward.h"
+#include "ui/base/mojom/menu_source_type.mojom-shared.h"
 #include "ui/views/controls/menu/menu_runner.h"
 
 namespace gfx {
@@ -44,9 +47,23 @@ class MenuRunnerImplInterface {
       MenuButtonController* button_controller,
       const gfx::Rect& bounds,
       MenuAnchorPosition anchor,
+      ui::mojom::MenuSourceType source_type,
       int32_t run_types,
       gfx::NativeView native_view_for_gestures,
-      absl::optional<gfx::RoundedCornersF> corners = absl::nullopt) = 0;
+      std::optional<gfx::RoundedCornersF> corners,
+      std::optional<std::string> show_menu_host_duration_histogram) = 0;
+  void RunMenuAt(
+      Widget* parent,
+      MenuButtonController* button_controller,
+      const gfx::Rect& bounds,
+      MenuAnchorPosition anchor,
+      ui::mojom::MenuSourceType source_type = ui::mojom::MenuSourceType::kNone,
+      int32_t run_types = MenuRunner::NO_FLAGS,
+      gfx::NativeView native_view_for_gestures = {},
+      std::optional<gfx::RoundedCornersF> corners = std::nullopt) {
+    RunMenuAt(parent, button_controller, bounds, anchor, source_type, run_types,
+              native_view_for_gestures, corners, std::nullopt);
+  }
 
   // Hides and cancels the menu.
   virtual void Cancel() = 0;

@@ -36,6 +36,7 @@
 #include "third_party/blink/public/platform/web_content_decryption_module.h"
 #include "third_party/blink/public/platform/web_encrypted_media_key_information.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_media_key_session_type.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_keys_policy.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
@@ -57,44 +58,6 @@
 #define MEDIA_KEYS_LOG_LEVEL 3
 
 namespace blink {
-namespace {
-
-// TODO(crbug/1347553): Remove duplicate function and merge it with the one
-// used in platform/media.
-media::HdcpVersion ConvertEncryptedMediaHdcpVersion(
-    const WebString& hdcp_version_string) {
-  if (!hdcp_version_string.ContainsOnlyASCII())
-    return media::HdcpVersion::kHdcpVersionNone;
-
-  std::string hdcp_version_ascii = hdcp_version_string.Ascii();
-
-  // The strings are specified in the explainer doc:
-  // https://github.com/WICG/hdcp-detection/blob/master/explainer.md
-  if (hdcp_version_ascii.empty())
-    return media::HdcpVersion::kHdcpVersionNone;
-  else if (hdcp_version_ascii == "1.0")
-    return media::HdcpVersion::kHdcpVersion1_0;
-  else if (hdcp_version_ascii == "1.1")
-    return media::HdcpVersion::kHdcpVersion1_1;
-  else if (hdcp_version_ascii == "1.2")
-    return media::HdcpVersion::kHdcpVersion1_2;
-  else if (hdcp_version_ascii == "1.3")
-    return media::HdcpVersion::kHdcpVersion1_3;
-  else if (hdcp_version_ascii == "1.4")
-    return media::HdcpVersion::kHdcpVersion1_4;
-  else if (hdcp_version_ascii == "2.0")
-    return media::HdcpVersion::kHdcpVersion2_0;
-  else if (hdcp_version_ascii == "2.1")
-    return media::HdcpVersion::kHdcpVersion2_1;
-  else if (hdcp_version_ascii == "2.2")
-    return media::HdcpVersion::kHdcpVersion2_2;
-  else if (hdcp_version_ascii == "2.3")
-    return media::HdcpVersion::kHdcpVersion2_3;
-
-  return media::HdcpVersion::kHdcpVersionNone;
-}
-
-}  // namespace
 
 // A class holding a pending action.
 class MediaKeys::PendingAction final
@@ -110,7 +73,7 @@ class MediaKeys::PendingAction final
 
   DOMArrayBuffer* Data() const {
     DCHECK_EQ(Type::kSetServerCertificate, type_);
-    return data_;
+    return data_.Get();
   }
 
   const String& StringData() const {
@@ -161,10 +124,10 @@ class MediaKeys::PendingAction final
 class SetCertificateResultPromise
     : public ContentDecryptionModuleResultPromise {
  public:
-  SetCertificateResultPromise(ScriptState* script_state,
+  SetCertificateResultPromise(ScriptPromiseResolver<IDLBoolean>* resolver,
                               const MediaKeysConfig& config,
                               MediaKeys* media_keys)
-      : ContentDecryptionModuleResultPromise(script_state,
+      : ContentDecryptionModuleResultPromise(resolver,
                                              config,
                                              EmeApiType::kSetServerCertificate),
         media_keys_(media_keys) {}
@@ -176,7 +139,7 @@ class SetCertificateResultPromise
     if (!IsValidToFulfillPromise())
       return;
 
-    Resolve(true);
+    Resolve<IDLBoolean>(true);
   }
 
   void CompleteWithError(WebContentDecryptionModuleException exception_code,
@@ -190,7 +153,7 @@ class SetCertificateResultPromise
     // false." So convert any NOTSUPPORTEDERROR into resolving with false.
     if (exception_code ==
         kWebContentDecryptionModuleExceptionNotSupportedError) {
-      Resolve(false);
+      Resolve<IDLBoolean>(false);
       return;
     }
 
@@ -214,11 +177,12 @@ class SetCertificateResultPromise
 class GetStatusForPolicyResultPromise
     : public ContentDecryptionModuleResultPromise {
  public:
-  GetStatusForPolicyResultPromise(ScriptState* script_state,
-                                  const MediaKeysConfig& config,
-                                  WebString min_hdcp_version,
-                                  MediaKeys* media_keys)
-      : ContentDecryptionModuleResultPromise(script_state,
+  GetStatusForPolicyResultPromise(
+      ScriptPromiseResolver<V8MediaKeyStatus>* resolver,
+      const MediaKeysConfig& config,
+      WebString min_hdcp_version,
+      MediaKeys* media_keys)
+      : ContentDecryptionModuleResultPromise(resolver,
                                              config,
                                              EmeApiType::kGetStatusForPolicy),
         media_keys_(media_keys),
@@ -243,8 +207,13 @@ class GetStatusForPolicyResultPromise
             GetMediaKeysConfig().key_system.Ascii()));
         builder.SetUseHardwareSecureCodecs(
             static_cast<int>(GetMediaKeysConfig().use_hardware_secure_codecs));
+        std::optional<media::HdcpVersion> hdcp_version;
+        if (min_hdcp_version_.ContainsOnlyASCII()) {
+          hdcp_version =
+              media::MaybeHdcpVersionFromString(min_hdcp_version_.Ascii());
+        }
         builder.SetMinHdcpVersion(static_cast<int>(
-            ConvertEncryptedMediaHdcpVersion(min_hdcp_version_)));
+            hdcp_version.value_or(media::HdcpVersion::kHdcpVersionNone)));
         LocalFrame* frame = document->GetFrame();
         if (frame) {
           builder.SetIsAdFrame(static_cast<int>(frame->IsAdFrame()));
@@ -253,7 +222,8 @@ class GetStatusForPolicyResultPromise
       }
     }
 
-    Resolve(EncryptedMediaUtils::ConvertKeyStatusToString(key_status));
+    Resolve<V8MediaKeyStatus>(
+        EncryptedMediaUtils::ConvertKeyStatusToEnum(key_status));
   }
 
   void Trace(Visitor* visitor) const override {
@@ -271,7 +241,7 @@ class GetStatusForPolicyResultPromise
 
 MediaKeys::MediaKeys(
     ExecutionContext* context,
-    const WebVector<WebEncryptedMediaSessionType>& supported_session_types,
+    const std::vector<WebEncryptedMediaSessionType>& supported_session_types,
     std::unique_ptr<WebContentDecryptionModule> cdm,
     const MediaKeysConfig& config)
     : ActiveScriptWrappable<MediaKeys>({}),
@@ -293,11 +263,12 @@ MediaKeys::~MediaKeys() {
   InstanceCounters::DecrementCounter(InstanceCounters::kMediaKeysCounter);
 }
 
-MediaKeySession* MediaKeys::createSession(ScriptState* script_state,
-                                          const String& session_type_string,
-                                          ExceptionState& exception_state) {
+MediaKeySession* MediaKeys::createSession(
+    ScriptState* script_state,
+    const V8MediaKeySessionType& v8_session_type,
+    ExceptionState& exception_state) {
   DVLOG(MEDIA_KEYS_LOG_LEVEL)
-      << __func__ << "(" << this << ") " << session_type_string;
+      << __func__ << "(" << this << ") " << v8_session_type.AsCStr();
 
   // If the context for MediaKeys has been destroyed, fail.
   if (!GetExecutionContext()) {
@@ -306,7 +277,7 @@ MediaKeySession* MediaKeys::createSession(ScriptState* script_state,
     return nullptr;
   }
 
-  // From http://w3c.github.io/encrypted-media/#createSession
+  // From https://w3c.github.io/encrypted-media/#dom-mediakeys-createsession
 
   // When this method is invoked, the user agent must run the following steps:
   // 1. If this object's persistent state allowed value is false and
@@ -318,7 +289,7 @@ MediaKeySession* MediaKeys::createSession(ScriptState* script_state,
   //    implementation value does not support sessionType, throw a new
   //    DOMException whose name is NotSupportedError.
   WebEncryptedMediaSessionType session_type =
-      EncryptedMediaUtils::ConvertToSessionType(session_type_string);
+      EncryptedMediaUtils::ConvertToSessionType(v8_session_type.AsString());
   if (!SessionTypeSupported(session_type)) {
     exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
                                       "Unsupported session type.");
@@ -333,7 +304,7 @@ MediaKeySession* MediaKeys::createSession(ScriptState* script_state,
                                                config_);
 }
 
-ScriptPromise MediaKeys::setServerCertificate(
+ScriptPromise<IDLBoolean> MediaKeys::setServerCertificate(
     ScriptState* script_state,
     const DOMArrayPiece& server_certificate,
     ExceptionState& exception_state) {
@@ -341,10 +312,12 @@ ScriptPromise MediaKeys::setServerCertificate(
   if (!GetExecutionContext()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidAccessError,
                                       "The context provided is invalid.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
-  // From https://w3c.github.io/encrypted-media/#setServerCertificate
+  // From
+  // https://w3c.github.io/encrypted-media/#dom-mediakeys-setservercertificate
+
   // The setServerCertificate(serverCertificate) method provides a server
   // certificate to be used to encrypt messages to the license server.
   // It must run the following steps:
@@ -358,19 +331,21 @@ ScriptPromise MediaKeys::setServerCertificate(
   //    with a new a newly created TypeError.
   if (!server_certificate.ByteLength()) {
     exception_state.ThrowTypeError("The serverCertificate parameter is empty.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   // 3. Let certificate be a copy of the contents of the serverCertificate
   //    parameter.
-  DOMArrayBuffer* server_certificate_buffer = DOMArrayBuffer::Create(
-      server_certificate.Data(), server_certificate.ByteLength());
+  DOMArrayBuffer* server_certificate_buffer =
+      DOMArrayBuffer::Create(server_certificate.ByteSpan());
 
   // 4. Let promise be a new promise.
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
   SetCertificateResultPromise* result =
-      MakeGarbageCollected<SetCertificateResultPromise>(script_state, config_,
+      MakeGarbageCollected<SetCertificateResultPromise>(resolver, config_,
                                                         this);
-  ScriptPromise promise = result->Promise();
 
   // 5. Run the following steps asynchronously. See SetServerCertificateTask().
   pending_actions_.push_back(PendingAction::CreatePendingSetServerCertificate(
@@ -410,7 +385,7 @@ void MediaKeys::SetServerCertificateTask(
   // (These are handled by Chromium and the CDM.)
 }
 
-ScriptPromise MediaKeys::getStatusForPolicy(
+ScriptPromise<V8MediaKeyStatus> MediaKeys::getStatusForPolicy(
     ScriptState* script_state,
     const MediaKeysPolicy* media_keys_policy,
     ExceptionState& exception_state) {
@@ -418,7 +393,12 @@ ScriptPromise MediaKeys::getStatusForPolicy(
   if (!GetExecutionContext()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidAccessError,
                                       "The context provided is invalid.");
-    return ScriptPromise();
+    return EmptyPromise();
+  }
+
+  if (!media_keys_policy->hasMinHdcpVersion()) {
+    exception_state.ThrowTypeError("MediaKeysPolicy is not present.");
+    return EmptyPromise();
   }
 
   // TODO(xhwang): Pass MediaKeysPolicy classes all the way to Chromium when
@@ -426,10 +406,13 @@ ScriptPromise MediaKeys::getStatusForPolicy(
   String min_hdcp_version = media_keys_policy->minHdcpVersion();
 
   // Let promise be a new promise.
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<V8MediaKeyStatus>>(
+          script_state, exception_state.GetContext());
   GetStatusForPolicyResultPromise* result =
       MakeGarbageCollected<GetStatusForPolicyResultPromise>(
-          script_state, config_, min_hdcp_version, this);
-  ScriptPromise promise = result->Promise();
+          resolver, config_, min_hdcp_version, this);
+  auto promise = resolver->Promise();
 
   // Run the following steps asynchronously. See GetStatusForPolicyTask().
   pending_actions_.push_back(
@@ -442,13 +425,12 @@ ScriptPromise MediaKeys::getStatusForPolicy(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-class GetMetricsResultPromise
-    : public ContentDecryptionModuleResultPromise {
+class GetMetricsResultPromise : public ContentDecryptionModuleResultPromise {
  public:
-  GetMetricsResultPromise(ScriptState* script_state,
+  GetMetricsResultPromise(ScriptPromiseResolver<IDLString>* resolver,
                           const MediaKeysConfig& config,
                           MediaKeys* media_keys)
-      : ContentDecryptionModuleResultPromise(script_state,
+      : ContentDecryptionModuleResultPromise(resolver,
                                              config,
                                              EmeApiType::kGetMetrics),
         media_keys_(media_keys) {}
@@ -456,12 +438,12 @@ class GetMetricsResultPromise
   ~GetMetricsResultPromise() override = default;
 
   // ContentDecryptionModuleResult implementation.
-  void CompleteWithString(
-      const WebString& result) override {
-    if (!IsValidToFulfillPromise())
+  void CompleteWithString(const WebString& result) override {
+    if (!IsValidToFulfillPromise()) {
       return;
+    }
 
-    Resolve(result);
+    Resolve<IDLString>(result);
   }
   void Trace(Visitor* visitor) const override {
     visitor->Trace(media_keys_);
@@ -474,18 +456,20 @@ class GetMetricsResultPromise
   Member<MediaKeys> media_keys_;
 };
 
-ScriptPromise MediaKeys::getMetrics(ScriptState* script_state,
-                                    ExceptionState& exception_state) {
+ScriptPromise<IDLString> MediaKeys::getMetrics(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   if (!cdm_) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "No active CDM..");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
-  GetMetricsResultPromise* result = 
-    MakeGarbageCollected<GetMetricsResultPromise>(script_state, config_, this);
-
-  ScriptPromise promise = result->Promise();
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
+      script_state, exception_state.GetContext());
+  GetMetricsResultPromise* result =
+      MakeGarbageCollected<GetMetricsResultPromise>(resolver, config_, this);
+  auto promise = resolver->Promise();
 
   cdm_->GetMetrics(result->Result());
 

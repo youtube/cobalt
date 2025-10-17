@@ -9,5 +9,10 @@ dictionary RTCEncodedAudioFrameMetadata {
     unsigned long synchronizationSource;
     sequence<unsigned long> contributingSources;
     octet payloadType;
+    DOMString mimeType;
     unsigned short? sequenceNumber;
+    unsigned long rtpTimestamp;
+    [RuntimeEnabled=RTCEncodedFrameTimestamps] DOMHighResTimeStamp receiveTime;
+    [RuntimeEnabled=RTCEncodedFrameTimestamps] DOMHighResTimeStamp captureTime;
+    [RuntimeEnabled=RTCEncodedFrameTimestamps] DOMHighResTimeStamp senderCaptureTimeOffset;
 };

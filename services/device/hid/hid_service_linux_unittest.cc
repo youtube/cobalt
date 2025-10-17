@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "services/device/hid/hid_service_linux.h"
 
 #include "base/files/file_util.h"
@@ -35,8 +36,8 @@ class HidServiceLinuxTest : public testing::Test {
 
   void AddFakeDevice(base::FilePath syspath,
                      std::string subsystem,
-                     absl::optional<std::string> devnode = absl::nullopt,
-                     absl::optional<std::string> devtype = absl::nullopt,
+                     std::optional<std::string> devnode = std::nullopt,
+                     std::optional<std::string> devtype = std::nullopt,
                      std::map<std::string, std::string> properties = {}) {
     fake_udev_.AddFakeDevice("fake-device", syspath.value(),
                              std::move(subsystem), std::move(devnode),
@@ -73,17 +74,17 @@ TEST_F(HidServiceLinuxTest, EnumerateUsbHidDevice) {
   uint8_t data = 0;
   ASSERT_TRUE(base::CreateDirectory(hid_path));
   ASSERT_TRUE(
-      base::WriteFile(report_descriptor_path, base::make_span(&data, 1u)));
+      base::WriteFile(report_descriptor_path, base::span_from_ref(data)));
 
   // Add the fake HID device as well as its ancestors up to the USB device node.
   // Ancestors must be added starting from the closest to the root to ensure
   // that ancestor device info is available when the hidraw device is added.
-  AddFakeDevice(usb_device_path, kSubsystemUsb, /*devnode=*/absl::nullopt,
+  AddFakeDevice(usb_device_path, kSubsystemUsb, /*devnode=*/std::nullopt,
                 kDevtypeUsbDevice);
-  AddFakeDevice(usb_interface_path, kSubsystemUsb, /*devnode=*/absl::nullopt,
+  AddFakeDevice(usb_interface_path, kSubsystemUsb, /*devnode=*/std::nullopt,
                 kDevtypeUsbInterface);
-  AddFakeDevice(hid_path, kSubsystemHid, /*devnode=*/absl::nullopt,
-                /*devtype=*/absl::nullopt, /*properties=*/
+  AddFakeDevice(hid_path, kSubsystemHid, /*devnode=*/std::nullopt,
+                /*devtype=*/std::nullopt, /*properties=*/
                 {
                     {"HID_ID", kPropertyValueHidId},
                     {"HID_UNIQ", kPropertyValueHidUniq},
@@ -142,15 +143,15 @@ TEST_F(HidServiceLinuxTest, EnumerateBluetoothClassicHidDevice) {
   uint8_t data = 0;
   ASSERT_TRUE(base::CreateDirectory(hid_path));
   ASSERT_TRUE(
-      base::WriteFile(report_descriptor_path, base::make_span(&data, 1u)));
+      base::WriteFile(report_descriptor_path, base::span_from_ref(data)));
 
   // Add the fake HID device as well as its ancestors up to the Bluetooth link.
   // Ancestors must be added starting from the closest to the root to ensure
   // that ancestor device info is available when the hidraw device is added.
-  AddFakeDevice(bt_link_path, kSubsystemBluetooth, /*devnode=*/absl::nullopt,
+  AddFakeDevice(bt_link_path, kSubsystemBluetooth, /*devnode=*/std::nullopt,
                 kDevtypeLink);
-  AddFakeDevice(hid_path, kSubsystemHid, /*devnode=*/absl::nullopt,
-                /*devtype=*/absl::nullopt, /*properties=*/
+  AddFakeDevice(hid_path, kSubsystemHid, /*devnode=*/std::nullopt,
+                /*devtype=*/std::nullopt, /*properties=*/
                 {
                     {"HID_ID", kPropertyValueHidId},
                     {"HID_UNIQ", kPropertyValueHidUniq},
@@ -207,14 +208,14 @@ TEST_F(HidServiceLinuxTest, EnumerateBleHidDevice) {
   uint8_t data = 0;
   ASSERT_TRUE(base::CreateDirectory(hid_path));
   ASSERT_TRUE(
-      base::WriteFile(report_descriptor_path, base::make_span(&data, 1u)));
+      base::WriteFile(report_descriptor_path, base::span_from_ref(data)));
 
   // Add the fake HID device as well as its ancestors up to the Bluetooth link.
   // Ancestors must be added starting from the closest to the root to ensure
   // that ancestor device info is available when the hidraw device is added.
   AddFakeDevice(uhid_path, kSubsystemMisc);
-  AddFakeDevice(hid_path, kSubsystemHid, /*devnode=*/absl::nullopt,
-                /*devtype=*/absl::nullopt, /*properties=*/
+  AddFakeDevice(hid_path, kSubsystemHid, /*devnode=*/std::nullopt,
+                /*devtype=*/std::nullopt, /*properties=*/
                 {
                     {"HID_ID", kPropertyValueHidId},
                     {"HID_UNIQ", kPropertyValueHidUniq},

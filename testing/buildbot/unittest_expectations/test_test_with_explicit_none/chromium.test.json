@@ -9,8 +9,8 @@
         },
         "name": "foo_test",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
+            "integrity": null,
             "kvm": "1",
             "os": "Linux"
           },

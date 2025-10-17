@@ -13,7 +13,6 @@
 #include "cc/test/property_tree_test_utils.h"
 #include "cc/trees/layer_tree_impl.h"
 #include "components/viz/test/test_context_provider.h"
-#include "components/viz/test/test_gles2_interface.h"
 #include "components/viz/test/test_raster_interface.h"
 
 namespace cc {
@@ -154,7 +153,7 @@ class LayerTreeHostPictureTestResizeViewportWithGpuRaster
   void SetUpUnboundContextProviders(
       viz::TestContextProvider* context_provider,
       viz::TestContextProvider* worker_provider) override {
-    context_provider->UnboundTestContextGL()->set_gpu_rasterization(true);
+    context_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
     worker_provider->UnboundTestRasterInterface()->set_gpu_rasterization(true);
   }
 
@@ -193,7 +192,7 @@ class LayerTreeHostPictureTestResizeViewportWithGpuRaster
     }
   }
 
-  void DidCommit() override {
+  void DidCommitAndDrawFrame() override {
     switch (layer_tree_host()->SourceFrameNumber()) {
       case 1:
         // Change the picture layer's size along with the viewport, so it will
@@ -570,7 +569,7 @@ class LayerTreeHostPictureTestRSLLMembershipWithScale
 
 // Multi-thread only because in single thread you can't pinch zoom on the
 // compositor thread.
-// TODO(https://crbug.com/997866): Flaky on several platforms.
+// TODO(crbug.com/41478255): Flaky on several platforms.
 // MULTI_THREAD_TEST_F(LayerTreeHostPictureTestRSLLMembershipWithScale);
 
 class LayerTreeHostPictureTestForceRecalculateScales

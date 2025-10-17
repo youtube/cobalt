@@ -9,6 +9,7 @@
 #include "base/memory/ptr_util.h"
 #include "device/base/synchronization/shared_memory_seqlock_buffer.h"
 #include "services/device/public/cpp/generic_sensor/sensor_reading.h"
+#include "services/device/public/cpp/generic_sensor/sensor_reading_shared_buffer.h"
 
 namespace {
 
@@ -43,14 +44,8 @@ SensorReadingSharedBufferReader::Create(base::ReadOnlySharedMemoryRegion region,
 
 bool SensorReadingSharedBufferReader::GetReading(SensorReading* result) {
   DCHECK(mapping_.IsValid());
-
-  // TODO(someone): This *should* use GetMemoryAs, but SensorReadingSharedBuffer
-  // is not considered trivially copyable. Maybe there's a better trait to
-  // use...
-  const auto* buffer =
-      static_cast<const device::SensorReadingSharedBuffer*>(mapping_.memory());
-
-  return GetReading(buffer, result);
+  return GetReading(mapping_.GetMemoryAs<device::SensorReadingSharedBuffer>(),
+                    result);
 }
 
 // static

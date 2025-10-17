@@ -27,8 +27,10 @@ class MockWorkerThreadDelegate : public WorkerThread::Delegate {
   RegisteredTaskSource GetWork(WorkerThread* worker) override {
     return nullptr;
   }
-  void DidProcessTask(RegisteredTaskSource task_source) override {
-    ADD_FAILURE() << "Unexpected call to DidRunTask()";
+  RegisteredTaskSource SwapProcessedTask(RegisteredTaskSource task_source,
+                                         WorkerThread* worker) override {
+    ADD_FAILURE() << "Unexpected call to SwapProcessedTask()";
+    return nullptr;
   }
   TimeDelta GetSleepTimeout() override { return TimeDelta::Max(); }
 };

@@ -65,6 +65,10 @@ std::string Sanitize(const std::u16string& raw_string) {
   std::string sanitized_string = base::UTF16ToUTF8(raw_string);
   base::ReplaceSubstringsAfterOffset(&sanitized_string, 0, "\u00A0" /* NBSP */,
                                      "&nbsp;");
+  // When the strings are passed to the HTML, the symbol "&gt;"
+  // will be automatically replaced with ">". This change must
+  // be mirrored in the string-to-ids map.
+  base::ReplaceSubstringsAfterOffset(&sanitized_string, 0, ">", "&gt;");
   return sanitized_string;
 }
 
@@ -98,28 +102,6 @@ void SyncConsentScreenHandler::DeclareLocalizedValues(
       builder);
   RememberLocalizedValue("syncConsentScreenSubtitle",
                          IDS_LOGIN_SYNC_CONSENT_SCREEN_SUBTITLE_2, builder);
-  RememberLocalizedValue(
-      "syncConsentScreenTitleArcRestrictions",
-      IDS_LOGIN_SYNC_CONSENT_SCREEN_TITLE_WITH_ARC_RESTRICTED, builder);
-
-  RememberLocalizedValue("syncConsentScreenTitleLacros",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_TITLE, builder);
-
-  RememberLocalizedValue("syncConsentScreenSubtitleLacros",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_SUBTITLE, builder);
-
-  RememberLocalizedValue("syncConsentScreenAdditionalSubtitleLacros",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_ADDITIONAL_SUBTITLE,
-                         builder);
-
-  RememberLocalizedValue("syncConsentScreenManageTitleLacros",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_MANAGE_SYNC_TITLE,
-                         builder);
-
-  RememberLocalizedValue("syncConsentScreenManageSubtitleLacros",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_MANAGE_SYNC_SUBTITLE,
-                         builder);
-
   // Content section.
   RememberLocalizedValueWithDeviceName(
       "syncConsentScreenOsSyncTitle",
@@ -130,19 +112,11 @@ void SyncConsentScreenHandler::DeclareLocalizedValues(
   RememberLocalizedValue(
       "syncConsentScreenChromeBrowserSyncDescription",
       IDS_LOGIN_SYNC_CONSENT_SCREEN_CHROME_BROWSER_SYNC_DESCRIPTION, builder);
-  RememberLocalizedValueWithDeviceName(
-      "syncConsentScreenOsSyncDescriptionArcRestrictions",
-      IDS_LOGIN_SYNC_CONSENT_SCREEN_OS_SYNC_DESCRIPTION_WITH_ARC_RESTRICTED,
-      builder);
 
   // Review sync options strings.
   RememberLocalizedValue(
       "syncConsentReviewSyncOptionsText",
       IDS_LOGIN_SYNC_CONSENT_SCREEN_REVIEW_SYNC_OPTIONS_LATER, builder);
-  RememberLocalizedValue(
-      "syncConsentReviewSyncOptionsWithArcRestrictedText",
-      IDS_LOGIN_SYNC_CONSENT_SCREEN_REVIEW_SYNC_OPTIONS_LATER_ARC_RESTRICTED,
-      builder);
 
   // Bottom buttons strings.
   RememberLocalizedValue("syncConsentAcceptAndContinue",
@@ -152,57 +126,14 @@ void SyncConsentScreenHandler::DeclareLocalizedValues(
                          IDS_LOGIN_SYNC_CONSENT_SCREEN_TURN_ON_SYNC, builder);
   RememberLocalizedValue("syncConsentScreenDecline",
                          IDS_LOGIN_SYNC_CONSENT_SCREEN_DECLINE2, builder);
-
-  RememberLocalizedValue("syncConsentScreenManage",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_SYNC_OPTIONS,
-                         builder);
-
-  // Content section Customize Lacros Sync.
-  RememberLocalizedValue("syncConsentScreenOsSyncItemOptionAppsTitle",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_APPS_TITLE,
-                         builder);
-  RememberLocalizedValue("syncConsentScreenOsSyncItemOptionAppsSubtitle",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_APPS_SUBTITLE,
-                         builder);
-
-  RememberLocalizedValue("syncConsentScreenOsSyncItemOptionSettingsTitle",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_SETTINGS_TITLE,
-                         builder);
-  RememberLocalizedValue(
-      "syncConsentScreenOsSyncItemOptionSettingsSubtitle",
-      IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_SETTINGS_SUBTITLE, builder);
-
-  RememberLocalizedValue("syncConsentScreenOsSyncItemOptionWifiTitle",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WIFI_TITLE,
-                         builder);
-  RememberLocalizedValue("syncConsentScreenOsSyncItemOptionWifiSubtitle",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WIFI_SUBTITLE,
-                         builder);
-
-  RememberLocalizedValue(
-      "syncConsentScreenOsSyncItemOptionWallpaperTitle",
-      IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WALLPAPER_TITLE, builder);
-  RememberLocalizedValue(
-      "syncConsentScreenOsSyncItemOptionWallpaperSubtitle",
-      IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_OPTION_WALLPAPER_SUBTITLE, builder);
-
-  // App Tooltip text.
-  RememberLocalizedValue("syncConsentScreenOsSyncAppsTooltipText",
-                         IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_TOOLTIP_TEXT,
-                         builder);
-  RememberLocalizedValue(
-      "syncConsentScreenOsSyncAppsTooltipAdditionalText",
-      IDS_LOGIN_OS_SYNC_CONSENT_SCREEN_TOOLTIP_ADDITIONAL_TEXT, builder);
 }
 
-void SyncConsentScreenHandler::Show(bool is_arc_restricted) {
-  base::Value::Dict data;
-  data.Set("isArcRestricted", is_arc_restricted);
-  ShowInWebUI(std::move(data));
+void SyncConsentScreenHandler::Show() {
+  ShowInWebUI();
 }
 
-void SyncConsentScreenHandler::ShowLoadedStep(bool os_sync_lacros) {
-  CallExternalAPI("showLoadedStep", os_sync_lacros);
+void SyncConsentScreenHandler::ShowLoadedStep() {
+  CallExternalAPI("showLoadedStep");
 }
 
 void SyncConsentScreenHandler::SetIsMinorMode(bool value) {
@@ -216,6 +147,10 @@ void SyncConsentScreenHandler::RetrieveConsentIDs(
     int& consent_confirmation_id) {
   GetConsentIDs(known_strings_, consent_description, consent_confirmation,
                 consent_description_ids, consent_confirmation_id);
+}
+
+base::WeakPtr<SyncConsentScreenView> SyncConsentScreenHandler::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace ash

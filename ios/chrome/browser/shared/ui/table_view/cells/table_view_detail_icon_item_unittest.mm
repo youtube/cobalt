@@ -4,26 +4,22 @@
 
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_icon_item.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "ios/chrome/browser/shared/ui/symbols/chrome_icon.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
-#import "ios/chrome/browser/shared/ui/table_view/chrome_table_view_styler.h"
+#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 using TableViewDetailIconItemTest = PlatformTest;
 
 // Returns the UIImageView containing the icon within the cell.
 UIImageView* GetImageView(TableViewDetailIconCell* cell) {
-  return base::mac::ObjCCastStrict<UIImageView>(
+  return base::apple::ObjCCastStrict<UIImageView>(
       cell.contentView.subviews[0].subviews[0]);
 }
 
@@ -54,7 +50,7 @@ TEST_F(TableViewDetailIconItemTest, ItemProperties) {
   ASSERT_TRUE([cell isMemberOfClass:[TableViewDetailIconCell class]]);
 
   TableViewDetailIconCell* detail_cell =
-      base::mac::ObjCCastStrict<TableViewDetailIconCell>(cell);
+      base::apple::ObjCCastStrict<TableViewDetailIconCell>(cell);
 
   ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
   [item configureCell:cell withStyler:styler];
@@ -88,7 +84,7 @@ TEST_F(TableViewDetailIconItemTest, iconImageUpdate) {
   ASSERT_TRUE([cell isMemberOfClass:[TableViewDetailIconCell class]]);
 
   TableViewDetailIconCell* detail_cell =
-      base::mac::ObjCCastStrict<TableViewDetailIconCell>(cell);
+      base::apple::ObjCCastStrict<TableViewDetailIconCell>(cell);
 
   ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
   [item configureCell:cell withStyler:styler];
@@ -128,7 +124,7 @@ TEST_F(TableViewDetailIconItemTest, iconImageNilUpdate) {
   ASSERT_TRUE([cell isMemberOfClass:[TableViewDetailIconCell class]]);
 
   TableViewDetailIconCell* detail_cell =
-      base::mac::ObjCCastStrict<TableViewDetailIconCell>(cell);
+      base::apple::ObjCCastStrict<TableViewDetailIconCell>(cell);
 
   ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
   [item configureCell:cell withStyler:styler];
@@ -167,7 +163,7 @@ TEST_F(TableViewDetailIconItemTest, ItemUpdateUILayoutConstraintAxisVertical) {
   ASSERT_TRUE([cell isMemberOfClass:[TableViewDetailIconCell class]]);
 
   TableViewDetailIconCell* detail_cell =
-      base::mac::ObjCCastStrict<TableViewDetailIconCell>(cell);
+      base::apple::ObjCCastStrict<TableViewDetailIconCell>(cell);
 
   ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
   [item configureCell:cell withStyler:styler];
@@ -184,4 +180,62 @@ TEST_F(TableViewDetailIconItemTest, ItemUpdateUILayoutConstraintAxisVertical) {
             detail_cell.textLayoutConstraintAxis);
   EXPECT_EQ([UIFont preferredFontForTextStyle:UIFontTextStyleFootnote],
             detail_cell.detailTextLabel.font);
+}
+
+// Tests that `detailTextNumberOfLines` and the detailText's
+// UILabel.numberOfLines are set properly after a call to `configureCell`.
+TEST_F(TableViewDetailIconItemTest, ItemDefaultDetailTextNumberOfLines) {
+  TableViewDetailIconItem* item =
+      [[TableViewDetailIconItem alloc] initWithType:0];
+  item.text = @"Jane Doe";
+  item.detailText = @"janedoe@gmail.com";
+  item.textLayoutConstraintAxis = UILayoutConstraintAxisVertical;
+
+  id cell = [[[item cellClass] alloc] init];
+  ASSERT_TRUE([cell isMemberOfClass:[TableViewDetailIconCell class]]);
+
+  TableViewDetailIconCell* detail_cell =
+      base::apple::ObjCCastStrict<TableViewDetailIconCell>(cell);
+
+  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
+  [item configureCell:cell withStyler:styler];
+
+  // Check that the default detailText's UILabel has one as the default number
+  // of lines.
+  EXPECT_EQ(1, detail_cell.detailTextNumberOfLines);
+  EXPECT_EQ(1, detail_cell.detailTextLabel.numberOfLines);
+}
+
+// Tests that the detailText's UILabel.numberOfLines is set to the value of
+// `detailTextNumberOfLines`. It also tests that `detailTextNumberOfLines` is
+// ignored when the UI Layout is horizontal.
+TEST_F(TableViewDetailIconItemTest, ItemWithDetailTextNumberOfLines) {
+  TableViewDetailIconItem* item =
+      [[TableViewDetailIconItem alloc] initWithType:0];
+  item.text = @"Jane Doe";
+  item.detailText = @"janedoe@gmail.com";
+  item.textLayoutConstraintAxis = UILayoutConstraintAxisVertical;
+  item.detailTextNumberOfLines = 0;
+
+  id cell = [[[item cellClass] alloc] init];
+  ASSERT_TRUE([cell isMemberOfClass:[TableViewDetailIconCell class]]);
+
+  TableViewDetailIconCell* detail_cell =
+      base::apple::ObjCCastStrict<TableViewDetailIconCell>(cell);
+
+  ChromeTableViewStyler* styler = [[ChromeTableViewStyler alloc] init];
+  [item configureCell:cell withStyler:styler];
+
+  // Check that if the layout is set to the vertical axis, and if we set
+  // `detailTextNumberOfLines` to 0, then the detailText's UILabel.numberOfLines
+  // is set to 0 as well.
+  EXPECT_EQ(0, detail_cell.detailTextNumberOfLines);
+  EXPECT_EQ(0, detail_cell.detailTextLabel.numberOfLines);
+
+  [detail_cell setTextLayoutConstraintAxis:UILayoutConstraintAxisHorizontal];
+
+  // Check that the if layout is set to the horizontal axis, then we ignore the
+  // `detailTextNumberOfLines` property.
+  EXPECT_EQ(0, detail_cell.detailTextNumberOfLines);
+  EXPECT_EQ(1, detail_cell.detailTextLabel.numberOfLines);
 }

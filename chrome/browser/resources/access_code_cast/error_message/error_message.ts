@@ -19,7 +19,8 @@ enum ErrorMessage {
   NETWORK,
   PERMISSION,
   TOO_MANY_REQUESTS,
-  PROFILE_SYNC_ERROR
+  PROFILE_SYNC_ERROR,
+  DIFFERENT_NETWORK
 }
 
 export class ErrorMessageElement extends PolymerElement {
@@ -31,7 +32,6 @@ export class ErrorMessageElement extends PolymerElement {
           [
             AddSinkResultCode.UNKNOWN_ERROR,
             AddSinkResultCode.SINK_CREATION_ERROR,
-            AddSinkResultCode.CHANNEL_OPEN_ERROR,
             AddSinkResultCode.INTERNAL_MEDIA_ROUTER_ERROR,
           ],
         ],
@@ -57,6 +57,10 @@ export class ErrorMessageElement extends PolymerElement {
         [
           ErrorMessage.PROFILE_SYNC_ERROR,
           [AddSinkResultCode.PROFILE_SYNC_ERROR],
+        ],
+        [
+          ErrorMessage.DIFFERENT_NETWORK,
+          [AddSinkResultCode.CHANNEL_OPEN_ERROR],
         ],
       ];
 
@@ -92,9 +96,6 @@ export class ErrorMessageElement extends PolymerElement {
   private static readonly CAST_RESULT_MESSAGE_MAP =
       new Map(ErrorMessageElement.CAST_RESULT_MESSAGE_CODES);
 
-  // Needed for Polymer data binding
-  private errorMessageEnum = ErrorMessage;
-
   static get is() {
     return 'c2c-error-message';
   }
@@ -103,7 +104,23 @@ export class ErrorMessageElement extends PolymerElement {
     return getTemplate();
   }
 
-  private messageCode = ErrorMessage.NO_ERROR;
+  static get properties() {
+    return {
+      errorMessageEnum: {
+        type: Object,
+        value: ErrorMessage,
+      },
+
+      messageCode: {
+        type: Number,
+        value: ErrorMessage.NO_ERROR,
+      },
+    };
+  }
+
+  // Needed for Polymer data binding
+  declare private errorMessageEnum;
+  declare private messageCode;
 
   setAddSinkError(resultCode: AddSinkResultCode) {
     this.messageCode = this.findErrorMessage(resultCode,

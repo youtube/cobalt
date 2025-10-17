@@ -99,13 +99,13 @@ int64_t DemuxerStreamAdapter::GetBytesWrittenAndReset() {
   return current_count;
 }
 
-absl::optional<uint32_t> DemuxerStreamAdapter::SignalFlush(bool flushing) {
+std::optional<uint32_t> DemuxerStreamAdapter::SignalFlush(bool flushing) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   DEMUXER_VLOG(2) << "flushing=" << flushing;
 
   // Ignores if |pending_flush_| states is same.
   if (pending_flush_ == flushing)
-    return absl::nullopt;
+    return std::nullopt;
 
   // Invalidates pending Read() tasks.
   request_buffer_weak_factory_.InvalidateWeakPtrs();
@@ -348,9 +348,8 @@ void DemuxerStreamAdapter::WriteFrame() {
 
   if (!pending_frame_->end_of_stream()) {
     data_pipe_writer_.Write(
-        pending_frame_->data(), pending_frame_->data_size(),
-        base::BindOnce(&DemuxerStreamAdapter::OnFrameWritten,
-                       base::Unretained(this)));
+        *pending_frame_, base::BindOnce(&DemuxerStreamAdapter::OnFrameWritten,
+                                        base::Unretained(this)));
   } else {
     DemuxerStreamAdapter::OnFrameWritten(true);
   }
@@ -379,7 +378,7 @@ void DemuxerStreamAdapter::TryCompleteFrameWrite() {
   // Resets frame buffer variables.
   const bool pending_frame_is_eos = pending_frame_->end_of_stream();
   if (!pending_frame_is_eos) {
-    bytes_written_to_pipe_ += pending_frame_->data_size();
+    bytes_written_to_pipe_ += pending_frame_->size();
   }
 
   ++last_count_;

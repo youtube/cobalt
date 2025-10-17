@@ -6,13 +6,15 @@
 #define CHROME_BROWSER_ASH_GUEST_OS_PUBLIC_GUEST_OS_WAYLAND_SERVER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/containers/flat_map.h"
 #include "base/files/scoped_file.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/scoped_observation.h"
+#include "chromeos/ash/components/dbus/concierge/concierge_client.h"
 
 class Profile;
 
@@ -40,7 +42,7 @@ class GuestOsSecurityDelegate;
 // Holds references to the wayland servers created by concierge on the vm_wl
 // protocol (see go/securer-exo-ids for details). Concierge will create one
 // server per-vm-instance.
-class GuestOsWaylandServer {
+class GuestOsWaylandServer : public ash::ConciergeClient::Observer {
  public:
   class ScopedServer {
    public:
@@ -62,8 +64,7 @@ class GuestOsWaylandServer {
     base::WeakPtr<GuestOsSecurityDelegate> security_delegate_;
   };
 
-  using ResponseCallback =
-      base::OnceCallback<void(absl::optional<std::string>)>;
+  using ResponseCallback = base::OnceCallback<void(std::optional<std::string>)>;
 
   using ServersByName =
       base::flat_map<std::string, std::unique_ptr<ScopedServer>>;
@@ -84,7 +85,7 @@ class GuestOsWaylandServer {
 
   explicit GuestOsWaylandServer(Profile* profile);
 
-  ~GuestOsWaylandServer();
+  ~GuestOsWaylandServer() override;
 
   // Returns a weak handle to the security delegate for the VM with the given
   // |name| and |type|, if one exists, and nullptr otherwise.
@@ -115,7 +116,11 @@ class GuestOsWaylandServer {
                        base::WeakPtr<GuestOsSecurityDelegate> delegate,
                        std::unique_ptr<exo::WaylandServerHandle> handle);
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  //  ash::ConciergeClient::Observer::
+  void ConciergeServiceStarted() override;
+  void ConciergeServiceStopped() override;
+
+  raw_ptr<Profile> profile_;
 
   ServersByType servers_;
 

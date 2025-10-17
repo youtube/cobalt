@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "base/time/time.h"
-#include "ui/events/gesture_detection/motion_event_generic.h"
+#include "ui/events/velocity_tracker/motion_event_generic.h"
 #include "ui/gfx/geometry/point_f.h"
 
 namespace ui {
@@ -24,6 +24,10 @@ class MockMotionEvent : public MotionEventGeneric {
   MockMotionEvent();
   explicit MockMotionEvent(Action action);
   MockMotionEvent(Action action, base::TimeTicks time, float x, float y);
+  MockMotionEvent(Action action,
+                  base::TimeTicks time,
+                  const PointerProperties& pointer,
+                  base::TimeTicks down_time);
   MockMotionEvent(Action action,
                   base::TimeTicks time,
                   float x0,
@@ -49,7 +53,16 @@ class MockMotionEvent : public MotionEventGeneric {
     gesture_classification_ = classification;
   }
 
+  bool IsLatestEventTimeResampled() const override;
+
+  void SetIsLatestEventTimeResampled(bool is_latest_event_time_resampled) {
+    is_latest_event_time_resampled_ = is_latest_event_time_resampled;
+  }
+
   ~MockMotionEvent() override;
+
+  // MotionEvent overrides;
+  base::TimeTicks GetDownTime() const override;
 
   // Utility methods.
   MockMotionEvent& PressPoint(float x, float y);
@@ -66,8 +79,11 @@ class MockMotionEvent : public MotionEventGeneric {
   void PushPointer(float x, float y);
   void UpdatePointersAndID();
 
+  // This stores the event time of first down event in a touch sequence.
+  base::TimeTicks cached_down_time_;
   MotionEvent::Classification gesture_classification_ =
       MotionEvent::Classification::NONE;
+  bool is_latest_event_time_resampled_ = false;
 };
 
 std::string ToString(const MotionEvent& event);

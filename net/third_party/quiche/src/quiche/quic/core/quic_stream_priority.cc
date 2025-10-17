@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/quic_stream_priority.h"
 
+#include <optional>
+#include <string>
+#include <vector>
+
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/structured_headers.h"
 
@@ -12,9 +16,7 @@ namespace quic {
 std::string SerializePriorityFieldValue(HttpStreamPriority priority) {
   quiche::structured_headers::Dictionary dictionary;
 
-  // TODO(b/266722347): Never send `urgency` if value equals default value.
-  if ((priority.urgency != HttpStreamPriority::kDefaultUrgency ||
-       priority.incremental != HttpStreamPriority::kDefaultIncremental) &&
+  if (priority.urgency != HttpStreamPriority::kDefaultUrgency &&
       priority.urgency >= HttpStreamPriority::kMinimumUrgency &&
       priority.urgency <= HttpStreamPriority::kMaximumUrgency) {
     dictionary[HttpStreamPriority::kUrgencyKey] =
@@ -30,7 +32,7 @@ std::string SerializePriorityFieldValue(HttpStreamPriority priority) {
             quiche::structured_headers::Item(priority.incremental), {});
   }
 
-  absl::optional<std::string> priority_field_value =
+  std::optional<std::string> priority_field_value =
       quiche::structured_headers::SerializeDictionary(dictionary);
   if (!priority_field_value.has_value()) {
     QUICHE_BUG(priority_field_value_serialization_failed);
@@ -40,12 +42,12 @@ std::string SerializePriorityFieldValue(HttpStreamPriority priority) {
   return *priority_field_value;
 }
 
-absl::optional<HttpStreamPriority> ParsePriorityFieldValue(
+std::optional<HttpStreamPriority> ParsePriorityFieldValue(
     absl::string_view priority_field_value) {
-  absl::optional<quiche::structured_headers::Dictionary> parsed_dictionary =
+  std::optional<quiche::structured_headers::Dictionary> parsed_dictionary =
       quiche::structured_headers::ParseDictionary(priority_field_value);
   if (!parsed_dictionary.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   uint8_t urgency = HttpStreamPriority::kDefaultUrgency;

@@ -7,8 +7,10 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 
 #include "base/check.h"
+#include "base/containers/span.h"
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_restrictions.h"
@@ -16,7 +18,6 @@
 #include "content/browser/notifications/notification_database_data.pb.h"
 #include "content/browser/notifications/notification_database_resources.pb.h"
 #include "content/public/browser/notification_database_data.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/notifications/notification_resources.h"
 #include "third_party/blink/public/mojom/notifications/notification.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -29,19 +30,15 @@ namespace {
 // static
 SkBitmap DeserializeImage(const std::string& image_data) {
   base::AssertLongCPUWorkAllowed();
-  SkBitmap image;
-  gfx::PNGCodec::Decode(
-      reinterpret_cast<const unsigned char*>(image_data.data()),
-      image_data.length(), &image);
-  return image;
+  return gfx::PNGCodec::Decode(base::as_byte_span(image_data));
 }
 
 // static
 std::vector<unsigned char> SerializeImage(const SkBitmap& image) {
   base::AssertLongCPUWorkAllowed();
-  std::vector<unsigned char> image_data;
-  gfx::PNGCodec::EncodeBGRASkBitmap(image, false, &image_data);
-  return image_data;
+  std::optional<std::vector<uint8_t>> image_data =
+      gfx::PNGCodec::EncodeBGRASkBitmap(image, /*discard_transparency=*/false);
+  return image_data.value_or(std::vector<uint8_t>());
 }
 
 }  // namespace
@@ -69,19 +66,19 @@ bool DeserializeNotificationDatabaseData(const std::string& input,
     output->time_until_close_millis =
         base::Milliseconds(message.time_until_close_millis());
   } else {
-    output->time_until_close_millis = absl::nullopt;
+    output->time_until_close_millis = std::nullopt;
   }
   if (message.has_time_until_first_click_millis()) {
     output->time_until_first_click_millis =
         base::Milliseconds(message.time_until_first_click_millis());
   } else {
-    output->time_until_first_click_millis = absl::nullopt;
+    output->time_until_first_click_millis = std::nullopt;
   }
   if (message.has_time_until_last_click_millis()) {
     output->time_until_last_click_millis =
         base::Milliseconds(message.time_until_last_click_millis());
   } else {
-    output->time_until_last_click_millis = absl::nullopt;
+    output->time_until_last_click_millis = std::nullopt;
   }
 
   switch (message.closed_reason()) {
@@ -175,14 +172,18 @@ bool DeserializeNotificationDatabaseData(const std::string& input,
         base::Time::FromDeltaSinceWindowsEpoch(
             base::Microseconds(payload.show_trigger_timestamp()));
   } else {
-    notification_data->show_trigger_timestamp = absl::nullopt;
+    notification_data->show_trigger_timestamp = std::nullopt;
   }
 
   output->has_triggered = message.has_triggered();
 
   output->is_shown_by_browser = message.is_shown_by_browser();
 
-  output->notification_resources = absl::nullopt;
+  output->notification_resources = std::nullopt;
+
+  output->serialized_metadata =
+      std::map<std::string, std::string>(message.serialized_metadata().begin(),
+                                         message.serialized_metadata().end());
 
   return true;
 }
@@ -308,6 +309,9 @@ bool SerializeNotificationDatabaseData(const NotificationDatabaseData& input,
   message.set_has_triggered(input.has_triggered);
 
   message.set_is_shown_by_browser(input.is_shown_by_browser);
+
+  message.mutable_serialized_metadata()->insert(
+      input.serialized_metadata.begin(), input.serialized_metadata.end());
 
   return message.SerializeToString(output);
 }

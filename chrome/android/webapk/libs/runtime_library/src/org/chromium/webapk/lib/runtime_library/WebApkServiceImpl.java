@@ -12,16 +12,17 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.os.Binder;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
 
-/**
- * Implements services offered by the WebAPK to Chrome.
- */
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** Implements services offered by the WebAPK to Chrome. */
+@NullMarked
 public class WebApkServiceImpl extends IWebApkApi.Stub {
 
     public static final String KEY_SMALL_ICON_ID = "small_icon_id";
@@ -31,9 +32,7 @@ public class WebApkServiceImpl extends IWebApkApi.Stub {
 
     private final Context mContext;
 
-    /**
-     * Id of icon to represent WebAPK notifications in status bar.
-     */
+    /** Id of icon to represent WebAPK notifications in status bar. */
     private final int mSmallIconId;
 
     /**
@@ -44,7 +43,7 @@ public class WebApkServiceImpl extends IWebApkApi.Stub {
 
     /**
      * Creates an instance of WebApkServiceImpl.
-     * @param context
+     *
      * @param bundle Bundle with additional constructor parameters.
      */
     public WebApkServiceImpl(Context context, Bundle bundle) {
@@ -59,8 +58,11 @@ public class WebApkServiceImpl extends IWebApkApi.Stub {
             throws RemoteException {
         int callingUid = Binder.getCallingUid();
         if (mHostUid != callingUid) {
-            throw new RemoteException("Unauthorized caller " + callingUid
-                    + " does not match expected host=" + mHostUid);
+            throw new RemoteException(
+                    "Unauthorized caller "
+                            + callingUid
+                            + " does not match expected host="
+                            + mHostUid);
         }
         return super.onTransact(code, data, reply, flags);
     }
@@ -72,7 +74,8 @@ public class WebApkServiceImpl extends IWebApkApi.Stub {
 
     @Override
     public void notifyNotification(String platformTag, int platformID, Notification notification) {
-        Log.w(TAG,
+        Log.w(
+                TAG,
                 "Should NOT reach WebApkServiceImpl#notifyNotification(String, int,"
                         + " Notification).");
     }
@@ -84,7 +87,8 @@ public class WebApkServiceImpl extends IWebApkApi.Stub {
 
     @Override
     public boolean notificationPermissionEnabled() {
-        Log.w(TAG,
+        Log.w(
+                TAG,
                 "Should NOT reach WebApkServiceImpl#notificationPermissionEnabled() because it is"
                         + " deprecated.");
         NotificationManager notificationManager =
@@ -114,15 +118,17 @@ public class WebApkServiceImpl extends IWebApkApi.Stub {
     }
 
     @Override
-    public PendingIntent requestNotificationPermission(String channelName, String channelId) {
-        Log.w(TAG,
+    public @Nullable PendingIntent requestNotificationPermission(
+            String channelName, String channelId) {
+        Log.w(
+                TAG,
                 "Should NOT reach WebApkServiceImpl#requestNotificationPermission(String,"
                         + " String).");
         return null;
     }
 
     /** Returns the package name of the task's base activity. */
-    private static String getTaskBaseActivityPackageName(ActivityManager.AppTask task) {
+    private static @Nullable String getTaskBaseActivityPackageName(ActivityManager.AppTask task) {
         try {
             ActivityManager.RecentTaskInfo info = task.getTaskInfo();
             if (info != null && info.baseActivity != null) {
@@ -138,9 +144,12 @@ public class WebApkServiceImpl extends IWebApkApi.Stub {
     public void notifyNotificationWithChannel(
             String platformTag, int platformID, Notification notification, String channelName) {
         NotificationManager notificationManager = getNotificationManager();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && notification.getChannelId() != null) {
-            NotificationChannel channel = new NotificationChannel(notification.getChannelId(),
-                    channelName, NotificationManager.IMPORTANCE_DEFAULT);
+        if (notification.getChannelId() != null) {
+            NotificationChannel channel =
+                    new NotificationChannel(
+                            notification.getChannelId(),
+                            channelName,
+                            NotificationManager.IMPORTANCE_DEFAULT);
             notificationManager.createNotificationChannel(channel);
         }
 

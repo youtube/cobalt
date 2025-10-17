@@ -30,6 +30,8 @@ using testing::_;
 using testing::DoAll;
 using testing::SaveArg;
 
+using RequestType = PerUserTopicSubscriptionRequest::RequestType;
+
 network::mojom::URLResponseHeadPtr CreateHeadersForTest(int responce_code) {
   auto head = network::mojom::URLResponseHead::New();
   head->headers = new net::HttpResponseHeaders(base::StringPrintf(
@@ -54,19 +56,18 @@ class PerUserTopicSubscriptionRequestTest : public testing::Test {
   }
 
  private:
-  base::test::SingleThreadTaskEnvironment task_environment_;
+  base::test::TaskEnvironment task_environment_;
   data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
   network::TestURLLoaderFactory url_loader_factory_;
 };
 
 TEST_F(PerUserTopicSubscriptionRequestTest,
        ShouldNotInvokeCallbackWhenCancelled) {
-  std::string token = "1234567890";
-  std::string url = "http://valid-url.test";
-  std::string topic = "test";
-  std::string project_id = "smarty-pants-12345";
-  PerUserTopicSubscriptionRequest::RequestType type =
-      PerUserTopicSubscriptionRequest::SUBSCRIBE;
+  const std::string token = "1234567890";
+  const std::string url = "http://valid-url.test";
+  const std::string topic = "test";
+  const std::string project_id = "smarty-pants-12345";
+  const RequestType type = RequestType::kSubscribe;
 
   base::MockCallback<PerUserTopicSubscriptionRequest::CompletedCallback>
       callback;
@@ -88,19 +89,23 @@ TEST_F(PerUserTopicSubscriptionRequestTest,
 }
 
 TEST_F(PerUserTopicSubscriptionRequestTest, ShouldSubscribeWithoutErrors) {
-  std::string token = "1234567890";
-  std::string base_url = "http://valid-url.test";
-  std::string topic = "test";
-  std::string project_id = "smarty-pants-12345";
-  PerUserTopicSubscriptionRequest::RequestType type =
-      PerUserTopicSubscriptionRequest::SUBSCRIBE;
+  const std::string token = "1234567890";
+  const std::string base_url = "http://valid-url.test";
+  const std::string topic = "test";
+  const std::string project_id = "smarty-pants-12345";
+  const RequestType type = RequestType::kSubscribe;
 
   base::MockCallback<PerUserTopicSubscriptionRequest::CompletedCallback>
       callback;
   Status status(StatusCode::FAILED, "initial");
   std::string private_topic;
+  base::RunLoop run_loop;
   EXPECT_CALL(callback, Run(_, _))
-      .WillOnce(DoAll(SaveArg<0>(&status), SaveArg<1>(&private_topic)));
+      .WillOnce([&](Status status_arg, std::string private_topic_arg) {
+        status = status_arg;
+        private_topic = private_topic_arg;
+        run_loop.Quit();
+      });
 
   PerUserTopicSubscriptionRequest::Builder builder;
   std::unique_ptr<PerUserTopicSubscriptionRequest> request =
@@ -123,7 +128,7 @@ TEST_F(PerUserTopicSubscriptionRequestTest, ShouldSubscribeWithoutErrors) {
                                     CreateHeadersForTest(net::HTTP_OK),
                                     response_body, response_status);
   request->Start(callback.Get(), url_loader_factory());
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 
   EXPECT_EQ(status.code, StatusCode::SUCCESS);
   EXPECT_EQ(private_topic, "test-pr");
@@ -131,19 +136,23 @@ TEST_F(PerUserTopicSubscriptionRequestTest, ShouldSubscribeWithoutErrors) {
 
 TEST_F(PerUserTopicSubscriptionRequestTest,
        ShouleNotSubscribeWhenNetworkProblem) {
-  std::string token = "1234567890";
-  std::string base_url = "http://valid-url.test";
-  std::string topic = "test";
-  std::string project_id = "smarty-pants-12345";
-  PerUserTopicSubscriptionRequest::RequestType type =
-      PerUserTopicSubscriptionRequest::SUBSCRIBE;
+  const std::string token = "1234567890";
+  const std::string base_url = "http://valid-url.test";
+  const std::string topic = "test";
+  const std::string project_id = "smarty-pants-12345";
+  const RequestType type = RequestType::kSubscribe;
 
   base::MockCallback<PerUserTopicSubscriptionRequest::CompletedCallback>
       callback;
   Status status(StatusCode::FAILED, "initial");
   std::string private_topic;
+  base::RunLoop run_loop;
   EXPECT_CALL(callback, Run(_, _))
-      .WillOnce(DoAll(SaveArg<0>(&status), SaveArg<1>(&private_topic)));
+      .WillOnce([&](Status status_arg, std::string private_topic_arg) {
+        status = status_arg;
+        private_topic = private_topic_arg;
+        run_loop.Quit();
+      });
 
   PerUserTopicSubscriptionRequest::Builder builder;
   std::unique_ptr<PerUserTopicSubscriptionRequest> request =
@@ -166,27 +175,31 @@ TEST_F(PerUserTopicSubscriptionRequestTest,
                                     CreateHeadersForTest(net::HTTP_OK),
                                     response_body, response_status);
   request->Start(callback.Get(), url_loader_factory());
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 
   EXPECT_EQ(status.code, StatusCode::FAILED);
 }
 
 TEST_F(PerUserTopicSubscriptionRequestTest,
        ShouldNotSubscribeWhenWrongResponse) {
-  std::string token = "1234567890";
-  std::string base_url = "http://valid-url.test";
-  std::string topic = "test";
-  std::string project_id = "smarty-pants-12345";
-  PerUserTopicSubscriptionRequest::RequestType type =
-      PerUserTopicSubscriptionRequest::SUBSCRIBE;
+  const std::string token = "1234567890";
+  const std::string base_url = "http://valid-url.test";
+  const std::string topic = "test";
+  const std::string project_id = "smarty-pants-12345";
+  const RequestType type = RequestType::kSubscribe;
 
   base::MockCallback<PerUserTopicSubscriptionRequest::CompletedCallback>
       callback;
   Status status(StatusCode::SUCCESS, "initial");
   std::string private_topic;
 
+  base::RunLoop run_loop;
   EXPECT_CALL(callback, Run(_, _))
-      .WillOnce(DoAll(SaveArg<0>(&status), SaveArg<1>(&private_topic)));
+      .WillOnce([&](Status status_arg, std::string private_topic_arg) {
+        status = status_arg;
+        private_topic = private_topic_arg;
+        run_loop.Quit();
+      });
 
   PerUserTopicSubscriptionRequest::Builder builder;
   std::unique_ptr<PerUserTopicSubscriptionRequest> request =
@@ -207,27 +220,30 @@ TEST_F(PerUserTopicSubscriptionRequestTest,
                                     CreateHeadersForTest(net::HTTP_OK),
                                     response_body, response_status);
   request->Start(callback.Get(), url_loader_factory());
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 
   EXPECT_EQ(status.code, StatusCode::FAILED);
   EXPECT_EQ(status.message, "Missing topic name");
 }
 
 TEST_F(PerUserTopicSubscriptionRequestTest, ShouldUnsubscribe) {
-  std::string token = "1234567890";
-  std::string base_url = "http://valid-url.test";
-  std::string topic = "test";
-  std::string project_id = "smarty-pants-12345";
-  PerUserTopicSubscriptionRequest::RequestType type =
-      PerUserTopicSubscriptionRequest::UNSUBSCRIBE;
+  const std::string token = "1234567890";
+  const std::string base_url = "http://valid-url.test";
+  const std::string topic = "test";
+  const std::string project_id = "smarty-pants-12345";
+  const RequestType type = RequestType::kUnsubscribe;
 
   base::MockCallback<PerUserTopicSubscriptionRequest::CompletedCallback>
       callback;
   Status status(StatusCode::FAILED, "initial");
   std::string private_topic;
-
+  base::RunLoop run_loop;
   EXPECT_CALL(callback, Run(_, _))
-      .WillOnce(DoAll(SaveArg<0>(&status), SaveArg<1>(&private_topic)));
+      .WillOnce([&](Status status_arg, std::string private_topic_arg) {
+        status = status_arg;
+        private_topic = private_topic_arg;
+        run_loop.Quit();
+      });
 
   PerUserTopicSubscriptionRequest::Builder builder;
   std::unique_ptr<PerUserTopicSubscriptionRequest> request =
@@ -248,7 +264,7 @@ TEST_F(PerUserTopicSubscriptionRequestTest, ShouldUnsubscribe) {
                                     CreateHeadersForTest(net::HTTP_OK),
                                     response_body, response_status);
   request->Start(callback.Get(), url_loader_factory());
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 
   EXPECT_EQ(status.code, StatusCode::SUCCESS);
   EXPECT_EQ(status.message, std::string());
@@ -257,19 +273,20 @@ TEST_F(PerUserTopicSubscriptionRequestTest, ShouldUnsubscribe) {
 // Regression test for crbug.com/1054590, |completed_callback| destroys
 // |request|.
 TEST_F(PerUserTopicSubscriptionRequestTest, ShouldDestroyOnFailure) {
-  std::string token = "1234567890";
-  std::string base_url = "http://valid-url.test";
-  std::string topic = "test";
-  std::string project_id = "smarty-pants-12345";
-  PerUserTopicSubscriptionRequest::RequestType type =
-      PerUserTopicSubscriptionRequest::SUBSCRIBE;
+  const std::string token = "1234567890";
+  const std::string base_url = "http://valid-url.test";
+  const std::string topic = "test";
+  const std::string project_id = "smarty-pants-12345";
+  const RequestType type = RequestType::kSubscribe;
 
   std::unique_ptr<PerUserTopicSubscriptionRequest> request;
+  base::RunLoop run_loop;
   bool callback_called = false;
   auto completed_callback = base::BindLambdaForTesting(
       [&](const Status& status, const std::string& topic_name) {
         request.reset();
         callback_called = true;
+        run_loop.Quit();
       });
 
   PerUserTopicSubscriptionRequest::Builder builder;
@@ -292,7 +309,7 @@ TEST_F(PerUserTopicSubscriptionRequestTest, ShouldDestroyOnFailure) {
                                     CreateHeadersForTest(net::HTTP_OK),
                                     response_body, response_status);
   request->Start(std::move(completed_callback), url_loader_factory());
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 
   EXPECT_TRUE(callback_called);
   // The main expectation is that there is no crash.
@@ -314,19 +331,23 @@ class PerUserTopicSubscriptionRequestParamTest
 
 TEST_P(PerUserTopicSubscriptionRequestParamTest,
        ShouldNotSubscribeWhenNonRepeatableError) {
-  std::string token = "1234567890";
-  std::string base_url = "http://valid-url.test";
-  std::string topic = "test";
-  std::string project_id = "smarty-pants-12345";
-  PerUserTopicSubscriptionRequest::RequestType type =
-      PerUserTopicSubscriptionRequest::SUBSCRIBE;
+  const std::string token = "1234567890";
+  const std::string base_url = "http://valid-url.test";
+  const std::string topic = "test";
+  const std::string project_id = "smarty-pants-12345";
+  const RequestType type = RequestType::kSubscribe;
 
   base::MockCallback<PerUserTopicSubscriptionRequest::CompletedCallback>
       callback;
   Status status(StatusCode::FAILED, "initial");
   std::string private_topic;
+  base::RunLoop run_loop;
   EXPECT_CALL(callback, Run(_, _))
-      .WillOnce(DoAll(SaveArg<0>(&status), SaveArg<1>(&private_topic)));
+      .WillOnce([&](Status status_arg, std::string private_topic_arg) {
+        status = status_arg;
+        private_topic = private_topic_arg;
+        run_loop.Quit();
+      });
 
   PerUserTopicSubscriptionRequest::Builder builder;
   std::unique_ptr<PerUserTopicSubscriptionRequest> request =
@@ -342,7 +363,7 @@ TEST_P(PerUserTopicSubscriptionRequestParamTest,
       url(request.get()), CreateHeadersForTest(GetParam()),
       /* response_body */ std::string(), response_status);
   request->Start(callback.Get(), url_loader_factory());
-  base::RunLoop().RunUntilIdle();
+  run_loop.Run();
 
   EXPECT_EQ(status.code, StatusCode::FAILED_NON_RETRIABLE);
 }

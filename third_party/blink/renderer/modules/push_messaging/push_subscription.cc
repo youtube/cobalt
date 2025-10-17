@@ -7,9 +7,9 @@
 #include <memory>
 
 #include "base/numerics/safe_conversions.h"
-#include "third_party/blink/renderer/bindings/core/v8/callback_promise_adapter.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_push_encryption_key_name.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/modules/push_messaging/push_error.h"
 #include "third_party/blink/renderer/modules/push_messaging/push_provider.h"
@@ -27,11 +27,7 @@ namespace {
 // This method and its dependencies must remain constant time, thus not branch
 // based on the value of |buffer| while encoding, assuming a known length.
 String ToBase64URLWithoutPadding(DOMArrayBuffer* buffer) {
-  String value = WTF::Base64URLEncode(
-      static_cast<const char*>(buffer->Data()),
-      // The size of {buffer} should always fit into into {wtf_size_t}, because
-      // the buffer content itself origins from a WTF::Vector.
-      base::checked_cast<wtf_size_t>(buffer->ByteLength()));
+  String value = WTF::Base64URLEncode(buffer->ByteSpan());
   DCHECK_GT(value.length(), 0u);
 
   unsigned padding_to_remove = 0;
@@ -49,17 +45,17 @@ String ToBase64URLWithoutPadding(DOMArrayBuffer* buffer) {
   return value;
 }
 
-// Converts a {absl::optional<base::Time>} into a
-// {absl::optional<base::DOMTimeStamp>} object.
+// Converts a {std::optional<base::Time>} into a
+// {std::optional<base::DOMTimeStamp>} object.
 // base::Time is in milliseconds from Windows epoch (1601-01-01 00:00:00 UTC)
 // while blink::DOMTimeStamp is in milliseconds from UNIX epoch (1970-01-01
 // 00:00:00 UTC)
-absl::optional<blink::DOMTimeStamp> ToDOMTimeStamp(
-    const absl::optional<base::Time>& time) {
+std::optional<blink::DOMTimeStamp> ToDOMTimeStamp(
+    const std::optional<base::Time>& time) {
   if (time)
-    return ConvertSecondsToDOMTimeStamp(time->ToDoubleT());
+    return ConvertSecondsToDOMTimeStamp(time->InSecondsFSinceUnixEpoch());
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace
@@ -81,55 +77,53 @@ PushSubscription::PushSubscription(
     const WTF::Vector<uint8_t>& application_server_key,
     const WTF::Vector<unsigned char>& p256dh,
     const WTF::Vector<unsigned char>& auth,
-    const absl::optional<DOMTimeStamp>& expiration_time,
+    const std::optional<DOMTimeStamp>& expiration_time,
     ServiceWorkerRegistration* service_worker_registration)
     : endpoint_(endpoint),
       options_(MakeGarbageCollected<PushSubscriptionOptions>(
           user_visible_only,
           application_server_key)),
-      p256dh_(
-          DOMArrayBuffer::Create(p256dh.data(),
-                                 base::checked_cast<unsigned>(p256dh.size()))),
-      auth_(DOMArrayBuffer::Create(auth.data(),
-                                   base::checked_cast<unsigned>(auth.size()))),
+      p256dh_(DOMArrayBuffer::Create(p256dh)),
+      auth_(DOMArrayBuffer::Create(auth)),
       expiration_time_(expiration_time),
       service_worker_registration_(service_worker_registration) {}
 
 PushSubscription::~PushSubscription() = default;
 
-absl::optional<DOMTimeStamp> PushSubscription::expirationTime() const {
+std::optional<DOMTimeStamp> PushSubscription::expirationTime() const {
   // This attribute reflects the time at which the subscription will expire,
   // which is not relevant to this implementation yet as subscription refreshes
   // are not supported.
   return expiration_time_;
 }
 
-DOMArrayBuffer* PushSubscription::getKey(const AtomicString& name) const {
-  if (name == "p256dh")
-    return p256dh_;
-  if (name == "auth")
-    return auth_;
-
-  return nullptr;
+DOMArrayBuffer* PushSubscription::getKey(
+    const V8PushEncryptionKeyName& name) const {
+  switch (name.AsEnum()) {
+    case V8PushEncryptionKeyName::Enum::kP256Dh:
+      return p256dh_.Get();
+    case V8PushEncryptionKeyName::Enum::kAuth:
+      return auth_.Get();
+  }
+  NOTREACHED();
 }
 
-ScriptPromise PushSubscription::unsubscribe(ScriptState* script_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
-  ScriptPromise promise = resolver->Promise();
-
+ScriptPromise<IDLBoolean> PushSubscription::unsubscribe(
+    ScriptState* script_state) {
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(script_state);
   PushProvider* push_provider =
       PushProvider::From(service_worker_registration_);
   DCHECK(push_provider);
-  push_provider->Unsubscribe(
-      std::make_unique<CallbackPromiseAdapter<bool, DOMException*>>(resolver));
-  return promise;
+  push_provider->Unsubscribe(resolver);
+  return resolver->Promise();
 }
 
-ScriptValue PushSubscription::toJSONForBinding(ScriptState* script_state) {
+ScriptObject PushSubscription::toJSONForBinding(ScriptState* script_state) {
   DCHECK(p256dh_);
 
   V8ObjectBuilder result(script_state);
-  result.AddString("endpoint", endpoint());
+  result.AddString("endpoint", endpoint().GetString());
 
   if (expiration_time_) {
     result.AddNumber("expirationTime", *expiration_time_);
@@ -138,12 +132,12 @@ ScriptValue PushSubscription::toJSONForBinding(ScriptState* script_state) {
   }
 
   V8ObjectBuilder keys(script_state);
-  keys.Add("p256dh", ToBase64URLWithoutPadding(p256dh_));
-  keys.Add("auth", ToBase64URLWithoutPadding(auth_));
+  keys.AddString("p256dh", ToBase64URLWithoutPadding(p256dh_));
+  keys.AddString("auth", ToBase64URLWithoutPadding(auth_));
 
   result.Add("keys", keys);
 
-  return result.GetScriptValue();
+  return result.ToScriptObject();
 }
 
 void PushSubscription::Trace(Visitor* visitor) const {

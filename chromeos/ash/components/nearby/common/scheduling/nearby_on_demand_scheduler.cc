@@ -13,19 +13,21 @@ NearbyOnDemandScheduler::NearbyOnDemandScheduler(bool retry_failures,
                                                  const std::string& pref_name,
                                                  PrefService* pref_service,
                                                  OnRequestCallback callback,
+                                                 Feature logging_feature,
                                                  const base::Clock* clock)
     : NearbySchedulerBase(retry_failures,
                           require_connectivity,
                           pref_name,
                           pref_service,
                           std::move(callback),
+                          logging_feature,
                           clock) {}
 
 NearbyOnDemandScheduler::~NearbyOnDemandScheduler() = default;
 
-absl::optional<base::TimeDelta>
+std::optional<base::TimeDelta>
 NearbyOnDemandScheduler::TimeUntilRecurringRequest(base::Time now) const {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace ash::nearby

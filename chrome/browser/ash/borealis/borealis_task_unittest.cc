@@ -9,10 +9,12 @@
 #include "base/test/test_future.h"
 #include "chrome/browser/ash/borealis/borealis_context.h"
 #include "chrome/browser/ash/borealis/borealis_context_manager.h"
-#include "chrome/browser/ash/borealis/borealis_disk_manager.h"
 #include "chrome/browser/ash/borealis/borealis_metrics.h"
 #include "chrome/browser/ash/borealis/testing/callback_factory.h"
 #include "chrome/browser/ash/guest_os/dbus_test_helper.h"
+#include "chrome/browser/ash/guest_os/guest_os_session_tracker.h"
+#include "chrome/browser/ash/guest_os/guest_os_session_tracker_factory.h"
+#include "chrome/browser/ash/guest_os/public/types.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/cicerone/fake_cicerone_client.h"
@@ -30,36 +32,6 @@ using ::testing::StrNe;
 namespace borealis {
 
 namespace {
-
-class DiskManagerMock : public BorealisDiskManager {
- public:
-  DiskManagerMock() = default;
-  ~DiskManagerMock() override = default;
-  MOCK_METHOD(void,
-              GetDiskInfo,
-              (base::OnceCallback<
-                  void(Expected<GetDiskInfoResponse,
-                                Described<BorealisGetDiskInfoResult>>)>),
-              ());
-  MOCK_METHOD(void,
-              RequestSpace,
-              (uint64_t,
-               base::OnceCallback<void(
-                   Expected<uint64_t, Described<BorealisResizeDiskResult>>)>),
-              ());
-  MOCK_METHOD(void,
-              ReleaseSpace,
-              (uint64_t,
-               base::OnceCallback<void(
-                   Expected<uint64_t, Described<BorealisResizeDiskResult>>)>),
-              ());
-  MOCK_METHOD(void,
-              SyncDiskSize,
-              (base::OnceCallback<
-                  void(Expected<BorealisSyncDiskSizeResult,
-                                Described<BorealisSyncDiskSizeResult>>)>),
-              ());
-};
 
 using CallbackFactory =
     NiceCallbackFactory<void(BorealisStartupResult, std::string)>;
@@ -88,7 +60,8 @@ class BorealisTasksTest : public testing::Test,
 
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<BorealisContext> context_;
-  content::BrowserTaskEnvironment task_environment_;
+  content::BrowserTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
  private:
   void CreateProfile() {
@@ -181,6 +154,10 @@ TEST_F(BorealisTasksTest,
 
 TEST_F(BorealisTasksTest,
        AwaitBorealisStartupSucceedsAndCallbackRanWithResults) {
+  vm_tools::concierge::VmStartedSignal vm_signal;
+  vm_signal.set_owner_id(
+      ash::ProfileHelper::GetUserIdHashFromProfile(context_->profile()));
+  vm_signal.set_name(context_->vm_name());
   vm_tools::cicerone::ContainerStartedSignal signal;
   signal.set_owner_id(
       ash::ProfileHelper::GetUserIdHashFromProfile(context_->profile()));
@@ -190,8 +167,9 @@ TEST_F(BorealisTasksTest,
   CallbackFactory callback_factory;
   EXPECT_CALL(callback_factory, Call(BorealisStartupResult::kSuccess, _));
 
-  AwaitBorealisStartup task(context_->profile(), context_->vm_name());
+  AwaitBorealisStartup task;
   task.Run(context_.get(), callback_factory.BindOnce());
+  FakeConciergeClient()->NotifyVmStarted(vm_signal);
   FakeCiceroneClient()->NotifyContainerStarted(std::move(signal));
 
   task_environment_.RunUntilIdle();
@@ -199,17 +177,37 @@ TEST_F(BorealisTasksTest,
 
 TEST_F(BorealisTasksTest,
        AwaitBorealisStartupContainerAlreadyStartedAndCallbackRanWithResults) {
-  vm_tools::cicerone::ContainerStartedSignal signal;
-  signal.set_owner_id(
+  vm_tools::concierge::ListVmsResponse list_vms_response;
+  vm_tools::concierge::ExtendedVmInfo vm_info;
+  vm_info.set_owner_id(
       ash::ProfileHelper::GetUserIdHashFromProfile(context_->profile()));
-  signal.set_vm_name(context_->vm_name());
-  signal.set_container_name("penguin");
+  vm_info.set_name(context_->vm_name());
+  *list_vms_response.add_vms() = vm_info;
+  list_vms_response.set_success(true);
+  FakeConciergeClient()->set_list_vms_response(list_vms_response);
+
+  vm_tools::cicerone::ListRunningContainersResponse list_containers_response;
+  auto* container = list_containers_response.add_containers();
+  container->set_vm_name(context_->vm_name());
+  container->set_container_name("penguin");
+  FakeCiceroneClient()->set_list_containers_response(list_containers_response);
+
+  vm_tools::cicerone::GetGarconSessionInfoResponse garcon_response;
+  garcon_response.set_status(
+      vm_tools::cicerone::GetGarconSessionInfoResponse::SUCCEEDED);
+  FakeCiceroneClient()->set_get_garcon_session_info_response(garcon_response);
+
+  guest_os::GuestOsSessionTracker* t =
+      guest_os::GuestOsSessionTrackerFactory::GetForProfile(profile_.get());
+  // The session tracker gets its list of container on construction, so wait.
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(
+      t->IsRunning({guest_os::VmType::BOREALIS, "borealis", "penguin"}));
 
   CallbackFactory callback_factory;
   EXPECT_CALL(callback_factory, Call(BorealisStartupResult::kSuccess, _));
 
-  AwaitBorealisStartup task(context_->profile(), context_->vm_name());
-  FakeCiceroneClient()->NotifyContainerStarted(std::move(signal));
+  AwaitBorealisStartup task;
   task.Run(context_.get(), callback_factory.BindOnce());
   task_environment_.RunUntilIdle();
 }
@@ -221,58 +219,17 @@ TEST_F(BorealisTasksTest,
       callback_factory,
       Call(BorealisStartupResult::kAwaitBorealisStartupFailed, StrNe("")));
 
-  AwaitBorealisStartup task(context_->profile(), context_->vm_name());
-  task.GetWatcherForTesting().SetTimeoutForTesting(base::Milliseconds(0));
+  AwaitBorealisStartup task;
   task.Run(context_.get(), callback_factory.BindOnce());
-  task_environment_.RunUntilIdle();
+  task_environment_.FastForwardBy(base::Seconds(31));
 }
 
-TEST_F(BorealisTasksTest, SyncBorealisDiskFailureIgnored) {
-  auto disk_mock = std::make_unique<DiskManagerMock>();
-  EXPECT_CALL(*disk_mock, SyncDiskSize(_))
-      .WillOnce(testing::Invoke(
-          [](base::OnceCallback<void(
-                 Expected<BorealisSyncDiskSizeResult,
-                          Described<BorealisSyncDiskSizeResult>>)> callback) {
-            std::move(callback).Run(
-                Expected<BorealisSyncDiskSizeResult,
-                         Described<BorealisSyncDiskSizeResult>>::
-                    Unexpected(Described<BorealisSyncDiskSizeResult>(
-                        BorealisSyncDiskSizeResult::kFailedToGetDiskInfo,
-                        "error message")));
-          }));
+class BorealisTasksTestDlcWithRetry
+    : public BorealisTasksTest,
+      public testing::WithParamInterface<std::string> {};
 
-  CallbackFactory callback_factory;
-  EXPECT_CALL(callback_factory, Call(BorealisStartupResult::kSuccess, ""));
-  context_->SetDiskManagerForTesting(std::move(disk_mock));
-  SyncBorealisDisk task;
-  task.Run(context_.get(), callback_factory.BindOnce());
-  task_environment_.RunUntilIdle();
-}
-
-TEST_F(BorealisTasksTest, SyncBorealisDiskSucceeds) {
-  auto disk_mock = std::make_unique<DiskManagerMock>();
-  EXPECT_CALL(*disk_mock, SyncDiskSize(_))
-      .WillOnce(testing::Invoke(
-          [](base::OnceCallback<void(
-                 Expected<BorealisSyncDiskSizeResult,
-                          Described<BorealisSyncDiskSizeResult>>)> callback) {
-            std::move(callback).Run(
-                Expected<BorealisSyncDiskSizeResult,
-                         Described<BorealisSyncDiskSizeResult>>(
-                    BorealisSyncDiskSizeResult::kNoActionNeeded));
-          }));
-
-  CallbackFactory callback_factory;
-  EXPECT_CALL(callback_factory, Call(BorealisStartupResult::kSuccess, _));
-  context_->SetDiskManagerForTesting(std::move(disk_mock));
-  SyncBorealisDisk task;
-  task.Run(context_.get(), callback_factory.BindOnce());
-  task_environment_.RunUntilIdle();
-}
-
-TEST_F(BorealisTasksTest, DlcRetries) {
-  FakeDlcserviceClient()->set_install_error(dlcservice::kErrorInternal);
+TEST_P(BorealisTasksTestDlcWithRetry, DlcRetries) {
+  FakeDlcserviceClient()->set_install_error(GetParam());
   base::test::TestFuture<BorealisStartupResult, std::string> result;
 
   MountDlc task;
@@ -283,27 +240,39 @@ TEST_F(BorealisTasksTest, DlcRetries) {
   EXPECT_FALSE(result.IsReady());
 }
 
-class BorealisTasksTestDlc : public BorealisTasksTest,
-                             public testing::WithParamInterface<std::string> {};
+INSTANTIATE_TEST_SUITE_P(BorealisTasksTestDlcRetries,
+                         BorealisTasksTestDlcWithRetry,
+                         testing::Values(dlcservice::kErrorInternal,
+                                         dlcservice::kErrorBusy));
 
-TEST_P(BorealisTasksTestDlc, MountDlcFailsAndCallbackRanWithResults) {
-  FakeDlcserviceClient()->set_install_error(GetParam());
+class BorealisTasksTestDlcWithError
+    : public BorealisTasksTest,
+      public testing::WithParamInterface<
+          std::pair<std::string, BorealisStartupResult>> {};
+
+TEST_P(BorealisTasksTestDlcWithError, MountDlcFailsAndCallbackRanWithResults) {
+  FakeDlcserviceClient()->set_install_error(GetParam().first);
   CallbackFactory callback_factory;
-  EXPECT_CALL(callback_factory,
-              Call(BorealisStartupResult::kMountFailed, StrNe("")));
+  EXPECT_CALL(callback_factory, Call(GetParam().second, StrNe("")));
 
   MountDlc task;
   task.Run(context_.get(), callback_factory.BindOnce());
   task_environment_.RunUntilIdle();
 }
 
-INSTANTIATE_TEST_SUITE_P(BorealisTasksTestDlcErrors,
-                         BorealisTasksTestDlc,
-                         testing::Values(dlcservice::kErrorNeedReboot,
-                                         dlcservice::kErrorInvalidDlc,
-                                         dlcservice::kErrorAllocation,
-                                         dlcservice::kErrorNoImageFound,
-                                         "unknown"));
+INSTANTIATE_TEST_SUITE_P(
+    BorealisTasksTestDlcErrors,
+    BorealisTasksTestDlcWithError,
+    testing::Values(std::make_pair(dlcservice::kErrorNeedReboot,
+                                   BorealisStartupResult::kDlcNeedRebootError),
+                    std::make_pair(dlcservice::kErrorInvalidDlc,
+                                   BorealisStartupResult::kDlcUnsupportedError),
+                    std::make_pair(dlcservice::kErrorAllocation,
+                                   BorealisStartupResult::kDlcNeedSpaceError),
+                    std::make_pair(dlcservice::kErrorNoImageFound,
+                                   BorealisStartupResult::kDlcNeedUpdateError),
+                    std::make_pair("unknown",
+                                   BorealisStartupResult::kDlcUnknownError)));
 
 class BorealisTasksTestDiskImage
     : public BorealisTasksTest,

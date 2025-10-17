@@ -31,7 +31,7 @@ class TestPreprocess(unittest.TestCase):
                                                  'really long.')])
     output = GenerateOutput('path/to/file', definition)
     expected = """
-// Copyright %d The Chromium Authors. All rights reserved.
+// Copyright %d The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -44,12 +44,15 @@ package some.package;
 
 import androidx.annotation.IntDef;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 @IntDef({
     ClassName.E1, ClassName.E2
 })
+@Target(ElementType.TYPE_USE)
 @Retention(RetentionPolicy.SOURCE)
 public @interface ClassName {
   /**
@@ -85,6 +88,36 @@ public @interface ClassName {
     self.assertEqual(collections.OrderedDict([('VALUE_ZERO', 0),
                                               ('VALUE_ONE', 1)]),
                      definition.entries)
+
+  def testOutputFlag(self):
+    for [attr, want_flag] in [
+        ['0', False],
+        ['1', True],
+        ['false', False],
+        ['true', True],
+    ]:
+      test_data = ("""
+        // GENERATED_JAVA_ENUM_PACKAGE: test.namespace
+        // GENERATED_JAVA_IS_FLAG: %s
+        enum EnumName {
+          ZERO = 1 << 0,
+          ONE = 1 << 1,
+        };
+      """ % attr).split('\n')
+      definitions = HeaderParser(test_data).ParseDefinitions()
+      output = GenerateOutput('/path/to/file', definitions[0])
+      int_def = output[output.index("@IntDef"):]
+      expected = """@IntDef(%s{
+    EnumName.ZERO, EnumName.ONE
+})
+@Target(ElementType.TYPE_USE)
+@Retention(RetentionPolicy.SOURCE)
+public @interface EnumName {
+  int ZERO = 1 << 0;
+  int ONE = 1 << 1;
+}
+""" % ('flag = true, value = ' if want_flag else '')
+      self.assertEqual(int_def, expected)
 
   def testParseBitShifts(self):
     test_data = """
@@ -520,6 +553,71 @@ public @interface ClassName {
             ('MAX_VALUE', 'New enum values must go above here.')
         ]), definition.comments)
 
+  def testParseEnumWithConditionallyDefinedValues(self):
+    test_data = """
+// GENERATED_JAVA_ENUM_PACKAGE: test.namespace
+// GENERATED_JAVA_PREFIX_TO_STRIP: TERMINATION_STATUS_
+enum TerminationStatus {
+  // Zero exit status.
+  TERMINATION_STATUS_NORMAL_TERMINATION = 0,
+  // Child hasn't exited yet.
+  TERMINATION_STATUS_STILL_RUNNING = 4,
+#if BUILDFLAG(IS_CHROMEOS)
+  // OOM-killer killed the process on ChromeOS.
+  TERMINATION_STATUS_PROCESS_WAS_KILLED_BY_OOM = 5,
+#endif
+#if BUILDFLAG(IS_ANDROID)
+  // On Android processes are spawned from the system Zygote and we do not get
+  // the termination status.
+  TERMINATION_STATUS_OOM_PROTECTED = 6,
+#endif
+  // Out of memory.
+  TERMINATION_STATUS_OOM = 8,
+#if BUILDFLAG(IS_WIN)
+  // On Windows, the OS terminated process due to code integrity failure.
+  TERMINATION_STATUS_INTEGRITY_FAILURE = 9,
+#endif
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  TERMINATION_STATUS_TEN = 10,
+#if BUILDFLAG(IS_POSIX)
+  TERMINATION_STATUS_ELEVEN = 11,
+#endif
+#endif
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+  TERMINATION_STATUS_TWELVE = 12,
+#endif
+};
+    """.split('\n')
+    definitions = HeaderParser(test_data).ParseDefinitions()
+    self.assertEqual(1, len(definitions))
+    definition = definitions[0]
+    self.assertEqual('TerminationStatus', definition.class_name)
+    self.assertEqual('test.namespace', definition.enum_package)
+    self.assertEqual(
+        collections.OrderedDict([
+            ('NORMAL_TERMINATION', '0'),
+            ('STILL_RUNNING', '4'),
+            # PROCESS_WAS_KILLED_BY_OOM value should not appear here.
+            #
+            # OOM_PROTECTED should appear because the script supports the case
+            # where '#if BUILDFLAG(IS_ANDROID)' is used.
+            ('OOM_PROTECTED', '6'),
+            ('OOM', '8'),
+            # INTEGRITY_FAILURE value should not appear here.
+            # TEN and ELEVEN should not appear here.
+            ('TWELVE', '12'),
+        ]),
+        definition.entries)
+    self.assertEqual(
+        collections.OrderedDict([
+            ('NORMAL_TERMINATION', 'Zero exit status.'),
+            ('STILL_RUNNING', 'Child hasn\'t exited yet.'),
+            ('OOM_PROTECTED',
+             'On Android processes are spawned from the system Zygote and we ' +
+             'do not get the termination status.'),
+            ('OOM', 'Out of memory.'),
+        ]), definition.comments)
+
   def testParseEnumStruct(self):
     test_data = """
       // GENERATED_JAVA_ENUM_PACKAGE: test.namespace
@@ -550,6 +648,51 @@ public @interface ClassName {
     self.assertEqual('int', definition.fixed_type)
     self.assertEqual(collections.OrderedDict([('A', 0)]),
                      definition.entries)
+
+  def testParseFixedTypeEnum(self):
+    test_data = """
+      // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.signin.metrics
+      // GENERATED_JAVA_CLASS_NAME_OVERRIDE: SigninAccessPoint
+      enum class AccessPoint : int {
+        ACCESS_POINT_DRIVE_FILE_PICKER_IOS = 0,
+        ACCESS_POINT_COLLABORATION_SHARE_TAB_GROUP = 1,
+        ACCESS_POINT_MAX,
+      };
+    """.split('\n')
+    definitions = HeaderParser(test_data).ParseDefinitions()
+    self.assertEqual(1, len(definitions))
+    definition = definitions[0]
+    self.assertEqual('SigninAccessPoint', definition.class_name)
+    self.assertEqual('org.chromium.components.signin.metrics',
+                     definition.enum_package)
+    self.assertEqual('int', definition.fixed_type)
+    self.assertEqual(
+        collections.OrderedDict([('DRIVE_FILE_PICKER_IOS', 0),
+                                 ('COLLABORATION_SHARE_TAB_GROUP', 1),
+                                 ('MAX', 2)]), definition.entries)
+
+  def testParseFixedTypeEnumWithMaxValue(self):
+    test_data = """
+      // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.signin.metrics
+      // GENERATED_JAVA_CLASS_NAME_OVERRIDE: SigninAccessPoint
+      enum class AccessPoint : int {
+        ACCESS_POINT_DRIVE_FILE_PICKER_IOS = 0,
+        ACCESS_POINT_COLLABORATION_SHARE_TAB_GROUP = 1,
+        kMaxValue = ACCESS_POINT_COLLABORATION_SHARE_TAB_GROUP,
+      };
+    """.split('\n')
+    definitions = HeaderParser(test_data).ParseDefinitions()
+    self.assertEqual(1, len(definitions))
+    definition = definitions[0]
+    self.assertEqual('SigninAccessPoint', definition.class_name)
+    self.assertEqual('org.chromium.components.signin.metrics',
+                     definition.enum_package)
+    self.assertEqual('int', definition.fixed_type)
+    self.assertEqual(
+        collections.OrderedDict([('DRIVE_FILE_PICKER_IOS', '0'),
+                                 ('COLLABORATION_SHARE_TAB_GROUP', '1'),
+                                 ('MAX_VALUE', 'COLLABORATION_SHARE_TAB_GROUP')
+                                 ]), definition.entries)
 
   def testParseFixedTypeEnumClass(self):
     test_data = """

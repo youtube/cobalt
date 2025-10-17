@@ -11,15 +11,9 @@
 # https://docs.google.com/document/d/1chTvr3fSofQNV_PDPEHRyUgcJCQBgTDOOBriW9gIm9M/edit?ts=5e9549a2#heading=h.fjdnrdg1gcty
 
 set -e  # makes the script quit on any command failure
+set -u  # unset variables are quit-worthy errors
 
-PLATFORMS="linux,win,android"
-if [ "$1" != "" ]
-then
-  PLATFORMS="$1"
-fi
-
-SCRIPT_PATH=$(realpath $0)
-REWRITER_SRC_DIR=$(dirname $SCRIPT_PATH)
+PLATFORMS="${1:-linux,android,chromeos,win,mac}"
 
 COMPILE_DIRS=.
 EDIT_DIRS=.
@@ -30,7 +24,7 @@ mv third_party/llvm-build third_party/llvm-build-upstream
 # Build and test the rewriter.
 echo "*** Building the rewriter ***"
 time tools/clang/scripts/build.py \
-    --without-android \
+    --with-android \
     --without-fuchsia \
     --extra-tools rewrite_templated_container_fields
 tools/clang/rewrite_templated_container_fields/tests/run_all_tests.py
@@ -47,7 +41,7 @@ is_debug = false
 dcheck_always_on = true
 is_official_build = true
 symbol_level = 1
-use_goma = false
+use_remoteexec = false
 enable_remoting = true
 enable_webview_bundles = true
 ffmpeg_branding = "Chrome"
@@ -66,7 +60,7 @@ is_debug = false
 dcheck_always_on = true
 is_official_build = true
 symbol_level = 1
-use_goma = false
+use_remoteexec = false
 chrome_pgo_phase = 0
 force_enable_raw_ptr_exclusion = true
 EOF
@@ -75,25 +69,27 @@ EOF
     linux)
         cat <<EOF
 target_os = "linux"
+clang_use_chrome_plugins = false
 dcheck_always_on = true
 is_chrome_branded = true
 is_debug = false
 is_official_build = true
-use_goma = false
+use_remoteexec = false
 chrome_pgo_phase = 0
 force_enable_raw_ptr_exclusion = true
 EOF
         ;;
 
-    cros)
+    chromeos)
         cat <<EOF
 target_os = "chromeos"
-chromeos_is_browser_only = true
+clang_use_chrome_plugins = false
+chromeos_is_browser_only = false
 dcheck_always_on = true
 is_chrome_branded = true
 is_debug = false
 is_official_build = true
-use_goma = false
+use_remoteexec = false
 chrome_pgo_phase = 0
 force_enable_raw_ptr_exclusion = true
 EOF
@@ -102,14 +98,19 @@ EOF
     mac)
         cat <<EOF
 target_os = "mac"
+clang_use_chrome_plugins = false
 dcheck_always_on = true
 is_chrome_branded = true
 is_debug = false
 is_official_build = true
-use_goma = false
+use_remoteexec = false
 chrome_pgo_phase = 0
 symbol_level = 1
 force_enable_raw_ptr_exclusion = true
+# crbug/1396061
+enable_dsyms = false
+# Can't exec Xcode `strip` binary
+enable_stripping = false
 EOF
         ;;
 
@@ -155,6 +156,7 @@ main_rewrite() {
     time tools/clang/scripts/run_tool.py \
         $TARGET_OS_OPTION \
         --tool rewrite_templated_container_fields \
+        --generate-compdb \
         -p $OUT_DIR \
         $COMPILE_DIRS > ~/scratch/rewriter-$PLATFORM.main.out
     cat ~/scratch/rewriter-$PLATFORM.main.out >> ~/scratch/rewriter.main.out

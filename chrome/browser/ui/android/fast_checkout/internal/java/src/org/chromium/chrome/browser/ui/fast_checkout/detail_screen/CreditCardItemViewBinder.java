@@ -17,12 +17,14 @@ import android.widget.TextView;
 
 import androidx.appcompat.content.res.AppCompatResources;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.fast_checkout.R;
 import org.chromium.chrome.browser.ui.fast_checkout.data.FastCheckoutCreditCard;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** A binder class for credit card items on the detail sheet. */
+@NullMarked
 class CreditCardItemViewBinder {
     /** Creates a view for credit card items on the detail sheet. */
     static View create(ViewGroup parent) {
@@ -52,8 +54,9 @@ class CreditCardItemViewBinder {
             hideIfEmpty(expirationDateViewView);
 
             try {
-                icon.setImageDrawable(AppCompatResources.getDrawable(
-                        icon.getContext(), card.getIssuerIconDrawableId()));
+                icon.setImageDrawable(
+                        AppCompatResources.getDrawable(
+                                icon.getContext(), card.getIssuerIconDrawableId()));
             } catch (Resources.NotFoundException e) {
                 icon.setImageDrawable(null);
             }
@@ -73,13 +76,18 @@ class CreditCardItemViewBinder {
         builder.append(getIfNotEmpty(card.getName()));
         String expiryDateString = card.getFormattedExpirationDate(view.getContext());
         if (!expiryDateString.isEmpty()) {
-            builder.append(view.getContext().getResources().getString(
-                    R.string.fast_checkout_credit_card_item_expire_description));
+            builder.append(
+                    view.getContext()
+                            .getString(R.string.fast_checkout_credit_card_item_expire_description));
             builder.append(getIfNotEmpty(" " + expiryDateString));
         }
-        builder.append(view.getContext().getResources().getString(isSelected
-                        ? R.string.fast_checkout_detail_screen_selected_description
-                        : R.string.fast_checkout_detail_screen_non_selected_description));
+        builder.append(
+                view.getContext()
+                        .getString(
+                                isSelected
+                                        ? R.string.fast_checkout_detail_screen_selected_description
+                                        : R.string
+                                                .fast_checkout_detail_screen_non_selected_description));
         view.setContentDescription(builder.toString());
     }
 

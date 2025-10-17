@@ -16,7 +16,7 @@ var allTests = [
     assertFalse(position.isLeafTextPosition());
 
     assertEq(0, position.childIndex);
-    assertEq(-1, position.textOffset);
+    assertEq(-99, position.textOffset);
     assertEq('downstream', position.affinity);
     chrome.test.succeed();
   },
@@ -145,4 +145,4 @@ var allTests = [
   }
 ];
 
-setUpAndRunTestsInPage(allTests, 'position.html');
+setUpAndRunTabsTests(allTests, 'position.html');

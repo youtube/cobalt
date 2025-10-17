@@ -5,18 +5,28 @@
 #ifndef CHROME_BROWSER_ASH_LOGIN_APP_MODE_TEST_WEB_KIOSK_BASE_TEST_H_
 #define CHROME_BROWSER_ASH_LOGIN_APP_MODE_TEST_WEB_KIOSK_BASE_TEST_H_
 
-#include "base/time/time.h"
-#include "chrome/browser/ash/login/app_mode/test/kiosk_test_helpers.h"
+#include <memory>
+#include <optional>
+
+#include "base/auto_reset.h"
+#include "chrome/browser/ash/app_mode/kiosk_system_session.h"
+#include "chrome/browser/ash/app_mode/kiosk_test_helper.h"
+#include "chrome/browser/ash/app_mode/test/network_state_mixin.h"
+#include "chrome/browser/ash/login/app_mode/network_ui_controller.h"
 #include "chrome/browser/ash/login/test/device_state_mixin.h"
-#include "chrome/browser/ash/login/test/network_portal_detector_mixin.h"
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
+#include "chromeos/ash/components/network/network_state_test_helper.h"
 #include "components/account_id/account_id.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace ash {
 
-extern const char kAppInstallUrl[];
+class ScopedDeviceSettings;
 
+// DEPRECATED: New tests should use `KioskMixin` instead.
+//
 // Base class for web kiosk browser tests.
 class WebKioskBaseTest : public OobeBaseTest {
  public:
@@ -26,6 +36,12 @@ class WebKioskBaseTest : public OobeBaseTest {
   WebKioskBaseTest& operator=(const WebKioskBaseTest&) = delete;
   ~WebKioskBaseTest() override;
 
+  Profile* profile() const;
+
+  Browser* kiosk_app_browser() const;
+
+  KioskSystemSession* kiosk_system_session() const;
+
  protected:
   // OobeBaseTest overrides:
   void TearDownOnMainThread() override;
@@ -34,28 +50,43 @@ class WebKioskBaseTest : public OobeBaseTest {
   // If not called, there is no configured network.
   void SetOnline(bool online);
 
-  const AccountId& account_id() { return account_id_; }
-
   void PrepareAppLaunch();
 
   bool LaunchApp();
 
   // Initializes a regular online web kiosk.
+  // If `simulate_online` is false, the caller should set up the network by
+  // itself before calling this function.
   // This function should be sufficient for testing non-kiosk specific features
   // in web kiosk.
-  void InitializeRegularOnlineKiosk();
+  void InitializeRegularOnlineKiosk(bool simulate_online = true);
+
+  void SetAppInstallUrl(const GURL& app_install_url);
+
+  const GURL& app_install_url() const { return app_install_url_; }
+
+  const AccountId& account_id() const { return account_id_; }
+
+  NetworkStateTestHelper& network_state_test_helper() {
+    return network_mixin_.network_state_test_helper();
+  }
 
  private:
-  NetworkPortalDetectorMixin network_portal_detector_{&mixin_host_};
+  NetworkStateMixin network_mixin_{&mixin_host_};
+
   DeviceStateMixin device_state_mixin_{
       &mixin_host_, DeviceStateMixin::State::OOBE_COMPLETED_CLOUD_ENROLLED};
-  const AccountId account_id_;
+
+  GURL app_install_url_;
+  AccountId account_id_;
+
   std::unique_ptr<ScopedDeviceSettings> settings_;
 
-  std::unique_ptr<base::AutoReset<bool>> skip_splash_wait_override_;
-  std::unique_ptr<base::AutoReset<base::TimeDelta>> network_wait_override_;
-  // Network can always be configured.
-  ScopedCanConfigureNetwork can_configure_network_override_{true};
+  base::AutoReset<bool> skip_splash_wait_override_ =
+      KioskTestHelper::SkipSplashScreenWait();
+
+  base::AutoReset<std::optional<bool>> can_configure_network_override_ =
+      NetworkUiController::SetCanConfigureNetworkForTesting(true);
 };
 
 }  // namespace ash

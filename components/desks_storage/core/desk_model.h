@@ -7,10 +7,12 @@
 
 #include <stddef.h>
 
+#include <set>
 #include <string>
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
@@ -79,13 +81,15 @@ class DeskModel {
 
   // Stores GetAllEntries result.
   struct GetAllEntriesResult {
-    GetAllEntriesResult(GetAllEntriesStatus status,
-                        std::vector<const ash::DeskTemplate*> entries);
+    GetAllEntriesResult(
+        GetAllEntriesStatus status,
+        std::vector<raw_ptr<const ash::DeskTemplate, VectorExperimental>>
+            entries);
     GetAllEntriesResult(GetAllEntriesResult& other);
     ~GetAllEntriesResult();
 
     GetAllEntriesStatus status;
-    std::vector<const ash::DeskTemplate*> entries;
+    std::vector<raw_ptr<const ash::DeskTemplate, VectorExperimental>> entries;
   };
 
   // Stores GetEntryByUuid result.
@@ -162,6 +166,9 @@ class DeskModel {
   // Gets the number of desk templates currently saved.
   virtual size_t GetDeskTemplateEntryCount() const = 0;
 
+  // Gets the number of coral saved groups currently saved.
+  virtual size_t GetCoralEntryCount() const = 0;
+
   // Gets the maximum number of save and recall desks entry this storage backend
   // could hold.
   virtual size_t GetMaxSaveAndRecallDeskEntryCount() const = 0;
@@ -170,10 +177,14 @@ class DeskModel {
   // could hold.
   virtual size_t GetMaxDeskTemplateEntryCount() const = 0;
 
+  // Gets the maximum number of coral saved groups this storage backend could
+  // hold.
+  virtual size_t GetMaxCoralEntryCount() const = 0;
+
   // Returns a vector of desk template UUIDs.
   // This method assumes each implementation has a cache and can return the
   // UUIDs synchronously.
-  virtual std::vector<base::Uuid> GetAllEntryUuids() const = 0;
+  virtual std::set<base::Uuid> GetAllEntryUuids() const = 0;
 
   // Whether this model is ready for saving and reading desk templates.
   virtual bool IsReady() const = 0;
@@ -188,6 +199,8 @@ class DeskModel {
       const std::u16string& name,
       ash::DeskTemplateType type,
       const base::Uuid& uuid) const = 0;
+
+  virtual std::string GetCacheGuid() = 0;
 
   // Observer registration methods. The model will remove all observers upon
   // destruction automatically.

@@ -10,6 +10,7 @@
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/not_fatal_until.h"
 #include "base/task/bind_post_task.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
@@ -27,7 +28,6 @@ std::string GetEncryptionScheme(EncryptionScheme mode) {
       return fuchsia::media::ENCRYPTION_SCHEME_CBCS;
     default:
       NOTREACHED() << "unknown encryption mode " << static_cast<int>(mode);
-      return "";
   }
 }
 
@@ -66,7 +66,7 @@ fuchsia::media::FormatDetails GetClearFormatDetails() {
 
 fuchsia::media::FormatDetails GetEncryptedFormatDetails(
     const DecryptConfig* config) {
-  DCHECK(config);
+  CHECK(config, base::NotFatalUntil::M140);
 
   fuchsia::media::EncryptedFormat encrypted_format;
   encrypted_format.set_scheme(GetEncryptionScheme(config->encryption_scheme()))
@@ -76,7 +76,7 @@ fuchsia::media::FormatDetails GetEncryptedFormatDetails(
           std::vector<uint8_t>(config->iv().begin(), config->iv().end()))
       .set_subsamples(GetSubsamples(config->subsamples()));
   if (config->encryption_scheme() == EncryptionScheme::kCbcs) {
-    DCHECK(config->encryption_pattern().has_value());
+    CHECK(config->encryption_pattern().has_value(), base::NotFatalUntil::M140);
     encrypted_format.set_pattern(
         GetEncryptionPattern(config->encryption_pattern().value()));
   }
@@ -156,18 +156,16 @@ void FuchsiaStreamDecryptor::OnStreamProcessorAllocateOutputBuffers(
       base::BindOnce(&Sink::OnSysmemBufferStreamBufferCollectionToken,
                      base::Unretained(sink_)));
 
-  fuchsia::sysmem::BufferCollectionConstraints buffer_constraints;
-  buffer_constraints.usage.none = fuchsia::sysmem::noneUsage;
-  buffer_constraints.min_buffer_count = min_buffer_count_;
-  buffer_constraints.has_buffer_memory_constraints = true;
-  buffer_constraints.buffer_memory_constraints.min_size_bytes =
-      min_buffer_size_;
-  buffer_constraints.buffer_memory_constraints.ram_domain_supported = true;
-  buffer_constraints.buffer_memory_constraints.cpu_domain_supported = true;
-  buffer_constraints.buffer_memory_constraints.inaccessible_domain_supported =
-      true;
+  fuchsia::sysmem2::BufferCollectionConstraints constraints;
+  constraints.mutable_usage()->set_none(fuchsia::sysmem2::NONE_USAGE);
+  constraints.set_min_buffer_count(min_buffer_count_);
+  auto& memory_constraints = *constraints.mutable_buffer_memory_constraints();
+  memory_constraints.set_min_size_bytes(min_buffer_size_);
+  memory_constraints.set_ram_domain_supported(true);
+  memory_constraints.set_cpu_domain_supported(true);
+  memory_constraints.set_inaccessible_domain_supported(true);
 
-  output_buffer_collection_->Initialize(std::move(buffer_constraints),
+  output_buffer_collection_->Initialize(std::move(constraints),
                                         "CrFuchsiaStreamDecryptorOutput");
 }
 
@@ -191,7 +189,7 @@ void FuchsiaStreamDecryptor::OnStreamProcessorOutputPacket(
 
 void FuchsiaStreamDecryptor::OnStreamProcessorNoKey() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!waiting_for_key_);
+  CHECK(!waiting_for_key_, base::NotFatalUntil::M140);
 
   // Reset stream position, but keep all pending buffers. They will be
   // resubmitted later, when we have a new key.
@@ -225,7 +223,7 @@ void FuchsiaStreamDecryptor::OnError() {
 
 void FuchsiaStreamDecryptor::OnInputBuffersAcquired(
     std::vector<VmoBuffer> buffers,
-    const fuchsia::sysmem::SingleBufferSettings&) {
+    const fuchsia::sysmem2::SingleBufferSettings&) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (buffers.empty()) {
@@ -249,7 +247,7 @@ void FuchsiaStreamDecryptor::SendInputPacket(
   if (!packet.unit_end()) {
     // The encrypted data size is too big. Decryptor should consider
     // splitting the buffer and update the IV and subsample entries.
-    // TODO(crbug.com/1003651): Handle large encrypted buffer correctly. For
+    // TODO(crbug.com/42050011): Handle large encrypted buffer correctly. For
     // now, just reject the decryption.
     LOG(ERROR) << "DecoderBuffer doesn't fit in one packet.";
     OnError();
@@ -279,7 +277,7 @@ void FuchsiaStreamDecryptor::OnNewKey() {
     return;
   }
 
-  DCHECK(!retry_on_no_key_event_);
+  CHECK(!retry_on_no_key_event_, base::NotFatalUntil::M140);
   waiting_for_key_ = false;
   input_writer_queue_.Unpause();
 }

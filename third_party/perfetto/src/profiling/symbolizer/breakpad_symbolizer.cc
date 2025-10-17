@@ -64,11 +64,12 @@ std::vector<std::vector<SymbolizedFrame>> BreakpadSymbolizer::Symbolize(
   size_t num_symbolized_frames = 0;
   result.reserve(address.size());
   std::string file_path;
+  std::string raw_build_id = base::ToHex(build_id.c_str(), build_id.length());
 
   // Check to see if the |file_path_for_testing_| member is populated. If it is,
   // this file must be used.
   if (file_path_for_testing_.empty()) {
-    file_path = MakeFilePath(build_id, symbol_dir_path_).c_str();
+    file_path = MakeFilePath(raw_build_id, symbol_dir_path_).c_str();
   } else {
     file_path = file_path_for_testing_;
   }
@@ -85,14 +86,18 @@ std::vector<std::vector<SymbolizedFrame>> BreakpadSymbolizer::Symbolize(
   for (uint64_t addr : address) {
     SymbolizedFrame frame;
     std::optional<std::string> opt_func_name = parser.GetSymbol(addr);
+    if (opt_func_name == std::nullopt) {
+      opt_func_name = parser.GetPublicSymbol(addr);
+    }
+
     if (opt_func_name) {
       frame.function_name = *opt_func_name;
       num_symbolized_frames++;
     }
     result.push_back({std::move(frame)});
   }
-  PERFETTO_PLOG("Symbolized %zu of %zu frames.", num_symbolized_frames,
-                address.size());
+  PERFETTO_PLOG("Symbolized %zu of %zu frames on symbol file %s.",
+                num_symbolized_frames, address.size(), file_path.c_str());
   return result;
 }
 

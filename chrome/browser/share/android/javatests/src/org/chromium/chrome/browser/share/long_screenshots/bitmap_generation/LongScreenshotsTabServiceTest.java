@@ -15,6 +15,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
@@ -23,27 +24,27 @@ import org.chromium.base.test.util.Matchers;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 
 /** Tests for the Paint Preview Tab Manager. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class LongScreenshotsTabServiceTest {
     @Rule
-    public final ChromeTabbedActivityTestRule mActivityTestRule =
-            new ChromeTabbedActivityTestRule();
+    public final FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
-    @Rule
-    public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
+    private WebPageStation mInitialPage;
     private Tab mTab;
     private LongScreenshotsTabService mLongScreenshotsTabService;
     private TestCaptureProcessor mProcessor;
 
-    class TestCaptureProcessor implements LongScreenshotsTabService.CaptureProcessor {
-        @Status
-        private int mActualStatus;
+    static class TestCaptureProcessor implements LongScreenshotsTabService.CaptureProcessor {
+        @Status private int mActualStatus;
         private boolean mProcessCapturedTabCalled;
         private long mNativeCaptureResultPtr;
 
@@ -69,33 +70,40 @@ public class LongScreenshotsTabServiceTest {
 
     @Before
     public void setUp() throws Exception {
-        mActivityTestRule.startMainActivityWithURL(
-                mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/about.html"));
-        mTab = mActivityTestRule.getActivity().getActivityTab();
+        mInitialPage =
+                mActivityTestRule.startOnUrl(
+                        mActivityTestRule
+                                .getTestServer()
+                                .getURL("/chrome/test/data/android/about.html"));
+        mTab = mInitialPage.loadedTabElement.get();
         mProcessor = new TestCaptureProcessor();
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mLongScreenshotsTabService = LongScreenshotsTabServiceFactory.getServiceInstance();
-            mLongScreenshotsTabService.setCaptureProcessor(mProcessor);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mLongScreenshotsTabService =
+                            LongScreenshotsTabServiceFactory.getServiceInstance();
+                    mLongScreenshotsTabService.setCaptureProcessor(mProcessor);
+                });
     }
 
-    /**
-     * Verifies that a Tab's contents are captured.
-     */
+    /** Verifies that a Tab's contents are captured. */
     @Test
     @MediumTest
     @Feature({"LongScreenshots"})
     public void testCapturedFilesystem() throws Exception {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mLongScreenshotsTabService.captureTab(
-                    mTab, new Rect(0, 0, 100, 100), /*inMemory=*/false);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mLongScreenshotsTabService.captureTab(
+                            mTab, new Rect(0, 0, 100, 100), /* inMemory= */ false);
+                });
 
-        CriteriaHelper.pollUiThread(() -> {
-            Criteria.checkThat("Callback was not called", mProcessor.getProcessCapturedTabCalled(),
-                    Matchers.is(true));
-        });
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(
+                            "Callback was not called",
+                            mProcessor.getProcessCapturedTabCalled(),
+                            Matchers.is(true));
+                });
 
         Assert.assertEquals(Status.OK, mProcessor.getStatus());
         Assert.assertNotEquals(0, mProcessor.getNativeCaptureResultPtr());
@@ -104,22 +112,24 @@ public class LongScreenshotsTabServiceTest {
         mLongScreenshotsTabService.longScreenshotsClosed();
     }
 
-    /**
-     * Verifies that a Tab's contents are captured in-memory.
-     */
+    /** Verifies that a Tab's contents are captured in-memory. */
     @Test
     @MediumTest
     @Feature({"LongScreenshots"})
     public void testCapturedMemory() throws Exception {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mLongScreenshotsTabService.captureTab(
-                    mTab, new Rect(0, 0, 100, 100), /*inMemory=*/true);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mLongScreenshotsTabService.captureTab(
+                            mTab, new Rect(0, 0, 100, 100), /* inMemory= */ true);
+                });
 
-        CriteriaHelper.pollUiThread(() -> {
-            Criteria.checkThat("Callback was not called", mProcessor.getProcessCapturedTabCalled(),
-                    Matchers.is(true));
-        });
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(
+                            "Callback was not called",
+                            mProcessor.getProcessCapturedTabCalled(),
+                            Matchers.is(true));
+                });
 
         Assert.assertEquals(Status.OK, mProcessor.getStatus());
         Assert.assertNotEquals(0, mProcessor.getNativeCaptureResultPtr());

@@ -1,10 +1,10 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
     let {page, session, dp} = await testRunner.startHTML(`
   <script type="module">
     const styleSheetFromConstructor = new CSSStyleSheet();
     styleSheetFromConstructor.replaceSync("div { background-color: 'blue' }");
 
-    import styleSheetFromModule from '../resources/css-module.php?url=css-module.css' assert { type: 'css' };
+    import styleSheetFromModule from '../resources/css-module.php?url=css-module.css' with { type: 'css' };
 
     document.adoptedStyleSheets = [styleSheetFromConstructor, styleSheetFromModule];
   </script>`, 'Check sourceURL of constructed stylesheets, from `new` and from CSS module import');

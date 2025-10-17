@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -17,12 +18,13 @@
 #include "base/files/file_path.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "chrome/test/chromedriver/chrome/device_metrics.h"
 #include "chrome/test/chromedriver/chrome/devtools_http_client.h"
 #include "chrome/test/chromedriver/chrome/log.h"
 #include "chrome/test/chromedriver/chrome/mobile_device.h"
 #include "chrome/test/chromedriver/net/net_util.h"
+#include "chrome/test/chromedriver/prompt_behavior.h"
 #include "chrome/test/chromedriver/session.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class CommandLine;
@@ -103,6 +105,9 @@ struct Capabilities {
   Status Parse(const base::Value::Dict& desired_caps,
                bool w3c_compliant = true);
 
+  // Migrate capabilities to maintain backward compatibility.
+  Status MigrateCapabilities();
+
   //
   // W3C defined capabilities
   //
@@ -120,10 +125,12 @@ struct Capabilities {
   base::TimeDelta script_timeout = Session::kDefaultScriptTimeout;
   base::TimeDelta page_load_timeout = Session::kDefaultPageLoadTimeout;
   base::TimeDelta implicit_wait_timeout = Session::kDefaultImplicitWaitTimeout;
+  base::TimeDelta browser_startup_timeout =
+      Session::kDefaultBrowserStartupTimeout;
 
   bool strict_file_interactability;
 
-  std::string unhandled_prompt_behavior;
+  std::optional<PromptBehavior> unhandled_prompt_behavior;
 
   //
   // ChromeDriver specific capabilities
@@ -147,6 +154,8 @@ struct Capabilities {
 
   int android_devtools_port = 0;
 
+  bool enable_extension_targets = false;
+
   base::FilePath binary;
 
   // If provided, the remote debugging address to connect to.
@@ -156,8 +165,11 @@ struct Capabilities {
   // bound to ChromeDriver's process. If true, Chrome will not quit if
   // ChromeDriver dies.
   bool detach;
+  // Whether to attempt terminating the browser process gracefully before
+  // resorting to SIGKILL.
+  bool quit_gracefully = false;
 
-  absl::optional<MobileDevice> mobile_device;
+  std::optional<MobileDevice> mobile_device;
 
   // Set of switches which should be removed from default list when launching
   // Chrome.
@@ -189,7 +201,7 @@ struct Capabilities {
 
   std::set<WebViewInfo::Type> window_types;
 
-  bool webSocketUrl = false;
+  bool web_socket_url = false;
 };
 
 bool GetChromeOptionsDictionary(const base::Value::Dict& params,

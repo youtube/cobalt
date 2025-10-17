@@ -6,31 +6,22 @@
 
 #include <utility>
 
-#include "chrome/browser/ash/login/users/avatar/user_image_manager.h"
-#include "chrome/browser/ash/login/users/chrome_user_manager.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
-#include "components/policy/policy_constants.h"
+#include "chrome/browser/ash/login/users/avatar/user_image_manager_impl.h"
+#include "chrome/browser/ash/login/users/avatar/user_image_manager_registry.h"
 
 namespace policy {
 
 namespace {
 
-ash::UserImageManager* GetUserImageManager(const std::string& user_id) {
-  return ash::ChromeUserManager::Get()->GetUserImageManager(
-      CloudExternalDataPolicyHandler::GetAccountId(user_id));
+ash::UserImageManagerImpl* GetUserImageManager(const std::string& user_id) {
+  return ash::UserImageManagerRegistry::Get()->GetManager(
+      CloudExternalDataPolicyObserver::GetAccountId(user_id));
 }
 
 }  // namespace
 
-UserAvatarImageExternalDataHandler::UserAvatarImageExternalDataHandler(
-    ash::CrosSettings* cros_settings,
-    DeviceLocalAccountPolicyService* policy_service)
-    : user_avatar_image_observer_(cros_settings,
-                                  policy_service,
-                                  key::kUserAvatarImage,
-                                  this) {
-  user_avatar_image_observer_.Init();
-}
+UserAvatarImageExternalDataHandler::UserAvatarImageExternalDataHandler() =
+    default;
 
 UserAvatarImageExternalDataHandler::~UserAvatarImageExternalDataHandler() =
     default;
@@ -56,13 +47,10 @@ void UserAvatarImageExternalDataHandler::OnExternalDataFetched(
 }
 
 void UserAvatarImageExternalDataHandler::RemoveForAccountId(
-    const AccountId& account_id,
-    base::OnceClosure on_removed) {
-  ash::ChromeUserManager::Get()
-      ->GetUserImageManager(account_id)
+    const AccountId& account_id) {
+  ash::UserImageManagerRegistry::Get()
+      ->GetManager(account_id)
       ->DeleteUserImage();
-
-  std::move(on_removed).Run();
 }
 
 }  // namespace policy

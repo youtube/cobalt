@@ -23,10 +23,10 @@ Activity is rendered. For the latter two, we care both about:
 
 Here are some UMA metrics that measure start-up (UMA's UI has descriptions):
 
-* `Startup.Android.Cold.TimeToFirstVisibleContent`
-* `Startup.Android.Cold.TimeToFirstNavigationCommit.Tabbed`
+* `Startup.Android.Cold.TimeToFirstVisibleContent4`
+* `Startup.Android.Cold.TimeToFirstNavigationCommit3.Tabbed`
 * `Browser.PaintPreview.TabbedPlayer.TimeToFirstBitmap`
-* `Startup.Android.Cold.TimeToFirstContentfulPaint.Tabbed`
+* `Startup.Android.Cold.TimeToFirstContentfulPaint3.Tabbed`
 
 This one can be useful for measuring dex optimization changes:
 
@@ -52,15 +52,21 @@ environment:
 When using [Pinpoint] to test start-up changes, make sure to:
 
 * Use bundles rather than APKs.
-  * For 32-bit: `--browser=android-trichrome-bundle`
+  * For 32-bit: `--browser=android-trichrome-chrome-google-bundle`
   * For 64-bit: `--browser=android-trichrome-chrome-google-64-32-bundle`
 * Compile DEX: `--compile-apk=speed`
 
 Some start-up changes can improve start-up for high-end devices but degrade
 it for low-end ones (or vice versa). It is important to test both.
 
+For small regressions (e.g. ~1%), it can help to add `--pageset-repeat 10`
+or `--pageset-repeat 20` in order to increase the number of samples collected.
+A single repeat produces 8 samples, then Pinpoint normally runs it 10 times
+(total 80). With `--pageset-repeat=20` the total number of samples is 1600.
+
 * Use `android-go-*` devices to test low-end.
 * Use `android-pixel6-*` to test high-end. They set
   `is_high_end_android=true`.
+* The full list of bots [is here](/docs/speed/perf_lab_platforms.md).
 
 [Pinpoint]: https://pinpoint-dot-chromeperf.appspot.com/

@@ -7,61 +7,53 @@ package org.chromium.android_webview;
 import android.view.View;
 import android.view.ViewTreeObserver;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.util.ArrayList;
 
-/**
- * Used to register listeners that can be notified of changes to the position of a view.
- */
+/** Used to register listeners that can be notified of changes to the position of a view. */
+@NullMarked
 public class ViewPositionObserver {
-    /**
-     * Called during predraw if the position of the underlying view has changed.
-     */
-    public interface Listener { void onPositionChanged(int positionX, int positionY); }
+    /** Called during predraw if the position of the underlying view has changed. */
+    public interface Listener {
+        void onPositionChanged(int positionX, int positionY);
+    }
 
-    private View mView;
+    private final View mView;
     // Absolute position of the container view relative to its parent window.
     private final int[] mPosition = new int[2];
 
-    private final ArrayList<Listener> mListeners;
-    private ViewTreeObserver.OnPreDrawListener mPreDrawListener;
+    private final ArrayList<Listener> mListeners = new ArrayList<>();
+    private final ViewTreeObserver.OnPreDrawListener mPreDrawListener;
 
     /**
      * @param view The view to observe.
      */
     public ViewPositionObserver(View view) {
         mView = view;
-        mListeners = new ArrayList<Listener>();
         updatePosition();
-        mPreDrawListener = new ViewTreeObserver.OnPreDrawListener() {
-            @Override
-            public boolean onPreDraw() {
-                updatePosition();
-                return true;
-            }
-        };
+        mPreDrawListener =
+                () -> {
+                    updatePosition();
+                    return true;
+                };
     }
 
-    /**
-     * @return The current x position of the observed view.
-     */
+    /** @return The current x position of the observed view. */
     public int getPositionX() {
         // The stored position may be out-of-date. Get the real current position.
         updatePosition();
         return mPosition[0];
     }
 
-    /**
-     * @return The current y position of the observed view.
-     */
+    /** @return The current y position of the observed view. */
     public int getPositionY() {
         // The stored position may be out-of-date. Get the real current position.
         updatePosition();
         return mPosition[1];
     }
 
-    /**
-     * Register a listener to be called when the position of the underlying view changes.
-     */
+    /** Register a listener to be called when the position of the underlying view changes. */
     public void addListener(Listener listener) {
         if (mListeners.contains(listener)) return;
 
@@ -73,9 +65,7 @@ public class ViewPositionObserver {
         mListeners.add(listener);
     }
 
-    /**
-     * Remove a previously installed listener.
-     */
+    /** Remove a previously installed listener. */
     public void removeListener(Listener listener) {
         if (!mListeners.contains(listener)) return;
 

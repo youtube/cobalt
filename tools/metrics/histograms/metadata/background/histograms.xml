@@ -31,19 +31,6 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram
-    name="BackgroundFetch.EventDispatchFailure.Dispatch{BackgroundFetchEvents}"
-    enum="ServiceWorkerStatusCode" expires_after="2022-06-30">
-  <owner>peter@chromium.org</owner>
-  <owner>rayankans@chromium.org</owner>
-  <summary>
-    Records the Service Worker status code that caused a Background Fetch API
-    event to fail dispatching whilst trying to dispatch an event on the active
-    Service Worker. {BackgroundFetchEvents}
-  </summary>
-  <token key="BackgroundFetchEvents" variants="BackgroundFetchEvents"/>
-</histogram>
-
-<histogram
     name="BackgroundFetch.EventDispatchFailure.FindWorker{BackgroundFetchEvents}"
     enum="ServiceWorkerStatusCode" expires_after="2022-06-30">
   <owner>peter@chromium.org</owner>
@@ -67,64 +54,6 @@ chromium-metrics-reviews@google.com.
     {BackgroundFetchEvents}
   </summary>
   <token key="BackgroundFetchEvents" variants="BackgroundFetchEvents"/>
-</histogram>
-
-<histogram name="BackgroundFetch.EventDispatchResult{BackgroundFetchEvents}"
-    enum="BackgroundFetchEventDispatchResult" expires_after="2022-06-30">
-  <owner>peter@chromium.org</owner>
-  <owner>rayankans@chromium.org</owner>
-  <summary>
-    Records the result of dispatching one of the Background Fetch API events to
-    the Service Worker associated with the event. {BackgroundFetchEvents}
-  </summary>
-  <token key="BackgroundFetchEvents" variants="BackgroundFetchEvents"/>
-</histogram>
-
-<histogram name="BackgroundFetch.HasDuplicateRequests" enum="Boolean"
-    expires_after="2022-06-30">
-  <owner>peter@chromium.org</owner>
-  <owner>rayankans@chromium.org</owner>
-  <summary>
-    Records whether the fetch requests contains any duplicate URLs. This is
-    called after the provided requests are verified, but before the fetch is
-    started.
-  </summary>
-</histogram>
-
-<histogram name="BackgroundFetch.HasRequestsWithBody" enum="Boolean"
-    expires_after="2021-12-26">
-  <owner>nator@chromium.org</owner>
-  <owner>rayankans@chromium.org</owner>
-  <owner>peter@chromium.org</owner>
-  <summary>
-    Records whether the background fetch contains any requests with a body.
-    Called before the fetch is started.
-  </summary>
-</histogram>
-
-<histogram name="BackgroundFetch.Manager{BackgroundFetchManagerAPIsDuration}"
-    units="ms" expires_after="M99">
-  <owner>rayankans@chromium.org</owner>
-  <owner>peter@chromium.org</owner>
-  <summary>
-    Records the duration of the mojo call for the exposed BackgroundFetchManager
-    APIs. {BackgroundFetchManagerAPIsDuration}
-  </summary>
-  <token key="BackgroundFetchManagerAPIsDuration">
-    <variant name=".FetchDuration" summary="Duration of fetch"/>
-    <variant name=".GetDuration" summary="Duration of get"/>
-    <variant name=".GetIdsDuration" summary="Duration of getIds"/>
-  </token>
-</histogram>
-
-<histogram name="BackgroundMode.OnStartup.IsBackgroundModePrefEnabled"
-    enum="BooleanEnabled" expires_after="2022-04-17">
-  <owner>mvanouwerkerk@chromium.org</owner>
-  <owner>rdevlin.cronin@chromium.org</owner>
-  <summary>
-    Logged during BackgroundModeManager's initialization. Indicates the state of
-    the kBackgroundModeEnabled pref on startup.
-  </summary>
 </histogram>
 
 <histogram name="BackgroundSync.Event.BatchSize" units="units"
@@ -151,7 +80,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackgroundSync.Event.OneShotResultPattern"
-    enum="BackgroundSyncResultPattern" expires_after="2024-02-06">
+    enum="BackgroundSyncResultPattern" expires_after="2025-11-16">
   <owner>nator@chromium.org</owner>
   <owner>rayankans@chromium.org</owner>
   <summary>
@@ -199,7 +128,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackgroundSync.Event.Time" units="ms"
-    expires_after="2024-02-06">
+    expires_after="2024-04-28">
   <owner>nator@chromium.org</owner>
   <owner>rayankans@chromium.org</owner>
   <summary>
@@ -212,7 +141,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackgroundSync.LaunchTask.PlayServicesAvailable"
-    enum="Boolean" expires_after="2024-02-06">
+    enum="Boolean" expires_after="2024-04-28">
   <owner>nator@chromium.org</owner>
   <owner>rayankans@chromium.org</owner>
   <summary>
@@ -247,7 +176,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackgroundSync.Registration.OneShot"
-    enum="BackgroundSyncStatus" expires_after="2024-02-06">
+    enum="BackgroundSyncStatus" expires_after="2025-02-16">
   <owner>nator@chromium.org</owner>
   <owner>rayankans@chromium.org</owner>
   <summary>
@@ -299,7 +228,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackgroundSync.Registration.Periodic"
-    enum="BackgroundSyncStatus" expires_after="2024-02-06">
+    enum="BackgroundSyncStatus" expires_after="2024-06-30">
   <owner>nator@chromium.org</owner>
   <owner>rayankans@chromium.org</owner>
   <summary>
@@ -375,12 +304,6 @@ chromium-metrics-reviews@google.com.
     whenever Chrome is woken up to process periodic Background Sync
     registrations on Android.
   </summary>
-</histogram>
-
-<histogram name="BackgroundTracing.SamplingProfilerUnwindResult"
-    enum="SamplingProfilerUnwindResult" expires_after="M71">
-  <owner>ssid@chromium.org</owner>
-  <summary>Records the reason for unwind failues in sampling profiler.</summary>
 </histogram>
 
 </histograms>

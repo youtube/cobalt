@@ -18,7 +18,7 @@ WebApksHandler::WebApksHandler()
     : delegate_(base::BindRepeating(&WebApksHandler::OnWebApkInfoRetrieved,
                                     base::Unretained(this))) {}
 
-WebApksHandler::~WebApksHandler() {}
+WebApksHandler::~WebApksHandler() = default;
 
 void WebApksHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
@@ -39,14 +39,16 @@ void WebApksHandler::HandleRequestWebApksInfo(const base::Value::List& args) {
 void WebApksHandler::HandleRequestWebApkUpdate(const base::Value::List& args) {
   AllowJavascript();
   for (const auto& val : args) {
-    if (val.is_string())
+    if (val.is_string()) {
       ShortcutHelper::SetForceWebApkUpdate(val.GetString());
+    }
   }
 }
 
 void WebApksHandler::OnWebApkInfoRetrieved(const WebApkInfo& webapk_info) {
-  if (!IsJavascriptAllowed())
+  if (!IsJavascriptAllowed()) {
     return;
+  }
   base::Value::Dict result;
   result.Set("name", webapk_info.name);
   result.Set("shortName", webapk_info.short_name);
@@ -66,10 +68,16 @@ void WebApksHandler::OnWebApkInfoRetrieved(const WebApkInfo& webapk_info) {
              ui::OptionalSkColorToString(webapk_info.theme_color));
   result.Set("backgroundColor",
              ui::OptionalSkColorToString(webapk_info.background_color));
-  result.Set("lastUpdateCheckTimeMs",
-             webapk_info.last_update_check_time.ToJsTime());
-  result.Set("lastUpdateCompletionTimeMs",
-             webapk_info.last_update_completion_time.ToJsTime());
+  result.Set("darkThemeColor",
+             ui::OptionalSkColorToString(webapk_info.dark_theme_color));
+  result.Set("darkBackgroundColor",
+             ui::OptionalSkColorToString(webapk_info.dark_background_color));
+  result.Set(
+      "lastUpdateCheckTimeMs",
+      webapk_info.last_update_check_time.InMillisecondsFSinceUnixEpoch());
+  result.Set(
+      "lastUpdateCompletionTimeMs",
+      webapk_info.last_update_completion_time.InMillisecondsFSinceUnixEpoch());
   result.Set("relaxUpdates", webapk_info.relax_updates);
   result.Set("backingBrowser", webapk_info.backing_browser_package_name);
   result.Set("isBackingBrowser", webapk_info.is_backing_browser);

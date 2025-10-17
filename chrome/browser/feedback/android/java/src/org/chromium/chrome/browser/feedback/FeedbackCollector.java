@@ -10,8 +10,6 @@ import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.Pair;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import com.google.common.collect.Iterables;
@@ -21,6 +19,9 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.components.signin.base.CoreAccountInfo;
@@ -36,25 +37,29 @@ import java.util.Map;
  * a set of Key - Value pairs used to submit feedback requests.
  * @param <T> Initialization params used by subclasses for the feedback source builders.
  */
+@NullMarked
 public abstract class FeedbackCollector<T> implements Runnable {
     /** The timeout for gathering data asynchronously. This timeout is ignored for screenshots. */
     private static final int TIMEOUT_MS = 500;
+
     private final long mStartTime = SystemClock.elapsedRealtime();
 
-    private final String mCategoryTag;
-    private final String mDescription;
-    private String mAccountInUse;
+    private final @Nullable String mCategoryTag;
+    private final @Nullable String mDescription;
+    private @Nullable String mAccountInUse;
 
     private List<FeedbackSource> mSynchronousSources;
-    @VisibleForTesting
-    protected List<AsyncFeedbackSource> mAsynchronousSources;
 
-    private ScreenshotSource mScreenshotTask;
+    @VisibleForTesting protected List<AsyncFeedbackSource> mAsynchronousSources;
+
+    private @Nullable ScreenshotSource mScreenshotTask;
 
     /** The callback is cleared once notified so we will never notify the caller twice. */
-    private Callback<FeedbackCollector> mCallback;
+    private @Nullable Callback<FeedbackCollector> mCallback;
 
-    public FeedbackCollector(@Nullable String categoryTag, @Nullable String description,
+    public FeedbackCollector(
+            @Nullable String categoryTag,
+            @Nullable String description,
             Callback<FeedbackCollector> callback) {
         mCategoryTag = categoryTag;
         mDescription = description;
@@ -62,7 +67,11 @@ public abstract class FeedbackCollector<T> implements Runnable {
     }
 
     // Subclasses must invoke init() at construction time.
-    protected void init(Activity activity, @Nullable ScreenshotSource screenshotTask, T initParams,
+    @Initializer
+    protected void init(
+            Activity activity,
+            @Nullable ScreenshotSource screenshotTask,
+            T initParams,
             Profile profile) {
         // 1. Build all synchronous and asynchronous sources and determine the currently signed in
         //    account.
@@ -71,11 +80,12 @@ public abstract class FeedbackCollector<T> implements Runnable {
         IdentityManager identityManager =
                 IdentityServicesProvider.get().getIdentityManager(profile);
         if (identityManager != null) {
-            mAccountInUse = CoreAccountInfo.getEmailFrom(
-                    identityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN));
+            mAccountInUse =
+                    CoreAccountInfo.getEmailFrom(
+                            identityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN));
         }
 
-        // Sanity check in case a source is added to the wrong list.
+        // Validation check in case a source is added to the wrong list.
         for (FeedbackSource source : mSynchronousSources) {
             assert !(source instanceof AsyncFeedbackSource);
         }
@@ -92,26 +102,24 @@ public abstract class FeedbackCollector<T> implements Runnable {
         // 4. Kick off a task to timeout the async sources.
         ThreadUtils.postOnUiThreadDelayed(this, TIMEOUT_MS);
 
-        // 5. Sanity check in case everything finished or we have no sources.
+        // 5. Validation check in case everything finished or we have no sources.
         checkIfReady();
     }
 
     @VisibleForTesting
-    @NonNull
     protected abstract List<FeedbackSource> buildSynchronousFeedbackSources(
             Activity activity, T initParams);
 
     @VisibleForTesting
-    @NonNull
     protected abstract List<AsyncFeedbackSource> buildAsynchronousFeedbackSources(T initParams);
 
     /** @return The category tag for this feedback report. */
-    public String getCategoryTag() {
+    public @Nullable String getCategoryTag() {
         return mCategoryTag;
     }
 
     /** @return The description of this feedback report. */
-    public String getDescription() {
+    public @Nullable String getDescription() {
         return mDescription;
     }
 
@@ -125,7 +133,7 @@ public abstract class FeedbackCollector<T> implements Runnable {
      * @return Returns the histogram data from {@link #getLogs()}.
      */
     @Deprecated
-    public String getHistograms() {
+    public @Nullable String getHistograms() {
         return getLogs().get(HistogramFeedbackSource.HISTOGRAMS_KEY);
     }
 
@@ -210,7 +218,8 @@ public abstract class FeedbackCollector<T> implements Runnable {
             }
         }
 
-        RecordHistogram.recordMediumTimesHistogram("Feedback.Duration.FetchSystemInformation",
+        RecordHistogram.deprecatedRecordMediumTimesHistogram(
+                "Feedback.Duration.FetchSystemInformation",
                 SystemClock.elapsedRealtime() - mStartTime);
         final Callback<FeedbackCollector> callback = mCallback;
         mCallback = null;

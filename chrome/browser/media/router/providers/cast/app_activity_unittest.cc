@@ -5,6 +5,7 @@
 #include "chrome/browser/media/router/providers/cast/app_activity.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -21,6 +22,7 @@
 #include "chrome/browser/media/router/providers/cast/cast_session_client.h"
 #include "chrome/browser/media/router/providers/cast/test_util.h"
 #include "chrome/browser/media/router/test/provider_test_helpers.h"
+#include "components/media_router/common/providers/cast/channel/cast_message_util.h"
 #include "components/media_router/common/providers/cast/channel/cast_test_util.h"
 #include "components/media_router/common/test/test_helper.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -28,7 +30,6 @@
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using base::test::IsJson;
 using base::test::ParseJsonDict;
@@ -53,7 +54,7 @@ class AppActivityTest : public CastActivityTestBase {
     activity_ = std::make_unique<AppActivity>(
         MediaRoute(kRouteId, MediaSource("https://example.com/receiver.html"),
                    kSinkId, "", false),
-        kAppId, &message_handler_, &session_tracker_);
+        kAppId, &message_handler_, &session_tracker_, logger_, debugger_);
   }
 
   void SetUpSession() { activity_->SetOrUpdateSession(*session_, sink_, ""); }
@@ -65,8 +66,9 @@ class AppActivityTest : public CastActivityTestBase {
   MediaRoute& route() const { return activity_->route_; }
 
   MockCastSessionClient* AddMockClient(const std::string& client_id) {
-    return CastActivityTestBase::AddMockClient(activity_.get(), client_id,
-                                               tab_id_counter_++);
+    return CastActivityTestBase::AddMockClient(
+        activity_.get(), client_id,
+        content::FrameTreeNodeId(tab_id_counter_++));
   }
 
   int tab_id_counter_ = 239;  // Arbitrary number.
@@ -74,20 +76,22 @@ class AppActivityTest : public CastActivityTestBase {
 };
 
 TEST_F(AppActivityTest, SendAppMessageToReceiver) {
-  // TODO(crbug.com/954797): Test case where there is no session.
-  // TODO(crbug.com/954797): Test case where message has invalid namespace.
+  // TODO(crbug.com/40623998): Test case where there is no session.
+  // TODO(crbug.com/40623998): Test case where message has invalid namespace.
 
   EXPECT_CALL(message_handler_, SendAppMessage(kChannelId, _))
       .WillOnce(Return(cast_channel::Result::kFailed))
-      .WillOnce(WithArg<1>([](const cast::channel::CastMessage& cast_message) {
-        EXPECT_EQ("theClientId", cast_message.source_id());
-        EXPECT_EQ("theTransportId", cast_message.destination_id());
-        EXPECT_EQ("urn:x-cast:com.google.foo", cast_message.namespace_());
-        EXPECT_TRUE(cast_message.has_payload_utf8());
-        EXPECT_THAT(cast_message.payload_utf8(), IsJson(R"({"foo": "bar"})"));
-        EXPECT_FALSE(cast_message.has_payload_binary());
-        return cast_channel::Result::kOk;
-      }));
+      .WillOnce(WithArg<1>(
+          [](const openscreen::cast::proto::CastMessage& cast_message) {
+            EXPECT_EQ("theClientId", cast_message.source_id());
+            EXPECT_EQ("theTransportId", cast_message.destination_id());
+            EXPECT_EQ("urn:x-cast:com.google.foo", cast_message.namespace_());
+            EXPECT_TRUE(cast_message.has_payload_utf8());
+            EXPECT_THAT(cast_message.payload_utf8(),
+                        IsJson(R"({"foo": "bar"})"));
+            EXPECT_FALSE(cast_message.has_payload_binary());
+            return cast_channel::Result::kOk;
+          }));
 
   std::unique_ptr<CastInternalMessage> message =
       CastInternalMessage::From(ParseJsonDict(R"({
@@ -109,9 +113,9 @@ TEST_F(AppActivityTest, SendAppMessageToReceiver) {
 }
 
 TEST_F(AppActivityTest, SendMediaRequestToReceiver) {
-  // TODO(crbug.com/954797): Test case where there is no session.
+  // TODO(crbug.com/40623998): Test case where there is no session.
 
-  const absl::optional<int> request_id = 1234;
+  const std::optional<int> request_id = 1234;
 
   EXPECT_CALL(
       message_handler_,
@@ -120,7 +124,7 @@ TEST_F(AppActivityTest, SendMediaRequestToReceiver) {
           IsJson(
               R"({"sessionId": "theSessionId", "type": "theV2MessageType"})"),
           "theClientId", "theTransportId"))
-      .WillOnce(Return(absl::nullopt))
+      .WillOnce(Return(std::nullopt))
       .WillOnce(Return(request_id));
 
   std::unique_ptr<CastInternalMessage> message =
@@ -140,7 +144,7 @@ TEST_F(AppActivityTest, SendMediaRequestToReceiver) {
 }
 
 TEST_F(AppActivityTest, SendSetVolumeRequestToReceiver) {
-  // TODO(crbug.com/954797): Test case where no socket is found kChannelId.
+  // TODO(crbug.com/40623998): Test case where no socket is found kChannelId.
   EXPECT_CALL(
       message_handler_,
       SendSetVolumeRequest(
@@ -171,7 +175,7 @@ TEST_F(AppActivityTest, SendSetVolumeRequestToReceiver) {
 }
 
 TEST_F(AppActivityTest, StopSessionOnReceiver) {
-  const absl::optional<std::string> client_id("theClientId");
+  const std::optional<std::string> client_id("theClientId");
   base::MockCallback<cast_channel::ResultCallback> callback;
 
   SetUpSession();
@@ -234,7 +238,7 @@ TEST_F(AppActivityTest, SendMessageToClient) {
 }
 
 TEST_F(AppActivityTest, AddRemoveClient) {
-  // TODO(crbug.com/954797): Check value returned by AddClient().
+  // TODO(crbug.com/40623998): Check value returned by AddClient().
 
   // Adding clients works as expected.
   ASSERT_TRUE(connected_clients().empty());
@@ -268,7 +272,7 @@ TEST_F(AppActivityTest, SetOrUpdateSession) {
   AddMockClient("theClientId1");
   AddMockClient("theClientId2");
 
-  ASSERT_EQ(absl::nullopt, activity_->session_id());
+  ASSERT_EQ(std::nullopt, activity_->session_id());
   route().set_description("");
   for (auto* client : MockCastSessionClient::instances()) {
     EXPECT_CALL(*client, SendMessageToClient).Times(0);
@@ -348,7 +352,62 @@ TEST_F(AppActivityTest, CloseConnectionOnReceiver) {
 
   EXPECT_CALL(message_handler_, CloseConnection(kChannelId, "theClientId1",
                                                 session_->destination_id()));
-  activity_->CloseConnectionOnReceiver("theClientId1");
+  activity_->CloseConnectionOnReceiver(
+      "theClientId1", blink::mojom::PresentationConnectionCloseReason::CLOSED);
+}
+
+TEST_F(AppActivityTest, RemoveConnectionOnReceiver) {
+  SetUpSession();
+  AddMockClient("theClientId1");
+
+  // If the close reason is not `CLOSED`, then we call RemoveConnection()
+  // instead of CloseConnection() to avoid sending a close request to the
+  // receiver.
+  EXPECT_CALL(message_handler_, RemoveConnection(kChannelId, "theClientId1",
+                                                 session_->destination_id()));
+  activity_->CloseConnectionOnReceiver(
+      "theClientId1",
+      blink::mojom::PresentationConnectionCloseReason::WENT_AWAY);
+}
+
+TEST_F(AppActivityTest, ForwardInternalMediaMessage) {
+  const std::string client_id = "theClientId";
+  base::Value::Dict payload = ParseJsonDict(R"({
+    "type": "v2_message",
+    "clientId": "theClientId",
+    "message": {
+      "type": "INVALID_REQUEST",
+      "sessionId": "theSessionId",
+    },
+  })");
+  SetUpSession();
+  MockCastSessionClient* client = AddMockClient(client_id);
+
+  EXPECT_CALL(*client, SendMediaMessageToClient);
+  activity_->OnInternalMessage(cast_channel::InternalMessage(
+      cast_channel::CastMessageType::kInvalidRequest, "theSourceId", client_id,
+      cast_channel::kMediaNamespace, std::move(payload)));
+}
+
+TEST_F(AppActivityTest, IgnoreInternalMediaStatusMessage) {
+  const std::string client_id = "theClientId";
+  base::Value::Dict media_status_payload = ParseJsonDict(R"({
+    "type": "v2_message",
+    "clientId": "theClientId",
+    "message": {
+      "type": "MEDIA_STATUS",
+      "sessionId": "theSessionId",
+    },
+  })");
+  SetUpSession();
+  MockCastSessionClient* client = AddMockClient(client_id);
+
+  // OnInternalMessage() should ignore `kMediaStatus` messages because they're
+  // handled elsewhere.
+  EXPECT_CALL(*client, SendMediaMessageToClient).Times(0);
+  activity_->OnInternalMessage(cast_channel::InternalMessage(
+      cast_channel::CastMessageType::kMediaStatus, "theSourceId", client_id,
+      cast_channel::kMediaNamespace, std::move(media_status_payload)));
 }
 
 }  // namespace media_router

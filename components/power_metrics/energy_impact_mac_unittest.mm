@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/power_metrics/energy_impact_mac.h"
 
 #include "base/base_paths.h"
@@ -45,7 +50,7 @@ uint64_t NsScaleToTimebase(const mach_timebase_info_data_t& timebase,
 TEST(EnergyImpactTest, ReadCoefficientsFromPath) {
   base::FilePath test_path = GetTestDataPath();
 
-  // Validate that attempting to read from a non-exisent file fails.
+  // Validate that attempting to read from a non-existent file fails.
   auto coefficients = internal::ReadCoefficientsFromPath(
       test_path.Append(FILE_PATH_LITERAL("does-not-exist.plist")));
   EXPECT_FALSE(coefficients.has_value());

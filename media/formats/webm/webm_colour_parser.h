@@ -5,9 +5,10 @@
 #ifndef MEDIA_FORMATS_WEBM_WEBM_COLOUR_PARSER_H_
 #define MEDIA_FORMATS_WEBM_WEBM_COLOUR_PARSER_H_
 
+#include <optional>
+
 #include "media/base/video_color_space.h"
 #include "media/formats/webm/webm_parser.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/hdr_metadata.h"
 
 namespace media {
@@ -25,10 +26,11 @@ struct MEDIA_EXPORT WebMColorMetadata {
 
   VideoColorSpace color_space;
 
-  absl::optional<gfx::HDRMetadata> hdr_metadata;
+  std::optional<gfx::HDRMetadata> hdr_metadata;
 
   WebMColorMetadata();
   WebMColorMetadata(const WebMColorMetadata& rhs);
+  ~WebMColorMetadata();
 };
 
 // Parser for WebM MasteringMetadata within Colour element:
@@ -43,15 +45,15 @@ class WebMColorVolumeMetadataParser : public WebMParserClient {
 
   ~WebMColorVolumeMetadataParser() override;
 
-  gfx::ColorVolumeMetadata GetColorVolumeMetadata() const {
-    return color_volume_metadata_;
+  gfx::HdrMetadataSmpteSt2086 GetColorVolumeMetadata() const {
+    return smpte_st_2086_;
   }
 
  private:
   // WebMParserClient implementation.
   bool OnFloat(int id, double val) override;
 
-  gfx::ColorVolumeMetadata color_volume_metadata_;
+  gfx::HdrMetadataSmpteSt2086 smpte_st_2086_;
 };
 
 // Parser for WebM Colour element:

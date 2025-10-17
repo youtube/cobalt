@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/zucchini/crc32.h"
 
 #include <stdint.h>
@@ -41,7 +46,9 @@ TEST(Crc32Test, All) {
   EXPECT_EQ(0x0762F38BU,
             CalculateCrc32(std::begin(bytes), std::begin(bytes) + 9));
 
+#if GTEST_HAS_DEATH_TEST
   EXPECT_DCHECK_DEATH(CalculateCrc32(std::begin(bytes) + 1, std::begin(bytes)));
+#endif
 }
 
 }  // namespace zucchini

@@ -13,7 +13,8 @@
 
 #include <memory>
 
-#include "rtc_base/checks.h"
+#include "absl/base/nullability.h"
+#include "api/environment/environment.h"
 
 namespace webrtc {
 
@@ -53,7 +54,7 @@ class EchoControl {
   // resulting output is anyway not used, for instance when the endpoint is
   // muted.
   // TODO(b/177830919): Make pure virtual.
-  virtual void SetCaptureOutputUsage(bool capture_output_used) {}
+  virtual void SetCaptureOutputUsage(bool /* capture_output_used */) {}
 
   // Returns wheter the signal is altered.
   virtual bool ActiveProcessing() const = 0;
@@ -64,11 +65,13 @@ class EchoControl {
 // Interface for a factory that creates EchoControllers.
 class EchoControlFactory {
  public:
-  virtual std::unique_ptr<EchoControl> Create(int sample_rate_hz,
-                                              int num_render_channels,
-                                              int num_capture_channels) = 0;
-
   virtual ~EchoControlFactory() = default;
+
+  virtual absl_nonnull std::unique_ptr<EchoControl> Create(
+      const Environment& env,
+      int sample_rate_hz,
+      int num_render_channels,
+      int num_capture_channels) = 0;
 };
 }  // namespace webrtc
 

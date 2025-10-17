@@ -1,11 +1,12 @@
 // Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {isChromeOS} from 'chrome://resources/js/platform.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {DragManager, DragManagerDelegate, PLACEHOLDER_GROUP_ID, PLACEHOLDER_TAB_ID} from 'chrome://tab-strip.top-chrome/drag_manager.js';
-import {TabElement} from 'chrome://tab-strip.top-chrome/tab.js';
-import {TabGroupElement} from 'chrome://tab-strip.top-chrome/tab_group.js';
+import {isChromeOS} from 'chrome://resources/js/platform.js';
+import type {DragManagerDelegate} from 'chrome://tab-strip.top-chrome/drag_manager.js';
+import {DragManager, PLACEHOLDER_GROUP_ID, PLACEHOLDER_TAB_ID} from 'chrome://tab-strip.top-chrome/drag_manager.js';
+import type {TabElement} from 'chrome://tab-strip.top-chrome/tab.js';
+import type {TabGroupElement} from 'chrome://tab-strip.top-chrome/tab_group.js';
 import {TabsApiProxyImpl} from 'chrome://tab-strip.top-chrome/tabs_api_proxy.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
@@ -18,7 +19,8 @@ class MockDelegate extends HTMLElement implements DragManagerDelegate {
   }
 
   placeTabElement(
-      element: TabElement, index: number, _pinned: boolean, groupId?: string) {
+      element: TabElement, index: number, _pinned: boolean,
+      groupId: string|null) {
     element.remove();
 
     const parent =
@@ -623,7 +625,7 @@ suite('DragManager', () => {
     assertFalse(isDraggedOut);
   });
 
-  test('DragendAfterMovingDoesNotShowContextMenu', async () => {
+  test('DragendAfterMovingDoesNotShowContextMenu', () => {
     const draggedTab = delegate.children[0]!;
     const dragOverTab = delegate.children[1]!;
     const dragDetails = {
@@ -695,7 +697,7 @@ suite('DragManager', () => {
     assertFalse(draggedTab.isDraggedOut());
   });
 
-  test('DragIsPrevented', async () => {
+  test('DragIsPrevented', () => {
     // Mock the delegate to return true for shouldPreventDrag.
     delegate.shouldPreventDrag = () => true;
 

@@ -5,15 +5,15 @@
 // https://url.spec.whatwg.org/#interface-urlsearchparams
 
 [
-    Exposed=(Window,Worker)
+    Exposed=(Window,Worker,ShadowRealm) // TODO(crbug.com/41480387): This should be Exposed=*
 ] interface URLSearchParams {
     [RaisesException] constructor(optional (sequence<sequence<USVString>> or record<USVString, USVString> or USVString) init = "");
     readonly attribute unsigned long size;
     void append(USVString name, USVString value);
-    [ImplementedAs=deleteAllWithName, CallWith=ExecutionContext] void delete(USVString name, optional any ignored);
+    [ImplementedAs=deleteAllWithNameOrTuple, CallWith=ExecutionContext] void delete(USVString name, optional USVString value);
     USVString? get(USVString name);
     sequence<USVString> getAll(USVString name);
-    [CallWith=ExecutionContext] boolean has(USVString name, optional any ignored);
+    [CallWith=ExecutionContext] boolean has(USVString name, optional USVString value);
     void set(USVString name, USVString value);
 
     void sort();

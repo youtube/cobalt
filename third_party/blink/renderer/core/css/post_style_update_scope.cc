@@ -10,7 +10,6 @@
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 
 namespace blink {
 
@@ -47,7 +46,6 @@ bool PostStyleUpdateScope::Apply() {
     return true;
   }
   ApplyAnimations();
-  document_.ClearFocusedElementIfNeeded();
   document_.RemoveFinishedTopLayerElements();
   return false;
 }
@@ -97,9 +95,8 @@ void PostStyleUpdateScope::AnimationData::SetPendingUpdate(
 
 void PostStyleUpdateScope::AnimationData::StoreOldStyleIfNeeded(
     Element& element) {
-  old_styles_.insert(
-      &element, scoped_refptr<const ComputedStyle>(
-                    ComputedStyle::NullifyEnsured(element.GetComputedStyle())));
+  old_styles_.insert(&element,
+                     ComputedStyle::NullifyEnsured(element.GetComputedStyle()));
 }
 
 const ComputedStyle* PostStyleUpdateScope::AnimationData::GetOldStyle(
@@ -108,7 +105,7 @@ const ComputedStyle* PostStyleUpdateScope::AnimationData::GetOldStyle(
   if (iter == old_styles_.end()) {
     return ComputedStyle::NullifyEnsured(element.GetComputedStyle());
   }
-  return iter->value.get();
+  return iter->value.Get();
 }
 
 void PostStyleUpdateScope::PseudoData::AddPendingBackdrop(

@@ -7,57 +7,96 @@
 
 #include <memory>
 #include <string>
+#include <vector>
+
+#include "base/files/file_path.h"
+#include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
 
 namespace aura {
 class Window;
 }
 
+namespace base {
+class Pickle;
+class RefCountedMemory;
+}  // namespace base
+
+namespace ui {
+struct FileInfo;
+enum class EndpointType;
+}  // namespace ui
+
 namespace exo {
 
-// Defines the set of actions/associations which are needed to implement a
-// per-product Exo server. Product here refrs to things like "Crostini", "ArcVM"
-// and "Lacross", and distinguishes from wayland's notion of a client. Each
-// product may have multiple clients associated with it.
+// Each wayland server managed by exo, including the default server, will have a
+// single delegate associated with it to control security-sensitive features of
+// the server, e.g.:
+//  - Availability of privileged APIs used by trusted clients only.
+//  - Handling of certain mechanisms differently for different products (arc,
+//    crostini, etc)
+// This allows exo to make strong guarantees about the relationship between the
+// wl clients and the SecurityDelegate the server owns.
 //
-// TODO(b/200896773): Flesh this class out once we're clear on what things
-// should be secure.
+// See go/secure-exo-ids and go/securer-exo-ids for more details.
 class SecurityDelegate {
  public:
-  // Get a SecurityDelegate instance with all of the defaults.
-  static std::unique_ptr<SecurityDelegate> GetDefaultSecurityDelegate();
+  // See |CanSetBounds()|.
+  enum SetBoundsPolicy {
+    // By default, clients may not set window bounds. Requests are ignored.
+    IGNORE,
 
-  virtual ~SecurityDelegate();
+    // Clients may set bounds, but Exo may DCHECK on requests for windows with
+    // server-side decoration.
+    DCHECK_IF_DECORATED,
 
-  // The path of the wayland server will be determined (partially) by its
-  // security context. This process is documented in go/secure-exo-ids. All
-  // sockets for the same security context will be placed in a single directory,
-  // on ChromeOS that directory is "/run/wayland/<context>/". The intention is
-  // that systems that need access to the wayland socket will mount their
-  // security context's directory into their mount namespace, and not others'.
-  //
-  // The empty string refers to "no security context", only the default wayland
-  // server may use it, and it is an error to spawn a non-default server without
-  // a security context.
-  virtual std::string GetSecurityContext() const = 0;
+    // Clients may set bounds for any window. Exo will expand the requested
+    // bounds to account for server-side decorations, if any.
+    ADJUST_IF_DECORATED,
+  };
+
+  virtual ~SecurityDelegate() = default;
 
   // "Self-activation" is a security sensitive windowing operation that is a
   // common paradigm in X11. The need to self-activate is controlled
   // per-subsystem, i.e. a product like ARC++ knows that its windows should be
   // able to self activate, whereas Crostini knows they usually shouldn't.
-  virtual bool CanSelfActivate(aura::Window* window) const;
+  virtual bool CanSelfActivate(aura::Window* window) const = 0;
 
   // Called when a client made pointer lock request, defined in
   // pointer-constraints-unstable-v1.xml extension protocol.  True if the client
   // can lock the location of the pointer and disable movement, or return false
   // to reject the pointer lock request.
-  virtual bool CanLockPointer(aura::Window* window) const;
+  virtual bool CanLockPointer(aura::Window* window) const = 0;
 
+  // Whether clients may set their own windows' bounds is a security-relevant
+  // policy decision.
+  //
   // If server-side decoration is used, clients normally should not set their
   // own window bounds, as they may not be able to compute them correctly
   // (accounting for the size of the window decorations).
-  //
-  // Return true if this client is allowed to set its own window bounds anyway.
-  virtual bool CanSetBoundsWithServerSideDecoration(aura::Window* window) const;
+  virtual SetBoundsPolicy CanSetBounds(aura::Window* window) const = 0;
+
+  // Read filenames from text/uri-list |data| which was provided by `source`
+  // endpoint. Translates paths from source to host format.
+  virtual std::vector<ui::FileInfo> GetFilenames(
+      ui::EndpointType source,
+      const std::vector<uint8_t>& data) const = 0;
+
+  // Sends the given list of `files` to `target` endpoint. Translates paths from
+  // host format to the target and performs any required file sharing for VMs.
+  using SendDataCallback =
+      base::OnceCallback<void(scoped_refptr<base::RefCountedMemory>)>;
+  virtual void SendFileInfo(ui::EndpointType target,
+                            const std::vector<ui::FileInfo>& files,
+                            SendDataCallback callback) const = 0;
+
+  // Takes in `pickle` constructed by the web contents view containing
+  // filesystem URLs. Provides translations for the specified `target` endpoint
+  // and performs any required file sharing for VMs.
+  virtual void SendPickle(ui::EndpointType target,
+                          const base::Pickle& pickle,
+                          SendDataCallback callback) = 0;
 };
 
 }  // namespace exo

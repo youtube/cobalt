@@ -55,13 +55,17 @@
   To learn more about generating code coverage reports for fuzz targets, see
   https://chromium.googlesource.com/chromium/src/+/main/testing/libfuzzer/efficient_fuzzer.md#Code-Coverage
 
-  * Sample workflow for running Blink web tests:
+  * Sample workflow for running Blink web platform tests:
 
   vpython3 tools/code_coverage/coverage.py blink_tests \\
-      -wt -b out/coverage -o out/report -f third_party/blink
+      -b out/coverage -o out/report -f third_party/blink -wt
 
-  If you need to pass arguments to run_web_tests.py, use
-    -wt='arguments to run_web_tests.py e.g. test directories'
+  -wt flag tells coverage script that it is a web test, and can also be
+  used to pass arguments to run_web_tests.py
+
+  vpython3 tools/code_coverage/coverage.py blink_wpt_tests \\
+      -b out/Release -o out/report
+      -wt external/wpt/webcodecs/per-frame-qp-encoding.https.any.js
 
   For more options, please refer to tools/code_coverage/coverage.py -h.
 
@@ -359,7 +363,9 @@ def _BuildTargets(targets, jobs_count):
     subprocess_cmd.append('-j' + str(jobs_count))
 
   subprocess_cmd.extend(targets)
-  subprocess.check_call(subprocess_cmd)
+  # subprocess.check_call(subprocess_cmd, shell=os.name == 'nt')
+  # RBE enabled autoninja run returns non-zero exit code
+  subprocess.call(subprocess_cmd, shell=os.name == 'nt')
   logging.debug('Finished building %s.', str(targets))
 
 
@@ -469,7 +475,7 @@ def _SplitCommand(command):
   # Python's subprocess does not do glob expansion, so we expand it out here.
   new_command = []
   for item in split_command:
-    if '*' in item:
+    if '*' in item and not item.startswith('--gtest_filter'):
       files = glob.glob(item)
       for file in files:
         new_command.append(file)
@@ -840,7 +846,7 @@ def _VerifyPathsAndReturnAbsolutes(paths):
 
 def _GetBinaryPathsFromTargets(targets, build_dir):
   """Return binary paths from target names."""
-  # TODO(crbug.com/899974): Derive output binary from target build definitions
+  # TODO(crbug.com/41423295): Derive output binary from target build definitions
   # rather than assuming that it is always the same name.
   binary_paths = []
   for target in targets:
@@ -858,11 +864,19 @@ def _GetBinaryPathsFromTargets(targets, build_dir):
   return binary_paths
 
 
-def _GetCommandForWebTests(arguments):
+def _GetCommandForWebTests(targets, arguments):
   """Return command to run for blink web tests."""
+  assert len(targets) == 1, "Only one wpt target can be run"
+  target = targets[0]
+  expected_profraw_file_name = os.extsep.join(
+      [target, '%2m', PROFRAW_FILE_EXTENSION])
+  expected_profraw_file_path = os.path.join(
+      coverage_utils.GetCoverageReportRootDirPath(OUTPUT_DIR),
+      expected_profraw_file_name)
+
   cpu_count = multiprocessing.cpu_count()
   if sys.platform == 'win32':
-    # TODO(crbug.com/1190269) - we can't use more than 56
+    # TODO(crbug.com/40755900) - we can't use more than 56
     # cores on Windows or Python3 may hang.
     cpu_count = min(cpu_count, 56)
   cpu_count = max(1, cpu_count // 2)
@@ -870,8 +884,7 @@ def _GetCommandForWebTests(arguments):
   command_list = [
       'third_party/blink/tools/run_web_tests.py',
       '--additional-driver-flag=--no-sandbox',
-      '--additional-env-var=LLVM_PROFILE_FILE=%s' %
-      LLVM_PROFILE_FILE_PATH_SUBSTITUTION,
+      '--additional-env-var=LLVM_PROFILE_FILE=%s' % expected_profraw_file_path,
       '--child-processes=%d' % cpu_count, '--disable-breakpad',
       '--no-show-results', '--skip-failing-tests',
       '--target=%s' % os.path.basename(BUILD_DIR), '--timeout-ms=30000'
@@ -883,7 +896,7 @@ def _GetCommandForWebTests(arguments):
 
 def _GetBinaryPathsForAndroid(targets):
   """Return binary paths used when running android tests."""
-  # TODO(crbug.com/899974): Implement approach that doesn't assume .so file is
+  # TODO(crbug.com/41423295): Implement approach that doesn't assume .so file is
   # based on the target's name.
   android_binaries = set()
   for target in targets:
@@ -907,6 +920,46 @@ def _GetBinaryPathForWebTests():
                         'Content Shell')
   else:
     assert False, 'This platform is not supported for web tests.'
+
+
+def _GenerateCoverageReport(args, binary_paths, profdata_file_path,
+                            absolute_filter_paths):
+  """Generate the coverage report in the supported format."""
+  assert args.format in [
+      'html', 'lcov', 'text'
+  ], ('%s is not a valid output format for "llvm-cov show/export". Only '
+      '"text", "html" and "lcov" formats are supported.' % (args.format))
+  logging.info('Generating code coverage report in %s (this can take a while '
+               'depending on size of target!).' % (args.format))
+  per_file_summary_data = _GeneratePerFileCoverageSummary(
+      binary_paths, profdata_file_path, absolute_filter_paths,
+      args.ignore_filename_regex)
+
+  if args.format == 'lcov':
+    _GeneratePerFileLineByLineCoverageInLcov(binary_paths, profdata_file_path,
+                                             absolute_filter_paths,
+                                             args.ignore_filename_regex)
+    return
+
+  _GeneratePerFileLineByLineCoverageInFormat(binary_paths, profdata_file_path,
+                                             absolute_filter_paths,
+                                             args.ignore_filename_regex,
+                                             args.format)
+  component_mappings = None
+  if not args.no_component_view:
+    component_mappings = json.load(urlopen(COMPONENT_MAPPING_URL))
+
+  # Call prepare here.
+  processor = coverage_utils.CoverageReportPostProcessor(
+      OUTPUT_DIR,
+      SRC_ROOT_PATH,
+      per_file_summary_data,
+      no_component_view=args.no_component_view,
+      no_file_view=args.no_file_view,
+      component_mappings=component_mappings)
+
+  if args.format == 'html':
+    processor.PrepareHtmlReport()
 
 
 def _SetupOutputDir():
@@ -978,7 +1031,7 @@ def _ParseCommandArguments():
       action='append',
       required=False,
       help=
-      'Path(s) to profdata file(s) to use for generating code coverage reports. '
+      'Path(s) to profdata file(s) to use for generating code coverage reports.'
       'This can be useful if you generated the profdata file seperately in '
       'your own test harness. This option is ignored if run command(s) are '
       'already provided above using -c/--command option.')
@@ -1012,6 +1065,13 @@ def _ParseCommandArguments():
       help='Don\'t generate the component view in the coverage report.')
 
   arg_parser.add_argument(
+      '--no-report',
+      action='store_true',
+      help='Don\'t generate the final coverage report. This option is '
+      'incompatible with -p/--profdata-file, --format, --no-file-view, and'
+      '--no-component-view option flags.')
+
+  arg_parser.add_argument(
       '--coverage-tools-dir',
       type=str,
       help='Path of the directory where LLVM coverage tools (llvm-cov, '
@@ -1025,8 +1085,8 @@ def _ParseCommandArguments():
       type=int,
       default=None,
       help='Run N jobs to build in parallel. If not specified, a default value '
-      'will be derived based on CPUs and goma availability. Please refer to '
-      '\'autoninja -h\' for more details.')
+      'will be derived based on CPUs and reclient/siso availability. Please '
+      'refer to \'autoninja -h\' for more details.')
 
   arg_parser.add_argument(
       '--format',
@@ -1104,7 +1164,7 @@ def Main():
 
   # Get .profdata file and list of binary paths.
   if args.web_tests:
-    commands = [_GetCommandForWebTests(args.web_tests)]
+    commands = [_GetCommandForWebTests(args.targets, args.web_tests)]
     profdata_file_path = _CreateCoverageProfileDataForTargets(
         args.targets, commands, args.jobs)
     binary_paths = [_GetBinaryPathForWebTests()]
@@ -1124,10 +1184,11 @@ def Main():
     # An input prof-data file(s) is already provided.
     if len(args.profdata_file) == 1:
       # If it's just one input file, use as-is.
-      profdata_file_path = args.profdata_file
+      profdata_file_path = args.profdata_file[0]
     else:
       # Otherwise, there are multiple profdata files and we need to merge them.
-      profdata_file_path = _CreateCoverageProfileDataFromTargetProfDataFiles(args.profdata_file)
+      profdata_file_path = _CreateCoverageProfileDataFromTargetProfDataFiles(
+          args.profdata_file)
     # Since input prof-data files were provided, we only need to calculate the
     # binary paths from here.
     binary_paths = _GetBinaryPathsFromTargets(args.targets, args.build_dir)
@@ -1150,39 +1211,13 @@ def Main():
     binary_paths.extend(
         coverage_utils.GetSharedLibraries(binary_paths, BUILD_DIR, otool_path))
 
-  assert args.format in ['html', 'lcov', 'text'], (
-      '%s is not a valid output format for "llvm-cov show/export". Only '
-      '"text", "html" and "lcov" formats are supported.' % (args.format))
-  logging.info('Generating code coverage report in %s (this can take a while '
-               'depending on size of target!).' % (args.format))
-  per_file_summary_data = _GeneratePerFileCoverageSummary(
-      binary_paths, profdata_file_path, absolute_filter_paths,
-      args.ignore_filename_regex)
-
-  if args.format == 'lcov':
-    _GeneratePerFileLineByLineCoverageInLcov(
-      binary_paths, profdata_file_path, absolute_filter_paths,
-      args.ignore_filename_regex)
+  # Skip generating coverage summary for possible offline processing
+  if args.no_report:
+    logging.info('Skip generating coverage report due to --no-report flag.')
     return
 
-  _GeneratePerFileLineByLineCoverageInFormat(
-      binary_paths, profdata_file_path, absolute_filter_paths,
-      args.ignore_filename_regex, args.format)
-  component_mappings = None
-  if not args.no_component_view:
-    component_mappings = json.load(urlopen(COMPONENT_MAPPING_URL))
-
-  # Call prepare here.
-  processor = coverage_utils.CoverageReportPostProcessor(
-      OUTPUT_DIR,
-      SRC_ROOT_PATH,
-      per_file_summary_data,
-      no_component_view=args.no_component_view,
-      no_file_view=args.no_file_view,
-      component_mappings=component_mappings)
-
-  if args.format == 'html':
-    processor.PrepareHtmlReport()
+  _GenerateCoverageReport(args, binary_paths, profdata_file_path,
+                          absolute_filter_paths)
 
 
 if __name__ == '__main__':

@@ -4,20 +4,16 @@
 
 #include "ui/gfx/animation/animation.h"
 
-#include "base/android/jni_android.h"
-#include "ui/gfx/gfx_jni_headers/Animation_jni.h"
-
-using base::android::AttachCurrentThread;
+#include "ui/accessibility/android/accessibility_state.h"
 
 namespace gfx {
 
 // static
 void Animation::UpdatePrefersReducedMotion() {
   // prefers_reduced_motion_ should only be modified on the UI thread.
-  // TODO(crbug.com/927163): DCHECK this assertion once tests are well-behaved.
-
-  JNIEnv* env = AttachCurrentThread();
-  prefers_reduced_motion_ = Java_Animation_prefersReducedMotion(env);
+  // TODO(crbug.com/40611878): DCHECK this assertion once tests are
+  // well-behaved.
+  prefers_reduced_motion_ = ui::AccessibilityState::PrefersReducedMotion();
 }
 
 }  // namespace gfx

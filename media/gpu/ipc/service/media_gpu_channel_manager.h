@@ -14,6 +14,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/unguessable_token.h"
+#include "build/build_config.h"
 #include "ipc/ipc_listener.h"
 #include "ipc/ipc_sender.h"
 #include "media/base/android_overlay_mojo_factory.h"
@@ -22,14 +23,14 @@
 namespace gpu {
 class GpuChannel;
 class GpuChannelManager;
+class SharedContextState;
 }
 
 namespace media {
 
 class MediaGpuChannel;
 
-class MediaGpuChannelManager
-    : public base::SupportsWeakPtr<MediaGpuChannelManager> {
+class MediaGpuChannelManager final {
  public:
   explicit MediaGpuChannelManager(gpu::GpuChannelManager* channel_manager);
   MediaGpuChannelManager(const MediaGpuChannelManager&) = delete;
@@ -47,6 +48,12 @@ class MediaGpuChannelManager
   // TODO(sandersd): Should we expose the MediaGpuChannel instead?
   gpu::GpuChannel* LookupChannel(const base::UnguessableToken& channel_token);
 
+  scoped_refptr<gpu::SharedContextState> GetSharedContextState();
+
+  base::WeakPtr<MediaGpuChannelManager> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
   const raw_ptr<gpu::GpuChannelManager> channel_manager_;
   std::unordered_map<int32_t, std::unique_ptr<MediaGpuChannel>>
@@ -54,6 +61,7 @@ class MediaGpuChannelManager
   std::map<base::UnguessableToken, int32_t> token_to_channel_;
   std::map<int32_t, base::UnguessableToken> channel_to_token_;
   AndroidOverlayMojoFactoryCB overlay_factory_cb_;
+  base::WeakPtrFactory<MediaGpuChannelManager> weak_ptr_factory_{this};
 };
 
 }  // namespace media

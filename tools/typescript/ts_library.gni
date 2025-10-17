@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//third_party/node/node.gni")
 
 template("ts_library") {
@@ -15,14 +14,15 @@ template("ts_library") {
                              "extra_deps",
                              "in_files",
                              "tsconfig_base",
+                             "path_mappings_file",
                              "manifest_excludes",
                              "testonly",
                              "visibility",
                            ])
 
     inputs = [
+      "//tools/typescript/path_utils.py",
       "//tools/typescript/tsconfig_base.json",
-      "//tools/typescript/path_mappings.py",
       "//tools/typescript/validate_tsconfig.py",
     ]
     outputs = [ "$target_gen_dir/tsconfig_$target_name.json" ]
@@ -45,7 +45,7 @@ template("ts_library") {
     }
 
     if (defined(in_files)) {
-      outputs += [ "$target_gen_dir/$target_name.manifest" ]
+      outputs += [ "$target_gen_dir/${target_name}_manifest.json" ]
       foreach(_source, in_files) {
         inputs += [ "$root_dir/$_source" ]
         _dirname =
@@ -79,6 +79,14 @@ template("ts_library") {
       args += [ "--in_files" ] + in_files
     }
 
+    if (defined(path_mappings_file)) {
+      args += [
+        "--path_mappings_file",
+        rebase_path(path_mappings_file, target_gen_dir),
+      ]
+      inputs += [ path_mappings_file ]
+    }
+
     if (defined(manifest_excludes)) {
       assert(defined(in_files))
       args += [ "--manifest_excludes" ] + manifest_excludes
@@ -94,20 +102,13 @@ template("ts_library") {
     }
 
     if (defined(deps)) {
-      args += [ "--raw_deps" ]
-      foreach(_dep, deps) {
-        # Pass all dependency names to the script, because they are needed to
-        # automatically infer path mappings. Normalize their form, because
-        # |deps| can hold relative paths.
-        args +=
-            [ get_label_info(_dep, "dir") + ":" + get_label_info(_dep, "name") ]
-      }
-
       args += [ "--deps" ]
       foreach(dep, deps) {
         name = get_label_info(dep, "name")
-        args += [ rebase_path(get_label_info(dep, "dir"), ".") +
-                  "/tsconfig_$name.json" ]
+        tsconfig_dep =
+            get_label_info(dep, "target_gen_dir") + "/tsconfig_$name.json"
+        inputs += [ tsconfig_dep ]
+        args += [ rebase_path(tsconfig_dep, target_gen_dir) ]
       }
     }
 
@@ -160,7 +161,7 @@ template("ts_library") {
         "--platform",
         platform,
       ]
-    } else if (is_chromeos_ash) {
+    } else if (is_chromeos) {
       platform = "chromeos_ash"
       args += [
         "--platform",

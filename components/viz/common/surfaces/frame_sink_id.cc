@@ -5,9 +5,11 @@
 #include "components/viz/common/surfaces/frame_sink_id.h"
 
 #include <ostream>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
+#include "base/tracing/protos/chrome_track_event.pbzero.h"
+#include "third_party/perfetto/include/perfetto/tracing/traced_proto.h"
 
 namespace viz {
 
@@ -15,7 +17,7 @@ std::string FrameSinkId::ToString() const {
   return base::StringPrintf("FrameSinkId(%u, %u)", client_id_, sink_id_);
 }
 
-std::string FrameSinkId::ToString(base::StringPiece debug_label) const {
+std::string FrameSinkId::ToString(std::string_view debug_label) const {
   return base::StringPrintf("FrameSinkId[%s](%u, %u)",
                             std::string(debug_label).c_str(), client_id_,
                             sink_id_);
@@ -23,6 +25,12 @@ std::string FrameSinkId::ToString(base::StringPiece debug_label) const {
 
 std::ostream& operator<<(std::ostream& out, const FrameSinkId& frame_sink_id) {
   return out << frame_sink_id.ToString();
+}
+
+void FrameSinkId::WriteIntoTrace(
+    perfetto::TracedProto<TraceProto> proto) const {
+  proto->set_frame_sink_client_id(client_id_);
+  proto->set_frame_sink_id(sink_id_);
 }
 
 }  // namespace viz

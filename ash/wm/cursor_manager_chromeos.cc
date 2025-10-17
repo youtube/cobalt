@@ -9,6 +9,7 @@
 #include "ash/constants/ash_switches.h"
 #include "ash/keyboard/ui/keyboard_ui_controller.h"
 #include "ash/keyboard/ui/keyboard_util.h"
+#include "ash/public/cpp/window_properties.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/shell.h"
 #include "base/command_line.h"
@@ -21,7 +22,6 @@
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/paint_vector_icon.h"
-#include "ui/wm/core/cursor_manager.h"
 #include "ui/wm/core/native_cursor_manager.h"
 
 namespace ash {
@@ -36,7 +36,7 @@ void CursorManager::Init() {
           switches::kForceShowCursor)) {
     // Set a custom cursor so users know that the switch is turned on.
     const gfx::ImageSkia custom_icon =
-        gfx::CreateVectorIcon(kTouchIndicatorIcon, SK_ColorBLACK);
+        gfx::CreateVectorIcon(kTouchIndicatorIcon);
     const float dsf =
         display::Screen::GetScreen()->GetPrimaryDisplay().device_scale_factor();
     SkBitmap bitmap = custom_icon.GetRepresentation(dsf).GetBitmap();
@@ -45,7 +45,8 @@ void CursorManager::Init() {
         ui::Cursor::NewCustom(std::move(bitmap), std::move(hotspot), dsf);
     cursor.SetPlatformCursor(
         ui::CursorFactory::GetInstance()->CreateImageCursor(
-            cursor.type(), cursor.custom_bitmap(), cursor.custom_hotspot()));
+            cursor.type(), cursor.custom_bitmap(), cursor.custom_hotspot(),
+            cursor.image_scale_factor()));
 
     SetCursor(std::move(cursor));
     LockCursor();
@@ -59,8 +60,9 @@ void CursorManager::Init() {
 
 bool CursorManager::ShouldHideCursorOnKeyEvent(
     const ui::KeyEvent& event) const {
-  if (event.type() != ui::ET_KEY_PRESSED)
+  if (event.type() != ui::EventType::kKeyPressed) {
     return false;
+  }
 
   // Pressing one key repeatedly will not hide the cursor.
   // To deal with the issue 855163 (http://crbug.com/855163).
@@ -98,6 +100,7 @@ bool CursorManager::ShouldHideCursorOnKeyEvent(
     case ui::VKEY_MENU:
     // Search key == VKEY_LWIN.
     case ui::VKEY_LWIN:
+    case ui::VKEY_RWIN:
     case ui::VKEY_WLAN:
     case ui::VKEY_POWER:
     case ui::VKEY_BRIGHTNESS_DOWN:
@@ -108,6 +111,14 @@ bool CursorManager::ShouldHideCursorOnKeyEvent(
     case ui::VKEY_ZOOM:
       return false;
     default:
+      // If the target window has the property kShowCursorDuringKeypress don't
+      // hide the cursor.
+      aura::Window* target = static_cast<aura::Window*>(event.target());
+      aura::Window* top_level = target->GetToplevelWindow();
+      if (top_level && top_level->GetProperty(ash::kShowCursorOnKeypress)) {
+        return false;
+      }
+
       return true;
   }
 }

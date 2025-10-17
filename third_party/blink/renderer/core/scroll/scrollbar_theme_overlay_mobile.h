@@ -21,22 +21,20 @@ class CORE_EXPORT ScrollbarThemeOverlayMobile : public ScrollbarThemeOverlay {
                   const gfx::Rect&) override;
   bool AllowsHitTest() const override { return false; }
   bool IsSolidColor() const override { return true; }
+  SkColor4f ThumbColor(const Scrollbar& scrollbar) const override;
   bool UsesNinePatchThumbResource() const override { return false; }
 
- protected:
-  ScrollbarThemeOverlayMobile(int thumb_thickness_default,
-                              int scrollbar_margin_default,
-                              int thumb_thickness_thin,
-                              int scrollbar_margin_thin,
-                              Color);
+  const Color& DefaultColor() { return default_color_; }
 
-  ScrollbarPart HitTest(const Scrollbar&, const gfx::Point&) override {
+ protected:
+  ScrollbarThemeOverlayMobile(int thumb_thickness, int scrollbar_margin);
+
+  ScrollbarPart HitTest(const Scrollbar&, const gfx::Point&) const override {
     NOTREACHED();
-    return kNoPart;
   }
 
  private:
-  Color color_;
+  Color default_color_;
 };
 
 }  // namespace blink

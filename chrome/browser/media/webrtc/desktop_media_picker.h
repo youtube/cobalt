@@ -9,11 +9,15 @@
 #include <string>
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "build/android_buildflags.h"
+#include "build/buildflag.h"
 #include "content/public/browser/desktop_media_id.h"
 #include "content/public/browser/media_stream_request.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/gfx/native_widget_types.h"
 
@@ -23,15 +27,31 @@ namespace content {
 class WebContents;
 }
 
+#if BUILDFLAG(IS_DESKTOP_ANDROID)
+BASE_DECLARE_FEATURE(kAndroidMediaPicker);
+#endif
+
 // Base class for desktop media picker UI. It's used by Desktop Media API, and
 // by ARC to let user choose a desktop media source.
 //
-// TODO(crbug.com/987001): Rename this class.
+// TODO(crbug.com/40637301): Rename this class.
 class DesktopMediaPicker {
  public:
   using DoneCallback = base::OnceCallback<void(content::DesktopMediaID id)>;
 
   struct Params {
+    // Possible sources of the request.
+    enum class RequestSource {
+      kUnknown,
+      kCast,
+      kExtension,
+      kGetDisplayMedia,
+      kScreenshotDataCollector,
+      kArcScreenCapture,
+      kGlic
+    };
+
+    explicit Params(RequestSource request_source);
     Params();
     Params(const Params&);
     Params& operator=(const Params&);
@@ -41,11 +61,11 @@ class DesktopMediaPicker {
     raw_ptr<content::WebContents> web_contents = nullptr;
     // The context whose root window is used for dialog placement, cannot be
     // null for Aura.
-    gfx::NativeWindow context = nullptr;
+    gfx::NativeWindow context = gfx::NativeWindow();
     // Parent window the dialog is relative to, only used on Mac.
-    gfx::NativeWindow parent = nullptr;
+    gfx::NativeWindow parent = gfx::NativeWindow();
     // The modality used for showing the dialog.
-    ui::ModalType modality = ui::ModalType::MODAL_TYPE_CHILD;
+    ui::mojom::ModalType modality = ui::mojom::ModalType::kChild;
     // The name used in the dialog for what is requesting the picker to be
     // shown.
     std::u16string app_name;
@@ -67,6 +87,9 @@ class DesktopMediaPicker {
     // Indicates that, if audio ends up being captured, then local playback
     // over the user's local speakers should be suppressed.
     bool suppress_local_audio_playback = false;
+    // Captured audio should not include audio originating from the document
+    // that called getDisplayMedia.
+    bool restrict_own_audio = false;
     // This flag controls the behvior in the case where the picker is invoked to
     // select a screen and there is only one screen available.  If true, the
     // dialog is bypassed entirely and the screen is automatically selected.
@@ -82,18 +105,17 @@ class DesktopMediaPicker {
     // picker.
     blink::mojom::PreferredDisplaySurface preferred_display_surface =
         blink::mojom::PreferredDisplaySurface::NO_PREFERENCE;
-    // True if the source of the call is getDisplayMedia(), false if it's
-    // another source, like an extension or ARC. This is useful for UMA that
+    // Indicates the source of the request. This is useful for UMA that
     // track the result of the picker, because the behavior with the
     // Extension API is different, and could therefore lead to mismeasurement.
-    bool is_get_display_media_call = false;
+    RequestSource request_source = RequestSource::kUnknown;
   };
 
   // Creates a picker dialog/confirmation box depending on the value of
   // |request|. If no request is available the default picker, namely
-  // DesktopMediaPickerViews is used.
+  // DesktopMediaPickerImpl is used.
   static std::unique_ptr<DesktopMediaPicker> Create(
-      const content::MediaStreamRequest* request = nullptr);
+      const content::MediaStreamRequest* request);
 
   DesktopMediaPicker() = default;
 

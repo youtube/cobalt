@@ -11,7 +11,7 @@
 #include "base/scoped_observation_traits.h"
 #include "chromeos/ash/components/dbus/cryptohome/UserDataAuth.pb.h"
 #include "chromeos/ash/components/dbus/cryptohome/rpc.pb.h"
-#include "chromeos/dbus/common/dbus_method_call_status.h"
+#include "chromeos/dbus/common/dbus_callback.h"
 
 namespace dbus {
 class Bus;
@@ -39,25 +39,44 @@ class COMPONENT_EXPORT(USERDATAAUTH_CLIENT) UserDataAuthClient {
 
   class FingerprintAuthObserver : public base::CheckedObserver {
    public:
+    // Used for the legacy fingerprint auth scan signal.
     virtual void OnFingerprintScan(
         const ::user_data_auth::FingerprintScanResult& result) {}
+    // Used for the legacy fingerprint enroll scan signal.
     virtual void OnEnrollScanDone(
         const ::user_data_auth::FingerprintScanResult& result,
         bool is_complete,
         int percent_complete) {}
   };
 
+  // Processes sub messages embedded in the PrepareAuthFactorProgress signal
+  // received
+  class PrepareAuthFactorProgressObserver : public base::CheckedObserver {
+   public:
+    // Called when a fingerprint auth message is received.
+    virtual void OnFingerprintAuthScan(
+        const ::user_data_auth::AuthScanDone& result) {}
+
+    // Called when a enroll progress is received.
+    virtual void OnFingerprintEnrollProgress(
+        const ::user_data_auth::AuthEnrollmentProgress& result) {}
+  };
+
+  class AuthFactorStatusUpdateObserver : public base::CheckedObserver {
+   public:
+    // Called when AuthFactorStatusUpdate signal is received.
+    virtual void OnAuthFactorStatusUpdate(
+        const ::user_data_auth::AuthFactorStatusUpdate& update) {}
+  };
+
   using IsMountedCallback =
       chromeos::DBusMethodCallback<::user_data_auth::IsMountedReply>;
+  using GetVaultPropertiesCallback =
+      chromeos::DBusMethodCallback<::user_data_auth::GetVaultPropertiesReply>;
   using UnmountCallback =
       chromeos::DBusMethodCallback<::user_data_auth::UnmountReply>;
   using RemoveCallback =
       chromeos::DBusMethodCallback<::user_data_auth::RemoveReply>;
-
-  // This API is still used by old WebAuthN path.
-  // TODO(b/260715686): Remove as part of UseAuthsessionForWebAuthN cleanup.
-  using CheckKeyCallback =
-      chromeos::DBusMethodCallback<::user_data_auth::CheckKeyReply>;
 
   using GetSupportedKeyPoliciesCallback = chromeos::DBusMethodCallback<
       ::user_data_auth::GetSupportedKeyPoliciesReply>;
@@ -80,6 +99,10 @@ class COMPONENT_EXPORT(USERDATAAUTH_CLIENT) UserDataAuthClient {
       chromeos::DBusMethodCallback<::user_data_auth::AddAuthFactorReply>;
   using UpdateAuthFactorCallback =
       chromeos::DBusMethodCallback<::user_data_auth::UpdateAuthFactorReply>;
+  using UpdateAuthFactorMetadataCallback = chromeos::DBusMethodCallback<
+      ::user_data_auth::UpdateAuthFactorMetadataReply>;
+  using ReplaceAuthFactorCallback =
+      chromeos::DBusMethodCallback<::user_data_auth::ReplaceAuthFactorReply>;
   using RemoveAuthFactorCallback =
       chromeos::DBusMethodCallback<::user_data_auth::RemoveAuthFactorReply>;
   using ListAuthFactorsCallback =
@@ -87,8 +110,6 @@ class COMPONENT_EXPORT(USERDATAAUTH_CLIENT) UserDataAuthClient {
   using GetAuthFactorExtendedInfoCallback = chromeos::DBusMethodCallback<
       ::user_data_auth::GetAuthFactorExtendedInfoReply>;
 
-  using GetRecoveryRequestCallback =
-      chromeos::DBusMethodCallback<::user_data_auth::GetRecoveryRequestReply>;
   // Asynchronous (biometric) AuthFactors API.
   using PrepareAuthFactorCallback =
       chromeos::DBusMethodCallback<::user_data_auth::PrepareAuthFactorReply>;
@@ -110,6 +131,18 @@ class COMPONENT_EXPORT(USERDATAAUTH_CLIENT) UserDataAuthClient {
       ::user_data_auth::StartMigrateToDircryptoReply>;
   using NeedsDircryptoMigrationCallback = chromeos::DBusMethodCallback<
       ::user_data_auth::NeedsDircryptoMigrationReply>;
+
+  using GetArcDiskFeaturesCallback =
+      chromeos::DBusMethodCallback<::user_data_auth::GetArcDiskFeaturesReply>;
+
+  using GetRecoverableKeyStoresCallback = chromeos::DBusMethodCallback<
+      ::user_data_auth::GetRecoverableKeyStoresReply>;
+
+  using SetUserDataStorageWriteEnabledCallback = chromeos::DBusMethodCallback<
+      ::user_data_auth::SetUserDataStorageWriteEnabledReply>;
+
+  using LockFactorUntilRebootCallback = chromeos::DBusMethodCallback<
+      ::user_data_auth::LockFactorUntilRebootReply>;
 
   // Not copyable or movable.
   UserDataAuthClient(const UserDataAuthClient&) = delete;
@@ -143,13 +176,27 @@ class COMPONENT_EXPORT(USERDATAAUTH_CLIENT) UserDataAuthClient {
   // Removes an observer if added.
   virtual void RemoveObserver(Observer* observer) = 0;
 
-  // Removes a fingerprint auth observer if added.
+  // Adds a fingerprint auth observer.
   virtual void AddFingerprintAuthObserver(
       FingerprintAuthObserver* observer) = 0;
 
   // Removes a fingerprint auth observer if added.
   virtual void RemoveFingerprintAuthObserver(
       FingerprintAuthObserver* observer) = 0;
+
+  // Adds a PrepareAuthFactorProgress observer.
+  virtual void AddPrepareAuthFactorProgressObserver(
+      PrepareAuthFactorProgressObserver* observer) = 0;
+
+  // Removes a PrepareAuthFactorProgress observer if added.
+  virtual void RemovePrepareAuthFactorProgressObserver(
+      PrepareAuthFactorProgressObserver* observer) = 0;
+
+  virtual void AddAuthFactorStatusUpdateObserver(
+      AuthFactorStatusUpdateObserver* observer) = 0;
+
+  virtual void RemoveAuthFactorStatusUpdateObserver(
+      AuthFactorStatusUpdateObserver* observer) = 0;
 
   // Actual DBus Methods:
 
@@ -161,6 +208,11 @@ class COMPONENT_EXPORT(USERDATAAUTH_CLIENT) UserDataAuthClient {
   virtual void IsMounted(const ::user_data_auth::IsMountedRequest& request,
                          IsMountedCallback callback) = 0;
 
+  // Queries user's vault properties.
+  virtual void GetVaultProperties(
+      const ::user_data_auth::GetVaultPropertiesRequest& request,
+      GetVaultPropertiesCallback callback) = 0;
+
   // Unmounts user's vault.
   virtual void Unmount(const ::user_data_auth::UnmountRequest& request,
                        UnmountCallback callback) = 0;
@@ -168,12 +220,6 @@ class COMPONENT_EXPORT(USERDATAAUTH_CLIENT) UserDataAuthClient {
   // Removes user's vault.
   virtual void Remove(const ::user_data_auth::RemoveRequest& request,
                       RemoveCallback callback) = 0;
-
-  // This API is still used by old WebAuthN path.
-  // TODO(b/260715686): Remove as part of UseAuthsessionForWebAuthN cleanup.
-  // Try authenticating with key in user's vault.
-  virtual void CheckKey(const ::user_data_auth::CheckKeyRequest& request,
-                        CheckKeyCallback callback) = 0;
 
   // Instructs cryptohome to migrate the vault from eCryptfs to Dircrypto.
   virtual void StartMigrateToDircrypto(
@@ -261,6 +307,20 @@ class COMPONENT_EXPORT(USERDATAAUTH_CLIENT) UserDataAuthClient {
       const ::user_data_auth::UpdateAuthFactorRequest& request,
       UpdateAuthFactorCallback callback) = 0;
 
+  // This call will be used in the case of a user wanting
+  // to update an AuthFactor's metadata. (E.g. Changing the user specified
+  // name).
+  virtual void UpdateAuthFactorMetadata(
+      const ::user_data_auth::UpdateAuthFactorMetadataRequest& request,
+      UpdateAuthFactorMetadataCallback callback) = 0;
+
+  // This call will be used in the case of a user wanting to remove an existing
+  // Authfactor and add a new one to replace it. (E.g. Changing to local
+  // password from Gaia password).
+  virtual void ReplaceAuthFactor(
+      const ::user_data_auth::ReplaceAuthFactorRequest& request,
+      ReplaceAuthFactorCallback callback) = 0;
+
   // This is called when a user wants to remove an
   // AuthFactor.
   virtual void RemoveAuthFactor(
@@ -279,29 +339,48 @@ class COMPONENT_EXPORT(USERDATAAUTH_CLIENT) UserDataAuthClient {
       const ::user_data_auth::GetAuthFactorExtendedInfoRequest& request,
       GetAuthFactorExtendedInfoCallback callback) = 0;
 
-  // This is called when a user authenticates with recovery to obtain the
-  // request to be sent to the recovery service.
-  virtual void GetRecoveryRequest(
-      const ::user_data_auth::GetRecoveryRequestRequest& request,
-      GetRecoveryRequestCallback callback) = 0;
-
   // This is called when a user wants to get an AuthSession status.
   virtual void GetAuthSessionStatus(
       const ::user_data_auth::GetAuthSessionStatusRequest& request,
       GetAuthSessionStatusCallback callback) = 0;
 
   // This is called to enable asynchronous auth factors (like Fingerprint).
-  // Note that called need to add FingerprintAuthObserver before this call.
+  // Note that caller needs to add PrepareAuthFactorProgressObserver before this
+  // call.
   virtual void PrepareAuthFactor(
       const ::user_data_auth::PrepareAuthFactorRequest& request,
       PrepareAuthFactorCallback callback) = 0;
 
   // Counterpart for `PrepareAuthFactor`, method is called to disable particular
   // asynchronous auth factor (like Fingerprint).
-  // Note that called need to remove FingerprintAuthObserver after this call.
+  // Note that caller needs to remove PrepareAuthFactorProgressObserver after
+  // this call.
   virtual void TerminateAuthFactor(
       const ::user_data_auth::TerminateAuthFactorRequest& request,
       TerminateAuthFactorCallback callback) = 0;
+
+  // Retrieve the ARC-related disk features supported.
+  virtual void GetArcDiskFeatures(
+      const ::user_data_auth::GetArcDiskFeaturesRequest& request,
+      GetArcDiskFeaturesCallback callback) = 0;
+
+  // Retrieve LSKF-wrapped key material for upload to a remote recovery service.
+  virtual void GetRecoverableKeyStores(
+      const ::user_data_auth::GetRecoverableKeyStoresRequest& request,
+      GetRecoverableKeyStoresCallback callback) = 0;
+
+  // Enable/disable write access permissions to MyFiles directory.
+  virtual void SetUserDataStorageWriteEnabled(
+      const ::user_data_auth::SetUserDataStorageWriteEnabledRequest& request,
+      SetUserDataStorageWriteEnabledCallback callback) = 0;
+
+  // Initiates a Cryptohome lock on the provided authentication factor type,
+  // persisting until device reboot.
+  // NOTE: The `LockFactorUntilRebootRequest` is only implemented for
+  // `AUTH_FACTOR_TYPE_CRYPTOHOME_RECOVERY`.
+  virtual void LockFactorUntilReboot(
+      const ::user_data_auth::LockFactorUntilRebootRequest& request,
+      LockFactorUntilRebootCallback callback) = 0;
 
  protected:
   // Initialize/Shutdown should be used instead.

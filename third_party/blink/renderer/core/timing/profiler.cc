@@ -51,7 +51,7 @@ Profiler* Profiler::Create(ScriptState* script_state,
 void Profiler::Trace(Visitor* visitor) const {
   visitor->Trace(profiler_group_);
   visitor->Trace(script_state_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
 void Profiler::DisposeAsync() {
@@ -73,9 +73,10 @@ ExecutionContext* Profiler::GetExecutionContext() const {
   return ExecutionContext::From(script_state_);
 }
 
-ScriptPromise Profiler::stop(ScriptState* script_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
-  ScriptPromise promise = resolver->Promise();
+ScriptPromise<ProfilerTrace> Profiler::stop(ScriptState* script_state) {
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<ProfilerTrace>>(script_state);
+  auto promise = resolver->Promise();
 
   if (!stopped()) {
     // Ensure that we don't synchronously invoke script when resolving

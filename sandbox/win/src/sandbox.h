@@ -20,10 +20,16 @@
 #define SANDBOX_WIN_SRC_SANDBOX_H_
 
 #include <stddef.h>
+
 #include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
+#include "base/win/scoped_process_information.h"
 #include "base/win/windows_types.h"
 #include "sandbox/win/src/sandbox_policy.h"
 #include "sandbox/win/src/sandbox_types.h"
@@ -31,6 +37,7 @@
 // sandbox: Google User-Land Application Sandbox
 namespace sandbox {
 
+class BrokerServicesDelegate;
 class BrokerServicesTargetTracker;
 class PolicyDiagnosticsReceiver;
 class ProcessState;
@@ -56,15 +63,24 @@ enum class Desktop;
 // compatible definitions of the class even when LTO is enabled.
 class [[clang::lto_visibility_public]] BrokerServices {
  public:
+  // The callback used for receiving the SpawnTarget() process launch result.
+  // The parameters include the new process and thread handle, the Win32 last
+  // error code, and the sandbox ResultCode.
+  using SpawnTargetCallback = base::OnceCallback<
+      void(base::win::ScopedProcessInformation, DWORD, ResultCode)>;
+
   // Initializes the broker. Must be called before any other on this class.
-  // returns ALL_OK if successful. All other return values imply failure.
-  // If the return is ERROR_GENERIC, you can call ::GetLastError() to get
-  // more information.
-  virtual ResultCode Init() = 0;
+  // The `delegate` configures parallel or synchronous process launching, and
+  // implements tracing callbacks.
+  // returns ALL_OK if successful. All other return values imply failure. If the
+  // return is ERROR_GENERIC, you can call ::GetLastError() to get more
+  // information.
+  virtual ResultCode Init(std::unique_ptr<BrokerServicesDelegate> delegate) = 0;
 
   // May be called in place of Init in test code to add a tracker that validates
   // job notifications and signals an event when all tracked processes are done.
   virtual ResultCode InitForTesting(
+      std::unique_ptr<BrokerServicesDelegate> delegate,
       std::unique_ptr<BrokerServicesTargetTracker> target_tracker) = 0;
 
   // Pre-creates an alternate desktop. Must be called before a non-default
@@ -101,7 +117,7 @@ class [[clang::lto_visibility_public]] BrokerServices {
   // policy which never shares its TargetConfig state with another policy
   // object. For such an object both its TargetConfig and TargetPolicy methods
   // must be called every time.
-  virtual std::unique_ptr<TargetPolicy> CreatePolicy(base::StringPiece tag) = 0;
+  virtual std::unique_ptr<TargetPolicy> CreatePolicy(std::string_view tag) = 0;
 
   // Creates a new target (child process) in a suspended state and takes
   // ownership of |policy|.
@@ -125,6 +141,16 @@ class [[clang::lto_visibility_public]] BrokerServices {
                                  std::unique_ptr<TargetPolicy> policy,
                                  DWORD* last_error,
                                  PROCESS_INFORMATION* target) = 0;
+
+  // Async version of SpawnTarget that supports parallel process launching.
+  // Target creation happens on the thread pool when parallel launching is
+  // enabled (controlled by BrokerServicesDelegate). This function is the same
+  // as SpawnTarget, except the out parameters `last_error`, `target` and
+  // ResultCode are passed to `result_callback`.
+  virtual void SpawnTargetAsync(const wchar_t* exe_path,
+                                const wchar_t* command_line,
+                                std::unique_ptr<TargetPolicy> policy,
+                                SpawnTargetCallback result_callback) = 0;
 
   // This call creates a snapshot of policies managed by the sandbox and
   // returns them via a helper class.
@@ -152,7 +178,7 @@ class [[clang::lto_visibility_public]] BrokerServices {
       MitigationFlags additional_flags) = 0;
 
  protected:
-  ~BrokerServices() {}
+  virtual ~BrokerServices() = default;
 };
 
 // TargetServices models the current process from the perspective
@@ -186,6 +212,14 @@ class [[clang::lto_visibility_public]] TargetServices {
   // more information.
   virtual ResultCode Init() = 0;
 
+  // Returns a view of the delegate data blob - the target can use this data
+  // early in the process's lifetime to set itself up - the format of the data
+  // is decided by the embedder, and set using TargetPolicy::AddDelegateData().
+  // If no data was provided the span will have a size of zero. This method can
+  // be called at any time after Init(), but it is intended to be used sparingly
+  // prior to calling LowerToken().
+  virtual std::optional<base::span<const uint8_t>> GetDelegateData() = 0;
+
   // Discards the impersonation token and uses the lower token, call before
   // processing any untrusted data or running third-party code. If this call
   // fails the current process could be terminated immediately.
@@ -204,7 +238,7 @@ class [[clang::lto_visibility_public]] PolicyInfo {
  public:
   // Returns a JSON representation of the policy snapshot.
   // This pointer has the same lifetime as this PolicyInfo object.
-  virtual const char* JsonString() = 0;
+  virtual const std::string& JsonString() const LIFETIME_BOUND = 0;
   virtual ~PolicyInfo() {}
 };
 
@@ -240,6 +274,46 @@ class [[clang::lto_visibility_public]] BrokerServicesTargetTracker {
   // Called when job notifications indicate that a process has finished.
   virtual void OnTargetRemoved() = 0;
   virtual ~BrokerServicesTargetTracker() {}
+};
+
+// Used internally by SpawnTarget() to return process launch info from a task.
+struct [[clang::lto_visibility_public]] CreateTargetResult {
+  base::win::ScopedProcessInformation process_info;
+  DWORD last_error = ERROR_SUCCESS;
+  ResultCode result_code = SBOX_ALL_OK;
+};
+
+// This class configures BrokerServices to use parallel or synchronous process
+// launching, and provides callbacks for implementing tracing.
+class [[clang::lto_visibility_public]] BrokerServicesDelegate {
+ public:
+  // Returns true if parallel launching is enabled, otherwise synchronous
+  // launching is used.
+  virtual bool ParallelLaunchEnabled() = 0;
+  // This method runs `task` on the thread pool, then runs `reply` on the
+  // calling sequence with the returned CreateTargetResult. This method must be
+  // implemented if ParallelLaunchEnabled() can return true.
+  virtual void ParallelLaunchPostTaskAndReplyWithResult(
+      const base::Location& from_here,
+      base::OnceCallback<CreateTargetResult()> task,
+      base::OnceCallback<void(CreateTargetResult)> reply) = 0;
+  // Called before a target process is created. If parallel launching is
+  // enabled, this will be called on the thread pool.
+  virtual void BeforeTargetProcessCreateOnCreationThread(
+      const void* trace_id) = 0;
+  // Called after a target process is created. If parallel launching is enabled,
+  // this will be called on the thread pool.
+  virtual void AfterTargetProcessCreateOnCreationThread(const void* trace_id,
+                                                        DWORD process_id) = 0;
+
+  // Record error histograms when CreateThreadAction IPC failed to create a
+  // thread in the target process.
+  virtual void OnCreateThreadActionCreateFailure(DWORD last_error) = 0;
+  // Record error histograms when CreateThreadAction IPC failed to duplicate a
+  // handle into the child process.
+  virtual void OnCreateThreadActionDuplicateFailure(DWORD last_error) = 0;
+
+  virtual ~BrokerServicesDelegate() {}
 };
 
 }  // namespace sandbox

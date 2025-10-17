@@ -18,7 +18,7 @@ How-tos / guides:
 * [Why is this test failing?][why-is-this-test-failing]
 
 Related:
-  * [WebAppProvider README.md](/chrome/browser/web_applications/README.md)
+  * [WebAppProvider README.md](/docs/webapps/README.md)
 
 ## When to add integration tests?
 Any web app feature (or any code in general) should have a combination of unit tests and browser tests that focus on testing the specific feature itself. Unit tests are the least likely to become flaky, and allow fine-grained testing of a system. Browser tests are more likely to be flaky but enable testing with most of the system running. Regular unit tests or browser tests should be used for testing system parts in isolation and for testing minute details like handling of error cases.
@@ -140,12 +140,14 @@ chrome/test/webapps/generate_framework_tests_and_coverage.py
 ```
 This uses the files in `chrome/test/webapps/data` and existing browsertests on the system (see `custom_partitions` and `default_partitions` in [`generate_framework_tests_and_coverage.py`][generate-script]) to:
 
-#### 1) Print to `stdout` all detected changes needed to browsertests.
-The script is not smart enough to automatically add/remove/move tests to keep complexity to a minimum. Instead, it prints out the tests that need to be added or removed to have the tests match what it expects. It assumes:
+#### 1) Print all detected browsertests' changes to `stdout` or to existing test files.
+The script can remove tests (--delete-in-place) or add tests (--add-to-file) to existing test files.
+It is not smart enough to automatically create new test files and add tests to them because it usually involves modifying the BUILD file. If the test file does not exist, the file name and the tests will be printed out to `stdout` instead.
+If none of these flags are used, the script prints out the tests that need to be added or removed to `stdout` and have the tests match what it expects. It assumes:
   * Browsertests are correctly described by the `TestPartitionDescription`s in [`generate_framework_tests_and_coverage.py`][generate-script].
   * Browsertests with the per-platform suffixes (e.g. `_mac`, `_win`, etc) are only run on those platforms
 
-This process doesn't modify the browsertest files so any test disabling done by sheriffs can remain. The script runner is thus expected to make the requested changes manually. In the rare case that a test is moving between files (if we are enabling a test on a new platform, for example), then the script runner should be careful to copy any sheriff changes to the browsertest as well.
+This process doesn't modify the browsertests that are disabled by sheriffs. The script runner is thus expected to make the requested changes manually. In the rare case that a test is moving between files (if we are enabling a test on a new platform, for example), then the script runner should be careful to copy any sheriff changes to the browsertest as well.
 
 #### 2) Generate per-platform processed required coverage `tsv` files in `chrome/test/webapps/coverage`
 These are the processed required coverage tests with markers per action to allow a conditional formatter (like the one [here][cuj-coverage-sheet]) to highlight what was and was not covered by the testing framework.
@@ -184,7 +186,11 @@ The new tests can be triggered by adding the path to `browser_tests` or `sync_in
 
 To help debug or explore further, please see the [`graph_cli_tool.py`](graph_cli_tool.py) script which includes a number of command line utilities to process the various files.
 
-Both this file and the [`generate_framework_tests_and_coverage.py`](generate_framework_tests_and_coverage.py) file support the `-v` option to print out informational logging.
+Both this file and the [`generate_framework_tests_and_coverage.py`][generate-script] file support the `-v` option to print out informational logging.
+
+### Uploading test CLs
+
+Once the tests have been generated from the CUJs, always run [`generate_framework_tests_and_coverage.py`][generate-script] as a sanity check to ensure that this outputs nothing in the terminal. This means that the [critical user journeys][cuj-spreadsheet] and the generated tests across all files are in sync and no new tests need to be generated. If this outputs something on the terminal, perform the debugging steps outlined above to understand why the two converge.
 
 ## [`WebAppIntegrationTestDriver`][test-driver] and Browsertest Implementation
 
@@ -241,6 +247,10 @@ Running tests on these bots MAY have other random failures happening. That is no
 ### Disabling a Test
 
 Tests can be disabled in the same manner that other integration/browser tests are disabled, using macros. See [on disabling tests](/docs/testing/on_disabling_tests.md) for more information.
+
+### Modifying a test
+
+If you need to modify a test, that means you are changing a critical user journey on the platform. If that is intentional, then modifications must be done to the [critical-user-journey markdown file][cuj-spreadsheet], and not the tests - they are generated from this markdown and should always stay in-sync.
 
 ## Understanding and Implementing Test Cases
 

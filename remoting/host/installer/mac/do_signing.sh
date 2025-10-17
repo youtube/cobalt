@@ -40,6 +40,9 @@ setup() {
   # Binaries/bundles to sign.
   ME2ME_HOST="PrivilegedHelperTools/${HOST_BUNDLE_NAME}"
   ME2ME_EXE_DIR="${ME2ME_HOST}/Contents/MacOS/"
+  REMOTING_CORE="${ME2ME_EXE_DIR}/libremoting_core.dylib"
+  REMOTE_WEBAUTHN="${ME2ME_EXE_DIR}/remote_webauthn"
+  ME2ME_AGENT_PROCESS_BROKER="${ME2ME_EXE_DIR}/remoting_agent_process_broker"
   ME2ME_LAUNCHD_SERVICE="${ME2ME_EXE_DIR}/remoting_me2me_host_service"
   ME2ME_NM_HOST="${ME2ME_EXE_DIR}/${NATIVE_MESSAGING_HOST_BUNDLE_NAME}/"
   IT2ME_NM_HOST="${ME2ME_EXE_DIR}/${REMOTE_ASSISTANCE_HOST_BUNDLE_NAME}/"
@@ -54,8 +57,13 @@ setup() {
   PKGPROJ_HOST_SERVICE="ChromotingHostService.pkgproj"
   PKGPROJ_HOST_UNINSTALLER="ChromotingHostUninstaller.pkgproj"
 
-  # The app entitlements file.
-  APP_ENTITLEMENTS="app-entitlements.plist"
+  # Bundle-specific entitlements which include restricted entitlements. These
+  # can only be used for signing specific bundles with official credentials.
+  ME2ME_ENTITLEMENTS="me2me-entitlements.plist"
+
+  # The default entitlements file. This contains unrestricted entitlements that
+  # can safely be applied for local signing.
+  DEFAULT_ENTITLEMENTS="app-entitlements.plist"
 
   # Final (user-visible) pkg name.
   PKG_FINAL="${HOST_PKG}.pkg"
@@ -114,24 +122,11 @@ verify_clean_dir() {
   fi
 }
 
-linker_signed_arm64_needs_force() {
-  major=$(sw_vers -productVersion | sed -Ee 's/^([0-9]+)\..*$/\1/')
-  if (( ${major} >= 11 )) ; then
-    return 1
-  fi
-  flags=$(codesign --display --verbose --arch=arm64 -- "${1}" 2>&1 |
-          sed -Ene 's/^CodeDirectory .* flags=(0x[0-9a-f]+)( |\().*$/\1/p')
-  if [[ -z "${flags}" ]]; then
-    return 1
-  fi
-  (( rv=${flags} & 0x20000 ))
-  return ${rv}
-}
-
 sign() {
   local name="${1}"
   local keychain="${2}"
   local id="${3}"
+  local entitlements="${4:-}"
 
   if [[ ! -e "${name}" ]]; then
     err_exit "Input file doesn't exist: ${name}"
@@ -144,12 +139,11 @@ sign() {
   # Expanding a zero-size array with "set -u" aborts with "unbound variable".
   local args=(-vv --sign "${id}")
   if [[ -n "${keychain}" ]]; then
-      args+=(--keychain "${keychain}")
+    args+=(--keychain "${keychain}")
   fi
-  if linker_signed_arm64_needs_force "${name}"; then
-      args+=(--force)
+  if [[ -n "${entitlements}" ]]; then
+    args+=(--entitlements "${input_dir}/${entitlements}")
   fi
-  args+=(--entitlements "${input_dir}/${APP_ENTITLEMENTS}")
   args+=(--timestamp --options runtime "${name}")
   codesign "${args[@]}"
   codesign -v "${name}"
@@ -161,6 +155,9 @@ sign_binaries() {
   local id="${3}"
 
   local binaries=(\
+    "${REMOTING_CORE}" \
+    "${REMOTE_WEBAUTHN}" \
+    "${ME2ME_AGENT_PROCESS_BROKER}" \
     "${ME2ME_LAUNCHD_SERVICE}" \
     "${ME2ME_NM_HOST}" \
     "${IT2ME_NM_HOST}" \
@@ -168,7 +165,15 @@ sign_binaries() {
     "${UNINSTALLER}" \
   )
   for binary in "${binaries[@]}"; do
-    sign "${input_dir}/${binary}" "${keychain}" "${id}"
+    local entitlements="${DEFAULT_ENTITLEMENTS}"
+
+    # Restricted entitlements must only be claimed for builds signed with
+    # official credentials. Locally-signed development packages do not use any
+    # productsign_id.
+    if [[ -n "${productsign_id}" && "${binary}" == "${ME2ME_HOST}" ]]; then
+      entitlements="${ME2ME_ENTITLEMENTS}"
+    fi
+    sign "${input_dir}/${binary}" "${keychain}" "${id}" "${entitlements}"
   done
 }
 
@@ -226,11 +231,11 @@ notarize() {
   local user="${3}"
 
   echo "Notarizing and stapling .dmg..."
-  "${input_dir}/notarize_thing.py" \
-      --user "${user}" \
-      --password @env:NOTARIZATION_PASSWORD \
-      --bundle-id "${HOST_BUNDLE_NAME}" \
-      "${dmg}"
+  if [[ -n "${NOTARIZATION_TOOL-}" ]]; then
+    "${NOTARIZATION_TOOL}" --file "${dmg}"
+  else
+    err_exit "A \$NOTARIZATION_TOOL must be specified."
+  fi
 }
 
 cleanup() {
@@ -252,8 +257,10 @@ usage() {
   echo "  If <keychain> is specified, it must contain all the signing ids." >&2
   echo "  If not specified, then the default keychains will be used." >&2
   echo "  If <notarization_user> is specified, the final DMG will be" >&2
-  echo "  notarized by Apple and stapled, using the given user and the" >&2
-  echo "  password from \$NOTARIZATION_PASSWORD variable." >&2
+  echo "  notarized by Apple and stapled, using a command from"
+  echo "  \$NOTARIZATION_TOOL. This tool must accept a --file argument" >&2
+  echo "  and handle the notarization and stapling process. The user" >&2
+  echo "  argument is legacy and is not used." >&2
 }
 
 main() {

@@ -10,7 +10,7 @@
 
 import {sendWithPromise} from 'chrome://resources/js/cr.js';
 
-import {NavigationView} from './diagnostics_types.js';
+import type {NavigationView} from './diagnostics_types.js';
 import {getNavigationViewForPageId} from './diagnostics_utils.js';
 
 export interface DiagnosticsBrowserProxy {
@@ -37,7 +37,7 @@ export interface DiagnosticsBrowserProxy {
 
 export class DiagnosticsBrowserProxyImpl implements DiagnosticsBrowserProxy {
   // View which 'recordNavigation' is leaving.
-  private previousView: NavigationView|null = null;
+  previousView: NavigationView|null = null;
 
   initialize(): void {
     chrome.send('initialize');

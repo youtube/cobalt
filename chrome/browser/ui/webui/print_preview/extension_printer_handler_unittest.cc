@@ -33,7 +33,6 @@
 #include "extensions/browser/api/printer_provider/printer_provider_print_job.h"
 #include "extensions/browser/api/usb/usb_device_manager.h"
 #include "extensions/common/extension.h"
-#include "extensions/common/value_builder.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "printing/pdf_render_settings.h"
 #include "printing/print_job_constants.h"
@@ -45,7 +44,6 @@
 #include "ui/gfx/geometry/size.h"
 
 using device::mojom::UsbDeviceInfoPtr;
-using extensions::DictionaryBuilder;
 using extensions::Extension;
 using extensions::PrinterProviderAPI;
 using extensions::PrinterProviderPrintJob;
@@ -236,7 +234,6 @@ const char kContentTypePWG[] = "image/pwg-raster";
 const char kPrintRequestSuccess[] = "OK";
 
 constexpr unsigned char kPrintData[] = "print data, PDF";
-constexpr size_t kPrintDataLength = sizeof(kPrintData);
 
 // Used as a callback to StartGetPrinters() in tests.
 // Increases `call_count` and records values returned by StartGetPrinters().
@@ -260,10 +257,11 @@ void RecordCapability(size_t& call_count,
                       base::Value::Dict capability) {
   ++call_count;
   base::Value::Dict* capabilities = capability.FindDict(kSettingCapabilities);
-  if (capabilities)
+  if (capabilities) {
     capability_out = std::move(*capabilities);
-  else
+  } else {
     capability_out.clear();
+  }
 }
 
 // Used as a callback to StartPrint in tests.
@@ -290,13 +288,13 @@ void RecordPrinterInfo(size_t* call_count,
 
 std::string RefCountedMemoryToString(
     scoped_refptr<base::RefCountedMemory> memory) {
-  return std::string(memory->front_as<char>(), memory->size());
+  return std::string(base::as_string_view(*memory));
 }
 
 // Fake PwgRasterConverter used in the tests.
 class FakePwgRasterConverter : public PwgRasterConverter {
  public:
-  FakePwgRasterConverter() {}
+  FakePwgRasterConverter() = default;
 
   FakePwgRasterConverter(const FakePwgRasterConverter&) = delete;
   FakePwgRasterConverter& operator=(const FakePwgRasterConverter&) = delete;
@@ -305,7 +303,8 @@ class FakePwgRasterConverter : public PwgRasterConverter {
 
   // PwgRasterConverter implementation. It writes |data| to shared memory.
   // Also, remembers conversion and bitmap settings passed into the method.
-  void Start(const base::RefCountedMemory* data,
+  void Start(const std::optional<bool>& use_skia,
+             const base::RefCountedMemory* data,
              const PdfRenderSettings& conversion_settings,
              const PwgRasterSettings& bitmap_settings,
              ResultCallback callback) override {
@@ -323,7 +322,7 @@ class FakePwgRasterConverter : public PwgRasterConverter {
       return;
     }
 
-    memcpy(memory.mapping.memory(), data->front(), data->size());
+    memory.mapping.GetMemoryAsSpan<uint8_t>().copy_from(*data);
     conversion_settings_ = conversion_settings;
     bitmap_settings_ = bitmap_settings;
     std::move(callback).Run(std::move(memory.region));
@@ -423,16 +422,18 @@ class FakePrinterProviderAPI : public PrinterProviderAPI {
 
   const PrinterProviderPrintJob* GetNextPendingPrintJob() const {
     EXPECT_GT(pending_print_count(), 0u);
-    if (pending_print_count() == 0)
+    if (pending_print_count() == 0) {
       return nullptr;
+    }
     return &pending_print_requests_.front().job;
   }
 
   void TriggerNextPrintCallback(const std::string& result) {
     ASSERT_GT(pending_print_count(), 0u);
     base::Value result_value;
-    if (result != kPrintRequestSuccess)
+    if (result != kPrintRequestSuccess) {
       result_value = base::Value(result);
+    }
     std::move(pending_print_requests_.front().callback).Run(result_value);
     pending_print_requests_.pop();
   }
@@ -598,25 +599,23 @@ TEST_F(ExtensionPrinterHandlerTest, GetUsbPrinters) {
   EXPECT_FALSE(is_done);
   EXPECT_EQ(2u, printers.size());
   base::Value::Dict extension_1_entry =
-      DictionaryBuilder()
+      base::Value::Dict()
           .Set("id", base::StringPrintf("provisional-usb:%s:%s",
                                         extension_1->id().c_str(),
                                         device0->guid.c_str()))
           .Set("name", "USB Printer")
           .Set("extensionName", "Provider 1")
           .Set("extensionId", extension_1->id())
-          .Set("provisional", true)
-          .Build();
+          .Set("provisional", true);
   base::Value::Dict extension_2_entry =
-      DictionaryBuilder()
+      base::Value::Dict()
           .Set("id", base::StringPrintf("provisional-usb:%s:%s",
                                         extension_2->id().c_str(),
                                         device1->guid.c_str()))
           .Set("name", "USB Printer")
           .Set("extensionName", "Provider 2")
           .Set("extensionId", extension_2->id())
-          .Set("provisional", true)
-          .Build();
+          .Set("provisional", true);
   EXPECT_TRUE(base::Contains(printers, extension_1_entry));
   EXPECT_TRUE(base::Contains(printers, extension_2_entry));
 
@@ -651,11 +650,10 @@ TEST_F(ExtensionPrinterHandlerTest, GetCapability) {
   base::Value::Dict* printer =
       original_capability_with_dpi_dict.FindDict("printer");
   ASSERT_TRUE(printer);
-  base::Value::Dict default_dpi_option;
-  default_dpi_option.Set("horizontal_dpi", kDefaultPdfDpi);
+  auto default_dpi_option =
+      base::Value::Dict().Set("horizontal_dpi", kDefaultPdfDpi);
   default_dpi_option.Set("vertical_dpi", kDefaultPdfDpi);
-  base::Value::List dpi_list;
-  dpi_list.Append(std::move(default_dpi_option));
+  auto dpi_list = base::Value::List().Append(std::move(default_dpi_option));
   base::Value::Dict dpi_dict;
   dpi_dict.Set("option", std::move(dpi_list));
   printer->Set("dpi", std::move(dpi_dict));
@@ -698,8 +696,8 @@ TEST_F(ExtensionPrinterHandlerTest, PrintPdf) {
   bool success = false;
   std::string status;
 
-  auto print_data = base::MakeRefCounted<base::RefCountedStaticMemory>(
-      kPrintData, kPrintDataLength);
+  auto print_data =
+      base::MakeRefCounted<base::RefCountedStaticMemory>(kPrintData);
   std::u16string title = u"Title";
 
   extension_printer_handler_->StartPrint(
@@ -735,8 +733,7 @@ TEST_F(ExtensionPrinterHandlerTest, PrintPdfReset) {
   bool success = false;
   std::string status;
 
-  auto print_data =
-      base::MakeRefCounted<base::RefCountedBytes>(kPrintData, kPrintDataLength);
+  auto print_data = base::MakeRefCounted<base::RefCountedBytes>(kPrintData);
   std::u16string title = u"Title";
 
   extension_printer_handler_->StartPrint(
@@ -761,8 +758,7 @@ TEST_F(ExtensionPrinterHandlerTest, PrintAll) {
   bool success = false;
   std::string status;
 
-  auto print_data =
-      base::MakeRefCounted<base::RefCountedBytes>(kPrintData, kPrintDataLength);
+  auto print_data = base::MakeRefCounted<base::RefCountedBytes>(kPrintData);
   std::u16string title = u"Title";
 
   extension_printer_handler_->StartPrint(
@@ -799,8 +795,7 @@ TEST_F(ExtensionPrinterHandlerTest, PrintPwg) {
   bool success = false;
   std::string status;
 
-  auto print_data =
-      base::MakeRefCounted<base::RefCountedBytes>(kPrintData, kPrintDataLength);
+  auto print_data = base::MakeRefCounted<base::RefCountedBytes>(kPrintData);
   std::u16string title = u"Title";
 
   extension_printer_handler_->StartPrint(
@@ -855,8 +850,7 @@ TEST_F(ExtensionPrinterHandlerTest, PrintPwgNonDefaultSettings) {
   bool success = false;
   std::string status;
 
-  auto print_data =
-      base::MakeRefCounted<base::RefCountedBytes>(kPrintData, kPrintDataLength);
+  auto print_data = base::MakeRefCounted<base::RefCountedBytes>(kPrintData);
   std::u16string title = u"Title";
 
   extension_printer_handler_->StartPrint(
@@ -911,8 +905,7 @@ TEST_F(ExtensionPrinterHandlerTest, PrintPwgReset) {
   bool success = false;
   std::string status;
 
-  auto print_data =
-      base::MakeRefCounted<base::RefCountedBytes>(kPrintData, kPrintDataLength);
+  auto print_data = base::MakeRefCounted<base::RefCountedBytes>(kPrintData);
   std::u16string title = u"Title";
 
   extension_printer_handler_->StartPrint(
@@ -940,8 +933,7 @@ TEST_F(ExtensionPrinterHandlerTest, PrintPwgInvalidTicket) {
   bool success = false;
   std::string status;
 
-  auto print_data =
-      base::MakeRefCounted<base::RefCountedBytes>(kPrintData, kPrintDataLength);
+  auto print_data = base::MakeRefCounted<base::RefCountedBytes>(kPrintData);
   std::u16string title = u"Title";
 
   extension_printer_handler_->StartPrint(
@@ -962,8 +954,7 @@ TEST_F(ExtensionPrinterHandlerTest, PrintPwgFailedConversion) {
 
   pwg_raster_converter_->FailConversion();
 
-  auto print_data =
-      base::MakeRefCounted<base::RefCountedBytes>(kPrintData, kPrintDataLength);
+  auto print_data = base::MakeRefCounted<base::RefCountedBytes>(kPrintData);
   std::u16string title = u"Title";
 
   extension_printer_handler_->StartPrint(
@@ -996,10 +987,8 @@ TEST_F(ExtensionPrinterHandlerTest, GrantUsbPrinterAccess) {
   ASSERT_TRUE(fake_api);
   ASSERT_EQ(1u, fake_api->pending_usb_info_count());
 
-  base::Value::Dict original_printer_info = DictionaryBuilder()
-                                                .Set("id", "printer1")
-                                                .Set("name", "Printer 1")
-                                                .Build();
+  base::Value::Dict original_printer_info =
+      base::Value::Dict().Set("id", "printer1").Set("name", "Printer 1");
 
   fake_api->TriggerNextUsbPrinterInfoCallback(original_printer_info.Clone());
 
@@ -1029,10 +1018,8 @@ TEST_F(ExtensionPrinterHandlerTest, GrantUsbPrinterAccessReset) {
 
   extension_printer_handler_->Reset();
 
-  base::Value::Dict original_printer_info = DictionaryBuilder()
-                                                .Set("id", "printer1")
-                                                .Set("name", "Printer 1")
-                                                .Build();
+  base::Value::Dict original_printer_info =
+      base::Value::Dict().Set("id", "printer1").Set("name", "Printer 1");
 
   fake_api->TriggerNextUsbPrinterInfoCallback(std::move(original_printer_info));
 

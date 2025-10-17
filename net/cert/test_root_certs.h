@@ -5,26 +5,45 @@
 #ifndef NET_CERT_TEST_ROOT_CERTS_H_
 #define NET_CERT_TEST_ROOT_CERTS_H_
 
+#include <set>
+
+#include "base/containers/span.h"
 #include "base/lazy_instance.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/synchronization/lock.h"
 #include "build/build_config.h"
 #include "net/base/net_export.h"
-#include "net/cert/pki/trust_store.h"
-#include "net/cert/pki/trust_store_in_memory.h"
+#include "third_party/boringssl/src/pki/trust_store.h"
+#include "third_party/boringssl/src/pki/trust_store_in_memory.h"
 
-#if BUILDFLAG(IS_WIN)
-#include <windows.h>
-#include "base/win/wincrypt_shim.h"
-#include "crypto/scoped_capi_types.h"
-#elif BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS)
 #include <CoreFoundation/CFArray.h>
 #include <Security/SecTrust.h>
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/scoped_cftyperef.h"
 #endif
 
 namespace net {
 
 class X509Certificate;
 typedef std::vector<scoped_refptr<X509Certificate>> CertificateList;
+
+class ThreadSafeTrustStoreInMemory : public bssl::TrustStore {
+ public:
+  // TrustStoreInMemory wrappers:
+  bool IsEmpty() const;
+  void Clear();
+  void AddCertificate(std::shared_ptr<const bssl::ParsedCertificate> cert,
+                      const bssl::CertificateTrust& trust);
+
+  // TrustStore implementation:
+  void SyncGetIssuersOf(const bssl::ParsedCertificate* cert,
+                        bssl::ParsedCertificateList* issuers) override;
+  bssl::CertificateTrust GetTrust(const bssl::ParsedCertificate* cert) override;
+
+ private:
+  mutable base::Lock lock_;
+  bssl::TrustStoreInMemory impl_ GUARDED_BY(lock_);
+};
 
 // TestRootCerts is a helper class for unit tests that is used to
 // artificially mark a certificate as trusted, independent of the local
@@ -54,22 +73,13 @@ class NET_EXPORT TestRootCerts {
   bool IsKnownRoot(base::span<const uint8_t> der_cert) const;
 
 #if BUILDFLAG(IS_IOS)
-  CFArrayRef temporary_roots() const { return temporary_roots_; }
-
   // Modifies the root certificates of |trust_ref| to include the
   // certificates stored in |temporary_roots_|. If IsEmpty() is true, this
   // does not modify |trust_ref|.
   OSStatus FixupSecTrustRef(SecTrustRef trust_ref) const;
-#elif BUILDFLAG(IS_WIN)
-  HCERTSTORE temporary_roots() const { return temporary_roots_; }
-
-  // Returns an HCERTCHAINENGINE suitable to be used for certificate
-  // validation routines, or NULL to indicate that the default system chain
-  // engine is appropriate.
-  crypto::ScopedHCERTCHAINENGINE GetChainEngine() const;
 #endif
 
-  TrustStore* test_trust_store() { return &test_trust_store_; }
+  bssl::TrustStore* test_trust_store() { return &test_trust_store_; }
 
  private:
   friend struct base::LazyInstanceTraitsBase<TestRootCerts>;
@@ -82,25 +92,30 @@ class NET_EXPORT TestRootCerts {
   // Marks |certificate| as trusted in the effective trust store
   // used by CertVerifier::Verify(). Returns false if the
   // certificate could not be marked trusted.
-  bool Add(X509Certificate* certificate, CertificateTrust trust);
+  bool Add(X509Certificate* certificate, bssl::CertificateTrust trust);
 
   // Marks |der_cert| as a known root. Does not change trust.
   void AddKnownRoot(base::span<const uint8_t> der_cert);
 
   // Performs platform-dependent operations.
-  void Init();
-  bool AddImpl(X509Certificate* certificate);
-  void ClearImpl();
+  void Init() EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  bool AddImpl(X509Certificate* certificate) EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  void ClearImpl() EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
-#if BUILDFLAG(IS_WIN)
-  HCERTSTORE temporary_roots_;
-#elif BUILDFLAG(IS_IOS)
-  base::ScopedCFTypeRef<CFMutableArrayRef> temporary_roots_;
+  // `test_trust_store_` uses its own internal lock rather than the
+  // TestRootCerts::lock_, since a pointer to the trust store is returned by
+  // `test_trust_store` the methods on the trust store must themselves be
+  // thread-safe.
+  ThreadSafeTrustStoreInMemory test_trust_store_;
+
+  mutable base::Lock lock_;
+
+#if BUILDFLAG(IS_IOS)
+  base::apple::ScopedCFTypeRef<CFMutableArrayRef> temporary_roots_
+      GUARDED_BY(lock_);
 #endif
 
-  TrustStoreInMemory test_trust_store_;
-
-  std::set<std::string, std::less<>> test_known_roots_;
+  std::set<std::string, std::less<>> test_known_roots_ GUARDED_BY(lock_);
 };
 
 // Scoped helper for unittests to handle safely managing trusted roots.
@@ -118,14 +133,14 @@ class NET_EXPORT ScopedTestRoot {
   // |trust| may be specified to change the details of how the trust is
   // interpreted (applies only to CertVerifyProcBuiltin).
   explicit ScopedTestRoot(
-      X509Certificate* cert,
-      CertificateTrust trust = CertificateTrust::ForTrustAnchor());
+      scoped_refptr<X509Certificate> cert,
+      bssl::CertificateTrust trust = bssl::CertificateTrust::ForTrustAnchor());
   // Creates a ScopedTestRoot that adds |certs| to the TestRootCerts store.
   // |trust| may be specified to change the details of how the trust is
   // interpreted (applies only to CertVerifyProcBuiltin).
   explicit ScopedTestRoot(
       CertificateList certs,
-      CertificateTrust trust = CertificateTrust::ForTrustAnchor());
+      bssl::CertificateTrust trust = bssl::CertificateTrust::ForTrustAnchor());
 
   ScopedTestRoot(const ScopedTestRoot&) = delete;
   ScopedTestRoot& operator=(const ScopedTestRoot&) = delete;
@@ -140,8 +155,9 @@ class NET_EXPORT ScopedTestRoot {
   // If |certs_| contains certificates (due to a prior call to Reset or due to
   // certs being passed at construction), the existing TestRootCerts store is
   // cleared.
-  void Reset(CertificateList certs,
-             CertificateTrust trust = CertificateTrust::ForTrustAnchor());
+  void Reset(
+      CertificateList certs,
+      bssl::CertificateTrust trust = bssl::CertificateTrust::ForTrustAnchor());
 
   // Returns true if this ScopedTestRoot has no certs assigned.
   bool IsEmpty() const { return certs_.empty(); }

@@ -6,6 +6,7 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "content/public/common/content_client.h"
+#include "media/media_buildflags.h"
 
 namespace content {
 
@@ -55,6 +56,24 @@ ServiceProcessHost::Options::WithExtraCommandLineSwitches(
 ServiceProcessHost::Options& ServiceProcessHost::Options::WithProcessCallback(
     base::OnceCallback<void(const base::Process&)> callback) {
   process_callback = std::move(callback);
+  return *this;
+}
+
+#if BUILDFLAG(IS_WIN)
+ServiceProcessHost::Options&
+ServiceProcessHost::Options::WithPreloadedLibraries(
+    std::vector<base::FilePath> preloads,
+    base::PassKey<ServiceProcessHostPreloadLibraries> passkey) {
+  preload_libraries = std::move(preloads);
+  return *this;
+}
+#endif  // #if BUILDFLAG(IS_WIN)
+
+ServiceProcessHost::Options& ServiceProcessHost::Options::WithGpuClient(
+    base::PassKey<ServiceProcessHostGpuClient> passkey) {
+#if BUILDFLAG(ENABLE_GPU_CHANNEL_MEDIA_CAPTURE)
+  allow_gpu_client = true;
+#endif  // BUILDFLAG(ENABLE_GPU_CHANNEL_MEDIA_CAPTURE)
   return *this;
 }
 

@@ -5,14 +5,24 @@
 #include "base/metrics/sample_vector.h"
 
 #include <ostream>
+#include <string_view>
+#include <type_traits>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
+#include "base/containers/heap_array.h"
 #include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
+#include "base/debug/leak_annotations.h"
 #include "base/lazy_instance.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_span.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
@@ -25,37 +35,52 @@
 
 namespace base {
 
-typedef HistogramBase::Count Count;
-typedef HistogramBase::Sample Sample;
+typedef HistogramBase::Count32 Count32;
+typedef HistogramBase::Sample32 Sample32;
 
 namespace {
 
 // An iterator for sample vectors.
-template <typename T>
-class IteratorTemplate : public SampleCountIterator {
+template <bool support_extraction>
+class SampleVectorIterator : public SampleCountIterator {
+ private:
+  using T = std::conditional_t<support_extraction,
+                               HistogramBase::AtomicCount,
+                               const HistogramBase::AtomicCount>;
+
  public:
-  IteratorTemplate(T* counts,
-                   size_t counts_size,
-                   const BucketRanges* bucket_ranges)
-      : counts_(counts),
-        counts_size_(counts_size),
-        bucket_ranges_(bucket_ranges) {
-    DCHECK_GE(bucket_ranges_->bucket_count(), counts_size_);
+  SampleVectorIterator(base::span<T> counts, const BucketRanges* bucket_ranges)
+      : counts_(counts), bucket_ranges_(bucket_ranges) {
     SkipEmptyBuckets();
   }
 
-  ~IteratorTemplate() override;
+  ~SampleVectorIterator() override {
+    if constexpr (support_extraction) {
+      // Ensure that the user has consumed all the samples in order to ensure no
+      // samples are lost.
+      DCHECK(Done());
+    }
+  }
 
   // SampleCountIterator:
-  bool Done() const override { return index_ >= counts_size_; }
+  bool Done() const override { return index_ >= counts_.size(); }
   void Next() override {
     DCHECK(!Done());
-    index_++;
+    ++index_;
     SkipEmptyBuckets();
   }
-  void Get(HistogramBase::Sample* min,
+  void Get(Sample32* min,
            int64_t* max,
-           HistogramBase::Count* count) override;
+           HistogramBase::Count32* count) override {
+    DCHECK(!Done());
+    *min = bucket_ranges_->range(index_);
+    *max = strict_cast<int64_t>(bucket_ranges_->range(index_ + 1));
+    if constexpr (support_extraction) {
+      *count = subtle::NoBarrier_AtomicExchange(&counts_[index_], 0);
+    } else {
+      *count = subtle::NoBarrier_Load(&counts_[index_]);
+    }
+  }
 
   // SampleVector uses predefined buckets, so iterator can return bucket index.
   bool GetBucketIndex(size_t* index) const override {
@@ -72,81 +97,46 @@ class IteratorTemplate : public SampleCountIterator {
       return;
     }
 
-    while (index_ < counts_size_) {
+    while (index_ < counts_.size()) {
       if (subtle::NoBarrier_Load(&counts_[index_]) != 0) {
         return;
       }
-      index_++;
+      ++index_;
     }
   }
 
-  raw_ptr<T> counts_;
-  size_t counts_size_;
+  raw_span<T> counts_;
   raw_ptr<const BucketRanges> bucket_ranges_;
-
   size_t index_ = 0;
 };
-
-typedef IteratorTemplate<const HistogramBase::AtomicCount> SampleVectorIterator;
-
-template <>
-SampleVectorIterator::~IteratorTemplate() = default;
-
-// Get() for an iterator of a SampleVector.
-template <>
-void SampleVectorIterator::Get(HistogramBase::Sample* min,
-                               int64_t* max,
-                               HistogramBase::Count* count) {
-  DCHECK(!Done());
-  *min = bucket_ranges_->range(index_);
-  *max = strict_cast<int64_t>(bucket_ranges_->range(index_ + 1));
-  *count = subtle::NoBarrier_Load(&counts_[index_]);
-}
-
-typedef IteratorTemplate<HistogramBase::AtomicCount>
-    ExtractingSampleVectorIterator;
-
-template <>
-ExtractingSampleVectorIterator::~IteratorTemplate() {
-  // Ensure that the user has consumed all the samples in order to ensure no
-  // samples are lost.
-  DCHECK(Done());
-}
-
-// Get() for an extracting iterator of a SampleVector.
-template <>
-void ExtractingSampleVectorIterator::Get(HistogramBase::Sample* min,
-                                         int64_t* max,
-                                         HistogramBase::Count* count) {
-  DCHECK(!Done());
-  *min = bucket_ranges_->range(index_);
-  *max = strict_cast<int64_t>(bucket_ranges_->range(index_ + 1));
-  *count = subtle::NoBarrier_AtomicExchange(&counts_[index_], 0);
-}
 
 }  // namespace
 
 SampleVectorBase::SampleVectorBase(uint64_t id,
                                    Metadata* meta,
                                    const BucketRanges* bucket_ranges)
-    : HistogramSamples(id, meta), bucket_ranges_(bucket_ranges) {
-  CHECK_GE(bucket_ranges_->bucket_count(), 1u);
+    : HistogramSamples(id, meta),
+      bucket_ranges_(bucket_ranges),
+      counts_size_(bucket_ranges_->bucket_count()) {
+  CHECK_GE(counts_size_, 1u);
 }
 
 SampleVectorBase::SampleVectorBase(uint64_t id,
                                    std::unique_ptr<Metadata> meta,
                                    const BucketRanges* bucket_ranges)
-    : HistogramSamples(id, std::move(meta)), bucket_ranges_(bucket_ranges) {
-  CHECK_GE(bucket_ranges_->bucket_count(), 1u);
+    : HistogramSamples(id, std::move(meta)),
+      bucket_ranges_(bucket_ranges),
+      counts_size_(bucket_ranges_->bucket_count()) {
+  CHECK_GE(counts_size_, 1u);
 }
 
 SampleVectorBase::~SampleVectorBase() = default;
 
-void SampleVectorBase::Accumulate(Sample value, Count count) {
+void SampleVectorBase::Accumulate(Sample32 value, Count32 count) {
   const size_t bucket_index = GetBucketIndex(value);
 
   // Handle the single-sample case.
-  if (!counts()) {
+  if (!counts().has_value()) {
     // Try to accumulate the parameters into the single-count entry.
     if (AccumulateSingleSample(value, count, bucket_index)) {
       // A race condition could lead to a new single-sample being accumulated
@@ -154,8 +144,9 @@ void SampleVectorBase::Accumulate(Sample value, Count count) {
       // Since it is mounted, it could be mounted elsewhere and have values
       // written to it. It's not allowed to have both a single-sample and
       // entries in the counts array so move the single-sample.
-      if (counts())
+      if (counts().has_value()) {
         MoveSingleSampleToCounts();
+      }
       return;
     }
 
@@ -165,33 +156,38 @@ void SampleVectorBase::Accumulate(Sample value, Count count) {
   }
 
   // Handle the multi-sample case.
-  Count new_value =
-      subtle::NoBarrier_AtomicIncrement(&counts()[bucket_index], count);
+  Count32 new_bucket_count =
+      subtle::NoBarrier_AtomicIncrement(&counts_at(bucket_index), count);
   IncreaseSumAndCount(strict_cast<int64_t>(count) * value, count);
 
   // TODO(bcwhite) Remove after crbug.com/682680.
-  Count old_value = new_value - count;
-  if ((new_value >= 0) != (old_value >= 0) && count > 0)
+  Count32 old_bucket_count = new_bucket_count - count;
+  bool record_negative_sample =
+      (new_bucket_count >= 0) != (old_bucket_count >= 0) && count > 0;
+  if (record_negative_sample) [[unlikely]] {
     RecordNegativeSample(SAMPLES_ACCUMULATE_OVERFLOW, count);
+  }
 }
 
-Count SampleVectorBase::GetCount(Sample value) const {
+Count32 SampleVectorBase::GetCount(Sample32 value) const {
   return GetCountAtIndex(GetBucketIndex(value));
 }
 
-Count SampleVectorBase::TotalCount() const {
+Count32 SampleVectorBase::TotalCount() const {
   // Handle the single-sample case.
   SingleSample sample = single_sample().Load();
-  if (sample.count != 0)
+  if (sample.count != 0) {
     return sample.count;
+  }
 
   // Handle the multi-sample case.
-  if (counts() || MountExistingCountsStorage()) {
-    Count count = 0;
-    size_t size = counts_size();
-    const HistogramBase::AtomicCount* counts_array = counts();
-    for (size_t i = 0; i < size; ++i) {
-      count += subtle::NoBarrier_Load(&counts_array[i]);
+  if (counts().has_value() || MountExistingCountsStorage()) {
+    Count32 count = 0;
+    // TODO(danakj): In C++23 we can skip the `counts_span` lvalue and iterate
+    // over `counts().value()` directly without creating a dangling reference.
+    span<const HistogramBase::AtomicCount> counts_span = counts().value();
+    for (const HistogramBase::AtomicCount& c : counts_span) {
+      count += subtle::NoBarrier_Load(&c);
     }
     return count;
   }
@@ -200,17 +196,19 @@ Count SampleVectorBase::TotalCount() const {
   return 0;
 }
 
-Count SampleVectorBase::GetCountAtIndex(size_t bucket_index) const {
+Count32 SampleVectorBase::GetCountAtIndex(size_t bucket_index) const {
   DCHECK(bucket_index < counts_size());
 
   // Handle the single-sample case.
   SingleSample sample = single_sample().Load();
-  if (sample.count != 0)
+  if (sample.count != 0) {
     return sample.bucket == bucket_index ? sample.count : 0;
+  }
 
   // Handle the multi-sample case.
-  if (counts() || MountExistingCountsStorage())
-    return subtle::NoBarrier_Load(&counts()[bucket_index]);
+  if (counts().has_value() || MountExistingCountsStorage()) {
+    return subtle::NoBarrier_Load(&counts_at(bucket_index));
+  }
 
   // And the no-value case.
   return 0;
@@ -220,6 +218,16 @@ std::unique_ptr<SampleCountIterator> SampleVectorBase::Iterator() const {
   // Handle the single-sample case.
   SingleSample sample = single_sample().Load();
   if (sample.count != 0) {
+    static_assert(std::is_unsigned<decltype(SingleSample::bucket)>::value);
+    if (sample.bucket >= bucket_ranges_->bucket_count()) {
+      // Return an empty iterator if the specified bucket is invalid (e.g. due
+      // to corruption). If a different sample is eventually emitted, we will
+      // move from SingleSample to a counts storage, and that time, we will
+      // discard this invalid sample (see MoveSingleSampleToCounts()).
+      return std::make_unique<SampleVectorIterator<false>>(
+          base::span<const HistogramBase::AtomicCount>(), bucket_ranges_);
+    }
+
     return std::make_unique<SingleSampleIterator>(
         bucket_ranges_->range(sample.bucket),
         bucket_ranges_->range(sample.bucket + 1), sample.count, sample.bucket,
@@ -227,19 +235,29 @@ std::unique_ptr<SampleCountIterator> SampleVectorBase::Iterator() const {
   }
 
   // Handle the multi-sample case.
-  if (counts() || MountExistingCountsStorage()) {
-    return std::make_unique<SampleVectorIterator>(counts(), counts_size(),
-                                                  bucket_ranges_);
+  if (counts().has_value() || MountExistingCountsStorage()) {
+    return std::make_unique<SampleVectorIterator<false>>(*counts(),
+                                                         bucket_ranges_);
   }
 
   // And the no-value case.
-  return std::make_unique<SampleVectorIterator>(nullptr, 0, bucket_ranges_);
+  return std::make_unique<SampleVectorIterator<false>>(
+      base::span<const HistogramBase::AtomicCount>(), bucket_ranges_);
 }
 
 std::unique_ptr<SampleCountIterator> SampleVectorBase::ExtractingIterator() {
   // Handle the single-sample case.
   SingleSample sample = single_sample().Extract();
   if (sample.count != 0) {
+    static_assert(std::is_unsigned<decltype(SingleSample::bucket)>::value);
+    if (sample.bucket >= bucket_ranges_->bucket_count()) {
+      // Return an empty iterator if the specified bucket is invalid (e.g. due
+      // to corruption). Note that we've already removed the sample from the
+      // underlying data, so this invalid sample is discarded.
+      return std::make_unique<SampleVectorIterator<true>>(
+          base::span<HistogramBase::AtomicCount>(), bucket_ranges_);
+    }
+
     // Note that we have already extracted the samples (i.e., reset the
     // underlying data back to 0 samples), even before the iterator has been
     // used. This means that the caller needs to ensure that this value is
@@ -256,45 +274,28 @@ std::unique_ptr<SampleCountIterator> SampleVectorBase::ExtractingIterator() {
   }
 
   // Handle the multi-sample case.
-  if (counts() || MountExistingCountsStorage()) {
-    return std::make_unique<ExtractingSampleVectorIterator>(
-        counts(), counts_size(), bucket_ranges_);
+  if (counts().has_value() || MountExistingCountsStorage()) {
+    return std::make_unique<SampleVectorIterator<true>>(*counts(),
+                                                        bucket_ranges_);
   }
 
   // And the no-value case.
-  return std::make_unique<ExtractingSampleVectorIterator>(nullptr, 0,
-                                                          bucket_ranges_);
+  return std::make_unique<SampleVectorIterator<true>>(
+      base::span<HistogramBase::AtomicCount>(), bucket_ranges_);
 }
 
 bool SampleVectorBase::AddSubtractImpl(SampleCountIterator* iter,
                                        HistogramSamples::Operator op) {
   // Stop now if there's nothing to do.
-  if (iter->Done())
+  if (iter->Done()) {
     return true;
+  }
 
-  // Get the first value and its index.
-  HistogramBase::Sample min;
-  int64_t max;
-  HistogramBase::Count count;
-  iter->Get(&min, &max, &count);
-  size_t dest_index = GetBucketIndex(min);
-
-  // The destination must be a superset of the source meaning that though the
-  // incoming ranges will find an exact match, the incoming bucket-index, if
-  // it exists, may be offset from the destination bucket-index. Calculate
-  // that offset of the passed iterator; there are are no overflow checks
-  // because 2's compliment math will work it out in the end.
-  //
-  // Because GetBucketIndex() always returns the same true or false result for
-  // a given iterator object, |index_offset| is either set here and used below,
-  // or never set and never used. The compiler doesn't know this, though, which
-  // is why it's necessary to initialize it to something.
-  size_t index_offset = 0;
-  size_t iter_index;
-  if (iter->GetBucketIndex(&iter_index))
-    index_offset = dest_index - iter_index;
-  if (dest_index >= counts_size())
+  HistogramBase::Count32 count;
+  size_t dest_index = GetDestinationBucketIndexAndCount(*iter, &count);
+  if (dest_index == SIZE_MAX) {
     return false;
+  }
 
   // Post-increment. Information about the current sample is not available
   // after this point.
@@ -302,7 +303,7 @@ bool SampleVectorBase::AddSubtractImpl(SampleCountIterator* iter,
 
   // Single-value storage is possible if there is no counts storage and the
   // retrieved entry is the only one in the iterator.
-  if (!counts()) {
+  if (!counts().has_value()) {
     if (iter->Done()) {
       // Don't call AccumulateSingleSample because that updates sum and count
       // which was already done by the caller of this method.
@@ -310,8 +311,9 @@ bool SampleVectorBase::AddSubtractImpl(SampleCountIterator* iter,
               dest_index, op == HistogramSamples::ADD ? count : -count)) {
         // Handle race-condition that mounted counts storage between above and
         // here.
-        if (counts())
+        if (counts().has_value()) {
           MoveSingleSampleToCounts();
+        }
         return true;
       }
     }
@@ -322,67 +324,72 @@ bool SampleVectorBase::AddSubtractImpl(SampleCountIterator* iter,
 
   // Go through the iterator and add the counts into correct bucket.
   while (true) {
-    // Ensure that the sample's min/max match the ranges min/max.
-    if (min != bucket_ranges_->range(dest_index) ||
-        max != bucket_ranges_->range(dest_index + 1)) {
-#if !BUILDFLAG(IS_NACL)
-      // TODO(crbug/1432981): Remove these. They are used to investigate
-      // unexpected failures.
-      SCOPED_CRASH_KEY_NUMBER("SampleVector", "min", min);
-      SCOPED_CRASH_KEY_NUMBER("SampleVector", "max", max);
-      SCOPED_CRASH_KEY_NUMBER("SampleVector", "range_min",
-                              bucket_ranges_->range(dest_index));
-      SCOPED_CRASH_KEY_NUMBER("SampleVector", "range_max",
-                              bucket_ranges_->range(dest_index + 1));
-#endif  // !BUILDFLAG(IS_NACL)
-      NOTREACHED() << "sample=" << min << "," << max
-                   << "; range=" << bucket_ranges_->range(dest_index) << ","
-                   << bucket_ranges_->range(dest_index + 1);
-      return false;
-    }
-
     // Sample's bucket matches exactly. Adjust count.
     subtle::NoBarrier_AtomicIncrement(
-        &counts()[dest_index], op == HistogramSamples::ADD ? count : -count);
-
-    // Advance to the next iterable sample. See comments above for how
-    // everything works.
-    if (iter->Done())
+        &counts_at(dest_index), op == HistogramSamples::ADD ? count : -count);
+    if (iter->Done()) {
       return true;
-    iter->Get(&min, &max, &count);
-    if (iter->GetBucketIndex(&iter_index)) {
-      // Destination bucket is a known offset from the source bucket.
-      dest_index = iter_index + index_offset;
-    } else {
-      // Destination bucket has to be determined anew each time.
-      dest_index = GetBucketIndex(min);
     }
-    if (dest_index >= counts_size())
+
+    dest_index = GetDestinationBucketIndexAndCount(*iter, &count);
+    if (dest_index == SIZE_MAX) {
       return false;
+    }
     iter->Next();
   }
+}
+
+size_t SampleVectorBase::GetDestinationBucketIndexAndCount(
+    SampleCountIterator& iter,
+    HistogramBase::Count32* count) {
+  Sample32 min;
+  int64_t max;
+
+  iter.Get(&min, &max, count);
+  // If the iter has the bucket index, get there in O(1), otherwise look it up
+  // from the destination via O(logn) binary search.
+  size_t bucket_index;
+  if (!iter.GetBucketIndex(&bucket_index)) {
+    bucket_index = GetBucketIndex(min);
+  }
+
+  // We expect buckets to match between source and destination. If they don't,
+  // we may be trying to merge a different version of a histogram (e.g. two
+  // .pma files from different versions of the code), which is not supported.
+  // We drop the data from the iter in that case.
+  // Technically, this codepath could result in data being partially merged -
+  // i.e. if the buckets at the beginning of iter match, but later ones don't.
+  // As we expect this to be very rare, we intentionally don't handle it to
+  // avoid having to do two iterations through the buckets in AddSubtractImpl().
+  if (bucket_index >= counts_size() ||
+      min != bucket_ranges_->range(bucket_index) ||
+      max != bucket_ranges_->range(bucket_index + 1)) {
+    return SIZE_MAX;
+  }
+  return bucket_index;
 }
 
 // Uses simple binary search or calculates the index directly if it's an "exact"
 // linear histogram. This is very general, but there are better approaches if we
 // knew that the buckets were linearly distributed.
-size_t SampleVectorBase::GetBucketIndex(Sample value) const {
+size_t SampleVectorBase::GetBucketIndex(Sample32 value) const {
   size_t bucket_count = bucket_ranges_->bucket_count();
-  CHECK_GE(bucket_count, 1u);
   CHECK_GE(value, bucket_ranges_->range(0));
   CHECK_LT(value, bucket_ranges_->range(bucket_count));
 
   // For "exact" linear histograms, e.g. bucket_count = maximum + 1, their
   // minimum is 1 and bucket sizes are 1. Thus, we don't need to binary search
   // the bucket index. The bucket index for bucket |value| is just the |value|.
-  Sample maximum = bucket_ranges_->range(bucket_count - 1);
-  if (maximum == static_cast<Sample>(bucket_count - 1)) {
+  Sample32 maximum = bucket_ranges_->range(bucket_count - 1);
+  if (maximum == static_cast<Sample32>(bucket_count - 1)) {
     // |value| is in the underflow bucket.
-    if (value < 1)
+    if (value < 1) {
       return 0;
+    }
     // |value| is in the overflow bucket.
-    if (value > maximum)
+    if (value > maximum) {
       return bucket_count - 1;
+    }
     return static_cast<size_t>(value);
   }
 
@@ -391,13 +398,15 @@ size_t SampleVectorBase::GetBucketIndex(Sample value) const {
   size_t mid;
   do {
     DCHECK_GE(over, under);
-    mid = under + (over - under)/2;
-    if (mid == under)
+    mid = under + (over - under) / 2;
+    if (mid == under) {
       break;
-    if (bucket_ranges_->range(mid) <= value)
+    }
+    if (bucket_ranges_->range(mid) <= value) {
       under = mid;
-    else
+    } else {
       over = mid;
+    }
   } while (true);
 
   DCHECK_LE(bucket_ranges_->range(mid), value);
@@ -406,15 +415,16 @@ size_t SampleVectorBase::GetBucketIndex(Sample value) const {
 }
 
 void SampleVectorBase::MoveSingleSampleToCounts() {
-  DCHECK(counts());
+  DCHECK(counts().has_value());
 
   // Disable the single-sample since there is now counts storage for the data.
   SingleSample sample = single_sample().ExtractAndDisable();
 
   // Stop here if there is no "count" as trying to find the bucket index of
   // an invalid (including zero) "value" will crash.
-  if (sample.count == 0)
+  if (sample.count == 0) {
     return;
+  }
 
   // Stop here if the sample bucket would be out of range for the AtomicCount
   // array.
@@ -424,24 +434,22 @@ void SampleVectorBase::MoveSingleSampleToCounts() {
 
   // Move the value into storage. Sum and redundant-count already account
   // for this entry so no need to call IncreaseSumAndCount().
-  subtle::NoBarrier_AtomicIncrement(&counts()[sample.bucket], sample.count);
+  subtle::NoBarrier_AtomicIncrement(&counts_at(sample.bucket), sample.count);
 }
 
 void SampleVectorBase::MountCountsStorageAndMoveSingleSample() {
   // There are many SampleVector objects and the lock is needed very
   // infrequently (just when advancing from single-sample to multi-sample) so
   // define a single, global lock that all can use. This lock only prevents
-  // concurrent entry into the code below; access and updates to |counts_|
+  // concurrent entry into the code below; access and updates to |counts_data_|
   // still requires atomic operations.
   static LazyInstance<Lock>::Leaky counts_lock = LAZY_INSTANCE_INITIALIZER;
-  if (!counts_.load(std::memory_order_relaxed)) {
+  if (counts_data_.load(std::memory_order_relaxed) == nullptr) {
     AutoLock lock(counts_lock.Get());
-    if (!counts_.load(std::memory_order_relaxed)) {
+    if (counts_data_.load(std::memory_order_relaxed) == nullptr) {
       // Create the actual counts storage while the above lock is acquired.
-      HistogramBase::Count* counts = CreateCountsStorageWhileLocked();
-      DCHECK(counts);
-
-      // Point |counts_| to the newly created storage. This is done while
+      span<HistogramBase::Count32> counts = CreateCountsStorageWhileLocked();
+      // Point |counts()| to the newly created storage. This is done while
       // locked to prevent possible concurrent calls to CreateCountsStorage
       // but, between that call and here, other threads could notice the
       // existence of the storage and race with this to set_counts(). That's
@@ -462,31 +470,43 @@ SampleVector::SampleVector(uint64_t id, const BucketRanges* bucket_ranges)
 
 SampleVector::~SampleVector() = default;
 
-bool SampleVector::MountExistingCountsStorage() const {
-  // There is never any existing storage other than what is already in use.
-  return counts() != nullptr;
+bool SampleVector::IsDefinitelyEmpty() const {
+  // If we are still using SingleSample, and it has a count of 0, then |this|
+  // has no samples. If we are not using SingleSample, always return false, even
+  // though it is possible that |this| has no samples (e.g. we are using a
+  // counts array and all the bucket counts are 0). If we are wrong, this will
+  // just make the caller perform some extra work thinking that |this| is
+  // non-empty.
+  AtomicSingleSample sample = single_sample();
+  return HistogramSamples::IsDefinitelyEmpty() && !sample.IsDisabled() &&
+         sample.Load().count == 0;
 }
 
-std::string SampleVector::GetAsciiHeader(StringPiece histogram_name,
+bool SampleVector::MountExistingCountsStorage() const {
+  // There is never any existing storage other than what is already in use.
+  return counts().has_value();
+}
+
+std::string SampleVector::GetAsciiHeader(std::string_view histogram_name,
                                          int32_t flags) const {
-  Count sample_count = TotalCount();
+  Count32 sample_count = TotalCount();
   std::string output;
-  StringAppendF(&output, "Histogram: %.*s recorded %d samples",
-                static_cast<int>(histogram_name.size()), histogram_name.data(),
-                sample_count);
+  StrAppend(&output, {"Histogram: ", histogram_name, " recorded ",
+                      NumberToString(sample_count), " samples"});
   if (sample_count == 0) {
     DCHECK_EQ(sum(), 0);
   } else {
     double mean = static_cast<float>(sum()) / sample_count;
     StringAppendF(&output, ", mean = %.1f", mean);
   }
-  if (flags)
+  if (flags) {
     StringAppendF(&output, " (flags = 0x%x)", flags);
+  }
   return output;
 }
 
 std::string SampleVector::GetAsciiBody() const {
-  Count sample_count = TotalCount();
+  Count32 sample_count = TotalCount();
 
   // Prepare to normalize graphical rendering of bucket contents.
   double max_size = 0;
@@ -495,8 +515,9 @@ std::string SampleVector::GetAsciiBody() const {
   // Scale histogram bucket counts to take at most 72 characters.
   // Note: Keep in sync w/ kLineLength histogram_samples.cc
   const double kLineLength = 72;
-  if (max_size > kLineLength)
+  if (max_size > kLineLength) {
     scaling_factor = kLineLength / max_size;
+  }
 
   // Calculate largest print width needed for any of our bucket range displays.
   size_t print_width = 1;
@@ -504,8 +525,9 @@ std::string SampleVector::GetAsciiBody() const {
     if (GetCountAtIndex(i)) {
       size_t width =
           GetSimpleAsciiBucketRange(bucket_ranges()->range(i)).size() + 1;
-      if (width > print_width)
+      if (width > print_width) {
         print_width = width;
+      }
     }
   }
 
@@ -514,12 +536,13 @@ std::string SampleVector::GetAsciiBody() const {
   std::string output;
   // Output the actual histogram graph.
   for (uint32_t i = 0; i < bucket_count(); ++i) {
-    Count current = GetCountAtIndex(i);
+    Count32 current = GetCountAtIndex(i);
     remaining -= current;
     std::string range = GetSimpleAsciiBucketRange(bucket_ranges()->range(i));
     output.append(range);
-    for (size_t j = 0; range.size() + j < print_width + 1; ++j)
+    for (size_t j = 0; range.size() + j < print_width + 1; ++j) {
       output.push_back(' ');
+    }
     if (0 == current && i < bucket_count() - 1 && 0 == GetCountAtIndex(i + 1)) {
       while (i < bucket_count() - 1 && 0 == GetCountAtIndex(i + 1)) {
         ++i;
@@ -527,7 +550,7 @@ std::string SampleVector::GetAsciiBody() const {
       output.append("... \n");
       continue;  // No reason to plot emptiness.
     }
-    Count current_size = round(current * scaling_factor);
+    Count32 current_size = round(current * scaling_factor);
     WriteAsciiBucketGraph(current_size, kLineLength, &output);
     WriteAsciiBucketContext(past, current, remaining, i, &output);
     output.append("\n");
@@ -538,17 +561,18 @@ std::string SampleVector::GetAsciiBody() const {
 }
 
 double SampleVector::GetPeakBucketSize() const {
-  Count max = 0;
+  Count32 max = 0;
   for (uint32_t i = 0; i < bucket_count(); ++i) {
-    Count current = GetCountAtIndex(i);
-    if (current > max)
+    Count32 current = GetCountAtIndex(i);
+    if (current > max) {
       max = current;
+    }
   }
   return max;
 }
 
 void SampleVector::WriteAsciiBucketContext(int64_t past,
-                                           Count current,
+                                           Count32 current,
                                            int64_t remaining,
                                            uint32_t current_bucket_index,
                                            std::string* output) const {
@@ -560,12 +584,14 @@ void SampleVector::WriteAsciiBucketContext(int64_t past,
   }
 }
 
-HistogramBase::AtomicCount* SampleVector::CreateCountsStorageWhileLocked() {
+span<HistogramBase::AtomicCount>
+SampleVector::CreateCountsStorageWhileLocked() {
   local_counts_.resize(counts_size());
-  return &local_counts_[0];
+  return local_counts_;
 }
 
 PersistentSampleVector::PersistentSampleVector(
+    std::string_view name,
     uint64_t id,
     const BucketRanges* bucket_ranges,
     Metadata* meta,
@@ -585,43 +611,129 @@ PersistentSampleVector::PersistentSampleVector(
   // read-only. Only non-const methods (which assume that memory is read/write)
   // can do that.
   if (single_sample().IsDisabled()) {
-    bool success = MountExistingCountsStorage();
-    DCHECK(success);
+    const auto result = MountExistingCountsStorageImpl();
+
+    // Record the result of MountExistingCountsStorageImpl() to the
+    // kMountExistingCountsStorageResult histogram so that we can see how often
+    // the call to MountExistingCountsStorageImpl() fails.
+    //
+    // See crbug.com/410544723
+    //
+    // Recording a histogram here is safe for re-entrancy because the act of
+    // recording the histogram will either:
+    // * Create a new histogram with no pre-existing samples, so the above check
+    //   for `single_sample().IsDisabled()` will be `false` when reached; or,
+    // * Find the existing histogram, without calling this constructor.
+    RecordMountExistingCountsStorageResult(result);
+
+    // We're trying to understand how/why the call to MountExistingCountsStorage
+    // sometimes fails. We've seen enough examples of kNothingToRead to suggest
+    // that this specific failure is not strongly associated with any particular
+    // historam being recovered; so, we don't need to collect any further crash
+    // dumps for that outcome. We haven't seen many examples of kCorrupt, so we
+    // continue to collect those.
+    // TODO: crbug.com/410544723 - Remove crash keys and DumpWithoutCrashing
+    // once investigation is complete.
+    if (result != MountExistingCountsStorageResult::kSucceeded &&
+        result != MountExistingCountsStorageResult::kNothingToRead) {
+#if !BUILDFLAG(IS_NACL)
+      SCOPED_CRASH_KEY_STRING64("PSV", "name", name);
+      SCOPED_CRASH_KEY_NUMBER("PSV", "counts_ref",
+                              persistent_counts_.reference());
+#endif
+      debug::DumpWithoutCrashing();
+    }
   }
 }
 
 PersistentSampleVector::~PersistentSampleVector() = default;
 
-bool PersistentSampleVector::MountExistingCountsStorage() const {
+bool PersistentSampleVector::IsDefinitelyEmpty() const {
+  // Not implemented.
+  NOTREACHED();
+}
+
+// static
+constinit std::atomic_uintptr_t
+    PersistentSampleVector::atomic_histogram_pointer{0};
+
+// static
+void PersistentSampleVector::ResetMountExistingCountsStorageResultForTesting() {
+  atomic_histogram_pointer.store(0, std::memory_order_release);
+}
+
+// static
+void PersistentSampleVector::RecordMountExistingCountsStorageResult(
+    MountExistingCountsStorageResult result) {
+  static constexpr auto boundary = static_cast<base::HistogramBase::Sample32>(
+      MountExistingCountsStorageResult::kMaxValue);
+  // This method is the functional and performance equivalent of:
+  //
+  //   UMA_HISTOGRAM_ENUMERATION(kMountExistingCountsStorageResult, result);
+  //
+  // The UMA_HISTOGRAM_ENUMERATION macro hides the static pointer used to cache
+  // the histogram pointer. We need to be able to reset the cached histogram
+  // pointer for testing so we have extracted the histogram pointer to a static
+  // member and used HISTOGRAM_POINTER_USE macro to complete the implementation,
+  // which is ultimately what UMA_HISTOGRAM_ENUMERATION macro does.
+  HISTOGRAM_POINTER_USE(
+      std::addressof(atomic_histogram_pointer),
+      kMountExistingCountsStorageResult,
+      Add(static_cast<base::HistogramBase::Sample32>(result)),
+      base::LinearHistogram::FactoryGet(
+          kMountExistingCountsStorageResult, 1, boundary, boundary + 1,
+          base::HistogramBase::kUmaTargetedHistogramFlag));
+}
+
+PersistentSampleVector::MountExistingCountsStorageResult
+PersistentSampleVector::MountExistingCountsStorageImpl() const {
   // There is no early exit if counts is not yet mounted because, given that
   // this is a virtual function, it's more efficient to do that at the call-
   // site. There is no danger, however, should this get called anyway (perhaps
-  // because of a race condition) because at worst the |counts_| value would
-  // be over-written (in an atomic manner) with the exact same address.
+  // because of a race condition) because at worst the `counts_data_` and
+  // `counts_size_` members would be over-written (in an atomic manner)
+  // with the exact same values.
 
-  if (!persistent_counts_.reference())
-    return false;  // Nothing to mount.
-
-  // Mount the counts array in position.
-  set_counts(
-      static_cast<HistogramBase::AtomicCount*>(persistent_counts_.Get()));
-
-  // The above shouldn't fail but can if the data is corrupt or incomplete.
-  return counts() != nullptr;
-}
-
-HistogramBase::AtomicCount*
-PersistentSampleVector::CreateCountsStorageWhileLocked() {
-  void* mem = persistent_counts_.Get();
-  if (!mem) {
-    // The above shouldn't fail but can if Bad Things(tm) are occurring in the
-    // persistent allocator. Crashing isn't a good option so instead just
-    // allocate something from the heap and return that. There will be no
-    // sharing or persistence but worse things are already happening.
-    return new HistogramBase::AtomicCount[counts_size()];
+  if (!persistent_counts_.reference()) {
+    return MountExistingCountsStorageResult::kNothingToRead;
   }
 
-  return static_cast<HistogramBase::AtomicCount*>(mem);
+  // Mount the counts array in position. This shouldn't fail but can if the
+  // data is corrupt or incomplete.
+  span<HistogramBase::AtomicCount> mem =
+      persistent_counts_.Get<HistogramBase::AtomicCount>();
+  if (mem.empty()) {
+    return MountExistingCountsStorageResult::kCorrupt;
+  }
+  // Uses a span that only covers the counts the SampleVector should have
+  // access to, which can be a subset of the entire persistent allocation.
+  set_counts(mem.first(counts_size()));
+  return MountExistingCountsStorageResult::kSucceeded;
+}
+
+bool PersistentSampleVector::MountExistingCountsStorage() const {
+  return MountExistingCountsStorageImpl() ==
+         MountExistingCountsStorageResult::kSucceeded;
+}
+
+span<HistogramBase::AtomicCount>
+PersistentSampleVector::CreateCountsStorageWhileLocked() {
+  span<HistogramBase::AtomicCount> mem =
+      persistent_counts_.Get<HistogramBase::AtomicCount>();
+  if (mem.empty()) {
+    // The above shouldn't fail but can if Bad Things(tm) are occurring in
+    // the persistent allocator. Crashing isn't a good option so instead
+    // just allocate something from the heap that we will leak and return that.
+    // There will be no sharing or persistence but worse things are already
+    // happening.
+    auto array = HeapArray<HistogramBase::AtomicCount>::WithSize(counts_size());
+    ANNOTATE_LEAKING_OBJECT_PTR(array.data());
+    return std::move(array).leak();
+  }
+
+  // Returns a span that only covers the counts the SampleVector should have
+  // access to, which can be a subset of the entire persistent allocation.
+  return mem.first(counts_size());
 }
 
 }  // namespace base

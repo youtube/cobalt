@@ -25,19 +25,10 @@ class JitterCalculator;
 // weather and media string that are shown in the slideshow's photo view.
 class AmbientSlideshowPeripheralUi : public views::View,
                                      public MediaStringView::Delegate {
+  METADATA_HEADER(AmbientSlideshowPeripheralUi, views::View)
+
  public:
-  METADATA_HEADER(AmbientSlideshowPeripheralUi);
-
-  // Returns a `JitterCalculator` with the recommended settings for all
-  // peripheral UI elements. Can be passed to the constructor via the
-  // `jitter_calculator` argument.
-  static std::unique_ptr<JitterCalculator> CreateDefaultJitterCalculator();
-
-  // If `jitter_calculator` is nullptr, a default `JitterCalculator` is
-  // instantiated and owned internally.
-  explicit AmbientSlideshowPeripheralUi(
-      AmbientViewDelegate* delegate,
-      JitterCalculator* jitter_calculator = nullptr);
+  explicit AmbientSlideshowPeripheralUi(AmbientViewDelegate* delegate);
   ~AmbientSlideshowPeripheralUi() override;
 
   // MediaStringView::Delegate:
@@ -48,21 +39,19 @@ class AmbientSlideshowPeripheralUi : public views::View,
   // the desired frequency to prevent screen burn.
   void UpdateGlanceableInfoPosition();
 
+  void UpdateLeftPaddingToMatchBottom();
+
   void UpdateImageDetails(const std::u16string& details,
                           const std::u16string& related_details);
 
  private:
   void InitLayout(AmbientViewDelegate* delegate);
 
-  // May be null if the caller provided a custom `jitter_calculator` in the
-  // constructor.
-  const std::unique_ptr<JitterCalculator> owned_jitter_calculator_;
-  // Never null. Always points to the `JitterCalculator` to use.
-  const base::raw_ptr<JitterCalculator> jitter_calculator_;
+  std::unique_ptr<JitterCalculator> jitter_calculator_;
 
-  raw_ptr<AmbientInfoView, ExperimentalAsh> ambient_info_view_ = nullptr;
+  raw_ptr<AmbientInfoView> ambient_info_view_ = nullptr;
 
-  raw_ptr<MediaStringView, ExperimentalAsh> media_string_view_ = nullptr;
+  raw_ptr<MediaStringView> media_string_view_ = nullptr;
 };
 
 }  // namespace ash

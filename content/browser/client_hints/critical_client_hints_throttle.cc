@@ -9,12 +9,12 @@
 #include "content/browser/client_hints/client_hints.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/client_hints_controller_delegate.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
-#include "content/public/common/content_features.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -43,7 +43,7 @@ namespace content {
 CriticalClientHintsThrottle::CriticalClientHintsThrottle(
     BrowserContext* context,
     ClientHintsControllerDelegate* client_hint_delegate,
-    int frame_tree_node_id)
+    FrameTreeNodeId frame_tree_node_id)
     : context_(context),
       client_hint_delegate_(client_hint_delegate),
       frame_tree_node_id_(frame_tree_node_id) {
@@ -62,24 +62,25 @@ void CriticalClientHintsThrottle::WillStartRequest(
 void CriticalClientHintsThrottle::BeforeWillProcessResponse(
     const GURL& response_url,
     const network::mojom::URLResponseHead& response_head,
-    bool* defer) {
+    RestartWithURLReset* restart_with_url_reset) {
   DCHECK_EQ(response_url, response_url_);
-  MaybeRestartWithHints(response_head);
+  MaybeRestartWithHints(response_head, restart_with_url_reset);
 }
 
 void CriticalClientHintsThrottle::BeforeWillRedirectRequest(
     net::RedirectInfo* redirect_info,
     const network::mojom::URLResponseHead& response_head,
-    bool* defer,
+    RestartWithURLReset* restart_with_url_reset,
     std::vector<std::string>* to_be_removed_request_headers,
     net::HttpRequestHeaders* modified_request_headers,
     net::HttpRequestHeaders* modified_cors_exempt_request_headers) {
-  MaybeRestartWithHints(response_head);
+  MaybeRestartWithHints(response_head, restart_with_url_reset);
   response_url_ = redirect_info->new_url;
 }
 
 void CriticalClientHintsThrottle::MaybeRestartWithHints(
-    const network::mojom::URLResponseHead& response_head) {
+    const network::mojom::URLResponseHead& response_head,
+    RestartWithURLReset* restart_with_url_reset) {
   if (!base::FeatureList::IsEnabled(features::kCriticalClientHint))
     return;
   FrameTreeNode* frame_tree_node =
@@ -129,8 +130,7 @@ void CriticalClientHintsThrottle::MaybeRestartWithHints(
   blink::EnabledClientHints hints;
   for (const WebClientHintsType hint :
        response_head.parsed_headers->accept_ch.value())
-    hints.SetIsEnabled(response_url_, /*third_party_url=*/absl::nullopt,
-                       response_head.headers.get(), hint, true);
+    hints.SetIsEnabled(hint, true);
 
   std::vector<WebClientHintsType> critical_hints;
   for (const WebClientHintsType hint :
@@ -155,7 +155,7 @@ void CriticalClientHintsThrottle::MaybeRestartWithHints(
   restarted_origins_.insert(response_origin);
 
   net::HttpRequestHeaders modified_headers;
-  // TODO(crbug.com/1195034): If the frame tree node doesn't have an associated
+  // TODO(crbug.com/40175866): If the frame tree node doesn't have an associated
   // navigation_request (e.g. a service worker request) it might not override
   // the user agent correctly.
   if (frame_tree_node) {
@@ -169,7 +169,7 @@ void CriticalClientHintsThrottle::MaybeRestartWithHints(
   } else {
     AddPrefetchNavigationRequestClientHintsHeaders(
         response_origin, &modified_headers, context_, client_hint_delegate_,
-        /*is_ua_override_on=*/false, /*is_javascript_enabled=*/true);
+        /*is_ua_override_on=*/false);
   }
 
   // If a client hint header is not in the original request,
@@ -177,7 +177,8 @@ void CriticalClientHintsThrottle::MaybeRestartWithHints(
   for (auto modified_header : modified_headers.GetHeaderVector()) {
     if (!initial_request_headers_.HasHeader(modified_header.key)) {
       LogCriticalCHStatus(CriticalCHRestart::kNavigationRestarted);
-      delegate_->RestartWithURLResetAndFlags(/*additional_load_flags=*/0);
+      delegate_->DidRestartForCriticalClientHint();
+      *restart_with_url_reset = RestartWithURLReset(true);
       return;
     }
   }

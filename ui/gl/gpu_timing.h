@@ -8,7 +8,6 @@
 #include <stdint.h>
 
 #include <memory>
-#include <queue>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -55,8 +54,6 @@ class GPUTiming {
   enum TimerType {
     kTimerTypeInvalid = -1,
 
-    kTimerTypeEXT,      // EXT_timer_query
-    kTimerTypeARB,      // ARB_timer_query
     kTimerTypeDisjoint  // EXT_disjoint_timer_query
   };
 

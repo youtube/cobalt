@@ -19,10 +19,6 @@
 #error BrowserSwitcher is not supported on ChromeOS. Neither Ash nor LaCrOS.
 #endif
 
-#if BUILDFLAG(IS_FUCHSIA)
-#error BrowserSwitcher is not support on Fuchsia.
-#endif
-
 namespace browser_switcher {
 
 namespace {
@@ -37,7 +33,8 @@ using BrowserSwitcherServiceImpl = BrowserSwitcherService;
 
 // static
 BrowserSwitcherServiceFactory* BrowserSwitcherServiceFactory::GetInstance() {
-  return base::Singleton<BrowserSwitcherServiceFactory>::get();
+  static base::NoDestructor<BrowserSwitcherServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -53,12 +50,13 @@ BrowserSwitcherServiceFactory::BrowserSwitcherServiceFactory()
                                  // regular, non-Incognito profiles.
                                  ProfileSelections::BuildForRegularProfile()) {}
 
-BrowserSwitcherServiceFactory::~BrowserSwitcherServiceFactory() {}
+BrowserSwitcherServiceFactory::~BrowserSwitcherServiceFactory() = default;
 
-KeyedService* BrowserSwitcherServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+BrowserSwitcherServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  auto* instance =
-      new BrowserSwitcherServiceImpl(Profile::FromBrowserContext(context));
+  std::unique_ptr<BrowserSwitcherServiceImpl> instance =
+      std::make_unique<BrowserSwitcherServiceImpl>(Profile::FromBrowserContext(context));
   instance->Init();
   return instance;
 }

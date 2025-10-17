@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {CategoryEnum, Emoji, VisualContent} from './types';
+import type {CategoryEnum, Emoji, Gender, Tone, VisualContent} from './types.js';
 
 export type CategoryButtonClickEvent =
     CustomEvent<{categoryName: CategoryEnum}>;
@@ -13,23 +13,30 @@ export type GroupButtonClickEvent = CustomEvent<{group: string}>;
 
 export const GROUP_BUTTON_CLICK = 'group-button-click';
 
-export type EmojiTextButtonClickEvent = CustomEvent<{
-  emoji: string,
-  isVariant: boolean,
-  baseEmoji: string,
-  allVariants: Emoji[],
-  name: string,
-  text: string,
-  category: CategoryEnum,
-}>;
+export interface TextItem {
+  name?: string;
+  category: CategoryEnum;
+  text: string;
+  baseEmoji?: string;
+  isVariant: boolean;
+  tone?: Tone;
+  gender?: Gender;
+  groupedTone: boolean;
+  groupedGender: boolean;
+  alternates: Emoji[];
+}
+
+export type EmojiTextButtonClickEvent = CustomEvent<TextItem>;
 
 export const EMOJI_TEXT_BUTTON_CLICK = 'emoji-text-button-click';
 
-export type EmojiImgButtonClickEvent = CustomEvent<{
-  name: string,
-  visualContent: VisualContent,
-  category: CategoryEnum,
-}>;
+export interface VisualItem {
+  name?: string;
+  category: CategoryEnum;
+  visualContent: VisualContent;
+}
+
+export type EmojiImgButtonClickEvent = CustomEvent<VisualItem>;
 
 export const EMOJI_IMG_BUTTON_CLICK = 'emoji-img-button-click';
 
@@ -41,7 +48,7 @@ export const EMOJI_IMG_BUTTON_CLICK = 'emoji-img-button-click';
  * same time. It will be be improved after removing emoji-button.
  */
 export type EmojiVariantsShownEvent =
-    CustomEvent<{owner?: Element, variants?: HTMLElement, baseEmoji: string}>;
+    CustomEvent<{owner?: Element, variants?: HTMLElement, baseEmoji?: string}>;
 
 export const EMOJI_VARIANTS_SHOWN = 'emoji-variants-shown';
 
@@ -74,15 +81,15 @@ export type EmojiClearRecentClickEvent = CustomEvent;
 
 export const EMOJI_CLEAR_RECENTS_CLICK = 'emoji-clear-recents-click';
 
+
+type ExtractDetail<T> = T extends CustomEvent<infer U>? U : never;
+
 /**
  * Constructs a CustomEvent with the given event type and details.
  * The event will bubble up through elements and components.
- *
- * @param {string} type event type
- * @param {T=} detail event details
- * @return {!CustomEvent<T>} custom event
- * @template T event detail type
  */
-export function createCustomEvent<T>(type: string, detail: T) {
+export function createCustomEvent<T extends keyof HTMLElementEventMap>(
+    type: T,
+    detail: ExtractDetail<HTMLElementEventMap[T]>): CustomEvent<typeof detail> {
   return new CustomEvent(type, {bubbles: true, composed: true, detail});
 }

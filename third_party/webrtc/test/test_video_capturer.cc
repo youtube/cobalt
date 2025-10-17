@@ -25,10 +25,10 @@ TestVideoCapturer::~TestVideoCapturer() = default;
 void TestVideoCapturer::OnOutputFormatRequest(
     int width,
     int height,
-    const absl::optional<int>& max_fps) {
-  absl::optional<std::pair<int, int>> target_aspect_ratio =
+    const std::optional<int>& max_fps) {
+  std::optional<std::pair<int, int>> target_aspect_ratio =
       std::make_pair(width, height);
-  absl::optional<int> max_pixel_count = width * height;
+  std::optional<int> max_pixel_count = width * height;
   video_adapter_.OnOutputFormatRequest(target_aspect_ratio, max_pixel_count,
                                        max_fps);
 }
@@ -46,8 +46,9 @@ void TestVideoCapturer::OnFrame(const VideoFrame& original_frame) {
     MutexLock lock(&lock_);
     enable_adaptation = enable_adaptation_;
   }
-  if (enable_adaptation) {
+  if (!enable_adaptation) {
     broadcaster_.OnFrame(frame);
+    return;
   }
 
   if (!video_adapter_.AdaptFrameResolution(
@@ -61,7 +62,7 @@ void TestVideoCapturer::OnFrame(const VideoFrame& original_frame) {
     // Video adapter has requested a down-scale. Allocate a new buffer and
     // return scaled version.
     // For simplicity, only scale here without cropping.
-    rtc::scoped_refptr<I420Buffer> scaled_buffer =
+    scoped_refptr<I420Buffer> scaled_buffer =
         I420Buffer::Create(out_width, out_height);
     scaled_buffer->ScaleFrom(*frame.video_frame_buffer()->ToI420());
     VideoFrame::Builder new_frame_builder =
@@ -84,18 +85,17 @@ void TestVideoCapturer::OnFrame(const VideoFrame& original_frame) {
   }
 }
 
-rtc::VideoSinkWants TestVideoCapturer::GetSinkWants() {
+VideoSinkWants TestVideoCapturer::GetSinkWants() {
   return broadcaster_.wants();
 }
 
-void TestVideoCapturer::AddOrUpdateSink(
-    rtc::VideoSinkInterface<VideoFrame>* sink,
-    const rtc::VideoSinkWants& wants) {
+void TestVideoCapturer::AddOrUpdateSink(VideoSinkInterface<VideoFrame>* sink,
+                                        const VideoSinkWants& wants) {
   broadcaster_.AddOrUpdateSink(sink, wants);
   UpdateVideoAdapter();
 }
 
-void TestVideoCapturer::RemoveSink(rtc::VideoSinkInterface<VideoFrame>* sink) {
+void TestVideoCapturer::RemoveSink(VideoSinkInterface<VideoFrame>* sink) {
   broadcaster_.RemoveSink(sink);
   UpdateVideoAdapter();
 }

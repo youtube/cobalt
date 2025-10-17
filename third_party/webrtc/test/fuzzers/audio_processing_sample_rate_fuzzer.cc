@@ -10,11 +10,17 @@
 
 #include <algorithm>
 #include <array>
-#include <cmath>
-#include <limits>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <utility>
 
-#include "modules/audio_processing/include/audio_processing.h"
-#include "modules/audio_processing/test/audio_processing_builder_for_testing.h"
+#include "api/array_view.h"
+#include "api/audio/audio_processing.h"
+#include "api/audio/builtin_audio_processing_builder.h"
+#include "api/environment/environment_factory.h"
+#include "api/scoped_refptr.h"
 #include "rtc_base/checks.h"
 #include "test/fuzzers/fuzz_data_helper.h"
 
@@ -79,7 +85,7 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
   if (size > 100) {
     return;
   }
-  test::FuzzDataHelper fuzz_data(rtc::ArrayView<const uint8_t>(data, size));
+  test::FuzzDataHelper fuzz_data(webrtc::ArrayView<const uint8_t>(data, size));
 
   std::unique_ptr<CustomProcessing> capture_processor =
       fuzz_data.ReadOrDefaultValue(true)
@@ -89,13 +95,13 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
       fuzz_data.ReadOrDefaultValue(true)
           ? std::make_unique<NoopCustomProcessing>()
           : nullptr;
-  rtc::scoped_refptr<AudioProcessing> apm =
-      AudioProcessingBuilderForTesting()
+  scoped_refptr<AudioProcessing> apm =
+      BuiltinAudioProcessingBuilder()
           .SetConfig({.pipeline = {.multi_channel_render = true,
                                    .multi_channel_capture = true}})
           .SetCapturePostProcessing(std::move(capture_processor))
           .SetRenderPreProcessing(std::move(render_processor))
-          .Create();
+          .Build(CreateEnvironment());
   RTC_DCHECK(apm);
 
   std::array<int16_t, kMaxSamplesPerChannel * kMaxNumChannels> fixed_frame;

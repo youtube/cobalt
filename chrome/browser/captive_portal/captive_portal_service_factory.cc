@@ -16,19 +16,28 @@ CaptivePortalServiceFactory::GetForProfile(Profile* profile) {
 
 // static
 CaptivePortalServiceFactory* CaptivePortalServiceFactory::GetInstance() {
-  return base::Singleton<CaptivePortalServiceFactory>::get();
+  static base::NoDestructor<CaptivePortalServiceFactory> instance;
+  return instance.get();
 }
 
 CaptivePortalServiceFactory::CaptivePortalServiceFactory()
     : ProfileKeyedServiceFactory(
           "captive_portal::CaptivePortalService",
-          ProfileSelections::BuildForRegularAndIncognito()) {}
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
+              .Build()) {}
 
-CaptivePortalServiceFactory::~CaptivePortalServiceFactory() {
-}
+CaptivePortalServiceFactory::~CaptivePortalServiceFactory() = default;
 
-KeyedService* CaptivePortalServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+CaptivePortalServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* profile) const {
-  return new captive_portal::CaptivePortalService(
+  return std::make_unique<captive_portal::CaptivePortalService>(
       profile, static_cast<Profile*>(profile)->GetPrefs());
 }

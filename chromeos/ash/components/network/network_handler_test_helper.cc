@@ -4,18 +4,20 @@
 
 #include "chromeos/ash/components/network/network_handler_test_helper.h"
 
+#include "ash/constants/ash_pref_names.h"
 #include "chromeos/ash/components/network/cellular_esim_profile_handler_impl.h"
 #include "chromeos/ash/components/network/managed_cellular_pref_handler.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/network/network_metadata_store.h"
 #include "chromeos/ash/components/network/network_test_helper_base.h"
 #include "components/onc/onc_pref_names.h"
+#include "components/prefs/pref_registry_simple.h"
 
 namespace ash {
 
 NetworkHandlerTestHelper::NetworkHandlerTestHelper() {
   if (!NetworkHandler::IsInitialized()) {
-    NetworkHandler::Initialize();
+    NetworkHandler::InitializeFake();
     network_handler_initialized_ = true;
   }
 }
@@ -37,6 +39,8 @@ void NetworkHandlerTestHelper::RegisterPrefs(
     NetworkMetadataStore::RegisterPrefs(user_registry);
     ::onc::RegisterProfilePrefs(user_registry);
   }
+  device_registry->RegisterBooleanPref(
+      prefs::kDeviceEphemeralNetworkPoliciesEnabled, false);
 }
 
 void NetworkHandlerTestHelper::InitializePrefs(PrefService* user_prefs,

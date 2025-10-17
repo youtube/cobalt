@@ -5,6 +5,9 @@
 #ifndef SERVICES_NETWORK_PUBLIC_CPP_CONTENT_SECURITY_POLICY_CSP_CONTEXT_H_
 #define SERVICES_NETWORK_PUBLIC_CPP_CONTENT_SECURITY_POLICY_CSP_CONTEXT_H_
 
+#include <string_view>
+
+#include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 
 class GURL;
@@ -15,7 +18,7 @@ namespace network {
 // checked. One must define via its virtual methods how to report violations
 // and what is the set of scheme that bypass the CSP. Its main implementation
 // is in content/browser/renderer_host/render_frame_host_impl.h
-class COMPONENT_EXPORT(NETWORK_CPP) CSPContext {
+class COMPONENT_EXPORT(NETWORK_CPP_WEB_PLATFORM) CSPContext {
  public:
   // This enum represents what set of policies should be checked by
   // IsAllowedByCsp().
@@ -39,16 +42,20 @@ class COMPONENT_EXPORT(NETWORK_CPP) CSPContext {
   // - displaying a console message.
   // - triggering the "SecurityPolicyViolation" javascript event.
   // - sending a JSON report to any uri defined with the "report-uri" directive.
-  // Returns true when the request can proceed, false otherwise.
+  // Return a CSPCheckResult that allows when the request can proceed, false
+  // otherwise.
+  // The field |allowed_if_wildcard_does_not_match_ws| is true assuming '*'
+  // doesn't match ws or wss, and |allowed_if_wildcard_does_not_match_ftp|
+  // assumes
+  // '*' doesn't match ftp. These two are only for logging purposes.
   // Note that when |is_opaque_fenced_frame| is true only https scheme source
   // will be matched and |url| might be disregarded.
-  bool IsAllowedByCsp(
+  CSPCheckResult IsAllowedByCsp(
       const std::vector<mojom::ContentSecurityPolicyPtr>& policies,
       mojom::CSPDirectiveName directive_name,
       const GURL& url,
       const GURL& url_before_redirects,
       bool has_followed_redirect,
-      bool is_response_check,
       const mojom::SourceLocationPtr& source_location,
       CheckCSPDisposition check_csp_disposition,
       bool is_form_submission,
@@ -78,7 +85,7 @@ class COMPONENT_EXPORT(NETWORK_CPP) CSPContext {
 
   // This is declared virtual only so that it can be overridden for unit
   // testing.
-  virtual bool SchemeShouldBypassCSP(const base::StringPiece& scheme);
+  virtual bool SchemeShouldBypassCSP(std::string_view scheme);
 };
 
 }  // namespace network

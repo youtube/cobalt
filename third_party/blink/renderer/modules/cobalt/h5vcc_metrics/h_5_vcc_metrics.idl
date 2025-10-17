@@ -35,11 +35,11 @@ interface H5vccMetrics : EventTarget {
   // are persistent or "sticky". That is, you only have to call them once
   // and that setting will persist through multiple app lifecycles until the
   // enable/disable APIs are explicitly called again."
-  [CallWith=ScriptState, RaisesException] Promise<void> enable();
+  [CallWith=ScriptState, RaisesException] Promise<undefined> enable();
 
   // "Disable Cobalt metrics logging. If disabled, the metric event handler
   // should never get called afterward."
-  [CallWith=ScriptState, RaisesException] Promise<void> disable();
+  [CallWith=ScriptState, RaisesException] Promise<undefined> disable();
 
   // "Returns the current enabled state of metrics reporting. Note, the enable()
   // and disable() APIs are asynchronous under the hood. This means if you call
@@ -55,5 +55,5 @@ interface H5vccMetrics : EventTarget {
   // and will be persisted through multiple app lifetimes unless it's called
   // again with a different value."
   // This API is now Promise-based.
-  [CallWith=ScriptState, RaisesException] Promise<void> setMetricEventInterval(unsigned long long intervalSeconds);
+  [CallWith=ScriptState, RaisesException] Promise<undefined> setMetricEventInterval(unsigned long long intervalSeconds);
 };

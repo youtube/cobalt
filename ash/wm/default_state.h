@@ -8,15 +8,12 @@
 #include "ash/wm/base_state.h"
 #include "ash/wm/window_state.h"
 #include "base/memory/raw_ptr.h"
+#include "chromeos/ui/frame/multitask_menu/float_controller_base.h"
 #include "ui/display/display.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace ash {
 class SetBoundsWMEvent;
-
-namespace mojom {
-enum class WindowStateType;
-}
 
 // DefaultState implements Ash behavior without state machine.
 class DefaultState : public BaseState {
@@ -28,7 +25,7 @@ class DefaultState : public BaseState {
 
   ~DefaultState() override;
 
-  // WindowState::State overrides:
+  // WindowState::State:
   void AttachState(WindowState* window_state,
                    WindowState::State* previous_state) override;
   void DetachState(WindowState* window_state) override;
@@ -44,16 +41,19 @@ class DefaultState : public BaseState {
                               const WMEvent* event) override;
 
  private:
-  // Set the fullscreen/maximized bounds without animation.
-  static bool SetMaximizedOrFullscreenBounds(WindowState* window_state);
+  // Sets the fullscreen/maximized bounds without animation. Returns true if
+  // bounds were successfully set.
+  bool SetMaximizedOrFullscreenBounds(WindowState* window_state);
 
-  static void SetBounds(WindowState* window_state,
-                        const SetBoundsWMEvent* bounds_event);
+  void SetBounds(WindowState* window_state,
+                 const SetBoundsWMEvent* bounds_event);
 
   // Enters next state. This is used when the state moves from one to another
   // within the same desktop mode.
-  void EnterToNextState(WindowState* window_state,
-                        chromeos::WindowStateType next_state_type);
+  void EnterToNextState(
+      WindowState* window_state,
+      chromeos::WindowStateType next_state_type,
+      std::optional<chromeos::FloatStartLocation> float_start_location);
 
   // Reenters the current state. This is called when migrating from
   // previous desktop mode, and the window's state needs to re-construct the
@@ -63,8 +63,10 @@ class DefaultState : public BaseState {
 
   // Animates to new window bounds, based on the current and previous state
   // type.
-  void UpdateBoundsFromState(WindowState* window_state,
-                             chromeos::WindowStateType old_state_type);
+  void UpdateBoundsFromState(
+      WindowState* window_state,
+      chromeos::WindowStateType old_state_type,
+      std::optional<chromeos::FloatStartLocation> float_start_location);
 
   // Updates the window bounds for display bounds, or display work area bounds
   // changes.
@@ -83,7 +85,7 @@ class DefaultState : public BaseState {
   display::Display stored_display_state_;
 
   // The window state only gets remembered for DCHECK reasons.
-  raw_ptr<WindowState, ExperimentalAsh> stored_window_state_ = nullptr;
+  raw_ptr<WindowState> stored_window_state_ = nullptr;
 };
 
 }  // namespace ash

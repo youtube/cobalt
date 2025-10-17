@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #ifndef COMPONENTS_PAGE_LOAD_METRICS_BROWSER_OBSERVERS_AD_METRICS_FRAME_DATA_UTILS_H_
 #define COMPONENTS_PAGE_LOAD_METRICS_BROWSER_OBSERVERS_AD_METRICS_FRAME_DATA_UTILS_H_
 
 #include <stdint.h>
 #include <string.h>
+
+#include <array>
 
 #include "base/containers/queue.h"
 #include "base/time/time.h"
@@ -49,7 +52,7 @@ class ResourceLoadAggregator {
   // Get the mime type of a resource. This only returns a subset of mime types,
   // grouped at a higher level. For example, all video mime types return the
   // same value.
-  // TODO(crbug.com/1136068): This is used well out of the scope of the
+  // TODO(crbug.com/40152120): This is used well out of the scope of the
   // AdsPageLoadMetricsObserver and should sit in a common directory.
   static ResourceMimeType GetResourceMimeType(
       const mojom::ResourceDataUpdatePtr& resource);
@@ -74,8 +77,8 @@ class ResourceLoadAggregator {
   size_t network_bytes_ = 0u;
 
   // Ad network bytes for different mime type resources loaded in the frame.
-  size_t ad_bytes_by_mime_[static_cast<size_t>(ResourceMimeType::kMaxValue) +
-                           1] = {0};
+  std::array<size_t, static_cast<size_t>(ResourceMimeType::kMaxValue) + 1>
+      ad_bytes_by_mime_ = {0};
 
   // Tracks the number of bytes that were used to load resources which were
   // detected to be ads inside of this frame. For ad frames, these counts should

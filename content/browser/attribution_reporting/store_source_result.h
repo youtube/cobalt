@@ -5,20 +5,106 @@
 #ifndef CONTENT_BROWSER_ATTRIBUTION_REPORTING_STORE_SOURCE_RESULT_H_
 #define CONTENT_BROWSER_ATTRIBUTION_REPORTING_STORE_SOURCE_RESULT_H_
 
+#include <optional>
+#include <variant>
+
 #include "base/time/time.h"
+#include "content/browser/attribution_reporting/storable_source.h"
 #include "content/browser/attribution_reporting/store_source_result.mojom-forward.h"
+#include "content/browser/attribution_reporting/stored_source.h"
 #include "content/common/content_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
-struct CONTENT_EXPORT StoreSourceResult {
-  explicit StoreSourceResult(
-      attribution_reporting::mojom::StoreSourceResult status,
-      absl::optional<base::Time> min_fake_report_time = absl::nullopt,
-      absl::optional<int> max_destinations_per_source_site_reporting_origin =
-          absl::nullopt,
-      absl::optional<int> max_sources_per_origin = absl::nullopt);
+class CONTENT_EXPORT StoreSourceResult {
+ public:
+  struct Success {
+    std::optional<base::Time> min_fake_report_time;
+    StoredSource::Id source_id;
+    Success(std::optional<base::Time> min_fake_report_time,
+            StoredSource::Id source_id)
+        : min_fake_report_time(min_fake_report_time), source_id(source_id) {}
+  };
+
+  struct InternalError {};
+
+  struct InsufficientSourceCapacity {
+    int limit;
+    explicit InsufficientSourceCapacity(int limit) : limit(limit) {}
+  };
+
+  struct InsufficientUniqueDestinationCapacity {
+    int limit;
+    explicit InsufficientUniqueDestinationCapacity(int limit) : limit(limit) {}
+  };
+
+  struct ExcessiveReportingOrigins {};
+
+  struct ProhibitedByBrowserPolicy {};
+
+  struct DestinationReportingLimitReached {
+    int limit;
+    explicit DestinationReportingLimitReached(int limit) : limit(limit) {}
+  };
+
+  struct DestinationPerDayReportingLimitReached {
+    int limit;
+    explicit DestinationPerDayReportingLimitReached(int limit) : limit(limit) {}
+  };
+
+  struct DestinationGlobalLimitReached {};
+
+  struct DestinationBothLimitsReached {
+    int limit;
+    explicit DestinationBothLimitsReached(int limit) : limit(limit) {}
+  };
+
+  struct ReportingOriginsPerSiteLimitReached {
+    int limit;
+    explicit ReportingOriginsPerSiteLimitReached(int limit) : limit(limit) {}
+  };
+
+  struct ExceedsMaxChannelCapacity {
+    double limit;
+    explicit ExceedsMaxChannelCapacity(double limit) : limit(limit) {}
+  };
+
+  struct ExceedsMaxScopesChannelCapacity {
+    double limit;
+    explicit ExceedsMaxScopesChannelCapacity(double limit) : limit(limit) {}
+  };
+
+  struct ExceedsMaxTriggerStateCardinality {
+    uint32_t limit;
+    explicit ExceedsMaxTriggerStateCardinality(uint32_t limit) : limit(limit) {}
+  };
+
+  struct ExceedsMaxEventStatesLimit {
+    uint32_t limit;
+    explicit ExceedsMaxEventStatesLimit(uint32_t limit) : limit(limit) {}
+  };
+
+  using Result = std::variant<Success,
+                              InternalError,
+                              InsufficientSourceCapacity,
+                              InsufficientUniqueDestinationCapacity,
+                              ExcessiveReportingOrigins,
+                              ProhibitedByBrowserPolicy,
+                              DestinationReportingLimitReached,
+                              DestinationGlobalLimitReached,
+                              DestinationBothLimitsReached,
+                              ReportingOriginsPerSiteLimitReached,
+                              ExceedsMaxChannelCapacity,
+                              ExceedsMaxScopesChannelCapacity,
+                              ExceedsMaxTriggerStateCardinality,
+                              ExceedsMaxEventStatesLimit,
+                              DestinationPerDayReportingLimitReached>;
+
+  StoreSourceResult(StorableSource,
+                    bool is_noised,
+                    base::Time source_time,
+                    std::optional<int> destination_limit,
+                    Result);
 
   ~StoreSourceResult();
 
@@ -28,19 +114,24 @@ struct CONTENT_EXPORT StoreSourceResult {
   StoreSourceResult& operator=(const StoreSourceResult&);
   StoreSourceResult& operator=(StoreSourceResult&&);
 
-  attribution_reporting::mojom::StoreSourceResult status;
+  attribution_reporting::mojom::StoreSourceResult status() const;
 
-  // The earliest report time for any fake reports stored alongside the
-  // source, if any.
-  absl::optional<base::Time> min_fake_report_time;
+  const StorableSource& source() const { return source_; }
 
-  // Only populated in case of
-  // `attribution_reporting::mojom::StoreSourceResult::kInsufficientUniqueDestinationCapacity`.
-  absl::optional<int> max_destinations_per_source_site_reporting_origin;
+  bool is_noised() const { return is_noised_; }
 
-  // Only populated in case of
-  // `attribution_reporting::mojom::StoreSourceResult::kInsufficientSourceCapacity`.
-  absl::optional<int> max_sources_per_origin;
+  base::Time source_time() const { return source_time_; }
+
+  std::optional<int> destination_limit() const { return destination_limit_; }
+
+  const Result& result() const { return result_; }
+
+ private:
+  StorableSource source_;
+  bool is_noised_;
+  base::Time source_time_;
+  std::optional<int> destination_limit_;
+  Result result_;
 };
 
 }  // namespace content

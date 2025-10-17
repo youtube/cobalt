@@ -4,17 +4,21 @@
 
 package org.chromium.chrome.browser.feed.webfeed;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.CallbackUtils;
 import org.chromium.base.UserData;
 import org.chromium.base.UserDataHost;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feed.FeedServiceBridge;
 import org.chromium.chrome.browser.feed.StreamKind;
 import org.chromium.chrome.browser.feed.v2.FeedUserActionType;
@@ -33,28 +37,27 @@ import org.chromium.url.GURL;
  * Controls showing the follow accelerator upon navigation to pages from a Following Feed
  * recommendation (a recommendation card within the feed).
  */
+@NullMarked
 public class WebFeedRecommendationFollowAcceleratorController {
-    private static final String TAG = "WebFeedAccCon";
-
     /** We use UserData to put the web feed name into the tab and the NavigationHandle. */
     @VisibleForTesting
     private static class AssociatedWebFeedData implements UserData {
-        byte[] mWebFeedName;
+        final byte[] mWebFeedName;
 
         public AssociatedWebFeedData(byte[] webFeedName) {
             mWebFeedName = webFeedName;
         }
     }
 
-    @VisibleForTesting
     /** Put the web feed name into a passed in UserDataHost. */
+    @VisibleForTesting
     public static void associateWebFeedWithUserData(UserDataHost host, byte[] webFeedName) {
         host.setUserData(AssociatedWebFeedData.class, new AssociatedWebFeedData(webFeedName));
     }
 
     private final Activity mActivity;
     private final WebFeedFollowIntroView mWebFeedFollowIntroView;
-    private final Supplier<Tab> mTabSupplier;
+    private final Supplier<@Nullable Tab> mTabSupplier;
     private final WebFeedSnackbarController mWebFeedSnackbarController;
 
     /**
@@ -68,19 +71,28 @@ public class WebFeedRecommendationFollowAcceleratorController {
      * @param dialogManager {@link ModalDialogManager} for managing the dialog.
      * @param snackbarManager The {@link SnackbarManager} to show snackbars.
      */
-    public WebFeedRecommendationFollowAcceleratorController(Activity activity,
-            AppMenuHandler appMenuHandler, Supplier<Tab> tabSupplier, View menuButtonAnchorView,
-            FeedLauncher feedLauncher, ModalDialogManager dialogManager,
+    public WebFeedRecommendationFollowAcceleratorController(
+            Activity activity,
+            AppMenuHandler appMenuHandler,
+            Supplier<@Nullable Tab> tabSupplier,
+            View menuButtonAnchorView,
+            FeedLauncher feedLauncher,
+            ModalDialogManager dialogManager,
             SnackbarManager snackbarManager) {
         mActivity = activity;
         mTabSupplier = tabSupplier;
-        mWebFeedSnackbarController = new WebFeedSnackbarController(
-                activity, feedLauncher, dialogManager, snackbarManager);
+        mWebFeedSnackbarController =
+                new WebFeedSnackbarController(
+                        activity, feedLauncher, dialogManager, snackbarManager);
         // featureEngagementTracker is set to null because we don't want to use IPH conditions for
         // showing the accelerator.
         mWebFeedFollowIntroView =
-                new WebFeedFollowIntroView(mActivity, appMenuHandler, menuButtonAnchorView,
-                        /*featureEngagementTracker=*/null, /*introDismissedCallback=*/() -> {});
+                new WebFeedFollowIntroView(
+                        mActivity,
+                        appMenuHandler,
+                        menuButtonAnchorView,
+                        /* featureEngagementTracker= */ null,
+                        /* introDismissedCallback= */ CallbackUtils.emptyRunnable());
     }
 
     /** Dismiss the Follow bubble if it is showing. */
@@ -117,81 +129,97 @@ public class WebFeedRecommendationFollowAcceleratorController {
     public boolean showIfPageIsFromRecommendation(Tab tab) {
         byte[] webFeedId = getWebFeedNameIfPageIsRecommended(tab);
         if (webFeedId == null) return false;
-        WebFeedBridge.getWebFeedMetadata(webFeedId, (WebFeedMetadata metadata) -> {
-            if (metadata != null
-                    && metadata.subscriptionStatus != WebFeedSubscriptionStatus.NOT_SUBSCRIBED) {
-                return;
-            }
-            showAccelerator(webFeedId);
-        });
+        WebFeedBridge.getWebFeedMetadata(
+                webFeedId,
+                (WebFeedMetadata metadata) -> {
+                    if (metadata != null
+                            && metadata.subscriptionStatus
+                                    != WebFeedSubscriptionStatus.NOT_SUBSCRIBED) {
+                        return;
+                    }
+                    showAccelerator(webFeedId);
+                });
         return true;
     }
 
     private void showAccelerator(byte[] webFeedName) {
-        GestureDetector gestureDetector = new GestureDetector(
-                mActivity.getApplicationContext(), new GestureDetector.SimpleOnGestureListener() {
-                    private boolean mPressed;
-                    @Override
-                    public boolean onSingleTapUp(MotionEvent motionEvent) {
-                        if (!mPressed) {
-                            mPressed = true;
-                            performFollowWithAccelerator(webFeedName);
-                        }
-                        return true;
-                    }
-                });
-        View.OnTouchListener onTouchListener = (view, motionEvent) -> {
-            view.performClick();
-            gestureDetector.onTouchEvent(motionEvent);
-            return true;
-        };
+        GestureDetector gestureDetector =
+                new GestureDetector(
+                        mActivity.getApplicationContext(),
+                        new GestureDetector.SimpleOnGestureListener() {
+                            private boolean mPressed;
 
-        mWebFeedFollowIntroView.showAccelerator(onTouchListener, /*introShownCallback=*/
-                ()
-                        -> {},
-                /*introNotShownCallback*/ () -> {});
+                            @Override
+                            public boolean onSingleTapUp(MotionEvent motionEvent) {
+                                if (!mPressed) {
+                                    mPressed = true;
+                                    performFollowWithAccelerator(webFeedName);
+                                }
+                                return true;
+                            }
+                        });
+        View.OnTouchListener onTouchListener =
+                (view, motionEvent) -> {
+                    view.performClick();
+                    gestureDetector.onTouchEvent(motionEvent);
+                    return true;
+                };
+
+        mWebFeedFollowIntroView.showAccelerator(
+                onTouchListener,
+                /* introShownCallback= */ CallbackUtils.emptyRunnable(),
+                /*introNotShownCallback*/ CallbackUtils.emptyRunnable());
     }
 
     private void performFollowWithAccelerator(byte[] webFeedId) {
-        mWebFeedFollowIntroView.showLoadingUI();
+        mWebFeedFollowIntroView.showLoadingUi();
         Tab currentTab = mTabSupplier.get();
-        FeedServiceBridge.reportOtherUserAction(StreamKind.UNKNOWN,
+        FeedServiceBridge.reportOtherUserAction(
+                StreamKind.UNKNOWN,
                 FeedUserActionType.TAPPED_FOLLOW_ON_RECOMMENDATION_FOLLOW_ACCELERATOR);
-        GURL url = currentTab.getUrl();
-        WebFeedBridge.followFromId(webFeedId, /*isDurable=*/true,
+        GURL url = assumeNonNull(currentTab).getUrl();
+        WebFeedBridge.followFromId(
+                webFeedId,
+                /* isDurable= */ true,
                 WebFeedBridge.CHANGE_REASON_RECOMMENDATION_WEB_PAGE_ACCELERATOR,
-                results -> mWebFeedFollowIntroView.hideLoadingUI(new LoadingView.Observer() {
-                    @Override
-                    public void onShowLoadingUIComplete() {}
+                results ->
+                        mWebFeedFollowIntroView.hideLoadingUi(
+                                new LoadingView.Observer() {
+                                    @Override
+                                    public void onShowLoadingUiComplete() {}
 
-                    @Override
-                    public void onHideLoadingUIComplete() {
-                        mWebFeedFollowIntroView.dismissBubble();
-                        if (results.requestStatus == WebFeedSubscriptionRequestStatus.SUCCESS) {
-                            mWebFeedFollowIntroView.showFollowingBubble();
-                        }
-                        byte[] followId = results.metadata != null ? results.metadata.id : null;
-                        mWebFeedSnackbarController.showPostFollowHelp(currentTab, results,
-                                webFeedId, url, results.metadata.title,
-                                WebFeedBridge.CHANGE_REASON_RECOMMENDATION_WEB_PAGE_ACCELERATOR);
-                    }
-                }));
+                                    @Override
+                                    public void onHideLoadingUiComplete() {
+                                        mWebFeedFollowIntroView.dismissBubble();
+                                        if (results.requestStatus
+                                                == WebFeedSubscriptionRequestStatus.SUCCESS) {
+                                            mWebFeedFollowIntroView.showFollowingBubble();
+                                        }
+                                        mWebFeedSnackbarController.showPostFollowHelp(
+                                                currentTab,
+                                                results,
+                                                webFeedId,
+                                                url,
+                                                assumeNonNull(results.metadata).title,
+                                                WebFeedBridge
+                                                        .CHANGE_REASON_RECOMMENDATION_WEB_PAGE_ACCELERATOR);
+                                    }
+                                }));
     }
 
-    @VisibleForTesting
     public WebFeedFollowIntroView getIntroViewForTesting() {
         return mWebFeedFollowIntroView;
     }
 
-    public static byte[] getWebFeedNameIfPageIsRecommended(Tab tab) {
+    public static byte @Nullable [] getWebFeedNameIfPageIsRecommended(Tab tab) {
         UserDataHost userDataHost = tab.getUserDataHost();
         if (userDataHost == null) return null;
         AssociatedWebFeedData userData = userDataHost.getUserData(AssociatedWebFeedData.class);
         return userData != null ? userData.mWebFeedName : null;
     }
 
-    @Nullable
-    public static byte[] getWebFeedNameIfNavigationIsForRecommendation(NavigationHandle handle) {
+    public static byte @Nullable [] getWebFeedNameIfNavigationIsForRecommendation(
+            NavigationHandle handle) {
         UserDataHost userDataHost = handle.getUserDataHost();
         if (userDataHost == null) return null;
         AssociatedWebFeedData userData = userDataHost.getUserData(AssociatedWebFeedData.class);
@@ -208,7 +236,7 @@ public class WebFeedRecommendationFollowAcceleratorController {
     }
 
     @VisibleForTesting
-    public static byte[] getWebFeedNameIfInLoadUrlParams(LoadUrlParams params) {
+    public static byte @Nullable [] getWebFeedNameIfInLoadUrlParams(LoadUrlParams params) {
         AssociatedWebFeedData userData =
                 params.getNavigationHandleUserData().getUserData(AssociatedWebFeedData.class);
         return userData != null ? userData.mWebFeedName : null;

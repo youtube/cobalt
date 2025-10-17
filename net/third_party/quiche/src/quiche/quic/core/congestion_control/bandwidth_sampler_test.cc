@@ -4,8 +4,10 @@
 
 #include "quiche/quic/core/congestion_control/bandwidth_sampler.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <set>
+#include <string>
 
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_time.h"
@@ -26,7 +28,7 @@ class BandwidthSamplerPeer {
 
   static QuicByteCount GetPacketSize(const BandwidthSampler& sampler,
                                      QuicPacketNumber packet_number) {
-    return sampler.connection_state_map_.GetEntry(packet_number)->size;
+    return sampler.connection_state_map_.GetEntry(packet_number)->size();
   }
 };
 

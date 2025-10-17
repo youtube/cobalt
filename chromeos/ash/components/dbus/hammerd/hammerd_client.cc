@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/ash/components/dbus/hammerd/hammerd_client.h"
 
 #include <string>
@@ -153,7 +158,7 @@ class HammerdClientImpl : public HammerdClient {
       observer.InvalidBaseConnected();
   }
 
-  raw_ptr<dbus::ObjectProxy, ExperimentalAsh> bus_proxy_ = nullptr;
+  raw_ptr<dbus::ObjectProxy> bus_proxy_ = nullptr;
   base::ObserverList<Observer>::Unchecked observers_;
 
   base::WeakPtrFactory<HammerdClientImpl> weak_ptr_factory_{this};

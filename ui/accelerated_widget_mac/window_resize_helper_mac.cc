@@ -138,7 +138,6 @@ bool WrappedTask::ShouldRunBefore(const WrappedTask& other) {
     return false;
   // Sequence numbers are unique, so this should never happen.
   NOTREACHED();
-  return false;
 }
 
 void WrappedTask::Run() {
@@ -275,7 +274,6 @@ bool PumpableTaskRunner::PostNonNestableDelayedTask(
   // The correctness of non-nestable events hasn't been proven for this
   // structure.
   NOTREACHED();
-  return false;
 }
 
 bool PumpableTaskRunner::RunsTasksInCurrentSequence() const {
@@ -318,8 +316,8 @@ bool WindowResizeHelperMac::WaitForSingleTaskToRun(
   return pumpable_task_runner->WaitForSingleWrappedTaskToRun(max_delay);
 }
 
-WindowResizeHelperMac::WindowResizeHelperMac() {}
-WindowResizeHelperMac::~WindowResizeHelperMac() {}
+WindowResizeHelperMac::WindowResizeHelperMac() = default;
+WindowResizeHelperMac::~WindowResizeHelperMac() = default;
 
 void WindowResizeHelperMac::EventTimedWait(base::WaitableEvent* event,
                                            base::TimeDelta delay) {

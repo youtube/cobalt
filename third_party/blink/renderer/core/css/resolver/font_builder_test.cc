@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
@@ -27,6 +28,7 @@ class FontBuilderTest {
   Settings& GetSettings() { return *GetDocument().GetSettings(); }
 
  private:
+  test::TaskEnvironment task_environment_;
   std::unique_ptr<DummyPageHolder> dummy_;
 };
 
@@ -75,16 +77,17 @@ TEST_P(FontBuilderAdditiveTest, OnlySetValueIsModified) {
   ComputedStyleBuilder builder =
       GetDocument().GetStyleResolver().CreateComputedStyleBuilder();
   builder.SetFontDescription(parent_description);
-  scoped_refptr<const ComputedStyle> parent_style = builder.TakeStyle();
+  const ComputedStyle* parent_style = builder.TakeStyle();
 
-  builder = GetDocument().GetStyleResolver().CreateComputedStyleBuilder();
-  builder.InheritFrom(*parent_style);
+  builder =
+      GetDocument().GetStyleResolver().CreateComputedStyleBuilderInheritingFrom(
+          *parent_style);
 
   FontBuilder font_builder(&GetDocument());
   funcs.set_value(font_builder);
-  font_builder.CreateFont(builder, parent_style.get());
+  font_builder.CreateFont(builder, parent_style);
 
-  scoped_refptr<const ComputedStyle> style = builder.TakeStyle();
+  const ComputedStyle* style = builder.TakeStyle();
   FontDescription output_description = style->GetFontDescription();
 
   // FontBuilder should have overwritten our base value set in the parent,
@@ -104,14 +107,14 @@ static void FontWeightBase(FontDescription& d) {
   d.SetWeight(FontSelectionValue(900));
 }
 static void FontWeightValue(FontBuilder& b) {
-  b.SetWeight(NormalWeightValue());
+  b.SetWeight(kNormalWeightValue);
 }
 
 static void FontStretchBase(FontDescription& d) {
-  d.SetStretch(UltraExpandedWidthValue());
+  d.SetStretch(kUltraExpandedWidthValue);
 }
 static void FontStretchValue(FontBuilder& b) {
-  b.SetStretch(ExtraCondensedWidthValue());
+  b.SetStretch(kExtraCondensedWidthValue);
 }
 
 static void FontFamilyBase(FontDescription& d) {
@@ -130,10 +133,10 @@ static void FontFeatureSettingsValue(FontBuilder& b) {
 }
 
 static void FontStyleBase(FontDescription& d) {
-  d.SetStyle(ItalicSlopeValue());
+  d.SetStyle(kItalicSlopeValue);
 }
 static void FontStyleValue(FontBuilder& b) {
-  b.SetStyle(NormalSlopeValue());
+  b.SetStyle(kNormalSlopeValue);
 }
 
 static void FontVariantCapsBase(FontDescription& d) {
@@ -221,10 +224,10 @@ static void FontSizeValue(FontBuilder& b) {
 }
 
 static void FontScriptBase(FontDescription& d) {
-  d.SetLocale(LayoutLocale::Get("no"));
+  d.SetLocale(LayoutLocale::Get(AtomicString("no")));
 }
 static void FontScriptValue(FontBuilder& b) {
-  b.SetLocale(LayoutLocale::Get("se"));
+  b.SetLocale(LayoutLocale::Get(AtomicString("se")));
 }
 
 INSTANTIATE_TEST_SUITE_P(

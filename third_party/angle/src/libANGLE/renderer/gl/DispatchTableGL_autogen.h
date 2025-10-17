@@ -816,6 +816,9 @@ class DispatchTableGL : angle::NonCopyable
     // GL_NV_internalformat_sample_query
     PFNGLGETINTERNALFORMATSAMPLEIVNVPROC getInternalformatSampleivNV = nullptr;
 
+    // GL_NV_polygon_mode
+    PFNGLPOLYGONMODENVPROC polygonModeNV = nullptr;
+
     // GL_OES_EGL_image
     PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC eGLImageTargetRenderbufferStorageOES = nullptr;
     PFNGLEGLIMAGETARGETTEXTURE2DOESPROC eGLImageTargetTexture2DOES = nullptr;
@@ -826,6 +829,10 @@ class DispatchTableGL : angle::NonCopyable
 
     // GL_OVR_multiview2
     PFNGLFRAMEBUFFERTEXTUREMULTIVIEWOVRPROC framebufferTextureMultiviewOVR = nullptr;
+
+    // GL_QCOM_tiled_rendering
+    PFNGLENDTILINGQCOMPROC endTilingQCOM = nullptr;
+    PFNGLSTARTTILINGQCOMPROC startTilingQCOM = nullptr;
     // clang-format on
 
     DispatchTableGL();

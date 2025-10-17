@@ -12,12 +12,13 @@
 #define PC_DTLS_TRANSPORT_H_
 
 #include <memory>
+#include <utility>
 
 #include "api/dtls_transport_interface.h"
 #include "api/ice_transport_interface.h"
 #include "api/scoped_refptr.h"
-#include "p2p/base/dtls_transport.h"
-#include "p2p/base/dtls_transport_internal.h"
+#include "api/sequence_checker.h"
+#include "p2p/dtls/dtls_transport_internal.h"
 #include "pc/ice_transport.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread.h"
@@ -27,31 +28,34 @@ namespace webrtc {
 
 class IceTransportWithPointer;
 
-// This implementation wraps a cricket::DtlsTransport, and takes
+// This implementation wraps a webrtc::DtlsTransportInternalImpl, and takes
 // ownership of it.
 class DtlsTransport : public DtlsTransportInterface {
  public:
   // This object must be constructed and updated on a consistent thread,
-  // the same thread as the one the cricket::DtlsTransportInternal object
+  // the same thread as the one the webrtc::DtlsTransportInternal object
   // lives on.
   // The Information() function can be called from a different thread,
   // such as the signalling thread.
-  explicit DtlsTransport(
-      std::unique_ptr<cricket::DtlsTransportInternal> internal);
+  explicit DtlsTransport(std::unique_ptr<DtlsTransportInternal> internal);
 
-  rtc::scoped_refptr<IceTransportInterface> ice_transport() override;
+  scoped_refptr<IceTransportInterface> ice_transport() override;
+
+  // Currently called from the signaling thread and potentially Chromium's
+  // JS thread.
   DtlsTransportInformation Information() override;
+
   void RegisterObserver(DtlsTransportObserverInterface* observer) override;
   void UnregisterObserver() override;
   void Clear();
 
-  cricket::DtlsTransportInternal* internal() {
-    MutexLock lock(&lock_);
+  DtlsTransportInternal* internal() {
+    RTC_DCHECK_RUN_ON(owner_thread_);
     return internal_dtls_transport_.get();
   }
 
-  const cricket::DtlsTransportInternal* internal() const {
-    MutexLock lock(&lock_);
+  const DtlsTransportInternal* internal() const {
+    RTC_DCHECK_RUN_ON(owner_thread_);
     return internal_dtls_transport_.get();
   }
 
@@ -59,17 +63,24 @@ class DtlsTransport : public DtlsTransportInterface {
   ~DtlsTransport();
 
  private:
-  void OnInternalDtlsState(cricket::DtlsTransportInternal* transport,
+  void OnInternalDtlsState(DtlsTransportInternal* transport,
                            DtlsTransportState state);
   void UpdateInformation();
 
+  // Called when changing `info_`. We only change the values from the
+  // `owner_thread_` (a.k.a. the network thread).
+  void set_info(DtlsTransportInformation&& info) RTC_RUN_ON(owner_thread_) {
+    MutexLock lock(&lock_);
+    info_ = std::move(info);
+  }
+
   DtlsTransportObserverInterface* observer_ = nullptr;
-  rtc::Thread* owner_thread_;
+  Thread* owner_thread_;
   mutable Mutex lock_;
   DtlsTransportInformation info_ RTC_GUARDED_BY(lock_);
-  std::unique_ptr<cricket::DtlsTransportInternal> internal_dtls_transport_
-      RTC_GUARDED_BY(lock_);
-  const rtc::scoped_refptr<IceTransportWithPointer> ice_transport_;
+  std::unique_ptr<DtlsTransportInternal> internal_dtls_transport_
+      RTC_GUARDED_BY(owner_thread_);
+  const scoped_refptr<IceTransportWithPointer> ice_transport_;
 };
 
 }  // namespace webrtc

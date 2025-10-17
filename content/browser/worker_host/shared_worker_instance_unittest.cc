@@ -6,8 +6,8 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -28,12 +28,16 @@ class SharedWorkerInstanceTest : public testing::Test {
     return SharedWorkerInstance(
         script_url, blink::mojom::ScriptType::kClassic,
         network::mojom::CredentialsMode::kSameOrigin, name, storage_key,
-        blink::mojom::SharedWorkerCreationContextType::kNonsecure);
+        blink::mojom::SharedWorkerCreationContextType::kNonsecure,
+        storage_key.IsFirstPartyContext()
+            ? blink::mojom::SharedWorkerSameSiteCookies::kAll
+            : blink::mojom::SharedWorkerSameSiteCookies::kNone,
+        /*extended_lifetime=*/false);
   }
 
   bool Matches(const SharedWorkerInstance& instance,
                const std::string& url,
-               const base::StringPiece& name) {
+               const std::string_view& name) {
     blink::StorageKey storage_key;
     if (GURL(url).SchemeIs(url::kDataScheme)) {
       storage_key =
@@ -41,7 +45,8 @@ class SharedWorkerInstanceTest : public testing::Test {
     } else {
       storage_key = blink::StorageKey::CreateFromStringForTesting(url);
     }
-    return instance.Matches(GURL(url), std::string(name), storage_key);
+    return instance.Matches(GURL(url), std::string(name), storage_key,
+                            blink::mojom::SharedWorkerSameSiteCookies::kAll);
   }
 };
 

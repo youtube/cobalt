@@ -2,7 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/credential_provider/gaiacp/gaia_credential_provider.h"
+
+#include <credentialprovider.h>
+#include <shlguid.h>
 
 #include <iomanip>
 #include <map>
@@ -25,6 +33,7 @@
 #include "chrome/credential_provider/gaiacp/gaia_credential_provider_i.h"
 #include "chrome/credential_provider/gaiacp/logging.h"
 #include "chrome/credential_provider/gaiacp/mdm_utils.h"
+#include "chrome/credential_provider/gaiacp/os_gaia_user_manager.h"
 #include "chrome/credential_provider/gaiacp/os_user_manager.h"
 #include "chrome/credential_provider/gaiacp/reauth_credential.h"
 #include "chrome/credential_provider/gaiacp/reg_utils.h"
@@ -310,9 +319,9 @@ void CGaiaCredentialProvider::ProviderConcurrentState::InternalReset() {
   auto_logon_credential_.Reset();
 }
 
-CGaiaCredentialProvider::CGaiaCredentialProvider() {}
+CGaiaCredentialProvider::CGaiaCredentialProvider() = default;
 
-CGaiaCredentialProvider::~CGaiaCredentialProvider() {}
+CGaiaCredentialProvider::~CGaiaCredentialProvider() = default;
 
 HRESULT CGaiaCredentialProvider::FinalConstruct() {
   LOGFN(VERBOSE);
@@ -694,7 +703,16 @@ HRESULT CGaiaCredentialProvider::SetUsageScenario(
   cpus_flags_ = flags;
 
   LOGFN(VERBOSE) << " cpu=" << cpus << " flags=" << std::setbase(16) << flags;
-  return IsUsageScenarioSupported(cpus_) ? S_OK : E_NOTIMPL;
+  if (IsUsageScenarioSupported(cpus_)) {
+    HRESULT hr = credential_provider::OSGaiaUserManager::Get()
+                     ->ChangeGaiaUserPasswordIfNeeded();
+    if (FAILED(hr)) {
+      LOGFN(ERROR) << "ChangeGaiaUserPasswordIfNeeded failed. hr=" << putHR(hr);
+    }
+    return S_OK;
+  }
+
+  return E_NOTIMPL;
 }
 
 HRESULT CGaiaCredentialProvider::SetSerialization(

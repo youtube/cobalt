@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "content/public/common/common_param_traits.h"
 
 #include <stddef.h>
@@ -10,6 +15,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/containers/heap_array.h"
 #include "base/values.h"
 #include "components/viz/common/surfaces/surface_info.h"
 #include "content/common/content_param_traits.h"
@@ -68,18 +74,22 @@ TEST(IPCMessageTest, Bitmap) {
       0);
 
   // Also test the corrupt case.
+
   IPC::Message bad_msg(1, 2, IPC::Message::PRIORITY_NORMAL);
+
   // Copy the first message block over to |bad_msg|.
   const char* fixed_data;
   size_t fixed_data_size;
   iter = base::PickleIterator(msg);
   EXPECT_TRUE(iter.ReadData(&fixed_data, &fixed_data_size));
   bad_msg.WriteData(fixed_data, fixed_data_size);
+
   // Add some bogus pixel data.
   const size_t bogus_pixels_size = bitmap.computeByteSize() * 2;
-  std::unique_ptr<char[]> bogus_pixels(new char[bogus_pixels_size]);
-  memset(bogus_pixels.get(), 'B', bogus_pixels_size);
-  bad_msg.WriteData(bogus_pixels.get(), bogus_pixels_size);
+  auto bogus_pixels = base::HeapArray<uint8_t>::Uninit(bogus_pixels_size);
+  std::ranges::fill(bogus_pixels, 'B');
+  bad_msg.WriteData(bogus_pixels);
+
   // Make sure we don't read out the bitmap!
   SkBitmap bad_output;
   iter = base::PickleIterator(bad_msg);
@@ -120,20 +130,6 @@ TEST(IPCMessageTest, ValueDict) {
   EXPECT_FALSE(IPC::ReadParam(&bad_msg, &iter, &output));
 }
 
-// Tests net::HostPortPair serialization
-TEST(IPCMessageTest, HostPortPair) {
-  net::HostPortPair input("host.com", 12345);
-
-  IPC::Message msg(1, 2, IPC::Message::PRIORITY_NORMAL);
-  IPC::ParamTraits<net::HostPortPair>::Write(&msg, input);
-
-  net::HostPortPair output;
-  base::PickleIterator iter(msg);
-  EXPECT_TRUE(IPC::ParamTraits<net::HostPortPair>::Read(&msg, &iter, &output));
-  EXPECT_EQ(input.host(), output.host());
-  EXPECT_EQ(input.port(), output.port());
-}
-
 // Tests net::SSLInfo serialization
 TEST(IPCMessageTest, SSLInfo) {
   // Build a SSLInfo. Avoid false for booleans as that's the default value.
@@ -152,7 +148,6 @@ TEST(IPCMessageTest, SSLInfo) {
   in.handshake_type = net::SSLInfo::HANDSHAKE_FULL;
   const net::SHA256HashValue kCertPublicKeyHashValue = {{0x01, 0x02}};
   in.public_key_hashes.push_back(net::HashValue(kCertPublicKeyHashValue));
-  in.pinning_failure_log = "foo";
   in.encrypted_client_hello = true;
 
   scoped_refptr<net::ct::SignedCertificateTimestamp> sct(
@@ -171,8 +166,8 @@ TEST(IPCMessageTest, SSLInfo) {
 
   in.ct_policy_compliance =
       net::ct::CTPolicyCompliance::CT_POLICY_NOT_ENOUGH_SCTS;
-  in.ocsp_result.response_status = net::OCSPVerifyResult::PROVIDED;
-  in.ocsp_result.revocation_status = net::OCSPRevocationStatus::REVOKED;
+  in.ocsp_result.response_status = bssl::OCSPVerifyResult::PROVIDED;
+  in.ocsp_result.revocation_status = bssl::OCSPRevocationStatus::REVOKED;
 
   // Now serialize and deserialize.
   IPC::Message msg(1, 2, IPC::Message::PRIORITY_NORMAL);
@@ -194,7 +189,6 @@ TEST(IPCMessageTest, SSLInfo) {
   ASSERT_EQ(in.client_cert_sent, out.client_cert_sent);
   ASSERT_EQ(in.handshake_type, out.handshake_type);
   ASSERT_EQ(in.public_key_hashes, out.public_key_hashes);
-  ASSERT_EQ(in.pinning_failure_log, out.pinning_failure_log);
   ASSERT_EQ(in.encrypted_client_hello, out.encrypted_client_hello);
 
   ASSERT_EQ(in.signed_certificate_timestamps.size(),

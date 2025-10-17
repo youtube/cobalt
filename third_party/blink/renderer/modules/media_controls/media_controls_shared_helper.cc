@@ -5,11 +5,13 @@
 #include "third_party/blink/renderer/modules/media_controls/media_controls_shared_helper.h"
 
 #include <cmath>
+
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/fullscreen/fullscreen.h"
 #include "third_party/blink/renderer/core/html/media/html_media_element.h"
 #include "third_party/blink/renderer/core/html/media/html_media_element_controls_list.h"
+#include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/core/html/time_ranges.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -70,8 +72,7 @@ void MediaControlsSharedHelpers::TransitionEventListener::Trace(
   visitor->Trace(element_);
 }
 
-absl::optional<unsigned>
-MediaControlsSharedHelpers::GetCurrentBufferedTimeRange(
+std::optional<unsigned> MediaControlsSharedHelpers::GetCurrentBufferedTimeRange(
     HTMLMediaElement& media_element) {
   double current_time = media_element.currentTime();
   double duration = media_element.duration();
@@ -80,7 +81,7 @@ MediaControlsSharedHelpers::GetCurrentBufferedTimeRange(
   DCHECK(buffered_time_ranges);
 
   if (!std::isfinite(duration) || !duration || std::isnan(current_time)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Calculate the size of the after segment (i.e. what has been buffered).
@@ -101,7 +102,7 @@ MediaControlsSharedHelpers::GetCurrentBufferedTimeRange(
     }
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 String MediaControlsSharedHelpers::FormatTime(double time) {

@@ -9,6 +9,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/color_palette.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/label_button.h"
 
@@ -28,8 +29,9 @@ SkipAdLabelButton::SkipAdLabelButton(PressedCallback callback)
   SetSize(gfx::Size(kSkipAdButtonWidth, kSkipAdButtonHeight));
 
   // Accessibility.
-  SetAccessibleName(label()->GetText());
-  SetTooltipText(label()->GetText());
+  std::u16string label_text(label()->GetText());
+  GetViewAccessibility().SetName(label_text);
+  SetTooltipText(label_text);
   SetInstallFocusRingOnFocus(true);
 }
 
@@ -55,11 +57,9 @@ void SkipAdLabelButton::OnThemeChanged() {
       views::Painter::CreateRoundRectWith1PxBorderPainter(
           color_provider->GetColor(kColorPipWindowSkipAdButtonBackground),
           color_provider->GetColor(kColorPipWindowSkipAdButtonBorder), 1.f)));
-  const SkColor foreground_color =
-      color_provider->GetColor(kColorPipWindowForeground);
-  SetEnabledTextColors(foreground_color);
-  SetTextColor(views::Button::STATE_DISABLED, foreground_color);
+  SetEnabledTextColors(kColorPipWindowForeground);
+  SetTextColor(views::Button::STATE_DISABLED, kColorPipWindowForeground);
 }
 
-BEGIN_METADATA(SkipAdLabelButton, views::LabelButton)
+BEGIN_METADATA(SkipAdLabelButton)
 END_METADATA

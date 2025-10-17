@@ -1,16 +1,16 @@
-/* Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <gtest/gtest.h>
 
@@ -30,18 +30,57 @@
 #include <openssl/hmac.h>
 #include <openssl/md4.h>
 #include <openssl/md5.h>
-#include <openssl/rand.h>
+#include <openssl/rand.h>  // TODO(bbe): only for RAND_bytes call below, replace with BCM call
 #include <openssl/rsa.h>
-#include <openssl/service_indicator.h>
 
 #include "../../test/abi_test.h"
 #include "../../test/test_util.h"
+#include "../bcm_interface.h"
 #include "../bn/internal.h"
 #include "../rand/internal.h"
 #include "../tls/internal.h"
+#include "internal.h"
 
 
-using bssl::FIPSStatus;
+namespace {
+
+// CALL_SERVICE_AND_CHECK_APPROVED runs |func| and sets |approved| to one of the
+// |FIPSStatus*| values, above, depending on whether |func| invoked an
+// approved service. The result of |func| becomes the result of this macro.
+#define CALL_SERVICE_AND_CHECK_APPROVED(approved, func)   \
+  [&] {                                                   \
+    FIPSIndicatorHelper fips_indicator_helper(&approved); \
+    return func;                                          \
+  }()
+
+enum class FIPSStatus {
+  NOT_APPROVED = 0,
+  APPROVED = 1,
+};
+
+// FIPSIndicatorHelper records whether the service indicator counter advanced
+// during its lifetime.
+class FIPSIndicatorHelper {
+ public:
+  FIPSIndicatorHelper(FIPSStatus *result)
+      : result_(result), before_(FIPS_service_indicator_before_call()) {
+    *result_ = FIPSStatus::NOT_APPROVED;
+  }
+
+  ~FIPSIndicatorHelper() {
+    uint64_t after = FIPS_service_indicator_after_call();
+    if (after != before_) {
+      *result_ = FIPSStatus::APPROVED;
+    }
+  }
+
+  FIPSIndicatorHelper(const FIPSIndicatorHelper&) = delete;
+  FIPSIndicatorHelper &operator=(const FIPSIndicatorHelper &) = delete;
+
+ private:
+  FIPSStatus *const result_;
+  const uint64_t before_;
+};
 
 static const uint8_t kAESKey[16] = {'A', 'W', 'S', '-', 'L', 'C', 'C', 'r',
                                     'y', 'p', 't', 'o', ' ', 'K', 'e', 'y'};
@@ -422,22 +461,10 @@ static const uint8_t kTLSSeed2[16] = {
     0x31, 0x1e, 0x2b, 0x21, 0x41, 0x8d, 0x32, 0x81,
 };
 
-static const uint8_t kTLSOutput_mdsha1[32] = {
+static const uint8_t kTLSOutput_md5_sha1[32] = {
     0x36, 0xa9, 0x31, 0xb0, 0x43, 0xe3, 0x64, 0x72, 0xb9, 0x47, 0x54,
     0x0d, 0x8a, 0xfc, 0xe3, 0x5c, 0x1c, 0x15, 0x67, 0x7e, 0xa3, 0x5d,
     0xf2, 0x3a, 0x57, 0xfd, 0x50, 0x16, 0xe1, 0xa4, 0xa6, 0x37,
-};
-
-static const uint8_t kTLSOutput_md[32] = {
-    0x79, 0xef, 0x46, 0xc4, 0x35, 0xbc, 0xe5, 0xda, 0xd3, 0x66, 0x91,
-    0xdc, 0x86, 0x09, 0x41, 0x66, 0xf2, 0x0c, 0xeb, 0xe6, 0xab, 0x5c,
-    0x58, 0xf4, 0x65, 0xce, 0x2f, 0x5f, 0x4b, 0x34, 0x1e, 0xa1,
-};
-
-static const uint8_t kTLSOutput_sha1[32] = {
-    0xbb, 0x0a, 0x73, 0x52, 0xf8, 0x85, 0xd7, 0xbd, 0x12, 0x34, 0x78,
-    0x3b, 0x54, 0x4c, 0x75, 0xfe, 0xd7, 0x23, 0x6e, 0x22, 0x3f, 0x42,
-    0x34, 0x99, 0x57, 0x6b, 0x14, 0xc4, 0xc8, 0xae, 0x9f, 0x4c,
 };
 
 static const uint8_t kTLSOutput_sha224[32] = {
@@ -669,7 +696,8 @@ TEST_P(AEADServiceIndicatorTest, EVP_AEAD) {
                           encrypt_output.size(), nonce.data(), nonce.size(),
                           kPlaintext, sizeof(kPlaintext), nullptr, 0)));
     EXPECT_EQ(approved, FIPSStatus::NOT_APPROVED);
-    EXPECT_EQ(ERR_GET_REASON(ERR_get_error()), CIPHER_R_INVALID_NONCE);
+    EXPECT_TRUE(
+        ErrorEquals(ERR_get_error(), ERR_LIB_CIPHER, CIPHER_R_INVALID_NONCE));
   }
 }
 
@@ -1065,7 +1093,7 @@ TEST(ServiceIndicatorTest, RSAKeyGen) {
     EXPECT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(
         approved, RSA_generate_key_fips(rsa.get(), bits, nullptr)));
     EXPECT_EQ(approved, FIPSStatus::APPROVED);
-    EXPECT_EQ(bits, BN_num_bits(rsa->n));
+    EXPECT_EQ(bits, RSA_bits(rsa.get()));
   }
 
   // Test running the EVP_PKEY_keygen interfaces one by one directly, and check
@@ -1138,43 +1166,50 @@ static const struct RSATestVector kRSATestVectors[] = {
      FIPSStatus::NOT_APPROVED},
     {4096, &EVP_md5, false, FIPSStatus::NOT_APPROVED, FIPSStatus::NOT_APPROVED},
 
-    // RSA test cases that are approved.
-    {1024, &EVP_sha1, false, FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
-    {1024, &EVP_sha256, false, FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
-    {1024, &EVP_sha512, false, FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
-    {1024, &EVP_sha1, true, FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
-    {1024, &EVP_sha256, true, FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
+    // RSA 1024 is not approved under FIPS 186-5.
+    {1024, &EVP_sha1, false, FIPSStatus::NOT_APPROVED,
+     FIPSStatus::NOT_APPROVED},
+    {1024, &EVP_sha256, false, FIPSStatus::NOT_APPROVED,
+     FIPSStatus::NOT_APPROVED},
+    {1024, &EVP_sha512, false, FIPSStatus::NOT_APPROVED,
+     FIPSStatus::NOT_APPROVED},
+    {1024, &EVP_sha1, true, FIPSStatus::NOT_APPROVED, FIPSStatus::NOT_APPROVED},
+    {1024, &EVP_sha256, true, FIPSStatus::NOT_APPROVED,
+     FIPSStatus::NOT_APPROVED},
     // PSS with hashLen == saltLen is not possible for 1024-bit modulus and
     // SHA-512.
 
-    {2048, &EVP_sha1, false, FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
+    {2048, &EVP_sha1, false, FIPSStatus::NOT_APPROVED,
+     FIPSStatus::NOT_APPROVED},
     {2048, &EVP_sha224, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {2048, &EVP_sha256, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {2048, &EVP_sha384, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {2048, &EVP_sha512, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
-    {2048, &EVP_sha1, true, FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
+    {2048, &EVP_sha1, true, FIPSStatus::NOT_APPROVED, FIPSStatus::NOT_APPROVED},
     {2048, &EVP_sha224, true, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {2048, &EVP_sha256, true, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {2048, &EVP_sha384, true, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {2048, &EVP_sha512, true, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
 
-    {3072, &EVP_sha1, false, FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
+    {3072, &EVP_sha1, false, FIPSStatus::NOT_APPROVED,
+     FIPSStatus::NOT_APPROVED},
     {3072, &EVP_sha224, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {3072, &EVP_sha256, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {3072, &EVP_sha384, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {3072, &EVP_sha512, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
-    {3072, &EVP_sha1, true, FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
+    {3072, &EVP_sha1, true, FIPSStatus::NOT_APPROVED, FIPSStatus::NOT_APPROVED},
     {3072, &EVP_sha224, true, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {3072, &EVP_sha256, true, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {3072, &EVP_sha384, true, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {3072, &EVP_sha512, true, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
 
-    {4096, &EVP_sha1, false, FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
+    {4096, &EVP_sha1, false, FIPSStatus::NOT_APPROVED,
+     FIPSStatus::NOT_APPROVED},
     {4096, &EVP_sha224, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {4096, &EVP_sha256, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {4096, &EVP_sha384, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {4096, &EVP_sha512, false, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
-    {4096, &EVP_sha1, true, FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
+    {4096, &EVP_sha1, true, FIPSStatus::NOT_APPROVED, FIPSStatus::NOT_APPROVED},
     {4096, &EVP_sha224, true, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {4096, &EVP_sha256, true, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {4096, &EVP_sha384, true, FIPSStatus::APPROVED, FIPSStatus::APPROVED},
@@ -1370,7 +1405,7 @@ struct ECDSATestVector {
   int nid;
   // md_func is the digest to test.
   const EVP_MD *(*func)();
-  // expected to be approved or not for signature generation.
+  // expected to be approved or not for key generation.
   FIPSStatus key_check_expect_approved;
   // expected to be approved or not for signature generation.
   FIPSStatus sig_gen_expect_approved;
@@ -1383,7 +1418,7 @@ static const struct ECDSATestVector kECDSATestVectors[] = {
     // |EC_GROUP_new_by_curve_name|, and |NID_secp256k1| will only work if
     // |kCurveSecp256k1Supported| is true.
     {NID_secp224r1, &EVP_sha1, FIPSStatus::APPROVED, FIPSStatus::NOT_APPROVED,
-     FIPSStatus::APPROVED},
+     FIPSStatus::NOT_APPROVED},
     {NID_secp224r1, &EVP_sha224, FIPSStatus::APPROVED, FIPSStatus::APPROVED,
      FIPSStatus::APPROVED},
     {NID_secp224r1, &EVP_sha256, FIPSStatus::APPROVED, FIPSStatus::APPROVED,
@@ -1394,7 +1429,7 @@ static const struct ECDSATestVector kECDSATestVectors[] = {
      FIPSStatus::APPROVED},
 
     {NID_X9_62_prime256v1, &EVP_sha1, FIPSStatus::APPROVED,
-     FIPSStatus::NOT_APPROVED, FIPSStatus::APPROVED},
+     FIPSStatus::NOT_APPROVED, FIPSStatus::NOT_APPROVED},
     {NID_X9_62_prime256v1, &EVP_sha224, FIPSStatus::APPROVED,
      FIPSStatus::APPROVED, FIPSStatus::APPROVED},
     {NID_X9_62_prime256v1, &EVP_sha256, FIPSStatus::APPROVED,
@@ -1405,7 +1440,7 @@ static const struct ECDSATestVector kECDSATestVectors[] = {
      FIPSStatus::APPROVED, FIPSStatus::APPROVED},
 
     {NID_secp384r1, &EVP_sha1, FIPSStatus::APPROVED, FIPSStatus::NOT_APPROVED,
-     FIPSStatus::APPROVED},
+     FIPSStatus::NOT_APPROVED},
     {NID_secp384r1, &EVP_sha224, FIPSStatus::APPROVED, FIPSStatus::APPROVED,
      FIPSStatus::APPROVED},
     {NID_secp384r1, &EVP_sha256, FIPSStatus::APPROVED, FIPSStatus::APPROVED,
@@ -1416,7 +1451,7 @@ static const struct ECDSATestVector kECDSATestVectors[] = {
      FIPSStatus::APPROVED},
 
     {NID_secp521r1, &EVP_sha1, FIPSStatus::APPROVED, FIPSStatus::NOT_APPROVED,
-     FIPSStatus::APPROVED},
+     FIPSStatus::NOT_APPROVED},
     {NID_secp521r1, &EVP_sha224, FIPSStatus::APPROVED, FIPSStatus::APPROVED,
      FIPSStatus::APPROVED},
     {NID_secp521r1, &EVP_sha256, FIPSStatus::APPROVED, FIPSStatus::APPROVED,
@@ -1497,12 +1532,12 @@ TEST_P(ECDSAServiceIndicatorTest, ECDSASigGen) {
 
   FIPSStatus approved = FIPSStatus::NOT_APPROVED;
 
-  bssl::UniquePtr<EC_GROUP> group(EC_GROUP_new_by_curve_name(test.nid));
+  const EC_GROUP *group = EC_GROUP_new_by_curve_name(test.nid);
   bssl::UniquePtr<EC_KEY> eckey(EC_KEY_new());
   bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
   bssl::ScopedEVP_MD_CTX md_ctx;
   ASSERT_TRUE(eckey);
-  ASSERT_TRUE(EC_KEY_set_group(eckey.get(), group.get()));
+  ASSERT_TRUE(EC_KEY_set_group(eckey.get(), group));
 
   // Generate a generic EC key.
   ASSERT_TRUE(EC_KEY_generate_key(eckey.get()));
@@ -1557,12 +1592,12 @@ TEST_P(ECDSAServiceIndicatorTest, ECDSASigVer) {
 
   FIPSStatus approved = FIPSStatus::NOT_APPROVED;
 
-  bssl::UniquePtr<EC_GROUP> group(EC_GROUP_new_by_curve_name(test.nid));
+  const EC_GROUP *group = EC_GROUP_new_by_curve_name(test.nid);
   bssl::UniquePtr<EC_KEY> eckey(EC_KEY_new());
   bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
   bssl::ScopedEVP_MD_CTX md_ctx;
   ASSERT_TRUE(eckey);
-  ASSERT_TRUE(EC_KEY_set_group(eckey.get(), group.get()));
+  ASSERT_TRUE(EC_KEY_set_group(eckey.get(), group));
 
   // Generate ECDSA signatures for ECDSA verification.
   ASSERT_TRUE(EC_KEY_generate_key(eckey.get()));
@@ -1623,12 +1658,12 @@ TEST_P(ECDSAServiceIndicatorTest, ManualECDSASignVerify) {
   ASSERT_TRUE(EVP_DigestInit(ctx.get(), test.func()));
   ASSERT_TRUE(EVP_DigestUpdate(ctx.get(), kPlaintext, sizeof(kPlaintext)));
 
-  bssl::UniquePtr<EC_GROUP> group(EC_GROUP_new_by_curve_name(test.nid));
+  const EC_GROUP *group = EC_GROUP_new_by_curve_name(test.nid);
   bssl::UniquePtr<EC_KEY> eckey(EC_KEY_new());
   bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
   bssl::ScopedEVP_MD_CTX md_ctx;
   ASSERT_TRUE(eckey);
-  ASSERT_TRUE(EC_KEY_set_group(eckey.get(), group.get()));
+  ASSERT_TRUE(EC_KEY_set_group(eckey.get(), group));
 
   // Generate a generic ec key.
   EC_KEY_generate_key(eckey.get());
@@ -1719,7 +1754,7 @@ TEST_P(ECDH_ServiceIndicatorTest, ECDH) {
 
   FIPSStatus approved = FIPSStatus::NOT_APPROVED;
 
-  bssl::UniquePtr<EC_GROUP> group(EC_GROUP_new_by_curve_name(test.nid));
+  const EC_GROUP *group = EC_GROUP_new_by_curve_name(test.nid);
   bssl::UniquePtr<EC_KEY> our_key(EC_KEY_new());
   bssl::UniquePtr<EC_KEY> peer_key(EC_KEY_new());
   bssl::ScopedEVP_MD_CTX md_ctx;
@@ -1727,11 +1762,11 @@ TEST_P(ECDH_ServiceIndicatorTest, ECDH) {
   ASSERT_TRUE(peer_key);
 
   // Generate two generic ec key pairs.
-  ASSERT_TRUE(EC_KEY_set_group(our_key.get(), group.get()));
+  ASSERT_TRUE(EC_KEY_set_group(our_key.get(), group));
   ASSERT_TRUE(EC_KEY_generate_key(our_key.get()));
   ASSERT_TRUE(EC_KEY_check_key(our_key.get()));
 
-  ASSERT_TRUE(EC_KEY_set_group(peer_key.get(), group.get()));
+  ASSERT_TRUE(EC_KEY_set_group(peer_key.get(), group));
   ASSERT_TRUE(EC_KEY_generate_key(peer_key.get()));
   ASSERT_TRUE(EC_KEY_check_key(peer_key.get()));
 
@@ -1783,9 +1818,8 @@ static const struct KDFTestVector {
   const uint8_t *expected_output;
   const FIPSStatus expect_approved;
 } kKDFTestVectors[] = {
-    {EVP_md5, kTLSOutput_md, FIPSStatus::APPROVED},
-    {EVP_sha1, kTLSOutput_sha1, FIPSStatus::APPROVED},
-    {EVP_md5_sha1, kTLSOutput_mdsha1, FIPSStatus::APPROVED},
+    // TLS 1.0 and 1.1 are no longer an approved part of fips
+    {EVP_md5_sha1, kTLSOutput_md5_sha1, FIPSStatus::NOT_APPROVED},
     {EVP_sha224, kTLSOutput_sha224, FIPSStatus::NOT_APPROVED},
     {EVP_sha256, kTLSOutput_sha256, FIPSStatus::APPROVED},
     {EVP_sha384, kTLSOutput_sha384, FIPSStatus::APPROVED},
@@ -1810,6 +1844,21 @@ TEST_P(KDF_ServiceIndicatorTest, TLSKDF) {
                                 kTLSSeed2, sizeof(kTLSSeed2))));
   EXPECT_EQ(Bytes(test.expected_output, sizeof(output)),
             Bytes(output, sizeof(output)));
+  EXPECT_EQ(approved, test.expect_approved);
+}
+
+TEST_P(KDF_ServiceIndicatorTest, TLS13KDF) {
+  const KDFTestVector &test = GetParam();
+
+  FIPSStatus approved = FIPSStatus::NOT_APPROVED;
+
+  uint8_t output[32];
+  ASSERT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(
+      approved, CRYPTO_tls13_hkdf_expand_label(
+                    output, sizeof(output), test.func(), kTLSSecret,
+                    sizeof(kTLSSecret), /*label=*/kTLSSeed1, sizeof(kTLSSeed1),
+                    /*hash=*/kTLSSeed2, sizeof(kTLSSeed2))));
+
   EXPECT_EQ(approved, test.expect_approved);
 }
 
@@ -1897,6 +1946,8 @@ TEST(ServiceIndicatorTest, SHA) {
 
   std::vector<uint8_t> digest;
 
+  // MD4 is no longer part of FIPS - this is retained for now to ensure that
+  // MD4 continues to report itself as not approved.
   digest.resize(MD4_DIGEST_LENGTH);
   MD4_CTX md4_ctx;
   ASSERT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(approved, MD4_Init(&md4_ctx)));
@@ -1909,6 +1960,8 @@ TEST(ServiceIndicatorTest, SHA) {
   EXPECT_EQ(Bytes(kOutput_md4), Bytes(digest));
   EXPECT_EQ(approved, FIPSStatus::NOT_APPROVED);
 
+  // MD5 is no longer part of FIPS - this is retained for now to ensure that
+  // MD5 continues to report itself as not approved.
   digest.resize(MD5_DIGEST_LENGTH);
   MD5_CTX md5_ctx;
   ASSERT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(approved, MD5_Init(&md5_ctx)));
@@ -2409,3 +2462,5 @@ TEST(ServiceIndicatorTest, BasicTest) {
 }
 
 #endif  // BORINGSSL_FIPS
+
+}  // namespace

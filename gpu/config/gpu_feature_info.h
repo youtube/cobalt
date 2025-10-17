@@ -7,9 +7,11 @@
 
 #include <stdint.h>
 
+#include <array>
 #include <string>
 #include <vector>
 
+#include "build/build_config.h"
 #include "gpu/config/gpu_feature_type.h"
 #include "gpu/gpu_export.h"
 
@@ -50,9 +52,9 @@ struct GPU_EXPORT GpuFeatureInfo {
   GpuFeatureInfo& operator=(const GpuFeatureInfo&);
   GpuFeatureInfo& operator=(GpuFeatureInfo&&);
 
-  // A vector of GpuFeatureStatus values, one per GpuFeatureType.
+  // An array of GpuFeatureStatus values, one per GpuFeatureType.
   // By default, all features are disabled.
-  GpuFeatureStatus status_values[NUMBER_OF_GPU_FEATURE_TYPES];
+  std::array<GpuFeatureStatus, NUMBER_OF_GPU_FEATURE_TYPES> status_values;
   // Active gpu driver bug workaround IDs.
   // See gpu/config/gpu_driver_bug_workaround_type.h for ID mappings.
   std::vector<int32_t> enabled_gpu_driver_bug_workarounds;
@@ -69,6 +71,11 @@ struct GPU_EXPORT GpuFeatureInfo {
   // by the platform.
   std::vector<gfx::BufferFormat>
       supported_buffer_formats_for_allocation_and_texturing;
+#if BUILDFLAG(IS_OZONE)
+  // BufferFormats of native pixmaps that can be imported in GL context.
+  std::vector<gfx::BufferFormat>
+      supported_buffer_formats_for_gl_native_pixmap_import;
+#endif  // BUILDFLAG(IS_OZONE)
 };
 
 }  // namespace gpu

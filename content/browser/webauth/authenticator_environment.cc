@@ -4,21 +4,17 @@
 
 #include "content/browser/webauth/authenticator_environment.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/containers/contains.h"
 #include "base/no_destructor.h"
-#include "base/ranges/algorithm.h"
-#include "build/build_config.h"
+#include "base/not_fatal_until.h"
 #include "content/browser/webauth/virtual_authenticator.h"
 #include "content/browser/webauth/virtual_discovery.h"
 #include "content/browser/webauth/virtual_fido_discovery_factory.h"
 #include "content/public/browser/scoped_authenticator_environment_for_testing.h"
 #include "device/fido/fido_discovery_factory.h"
-
-#if BUILDFLAG(IS_WIN)
-#include "device/fido/win/webauthn_api.h"
-#endif
 
 namespace content {
 
@@ -54,9 +50,6 @@ void AuthenticatorEnvironment::Reset() {
   virtual_authenticator_managers_.clear();
 
   replaced_discovery_factory_.reset();
-#if BUILDFLAG(IS_WIN)
-  win_webauthn_api_for_testing_ = nullptr;
-#endif
 }
 
 void AuthenticatorEnvironment::EnableVirtualAuthenticatorFor(
@@ -102,15 +95,6 @@ AuthenticatorEnvironment::MaybeGetVirtualAuthenticatorManager(
   return nullptr;
 }
 
-void AuthenticatorEnvironment::AddVirtualAuthenticatorReceiver(
-    FrameTreeNode* node,
-    mojo::PendingReceiver<blink::test::mojom::VirtualAuthenticatorManager>
-        receiver) {
-  auto it = virtual_authenticator_managers_.find(node);
-  DCHECK(it != virtual_authenticator_managers_.end());
-  it->second->AddReceiver(std::move(receiver));
-}
-
 bool AuthenticatorEnvironment::HasVirtualUserVerifyingPlatformAuthenticator(
     FrameTreeNode* node) {
   VirtualAuthenticatorManagerImpl* authenticator_manager =
@@ -120,7 +104,7 @@ bool AuthenticatorEnvironment::HasVirtualUserVerifyingPlatformAuthenticator(
   }
   std::vector<VirtualAuthenticator*> authenticators =
       authenticator_manager->GetAuthenticators();
-  return base::ranges::any_of(authenticators, [](VirtualAuthenticator* a) {
+  return std::ranges::any_of(authenticators, [](VirtualAuthenticator* a) {
     return a->is_user_verifying_platform_authenticator();
   });
 }
@@ -129,24 +113,6 @@ device::FidoDiscoveryFactory*
 AuthenticatorEnvironment::MaybeGetDiscoveryFactoryTestOverride() {
   return replaced_discovery_factory_.get();
 }
-
-#if BUILDFLAG(IS_WIN)
-device::WinWebAuthnApi* AuthenticatorEnvironment::win_webauthn_api() const {
-  return win_webauthn_api_for_testing_ ? win_webauthn_api_for_testing_.get()
-                                       : device::WinWebAuthnApi::GetDefault();
-}
-
-void AuthenticatorEnvironment::SetWinWebAuthnApiForTesting(
-    device::WinWebAuthnApi* api) {
-  DCHECK(!win_webauthn_api_for_testing_);
-  win_webauthn_api_for_testing_ = api;
-}
-
-void AuthenticatorEnvironment::ClearWinWebAuthnApiForTesting() {
-  DCHECK(win_webauthn_api_for_testing_);
-  win_webauthn_api_for_testing_ = nullptr;
-}
-#endif
 
 void AuthenticatorEnvironment::ReplaceDefaultDiscoveryFactoryForTesting(
     std::unique_ptr<device::FidoDiscoveryFactory> factory) {

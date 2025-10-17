@@ -4,45 +4,56 @@
 
 package org.chromium.android_webview;
 
+import android.app.Activity;
 import android.app.SearchManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Rect;
+import android.os.Build;
 import android.text.TextUtils;
 import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
+import androidx.annotation.Nullable;
+
+import org.chromium.android_webview.common.Lifetime;
+import org.chromium.android_webview.selection.SamsungSelectionActionMenuDelegate;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.PackageManagerUtils;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.content_public.browser.ActionModeCallback;
 import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.SelectionPopupController;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.ui.base.WindowAndroid.IntentCallback;
 
-/**
- * A class that handles selection action mode for Android WebView.
- */
-public class AwActionModeCallback extends ActionMode.Callback2 {
+/** A class that handles selection action mode for Android WebView. */
+@Lifetime.WebView
+public class AwActionModeCallback extends ActionModeCallback implements IntentCallback {
     private final Context mContext;
     private final AwContents mAwContents;
+    private final SelectionPopupController mSelectionPopupController;
     private final ActionModeCallbackHelper mHelper;
     private int mAllowedMenuItems;
 
     public AwActionModeCallback(Context context, AwContents awContents, WebContents webContents) {
         mContext = context;
         mAwContents = awContents;
-        mHelper =
-                SelectionPopupController.fromWebContents(webContents).getActionModeCallbackHelper();
-        mHelper.setAllowedMenuItems(0);  // No item is allowed by default for WebView.
+        mSelectionPopupController = SelectionPopupController.fromWebContents(webContents);
+        mHelper = mSelectionPopupController.getActionModeCallbackHelper();
+        mHelper.setAllowedMenuItems(0); // No item is allowed by default for WebView.
     }
 
     @Override
     public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-        int allowedItems = (getAllowedMenu(ActionModeCallbackHelper.MENU_ITEM_SHARE)
-                | getAllowedMenu(ActionModeCallbackHelper.MENU_ITEM_WEB_SEARCH)
-                | getAllowedMenu(ActionModeCallbackHelper.MENU_ITEM_PROCESS_TEXT));
+        int allowedItems =
+                (getAllowedMenu(ActionModeCallbackHelper.MENU_ITEM_SHARE)
+                        | getAllowedMenu(ActionModeCallbackHelper.MENU_ITEM_WEB_SEARCH)
+                        | getAllowedMenu(ActionModeCallbackHelper.MENU_ITEM_PROCESS_TEXT));
         if (allowedItems != mAllowedMenuItems) {
             mHelper.setAllowedMenuItems(allowedItems);
             mAllowedMenuItems = allowedItems;
@@ -63,7 +74,7 @@ public class AwActionModeCallback extends ActionMode.Callback2 {
         Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
         intent.putExtra(SearchManager.EXTRA_NEW_SEARCH, true);
         return !PackageManagerUtils.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-                        .isEmpty();
+                .isEmpty();
     }
 
     @Override
@@ -75,16 +86,37 @@ public class AwActionModeCallback extends ActionMode.Callback2 {
     public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
         if (!mHelper.isActionModeValid()) return true;
 
-        int groupId = item.getGroupId();
-
-        if (groupId == R.id.select_action_menu_text_processing_menus) {
+        if (isProcessTextMenuItem(item.getGroupId())) {
             processText(item.getIntent());
             // The ActionMode is not dismissed to match the behavior with
             // TextView in Android M.
-        } else {
-            return mHelper.onActionItemClicked(mode, item);
+            return true;
         }
-        return true;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && SamsungSelectionActionMenuDelegate.handleMenuItemClick(
+                        item, mAwContents.getWebContents(), mAwContents.getContainerView())) {
+            return true;
+        }
+        return mHelper.onActionItemClicked(mode, item);
+    }
+
+    @Override
+    public boolean onDropdownItemClicked(
+            int groupId,
+            int id,
+            @Nullable Intent intent,
+            @Nullable View.OnClickListener clickListener) {
+        if (isProcessTextMenuItem(groupId)) {
+            assert intent != null : "Text processing item must have an intent associated with it";
+            processText(intent);
+            return true;
+        }
+        return mHelper.onDropdownItemClicked(groupId, id, intent, clickListener);
+    }
+
+    private boolean isProcessTextMenuItem(final int groupId) {
+        return groupId == R.id.select_action_menu_text_processing_items;
     }
 
     @Override
@@ -99,15 +131,33 @@ public class AwActionModeCallback extends ActionMode.Callback2 {
 
     private void processText(Intent intent) {
         RecordUserAction.record("MobileActionMode.ProcessTextIntent");
-        String query = ActionModeCallbackHelper.sanitizeQuery(mHelper.getSelectedText(),
-                ActionModeCallbackHelper.MAX_SEARCH_QUERY_LENGTH);
+        String query =
+                ActionModeCallbackHelper.sanitizeQuery(
+                        mHelper.getSelectedText(),
+                        ActionModeCallbackHelper.MAX_SEARCH_QUERY_LENGTH);
         if (TextUtils.isEmpty(query)) return;
 
         intent.putExtra(Intent.EXTRA_PROCESS_TEXT, query);
-        try {
-            mAwContents.startProcessTextIntent(intent);
-        } catch (android.content.ActivityNotFoundException ex) {
-            // If no app handles it, do nothing.
+
+        if (ContextUtils.activityFromContext(mContext) == null) {
+            try {
+                mContext.startActivity(intent);
+            } catch (ActivityNotFoundException ex) {
+                // If no app handles it, do nothing.
+            }
+            return;
+        }
+
+        mAwContents.startActivityForResult(intent, /* callback= */ this);
+    }
+
+    // IntentCallback:
+    @Override
+    public void onIntentCompleted(int resultCode, Intent data) {
+        if (resultCode == Activity.RESULT_OK && data != null) {
+            CharSequence value = data.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
+            String result = (value == null) ? null : value.toString();
+            mSelectionPopupController.handleTextReplacementAction(result);
         }
     }
 }

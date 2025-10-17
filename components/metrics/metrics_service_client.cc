@@ -5,6 +5,7 @@
 #include "components/metrics/metrics_service_client.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 
 #include "base/command_line.h"
@@ -12,54 +13,96 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "components/metrics/metrics_features.h"
 #include "components/metrics/metrics_switches.h"
-#include "components/metrics/url_constants.h"
+#include "components/metrics/server_urls.h"
+#include "metrics_service_client.h"
 
 namespace metrics {
+
 namespace {
+
+// The number of initial/ongoing logs to persist in the queue before logs are
+// dropped.
+// Note: Both the count threshold and the bytes threshold (see
+// `kLogBytesTrimThreshold` below) must be reached for logs to be
+// dropped/trimmed.
+//
+// Note that each ongoing log may be pretty large, since "initial" logs must
+// first be sent before any ongoing logs are transmitted. "Initial" logs will
+// not be sent if a user is offline. As a result, the current ongoing log will
+// accumulate until the "initial" log can be transmitted. We don't want to save
+// too many of these mega-logs (this should be capped by
+// kLogBytesTrimThreshold).
+//
+// A "standard shutdown" will create a small log, including just the data that
+// was not yet been transmitted, and that is normal (to have exactly one
+// ongoing log at startup).
+//
+// Refer to //components/metrics/unsent_log_store.h for more details on when
+// logs are dropped.
+const base::FeatureParam<int> kInitialLogCountTrimThreshold{
+    &features::kMetricsLogTrimming, "initial_log_count_trim_threshold", 20};
+const base::FeatureParam<int> kOngoingLogCountTrimThreshold{
+    &features::kMetricsLogTrimming, "ongoing_log_count_trim_threshold", 8};
+
+// The number bytes of the queue to be persisted before logs are dropped. This
+// will be applied to both log queues (initial/ongoing). This ensures that a
+// reasonable amount of history will be stored even if there is a long series of
+// very small logs.
+// Note: Both the count threshold (see `kInitialLogCountTrimThreshold` and
+// `kOngoingLogCountTrimThreshold` above) and the bytes threshold must be
+// reached for logs to be dropped/trimmed.
+//
+// Refer to //components/metrics/unsent_log_store.h for more details on when
+// logs are dropped.
+const base::FeatureParam<int> kLogBytesTrimThreshold{
+    &features::kMetricsLogTrimming, "log_bytes_trim_threshold",
+    300 * 1024  // 300 KiB
+};
+
+// If an initial/ongoing metrics log upload fails, and the transmission is over
+// this byte count, then we will discard the log, and not try to retransmit it.
+// We also don't persist the log to the prefs for transmission during the next
+// chrome session if this limit is exceeded.
+const base::FeatureParam<int> kMaxInitialLogSizeBytes{
+    &features::kMetricsLogTrimming, "max_initial_log_size_bytes",
+    0  // Initial logs can be of any size.
+};
+const base::FeatureParam<int> kMaxOngoingLogSizeBytes{
+    &features::kMetricsLogTrimming, "max_ongoing_log_size_bytes",
+#if BUILDFLAG(IS_CHROMEOS)
+    // Increase CrOS limit to accommodate SampledProfile data (crbug/1210595).
+    1024 * 1024  // 1 MiB
+#else
+    100 * 1024  // 100 KiB
+#endif  // BUILDFLAG(IS_CHROMEOS)
+};
 
 // The minimum time in seconds between consecutive metrics report uploads.
 constexpr int kMetricsUploadIntervalSecMinimum = 20;
 
-// If a metrics log upload fails, and the transmission is over this byte count,
-// then we will discard the log, and not try to retransmit it. We also don't
-// persist the log to the prefs for transmission during the next chrome session
-// if this limit is exceeded.
-#if BUILDFLAG(IS_CHROMEOS)
-// Increase CrOS limit to accommodate SampledProfile data (crbug.com/1210595).
-constexpr size_t kMaxOngoingLogSize = 1024 * 1024;  // 1 MiB
-#else
-constexpr size_t kMaxOngoingLogSize = 100 * 1024;  // 100 KiB
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
-// The number of bytes of logs to save of each type (initial/ongoing). This
-// ensures that a reasonable amount of history will be stored even if there is a
-// long series of very small logs.
-constexpr size_t kMinLogQueueSize = 300 * 1024;  // 300 KiB
-
-// The minimum number of "initial" logs to save, and hope to send during a
-// future Chrome session. Initial logs contain crash stats, and are pretty
-// small.
-constexpr size_t kMinInitialLogQueueCount = 20;
-
-// The minimum number of ongoing logs to save persistently, and hope to send
-// during a this or future sessions. Note that each log may be pretty large, as
-// presumably the related "initial" log wasn't sent (probably nothing was, as
-// the user was probably off-line). As a result, the log probably kept
-// accumulating while the "initial" log was stalled, and couldn't be sent. As a
-// result, we don't want to save too many of these mega-logs. A "standard
-// shutdown" will create a small log, including just the data that was not yet
-// been transmitted, and that is normal (to have exactly one ongoing_log_ at
-// startup).
-constexpr size_t kMinOngoingLogQueueCount = 8;
-
 }  // namespace
 
-MetricsServiceClient::MetricsServiceClient() {}
+MetricsServiceClient::MetricsServiceClient() = default;
 
-MetricsServiceClient::~MetricsServiceClient() {}
+MetricsServiceClient::~MetricsServiceClient() = default;
 
 ukm::UkmService* MetricsServiceClient::GetUkmService() {
+  return nullptr;
+}
+
+metrics::dwa::DwaService* MetricsServiceClient::GetDwaService() {
+  return nullptr;
+}
+
+IdentifiabilityStudyState*
+MetricsServiceClient::GetIdentifiabilityStudyState() {
+  return nullptr;
+}
+
+structured::StructuredMetricsService*
+MetricsServiceClient::GetStructuredMetricsService() {
   return nullptr;
 }
 
@@ -68,27 +111,22 @@ bool MetricsServiceClient::ShouldUploadMetricsForUserId(uint64_t user_id) {
 }
 
 GURL MetricsServiceClient::GetMetricsServerUrl() {
-#ifndef NDEBUG
-  // Only allow overriding the server URL through the command line in debug
-  // builds. This is to prevent, for example, rerouting metrics due to malware.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kUmaServerUrl))
+  if (command_line->HasSwitch(switches::kUmaServerUrl)) {
     return GURL(command_line->GetSwitchValueASCII(switches::kUmaServerUrl));
-#endif  // NDEBUG
-  return GURL(kNewMetricsServerUrl);
+  }
+  // Explicitly prefix with metrics namespace due to name collision.
+  return metrics::GetMetricsServerUrl();
 }
 
 GURL MetricsServiceClient::GetInsecureMetricsServerUrl() {
-#ifndef NDEBUG
-  // Only allow overriding the server URL through the command line in debug
-  // builds. This is to prevent, for example, rerouting metrics due to malware.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kUmaInsecureServerUrl)) {
     return GURL(
         command_line->GetSwitchValueASCII(switches::kUmaInsecureServerUrl));
   }
-#endif  // NDEBUG
-  return GURL(kNewMetricsServerUrlInsecure);
+  // Explicitly prefix with metrics namespace due to name collision.
+  return metrics::GetInsecureMetricsServerUrl();
 }
 
 base::TimeDelta MetricsServiceClient::GetUploadInterval() {
@@ -107,10 +145,22 @@ base::TimeDelta MetricsServiceClient::GetUploadInterval() {
     LOG(DFATAL) << "Malformed value for --metrics-upload-interval. "
                 << "Expected int, got: " << switch_value;
   }
+
+  // Use a custom interval if available.
+  if (auto custom_interval = GetCustomUploadInterval();
+      custom_interval.has_value()) {
+    return *custom_interval;
+  }
+
   return GetStandardUploadInterval();
 }
 
-bool MetricsServiceClient::ShouldStartUpFastForTesting() const {
+std::optional<base::TimeDelta> MetricsServiceClient::GetCustomUploadInterval()
+    const {
+  return std::nullopt;
+}
+
+bool MetricsServiceClient::ShouldStartUpFast() const {
   return false;
 }
 
@@ -126,11 +176,11 @@ bool MetricsServiceClient::IsOnCellularConnection() {
   return false;
 }
 
-bool MetricsServiceClient::IsExternalExperimentAllowlistEnabled() {
-  return true;
+bool MetricsServiceClient::IsUkmAllowedForAllProfiles() {
+  return false;
 }
 
-bool MetricsServiceClient::IsUkmAllowedForAllProfiles() {
+bool MetricsServiceClient::IsDwaAllowedForAllProfiles() {
   return false;
 }
 
@@ -158,11 +208,24 @@ MetricsServiceClient::AddOnClonedInstallDetectedCallback(
 
 MetricsLogStore::StorageLimits MetricsServiceClient::GetStorageLimits() const {
   return {
-      /*min_initial_log_queue_count=*/kMinInitialLogQueueCount,
-      /*min_initial_log_queue_size=*/kMinLogQueueSize,
-      /*min_ongoing_log_queue_count=*/kMinOngoingLogQueueCount,
-      /*min_ongoing_log_queue_size=*/kMinLogQueueSize,
-      /*max_ongoing_log_size=*/kMaxOngoingLogSize,
+      .initial_log_queue_limits =
+          UnsentLogStore::UnsentLogStoreLimits{
+              .min_log_count =
+                  static_cast<size_t>(kInitialLogCountTrimThreshold.Get()),
+              .min_queue_size_bytes =
+                  static_cast<size_t>(kLogBytesTrimThreshold.Get()),
+              .max_log_size_bytes =
+                  static_cast<size_t>(kMaxInitialLogSizeBytes.Get()),
+          },
+      .ongoing_log_queue_limits =
+          UnsentLogStore::UnsentLogStoreLimits{
+              .min_log_count =
+                  static_cast<size_t>(kOngoingLogCountTrimThreshold.Get()),
+              .min_queue_size_bytes =
+                  static_cast<size_t>(kLogBytesTrimThreshold.Get()),
+              .max_log_size_bytes =
+                  static_cast<size_t>(kMaxOngoingLogSizeBytes.Get()),
+          },
   };
 }
 
@@ -172,21 +235,21 @@ void MetricsServiceClient::SetUpdateRunningServicesCallback(
 }
 
 void MetricsServiceClient::UpdateRunningServices() {
-  if (update_running_services_)
+  if (update_running_services_) {
     update_running_services_.Run();
+  }
 }
 
 bool MetricsServiceClient::IsMetricsReportingForceEnabled() const {
   return ::metrics::IsMetricsReportingForceEnabled();
 }
 
-absl::optional<bool> MetricsServiceClient::GetCurrentUserMetricsConsent()
-    const {
-  return absl::nullopt;
+std::optional<bool> MetricsServiceClient::GetCurrentUserMetricsConsent() const {
+  return std::nullopt;
 }
 
-absl::optional<std::string> MetricsServiceClient::GetCurrentUserId() const {
-  return absl::nullopt;
+std::optional<std::string> MetricsServiceClient::GetCurrentUserId() const {
+  return std::nullopt;
 }
 
 }  // namespace metrics

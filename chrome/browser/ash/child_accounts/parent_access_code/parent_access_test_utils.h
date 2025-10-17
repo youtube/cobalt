@@ -7,18 +7,24 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "base/time/time.h"
 #include "chrome/browser/ash/child_accounts/parent_access_code/authenticator.h"
 #include "chrome/browser/ash/child_accounts/parent_access_code/config_source.h"
 
+namespace base {
+class Value;
+}
+
 namespace ash {
 namespace parent_access {
 
 // Values used in default parent access code configuration for tests.
-constexpr char kTestSharedSecret[] = "AIfVJHITSar8keeq3779V70dWiS1xbPv8g";
-constexpr base::TimeDelta kDefaultCodeValidity = base::Minutes(10);
-constexpr base::TimeDelta kDefaultClockDrift = base::Minutes(5);
+inline constexpr char kTestSharedSecret[] =
+    "AIfVJHITSar8keeq3779V70dWiS1xbPv8g";
+inline constexpr base::TimeDelta kDefaultCodeValidity = base::Minutes(10);
+inline constexpr base::TimeDelta kDefaultClockDrift = base::Minutes(5);
 
 // Used for storing sample parent access code data. Map that contains pairs of
 // corresponding timestamp and code.
@@ -36,6 +42,11 @@ AccessCodeConfig GetInvalidTestConfig();
 // Populates |test_values| with test Parent Access Code data (timestamp - code
 // value pairs) generated in Family Link Android app with the default config.
 void GetTestAccessCodeValues(AccessCodeValues* test_values);
+
+// Returns a policy representing the configs that are passed in.
+base::Value PolicyFromConfigs(const AccessCodeConfig& future_config,
+                              const AccessCodeConfig& current_config,
+                              const std::vector<AccessCodeConfig>& old_configs);
 
 }  // namespace parent_access
 }  // namespace ash

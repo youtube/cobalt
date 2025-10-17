@@ -10,7 +10,10 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
+#include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "components/signin/public/identity_manager/account_info.h"
+#include "components/signin/public/identity_manager/account_managed_status_finder_outcome.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 
 namespace signin {
@@ -19,44 +22,35 @@ namespace signin {
 // account.
 class AccountManagedStatusFinder : public signin::IdentityManager::Observer {
  public:
-  // Whether an email belongs to an enterprise domain.
-  enum class EmailEnterpriseStatus {
-    // It's unknown whether an email belongs to an enterprise domain.
-    kUnknown,
-    // Email belongs to a well-known non-enterprise domain.
-    kKnownNonEnterprise,
-  };
+  using Outcome = signin::AccountManagedStatusFinderOutcome;
 
-  // Check whether the given account is known to be non-enterprise. Domains such
-  // as gmail.com and googlemail.com are known to not be managed.
-  static EmailEnterpriseStatus IsEnterpriseUserBasedOnEmail(
-      const std::string& email);
+  // Returns whether the given domain *may* be an enterprise (aka managed)
+  // domain, i.e. definitely not a consumer domain. Domains such as gmail.com
+  // and hotmail.com (and many others) are known to not be managed, even without
+  // the more sophisticated checks implemented by this class.
+  static bool MayBeEnterpriseDomain(const std::string& email_domain);
+
+  // Returns whether the given email address *may* belong to an enterprise
+  // domain; equivalent to extracting the domain and then checking
+  // `MayBeEnterpriseDomain()`.
+  static bool MayBeEnterpriseUserBasedOnEmail(const std::string& email);
 
   // Allows to register a domain that is recognized as non-enterprise for tests.
   // Note that `domain` needs to live until this method is invoked with nullptr.
   static void SetNonEnterpriseDomainForTesting(const char* domain);
 
-  // The outcome of the managed-ness check.
-  enum class Outcome {
-    // Check isn't complete yet.
-    kPending,
-    // An error happened, e.g. the account was removed from IdentityManager.
-    kError,
-    // The account is a consumer (non-enterprise) account.
-    kNonEnterprise,
-    // The account is an enterprise account but *not* an @google.com one.
-    kEnterprise,
-    // The account is an @google.com enterprise account.
-    kEnterpriseGoogleDotCom
-  };
-
   // After an AccountManagedStatusFinder is instantiated, the account type may
   // or may not be known immediately. The `async_callback` will only be run if
   // the account type was *not* known immediately, i.e. if `GetOutcome()` was
-  // still `kPending` when the constructor returned.
+  // still `kPending` when the constructor returned. If the supplied `timeout`
+  // value is equal to `base::TimeDelta::Max()` - `AccountManagedStatusFinder`
+  // will wait for the managed status indefinitely (or until `IdentityManager`
+  // is shut down); otherwise the management status will be set to `kTimeout`
+  // after `timeout` time delay.
   AccountManagedStatusFinder(signin::IdentityManager* identity_manager,
                              const CoreAccountInfo& account,
-                             base::OnceClosure async_callback);
+                             base::OnceClosure async_callback,
+                             base::TimeDelta timeout = base::TimeDelta::Max());
   ~AccountManagedStatusFinder() override;
 
   const CoreAccountInfo& GetAccountInfo() const { return account_; }
@@ -67,21 +61,36 @@ class AccountManagedStatusFinder : public signin::IdentityManager::Observer {
   void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
   void OnRefreshTokenRemovedForAccount(
       const CoreAccountId& account_id) override;
+  void OnErrorStateOfRefreshTokenUpdatedForAccount(
+      const CoreAccountInfo& account_info,
+      const GoogleServiceAuthError& error,
+      signin_metrics::SourceForRefreshTokenOperation token_operation_source)
+      override;
   void OnRefreshTokensLoaded() override;
   void OnIdentityManagerShutdown(
       signin::IdentityManager* identity_manager) override;
 
+#if BUILDFLAG(IS_ANDROID)
+  // Implementation for JNI methods.
+  void DestroyNativeObject(JNIEnv* env);
+  jint GetOutcomeFromNativeObject(JNIEnv* env) const;
+#endif
+
  private:
-  Outcome DetermineOutcome();
+  void OnTimeoutReached();
+
+  Outcome DetermineOutcome() const;
 
   void OutcomeDeterminedAsync(Outcome type);
 
   raw_ptr<signin::IdentityManager> identity_manager_;
   const CoreAccountInfo account_;
+  bool ignore_persistent_auth_errors_ = true;
 
   base::ScopedObservation<signin::IdentityManager,
                           signin::IdentityManager::Observer>
       identity_manager_observation_{this};
+  base::OneShotTimer timeout_timer_;
 
   base::OnceClosure callback_;
 

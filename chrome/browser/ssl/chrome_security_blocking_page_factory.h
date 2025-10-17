@@ -16,6 +16,9 @@
 #include "components/security_interstitials/content/security_blocking_page_factory.h"
 #include "components/security_interstitials/content/ssl_blocking_page.h"
 #include "components/security_interstitials/content/ssl_blocking_page_base.h"
+#include "components/security_interstitials/core/https_only_mode_metrics.h"
+
+class Profile;
 
 // //chrome's implementation of the SecurityBlockingPageFactory interface.
 class ChromeSecurityBlockingPageFactory : public SecurityBlockingPageFactory {
@@ -35,13 +38,11 @@ class ChromeSecurityBlockingPageFactory : public SecurityBlockingPageFactory {
       const GURL& request_url,
       int options_mask,
       const base::Time& time_triggered,
-      const GURL& support_url,
-      std::unique_ptr<SSLCertReporter> ssl_cert_reporter) override;
+      const GURL& support_url) override;
   std::unique_ptr<CaptivePortalBlockingPage> CreateCaptivePortalBlockingPage(
       content::WebContents* web_contents,
       const GURL& request_url,
       const GURL& login_url,
-      std::unique_ptr<SSLCertReporter> ssl_cert_reporter,
       const net::SSLInfo& ssl_info,
       int cert_error) override;
   std::unique_ptr<BadClockBlockingPage> CreateBadClockBlockingPage(
@@ -50,29 +51,33 @@ class ChromeSecurityBlockingPageFactory : public SecurityBlockingPageFactory {
       const net::SSLInfo& ssl_info,
       const GURL& request_url,
       const base::Time& time_triggered,
-      ssl_errors::ClockState clock_state,
-      std::unique_ptr<SSLCertReporter> ssl_cert_reporter) override;
+      ssl_errors::ClockState clock_state) override;
   std::unique_ptr<MITMSoftwareBlockingPage> CreateMITMSoftwareBlockingPage(
       content::WebContents* web_contents,
       int cert_error,
       const GURL& request_url,
-      std::unique_ptr<SSLCertReporter> ssl_cert_reporter,
       const net::SSLInfo& ssl_info,
       const std::string& mitm_software_name) override;
   std::unique_ptr<BlockedInterceptionBlockingPage>
-  CreateBlockedInterceptionBlockingPage(
-      content::WebContents* web_contents,
-      int cert_error,
-      const GURL& request_url,
-      std::unique_ptr<SSLCertReporter> ssl_cert_reporter,
-      const net::SSLInfo& ssl_info) override;
+  CreateBlockedInterceptionBlockingPage(content::WebContents* web_contents,
+                                        int cert_error,
+                                        const GURL& request_url,
+                                        const net::SSLInfo& ssl_info) override;
   std::unique_ptr<security_interstitials::InsecureFormBlockingPage>
   CreateInsecureFormBlockingPage(content::WebContents* web_contents,
                                  const GURL& request_url) override;
   std::unique_ptr<security_interstitials::HttpsOnlyModeBlockingPage>
-  CreateHttpsOnlyModeBlockingPage(content::WebContents* web_contents,
-                                  const GURL& request_url) override;
+  CreateHttpsOnlyModeBlockingPage(
+      content::WebContents* web_contents,
+      const GURL& request_url,
+      security_interstitials::https_only_mode::HttpInterstitialState
+          interstitial_state,
+      std::optional<std::string> url_type_param,
+      security_interstitials::HttpsOnlyModeBlockingPage::MetricsCallback
+          metrics_callback) override;
 
+  // Returns true if the device or the profile is enterprise-managed.
+  static bool IsEnterpriseManaged(Profile* profile);
   // Overrides the calculation of whether the app is enterprise-managed for
   // tests.
   static void SetEnterpriseManagedForTesting(bool enterprise_managed);
@@ -82,10 +87,6 @@ class ChromeSecurityBlockingPageFactory : public SecurityBlockingPageFactory {
   static void OpenLoginTabForWebContents(content::WebContents* web_contents,
                                          bool focus);
 #endif
-
- private:
-  // Does setup on |page| that is specific to the client (Chrome).
-  static void DoChromeSpecificSetup(SSLBlockingPageBase* page);
 };
 
 #endif  // CHROME_BROWSER_SSL_CHROME_SECURITY_BLOCKING_PAGE_FACTORY_H_

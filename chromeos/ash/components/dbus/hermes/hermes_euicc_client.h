@@ -13,7 +13,8 @@
 #include "base/functional/callback_forward.h"
 #include "base/observer_list.h"
 #include "chromeos/ash/components/dbus/hermes/hermes_response_status.h"
-#include "chromeos/dbus/common/dbus_method_call_status.h"
+#include "chromeos/dbus/common/dbus_callback.h"
+#include "dbus/dbus_result.h"
 #include "dbus/property.h"
 #include "third_party/cros_system_api/dbus/hermes/dbus-constants.h"
 
@@ -26,6 +27,7 @@ class COMPONENT_EXPORT(HERMES_CLIENT) HermesEuiccClient {
   // and the object path for the profile that was just successfully installed.
   using InstallCarrierProfileCallback =
       base::OnceCallback<void(HermesResponseStatus status,
+                              dbus::DBusResult result,
                               const dbus::ObjectPath* carrier_profile_path)>;
 
   // Callback for the RefreshSmdxProfiles(). Callback returns the status code
@@ -34,6 +36,21 @@ class COMPONENT_EXPORT(HERMES_CLIENT) HermesEuiccClient {
   using RefreshSmdxProfilesCallback = base::OnceCallback<void(
       HermesResponseStatus status,
       const std::vector<dbus::ObjectPath>& profile_paths)>;
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(InstallationAttemptStep)
+  enum class InstallationAttemptStep {
+    kInstallationRequested = 0,
+    kHermesUnavailable = 1,
+    kInstallationStarted = 2,
+    kInstallationSucceeded = 3,
+    kInstallationNoResponse = 4,
+    kInstallationFailed = 5,
+    kMaxValue = kInstallationFailed
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/network/enums.xml:InstallationAttemptStep)
 
   class TestInterface {
    public:
@@ -103,6 +120,9 @@ class COMPONENT_EXPORT(HERMES_CLIENT) HermesEuiccClient {
         const dbus::ObjectPath& euicc_path,
         const dbus::ObjectPath& carrier_profile_path) = 0;
 
+    // Updates the SIM slot information cached by Shill to match Hermes' state.
+    virtual void UpdateShillDeviceSimSlotInfo() = 0;
+
     // Queues an error code that will be returned from a subsequent
     // method call.
     virtual void QueueHermesErrorStatus(HermesResponseStatus status) = 0;
@@ -114,12 +134,22 @@ class COMPONENT_EXPORT(HERMES_CLIENT) HermesEuiccClient {
     virtual void SetNextInstallProfileFromActivationCodeResult(
         HermesResponseStatus status) = 0;
 
+    // Sets the return for the next call to
+    // HermesEuiccClient::RefreshSmdxProfiles(). The caller is responsible for
+    // guaranteeing that fake profiles exist for each of the paths provided.
+    virtual void SetNextRefreshSmdxProfilesResult(
+        std::vector<dbus::ObjectPath> profiles) = 0;
+
     // Set delay for interactive methods.
     virtual void SetInteractiveDelay(base::TimeDelta delay) = 0;
 
     // Returns a valid fake activation code that can be used to install
     // a new fake carrier profile.
     virtual std::string GenerateFakeActivationCode() = 0;
+
+    // Returns an activation code that will trigger no memory error from DBUS
+    // upon attempts to activate it.
+    virtual std::string GetDBusErrorActivationCode() = 0;
 
     // Returns true when the last call to RefreshInstalledProfiles was requested
     // with |restore_slot| set to true.
@@ -135,18 +165,8 @@ class COMPONENT_EXPORT(HERMES_CLIENT) HermesEuiccClient {
 
     dbus::Property<std::string>& eid() { return eid_; }
     dbus::Property<bool>& is_active() { return is_active_; }
-    dbus::Property<std::vector<dbus::ObjectPath>>&
-    installed_carrier_profiles() {
-      DCHECK(!features::IsSmdsDbusMigrationEnabled());
-      return installed_carrier_profiles_;
-    }
     dbus::Property<std::vector<dbus::ObjectPath>>& profiles() {
-      DCHECK(features::IsSmdsDbusMigrationEnabled());
       return profiles_;
-    }
-    dbus::Property<std::vector<dbus::ObjectPath>>& pending_carrier_profiles() {
-      DCHECK(!features::IsSmdsDbusMigrationEnabled());
-      return pending_carrier_profiles_;
     }
     dbus::Property<int32_t>& physical_slot() { return physical_slot_; }
 
@@ -156,13 +176,6 @@ class COMPONENT_EXPORT(HERMES_CLIENT) HermesEuiccClient {
 
     // Boolean that indicates whether this euicc is currently active.
     dbus::Property<bool> is_active_;
-
-    // List of paths to carrier profiles currently installed on the device.
-    dbus::Property<std::vector<dbus::ObjectPath>> installed_carrier_profiles_;
-
-    // List of pending carrier profiles from SMDS available for
-    // installation on this device.
-    dbus::Property<std::vector<dbus::ObjectPath>> pending_carrier_profiles_;
 
     // List of all carrier profiles known to the device. This includes
     // currently installed profiles and pending profiles scanned from
@@ -185,6 +198,9 @@ class COMPONENT_EXPORT(HERMES_CLIENT) HermesEuiccClient {
     // Called when an Euicc reset operation completes successfully.
     virtual void OnEuiccReset(const dbus::ObjectPath& euicc_path) {}
   };
+
+  static constexpr char kHermesInstallationAttemptStepsHistogram[] =
+      "Network.Ash.Cellular.ESim.HermesInstallationAttempt.Step";
 
   // Adds an observer for carrier profile lists changes on Hermes manager.
   virtual void AddObserver(Observer* observer);
@@ -277,7 +293,12 @@ class COMPONENT_EXPORT(HERMES_CLIENT) HermesEuiccClient {
   }
 
  private:
+  friend class HermesEuiccClientTest;
+  friend class HermesEuiccClientImpl;
+
   base::ObserverList<Observer>::Unchecked observers_;
+  static constexpr base::TimeDelta kInstallRetryDelay = base::Seconds(3);
+  static const int kMaxInstallAttempts = 4;
 };
 
 }  // namespace ash

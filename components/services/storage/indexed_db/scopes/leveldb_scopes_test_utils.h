@@ -18,7 +18,7 @@
 #include "third_party/leveldatabase/src/include/leveldb/slice.h"
 #include "third_party/leveldatabase/src/include/leveldb/status.h"
 
-namespace content {
+namespace content::indexed_db {
 
 class LevelDBScopesTestBase : public testing::Test {
  public:
@@ -32,6 +32,9 @@ class LevelDBScopesTestBase : public testing::Test {
   // Ensures that |leveldb_| is destroyed correctly, and all contents are
   // deleted off disk.
   void TearDown() override;
+
+  // Destroys the leveldb files.
+  leveldb::Status DestroyDB();
 
   // Ensures that |leveldb_| is destroyed correctly, but doesn't delete the
   // database on disk.
@@ -94,8 +97,7 @@ class LevelDBScopesTestBase : public testing::Test {
 
   const base::FilePath& DatabaseDirFilePath();
 
- private:
-  void CreateAndSaveLevelDBState();
+  leveldb::Status CreateAndSaveLevelDBState();
 
  protected:
   base::ScopedAllowBaseSyncPrimitivesForTesting allow_;
@@ -111,7 +113,6 @@ class LevelDBScopesTestBase : public testing::Test {
   const std::vector<uint8_t> metadata_prefix_ = {'a'};
   const std::vector<uint8_t> db_prefix_ = {'b'};
 
-  std::unique_ptr<FakeLevelDBFactory> leveldb_factory_;
   scoped_refptr<LevelDBState> leveldb_;
   std::string large_string_;
   LevelDBScopesUndoTask undo_task_buffer_;
@@ -122,6 +123,6 @@ class LevelDBScopesTestBase : public testing::Test {
   std::string value_buffer_;
 };
 
-}  // namespace content
+}  // namespace content::indexed_db
 
 #endif  // COMPONENTS_SERVICES_STORAGE_INDEXED_DB_SCOPES_LEVELDB_SCOPES_TEST_UTILS_H_

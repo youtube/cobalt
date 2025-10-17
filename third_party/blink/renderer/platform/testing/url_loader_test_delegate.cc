@@ -17,13 +17,15 @@ URLLoaderTestDelegate::~URLLoaderTestDelegate() = default;
 
 void URLLoaderTestDelegate::DidReceiveResponse(URLLoaderClient* original_client,
                                                const WebURLResponse& response) {
-  original_client->DidReceiveResponse(response);
+  original_client->DidReceiveResponse(
+      response,
+      /*body=*/mojo::ScopedDataPipeConsumerHandle(),
+      /*cached_metadata=*/std::nullopt);
 }
 
 void URLLoaderTestDelegate::DidReceiveData(URLLoaderClient* original_client,
-                                           const char* data,
-                                           size_t data_length) {
-  original_client->DidReceiveData(data, data_length);
+                                           base::span<const char> data) {
+  original_client->DidReceiveDataForTesting(data);
 }
 
 void URLLoaderTestDelegate::DidFail(URLLoaderClient* original_client,
@@ -44,7 +46,7 @@ void URLLoaderTestDelegate::DidFinishLoading(
     int64_t total_decoded_body_length) {
   original_client->DidFinishLoading(finish_time, total_encoded_data_length,
                                     total_encoded_body_length,
-                                    total_decoded_body_length, false);
+                                    total_decoded_body_length);
 }
 
 }  // namespace blink

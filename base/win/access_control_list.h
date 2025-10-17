@@ -8,12 +8,14 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/compiler_specific.h"
+#include "base/containers/heap_array.h"
 #include "base/win/sid.h"
 #include "base/win/windows_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base::win {
 
@@ -37,7 +39,7 @@ class BASE_EXPORT ExplicitAccessEntry {
   ExplicitAccessEntry& operator=(ExplicitAccessEntry&&);
   ~ExplicitAccessEntry();
 
-  const Sid& sid() const { return sid_; }
+  const Sid& sid() const LIFETIME_BOUND { return sid_; }
   SecurityAccessMode mode() const { return mode_; }
   DWORD access_mask() const { return access_mask_; }
   DWORD inheritance() const { return inheritance_; }
@@ -59,13 +61,13 @@ class BASE_EXPORT AccessControlList {
  public:
   // Create from an existing ACL pointer.
   // |acl| The ACL pointer. Passing nullptr will create a null ACL.
-  static absl::optional<AccessControlList> FromPACL(ACL* acl);
+  static std::optional<AccessControlList> FromPACL(ACL* acl);
 
   // Create an AccessControlList from a mandatory label.
   // |integrity_level| is the integrity level for the label.
   // |inheritance| inheritance flags.
   // |mandatory_policy| is the policy, e.g. SYSTEM_MANDATORY_LABEL_NO_WRITE_UP.
-  static absl::optional<AccessControlList> FromMandatoryLabel(
+  static std::optional<AccessControlList> FromMandatoryLabel(
       DWORD integrity_level,
       DWORD inheritance,
       DWORD mandatory_policy);
@@ -102,14 +104,21 @@ class BASE_EXPORT AccessControlList {
   // Returns the AccessControlList as a ACL*. The AccessControlList object
   // retains owenership of the pointer. This can return nullptr if the ACL is
   // null.
-  ACL* get() const { return reinterpret_cast<ACL*>(acl_.get()); }
+  ACL* get() { return reinterpret_cast<ACL*>(acl_.data()); }
+  const ACL* get() const { return reinterpret_cast<const ACL*>(acl_.data()); }
 
   // Returns whether the AccessControlList is considered a null ACL.
-  bool is_null() const { return !acl_; }
+  bool is_null() const {
+    // Note: there is a distinction between null ACL (ACL that occupies 0 bytes)
+    // and an empty ACL (an ACL that occupies sizeof(ACL) bytes and has no ACEs
+    // following it). If the underlying storage is empty, it means that we're
+    // dealing with a null ACL.
+    return acl_.empty();
+  }
 
  private:
   explicit AccessControlList(const ACL* acl);
-  std::unique_ptr<uint8_t[]> acl_;
+  base::HeapArray<uint8_t> acl_;
 };
 
 }  // namespace base::win

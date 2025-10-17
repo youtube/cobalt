@@ -14,6 +14,8 @@ import android.text.TextUtils;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.favicon.FaviconUtils;
 import org.chromium.components.browser_ui.widget.RoundedIconGenerator;
 import org.chromium.components.favicon.LargeIconBridge;
@@ -21,9 +23,8 @@ import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
 
-/**
- * Common util methods for multi-instance UI.
- */
+/** Common util methods for multi-instance UI. */
+@NullMarked
 class UiUtils {
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     static final int INVALID_TASK_ID = -1; // Defined in android.app.ActivityTaskManager.
@@ -33,7 +34,7 @@ class UiUtils {
     private final int mDisplayedIconSize;
     private final Drawable mIncognitoFavicon;
     private final Drawable mGlobeFavicon;
-    private LargeIconBridge mLargeIconBridge;
+    private final LargeIconBridge mLargeIconBridge;
     private final RoundedIconGenerator mIconGenerator;
 
     UiUtils(Context context, LargeIconBridge iconBridge) {
@@ -91,18 +92,34 @@ class UiUtils {
             desc = res.getString(R.string.instance_switcher_tab_count_zero);
         } else if (item.isIncognitoSelected && incognitoTabCount > 0) {
             if (item.tabCount == 0) { // <ex>2 incognito tabs</ex>
-                desc = res.getQuantityString(R.plurals.instance_switcher_desc_incognito,
-                        incognitoTabCount, incognitoTabCount);
+                desc =
+                        res.getQuantityString(
+                                R.plurals.instance_switcher_desc_incognito,
+                                incognitoTabCount,
+                                incognitoTabCount);
             } else { // <ex>5 tabs, 2 incognito</ex>
-                desc = res.getQuantityString(R.plurals.instance_switcher_desc_mixed, totalTabCount,
-                        incognitoTabCount, totalTabCount, incognitoTabCount);
+                desc =
+                        res.getQuantityString(
+                                R.plurals.instance_switcher_desc_mixed,
+                                totalTabCount,
+                                incognitoTabCount,
+                                totalTabCount,
+                                incognitoTabCount);
             }
         } else if (incognitoTabCount == 0) { // <ex>3 tabs</ex>
-            desc = res.getQuantityString(
-                    R.plurals.instance_switcher_tab_count_nonzero, item.tabCount, item.tabCount);
+            desc =
+                    res.getQuantityString(
+                            R.plurals.instance_switcher_tab_count_nonzero,
+                            item.tabCount,
+                            item.tabCount);
         } else { // <ex>5 tabs, 2 incognito</ex>
-            desc = res.getQuantityString(R.plurals.instance_switcher_desc_mixed, totalTabCount,
-                    incognitoTabCount, totalTabCount, incognitoTabCount);
+            desc =
+                    res.getQuantityString(
+                            R.plurals.instance_switcher_desc_mixed,
+                            totalTabCount,
+                            incognitoTabCount,
+                            totalTabCount,
+                            incognitoTabCount);
         }
         return desc;
     }
@@ -119,32 +136,46 @@ class UiUtils {
         String msg;
         if (item.isIncognitoSelected && incognitoTabCount > 0) {
             if (item.tabCount == 0) { // 2 incognito tabs will be closed
-                msg = res.getQuantityString(
-                        R.plurals.instance_switcher_close_confirm_deleted_incognito,
-                        incognitoTabCount, incognitoTabCount);
+                msg =
+                        res.getQuantityString(
+                                R.plurals.instance_switcher_close_confirm_deleted_incognito,
+                                incognitoTabCount,
+                                incognitoTabCount);
             } else { // 1 incognito and 3 more tabs will be closed
-                msg = res.getQuantityString(
-                        R.plurals.instance_switcher_close_confirm_deleted_incognito_mixed,
-                        item.tabCount, incognitoTabCount, item.tabCount, incognitoTabCount);
+                msg =
+                        res.getQuantityString(
+                                R.plurals.instance_switcher_close_confirm_deleted_incognito_mixed,
+                                item.tabCount,
+                                incognitoTabCount,
+                                item.tabCount,
+                                incognitoTabCount);
             }
         } else if (totalTabCount == 0) { // The window will be closed
             msg = res.getString(R.string.instance_switcher_close_confirm_deleted_tabs_zero);
         } else if (totalTabCount == 1) { // The tab YouTube will be closed
             msg = res.getString(R.string.instance_switcher_close_confirm_deleted_tabs_one, title);
         } else { // YouTube and 3 more tabs will be closed
-            msg = res.getQuantityString(R.plurals.instance_switcher_close_confirm_deleted_tabs_many,
-                    totalTabCount - 1, title, totalTabCount - 1, title);
+            msg =
+                    res.getQuantityString(
+                            R.plurals.instance_switcher_close_confirm_deleted_tabs_many,
+                            totalTabCount - 1,
+                            title,
+                            totalTabCount - 1,
+                            title);
         }
         return msg;
     }
+
     /**
      * Set the favicon for the given instance.
      * @param model {@link PropertyModel} that represents the instance entry.
      * @param faviconKey Property key for favicon item in the model.
      * @param item {@link InstanceInfo} object for the given instance.
      */
-    void setFavicon(PropertyModel model,
-            PropertyModel.WritableObjectPropertyKey<Drawable> faviconKey, InstanceInfo item) {
+    void setFavicon(
+            PropertyModel model,
+            PropertyModel.WritableObjectPropertyKey<Drawable> faviconKey,
+            InstanceInfo item) {
         int incognitoTabCount = recoverableIncognitoTabCount(item);
         int totalTabCount = totalTabCount(item);
         if (totalTabCount == 0 || isBeforeFirstTabLoad(item, totalTabCount)) {
@@ -153,7 +184,9 @@ class UiUtils {
             model.set(faviconKey, mIncognitoFavicon);
         } else {
             GURL url = new GURL(item.url);
-            mLargeIconBridge.getLargeIconForUrl(url, mMinIconSizeDp,
+            mLargeIconBridge.getLargeIconForUrl(
+                    url,
+                    mMinIconSizeDp,
                     (icon, fallbackColor, isFallbackColorDefault, iconType) -> {
                         model.set(faviconKey, createIconDrawable(item.url, icon, fallbackColor));
                     });
@@ -169,7 +202,7 @@ class UiUtils {
         return item.tabCount + recoverableIncognitoTabCount(item);
     }
 
-    private Drawable createIconDrawable(String url, Bitmap icon, int fallbackColor) {
+    private Drawable createIconDrawable(String url, @Nullable Bitmap icon, int fallbackColor) {
         if (icon == null) {
             mIconGenerator.setBackgroundColor(fallbackColor);
             icon = mIconGenerator.generateIconForUrl(url);

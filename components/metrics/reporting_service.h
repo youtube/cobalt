@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include <string>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
@@ -76,9 +77,8 @@ class ReportingService {
   bool reporting_active() const;
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-  void SetIsInForegound(bool is_in_foreground) {
-    is_in_foreground_ = is_in_foreground;
-  }
+  void OnAppEnterBackground();
+  void OnAppEnterForeground();
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
   // Registers local state prefs used by this class. This should only be called
@@ -95,7 +95,7 @@ class ReportingService {
   // Getters for MetricsLogUploader parameters.
   virtual GURL GetUploadUrl() const = 0;
   virtual GURL GetInsecureUploadUrl() const = 0;
-  virtual base::StringPiece upload_mime_type() const = 0;
+  virtual std::string_view upload_mime_type() const = 0;
   virtual MetricsLogUploader::MetricServiceType service_type() const = 0;
 
   // Methods for recording data to histograms.
@@ -123,7 +123,7 @@ class ReportingService {
                            int error_code,
                            bool was_https,
                            bool force_discard,
-                           base::StringPiece force_discard_reason);
+                           std::string_view force_discard_reason);
 
   // Used to interact with the embedder. Weak pointer; must outlive |this|
   // instance.
@@ -149,6 +149,20 @@ class ReportingService {
 
   // Whether there is a current log upload in progress.
   bool log_upload_in_progress_;
+
+#if BUILDFLAG(IS_ANDROID)
+  // Whether the current log upload was initiated while the app was in the
+  // background. Set only when there is a log upload in progress (i.e. when
+  // `log_upload_in_progress_` above is true).
+  // TODO: crbug.com/420459511 - Consider putting this and
+  // `log_upload_in_progress_` together into a struct.
+  std::optional<bool> log_upload_initiated_from_background_ = std::nullopt;
+
+  // Set when the most recent uploads have failed. Its value will be whether the
+  // first failure was from an upload initiated from the background. Unset when
+  // a successful upload occurs.
+  std::optional<bool> failures_started_from_background_ = std::nullopt;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // The scheduler for determining when uploads should happen.
   std::unique_ptr<MetricsUploadScheduler> upload_scheduler_;

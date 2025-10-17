@@ -14,7 +14,7 @@
 #include "services/device/public/cpp/geolocation/system_geolocation_source.h"
 
 namespace device {
-class GeolocationManager;
+class GeolocationSystemPermissionManager;
 }
 
 class PrefService;
@@ -24,31 +24,33 @@ namespace ash {
 
 // The SystemGeolocationSource is responsible for listening to geolocation
 // permissions from the operation system and allows the
-// device::GeolocationManager to access it in a platform agnostic manner. This
-// concrete implementation is to be used within the Ash browser.
+// device::GeolocationSystemPermissionManager to access it in a platform
+// agnostic manner. This concrete implementation is to be used within the Ash
+// browser.
 class SystemGeolocationSource : public device::SystemGeolocationSource,
                                 public SessionObserver {
  public:
   SystemGeolocationSource();
   ~SystemGeolocationSource() override;
 
-  static std::unique_ptr<device::GeolocationManager>
-  CreateGeolocationManagerOnAsh();
+  static std::unique_ptr<device::GeolocationSystemPermissionManager>
+  CreateGeolocationSystemPermissionManagerOnAsh();
 
   // device::SystemGeolocationSource:
   void RegisterPermissionUpdateCallback(
       PermissionUpdateCallback callback) override;
-  void AppAttemptsToUseGeolocation() override;
-  void AppCeasesToUseGeolocation() override;
+  void OpenSystemPermissionSetting() override;
 
  private:
+  friend class SystemGeolocationSourceTests;
+
   // SessionObserver:
   void OnActiveUserPrefServiceChanged(PrefService* pref_service) override;
 
   void OnPrefChanged(const std::string& pref_name);
 
   PermissionUpdateCallback permission_update_callback_;
-  std::unique_ptr<PrefChangeRegistrar> pref_change_registrar_;
+  std::unique_ptr<PrefChangeRegistrar> primary_user_pref_change_registrar_;
   base::ScopedObservation<SessionController, SessionObserver> observer_{this};
 };
 

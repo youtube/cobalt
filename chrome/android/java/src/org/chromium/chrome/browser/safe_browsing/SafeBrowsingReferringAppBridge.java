@@ -5,33 +5,35 @@ package org.chromium.chrome.browser.safe_browsing;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.net.Uri;
 import android.provider.Browser;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+
 import org.chromium.base.IntentUtils;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.IntentHandler.ExternalAppId;
+import org.chromium.chrome.browser.browserservices.intents.WebApkExtras;
+import org.chromium.chrome.browser.customtabs.BaseCustomTabActivity;
 import org.chromium.ui.base.WindowAndroid;
 
-/**
- * Bridge between Java and native SafeBrowsing code to get referring app information.
- */
+/** Bridge between Java and native SafeBrowsing code to get referring app information. */
 public class SafeBrowsingReferringAppBridge {
     private SafeBrowsingReferringAppBridge() {}
 
-    /**
-     * A helper class to store referring app information.
-     */
+    /** A helper class to store referring app information. */
     static class ReferringAppInfo {
         // The source of referring app name. These values must be aligned with the
         // ReferringAppSource enum defined in csd.proto.
-        @IntDef({ReferringAppSource.REFERRING_APP_SOURCE_UNSPECIFIED,
-                ReferringAppSource.KNOWN_APP_ID, ReferringAppSource.UNKNOWN_APP_ID,
-                ReferringAppSource.ACTIVITY_REFERRER})
+        @IntDef({
+            ReferringAppSource.REFERRING_APP_SOURCE_UNSPECIFIED,
+            ReferringAppSource.KNOWN_APP_ID,
+            ReferringAppSource.UNKNOWN_APP_ID,
+            ReferringAppSource.ACTIVITY_REFERRER
+        })
         public @interface ReferringAppSource {
             int REFERRING_APP_SOURCE_UNSPECIFIED = 0;
             int KNOWN_APP_ID = 1;
@@ -41,11 +43,32 @@ public class SafeBrowsingReferringAppBridge {
 
         private final @ReferringAppSource int mReferringAppSource;
         private final String mReferringAppName;
+        private final String mTargetUrl;
+        private final String mReferringWebApkStartUrl;
+        private final String mReferringWebApkManifestId;
 
         public ReferringAppInfo(
-                @ReferringAppSource int referringAppSource, String referringAppName) {
+                @ReferringAppSource int referringAppSource,
+                String referringAppName,
+                String targetUrl,
+                String referringWebApkStartUrl,
+                String referringWebApkManifestId) {
+            // Do not return null strings to native code.
+            if (targetUrl == null) {
+                targetUrl = "";
+            }
+            if (referringWebApkStartUrl == null) {
+                referringWebApkStartUrl = "";
+            }
+            if (referringWebApkManifestId == null) {
+                referringWebApkManifestId = "";
+            }
+
             mReferringAppSource = referringAppSource;
             mReferringAppName = referringAppName;
+            mTargetUrl = targetUrl;
+            mReferringWebApkStartUrl = referringWebApkStartUrl;
+            mReferringWebApkManifestId = referringWebApkManifestId;
         }
 
         @CalledByNative("ReferringAppInfo")
@@ -54,14 +77,30 @@ public class SafeBrowsingReferringAppBridge {
         }
 
         @CalledByNative("ReferringAppInfo")
-        public String getName() {
+        public @JniType("std::string") String getName() {
             return mReferringAppName;
+        }
+
+        @CalledByNative("ReferringAppInfo")
+        public @JniType("std::string") String getTargetUrl() {
+            return mTargetUrl;
+        }
+
+        @CalledByNative("ReferringAppInfo")
+        public @JniType("std::string") String getReferringWebApkStartUrl() {
+            return mReferringWebApkStartUrl;
+        }
+
+        @CalledByNative("ReferringAppInfo")
+        public @JniType("std::string") String getReferringWebApkManifestId() {
+            return mReferringWebApkManifestId;
         }
     }
 
     @CalledByNative
     @VisibleForTesting
-    public static ReferringAppInfo getReferringAppInfo(WindowAndroid windowAndroid) {
+    public static ReferringAppInfo getReferringAppInfo(
+            WindowAndroid windowAndroid, boolean getWebApkInfo) {
         Activity activity = windowAndroid.getActivity().get();
         if (activity == null) {
             return getEmptyReferringInfo();
@@ -72,38 +111,58 @@ public class SafeBrowsingReferringAppBridge {
             return getEmptyReferringInfo();
         }
 
+        String url = IntentHandler.getUrlFromIntent(intent);
+
+        String referringWebApkStartUrl = "";
+        String referringWebApkManifestId = "";
+        if (getWebApkInfo && (activity instanceof BaseCustomTabActivity customTabActivity)) {
+            WebApkExtras webApkExtras = customTabActivity.getIntentDataProvider().getWebApkExtras();
+            if (webApkExtras != null) {
+                referringWebApkStartUrl = webApkExtras.manifestStartUrl;
+                referringWebApkManifestId = webApkExtras.manifestId;
+            }
+        }
+
+        @ReferringAppInfo.ReferringAppSource
+        int referringAppSource =
+                ReferringAppInfo.ReferringAppSource.REFERRING_APP_SOURCE_UNSPECIFIED;
+        String referringAppName = "";
+        boolean foundApp = false;
+
         @ExternalAppId
-        int externalId = IntentHandler.determineExternalIntentSource(intent);
+        int externalId = IntentHandler.determineExternalIntentSource(intent, activity);
         if (externalId != ExternalAppId.OTHER) {
-            return new ReferringAppInfo(ReferringAppInfo.ReferringAppSource.KNOWN_APP_ID,
-                    externalAppIdToString(externalId));
+            referringAppSource = ReferringAppInfo.ReferringAppSource.KNOWN_APP_ID;
+            referringAppName = externalAppIdToString(externalId);
+            foundApp = true;
         }
 
         // If externalId is OTHER, fallback to EXTRA_APPLICATION_ID;
-        String appId = IntentUtils.safeGetStringExtra(intent, Browser.EXTRA_APPLICATION_ID);
+        String appId =
+                foundApp
+                        ? null
+                        : IntentUtils.safeGetStringExtra(intent, Browser.EXTRA_APPLICATION_ID);
         if (appId != null) {
-            return new ReferringAppInfo(ReferringAppInfo.ReferringAppSource.UNKNOWN_APP_ID, appId);
+            referringAppSource = ReferringAppInfo.ReferringAppSource.UNKNOWN_APP_ID;
+            referringAppName = appId;
+            foundApp = true;
         }
 
-        // If appId is empty, fallback to EXTRA_REFERRER;
-        // If the activity is launched through launcher activity, the referrer is set through
-        // intent extra.
-        String activity_referrer =
-                IntentUtils.safeGetStringExtra(intent, IntentHandler.EXTRA_ACTIVITY_REFERRER);
-        if (activity_referrer != null) {
-            return new ReferringAppInfo(
-                    ReferringAppInfo.ReferringAppSource.ACTIVITY_REFERRER, activity_referrer);
-        }
-
-        // If the activity referrer is not found in intent extra, get it from the activity
-        // directly.
-        Uri extraReferrer = activity.getReferrer();
+        // If appId is empty, fallback to the referrer.
+        String extraReferrer =
+                foundApp ? null : IntentHandler.getActivityReferrer(intent, activity);
         if (extraReferrer != null) {
-            return new ReferringAppInfo(ReferringAppInfo.ReferringAppSource.ACTIVITY_REFERRER,
-                    extraReferrer.toString());
+            referringAppSource = ReferringAppInfo.ReferringAppSource.ACTIVITY_REFERRER;
+            referringAppName = extraReferrer;
+            foundApp = true;
         }
 
-        return getEmptyReferringInfo();
+        return new ReferringAppInfo(
+                referringAppSource,
+                referringAppName,
+                url,
+                referringWebApkStartUrl,
+                referringWebApkManifestId);
     }
 
     private static String externalAppIdToString(@ExternalAppId int appId) {
@@ -140,6 +199,15 @@ public class SafeBrowsingReferringAppBridge {
                 return "viber";
             case ExternalAppId.YOUTUBE:
                 return "youtube";
+            case ExternalAppId.CAMERA:
+                return "camera";
+            case ExternalAppId.PIXEL_LAUNCHER:
+                return "pixel.launcher";
+            case ExternalAppId.DEPRECATED_THIRD_PARTY_LAUNCHER:
+                return "third-party.launcher";
+            case ExternalAppId.SAMSUNG_LAUNCHER:
+                return "samsung.launcher";
+
             default:
                 assert false : "not reached";
                 return "";
@@ -148,6 +216,10 @@ public class SafeBrowsingReferringAppBridge {
 
     private static ReferringAppInfo getEmptyReferringInfo() {
         return new ReferringAppInfo(
-                ReferringAppInfo.ReferringAppSource.REFERRING_APP_SOURCE_UNSPECIFIED, "");
+                ReferringAppInfo.ReferringAppSource.REFERRING_APP_SOURCE_UNSPECIFIED,
+                "",
+                "",
+                "",
+                "");
     }
 }

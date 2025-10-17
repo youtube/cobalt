@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/files/file_util.h"
@@ -83,7 +84,7 @@ void SetTimeValue(base::Value::Dict& dict,
   dict.Set(key, base::NumberToString(internal_time_value));
 }
 
-LogoType LogoTypeFromString(base::StringPiece type) {
+LogoType LogoTypeFromString(std::string_view type) {
   if (type == kSimpleType) {
     return LogoType::SIMPLE;
   }
@@ -107,7 +108,6 @@ std::string LogoTypeToString(LogoType type) {
       return kInteractiveType;
   }
   NOTREACHED();
-  return "";
 }
 
 }  // namespace
@@ -170,7 +170,7 @@ std::unique_ptr<EncodedLogo> LogoCache::GetCachedLogo() {
   if (logo_num_bytes_ != 0) {
     encoded_image = new base::RefCountedString();
 
-    if (!base::ReadFileToString(logo_path, &encoded_image->data())) {
+    if (!base::ReadFileToString(logo_path, &encoded_image->as_string())) {
       UpdateMetadata(nullptr);
       return nullptr;
     }
@@ -187,7 +187,8 @@ std::unique_ptr<EncodedLogo> LogoCache::GetCachedLogo() {
   if (dark_logo_num_bytes_ != 0) {
     dark_encoded_image = new base::RefCountedString();
 
-    if (!base::ReadFileToString(dark_logo_path, &dark_encoded_image->data())) {
+    if (!base::ReadFileToString(dark_logo_path,
+                                &dark_encoded_image->as_string())) {
       UpdateMetadata(nullptr);
       return nullptr;
     }
@@ -213,7 +214,7 @@ std::unique_ptr<LogoMetadata> LogoCache::LogoMetadataFromString(
     const std::string& str,
     int* logo_num_bytes,
     int* dark_logo_num_bytes) {
-  absl::optional<base::Value> value = base::JSONReader::Read(str);
+  std::optional<base::Value> value = base::JSONReader::Read(str);
   if (!value) {
     return nullptr;
   }
@@ -232,19 +233,19 @@ std::unique_ptr<LogoMetadata> LogoCache::LogoMetadataFromString(
     return v != nullptr;
   };
   auto get_boolean = [dict](const char* key, bool* ret) -> bool {
-    absl::optional<bool> v = dict->FindBool(key);
+    std::optional<bool> v = dict->FindBool(key);
     if (v.has_value())
       *ret = v.value();
     return v.has_value();
   };
   auto get_integer = [dict](const char* key, int* ret) -> bool {
-    absl::optional<int> v = dict->FindInt(key);
+    std::optional<int> v = dict->FindInt(key);
     if (v.has_value())
       *ret = v.value();
     return v.has_value();
   };
   auto get_double = [dict](const char* key, double* ret) -> bool {
-    absl::optional<double> v = dict->FindDouble(key);
+    std::optional<double> v = dict->FindDouble(key);
     if (v.has_value())
       *ret = v.value();
     return v.has_value();

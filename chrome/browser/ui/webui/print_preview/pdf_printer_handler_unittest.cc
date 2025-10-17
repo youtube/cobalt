@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/webui/print_preview/pdf_printer_handler.h"
 
+#include <optional>
+
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/values_test_util.h"
@@ -13,7 +15,6 @@
 #include "chrome/test/base/scoped_browser_locale.h"
 #include "components/url_formatter/url_formatter.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_MAC)
@@ -170,15 +171,15 @@ void RecordCapability(base::OnceClosure done_closure,
 base::Value::Dict GetValueFromCustomPaper(
     const PrinterSemanticCapsAndDefaults::Paper& paper) {
   base::Value::Dict paper_value;
-  paper_value.Set("custom_display_name", paper.display_name);
-  paper_value.Set("height_microns", paper.size_um.height());
-  paper_value.Set("width_microns", paper.size_um.width());
-  int imageable_area_left_microns = paper.printable_area_um.x();
-  int imageable_area_bottom_microns = paper.printable_area_um.y();
+  paper_value.Set("custom_display_name", paper.display_name());
+  paper_value.Set("height_microns", paper.size_um().height());
+  paper_value.Set("width_microns", paper.size_um().width());
+  int imageable_area_left_microns = paper.printable_area_um().x();
+  int imageable_area_bottom_microns = paper.printable_area_um().y();
   int imageable_area_right_microns =
-      paper.printable_area_um.x() + paper.printable_area_um.width();
+      paper.printable_area_um().x() + paper.printable_area_um().width();
   int imageable_area_top_microns =
-      paper.printable_area_um.y() + paper.printable_area_um.height();
+      paper.printable_area_um().y() + paper.printable_area_um().height();
   paper_value.Set("imageable_area_left_microns", imageable_area_left_microns);
   paper_value.Set("imageable_area_bottom_microns",
                   imageable_area_bottom_microns);
@@ -349,8 +350,9 @@ TEST_F(PdfPrinterHandlerGetCapabilityTest,
       expected_capability.GetDict().FindListByDottedPath(kPaperOptionPath);
   ASSERT_TRUE(expected_paper_options);
 
-  for (const PrinterSemanticCapsAndDefaults::Paper& paper : kTestPapers)
+  for (const PrinterSemanticCapsAndDefaults::Paper& paper : kTestPapers) {
     expected_paper_options->Append(GetValueFromCustomPaper(paper));
+  }
 
   SetMacCustomPaperSizesForTesting(kTestPapers);
 

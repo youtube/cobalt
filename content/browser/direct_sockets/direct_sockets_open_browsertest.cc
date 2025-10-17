@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <optional>
+#include <string_view>
 #include <vector>
 
 #include "base/command_line.h"
@@ -14,12 +16,11 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/values.h"
 #include "content/browser/direct_sockets/direct_sockets_service_impl.h"
 #include "content/browser/direct_sockets/direct_sockets_test_utils.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/direct_sockets_delegate.h"
-#include "content/public/common/content_features.h"
-#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
@@ -39,7 +40,7 @@
 #include "services/network/test/test_network_context.h"
 #include "services/network/test/test_udp_socket.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/mojom/direct_sockets/direct_sockets.mojom.h"
 #include "url/gurl.h"
 
@@ -79,8 +80,7 @@ constexpr char kUDPNetworkFailuresHistogramName[] =
 class MockOpenNetworkContext : public content::test::MockNetworkContext {
  public:
   explicit MockOpenNetworkContext(net::Error result) : result_(result) {}
-  MockOpenNetworkContext(net::Error result,
-                         base::StringPiece host_mapping_rules)
+  MockOpenNetworkContext(net::Error result, std::string_view host_mapping_rules)
       : MockNetworkContext(host_mapping_rules), result_(result) {}
 
   ~MockOpenNetworkContext() override = default;
@@ -93,7 +93,7 @@ class MockOpenNetworkContext : public content::test::MockNetworkContext {
 
   // network::TestNetworkContext:
   void CreateTCPConnectedSocket(
-      const absl::optional<net::IPEndPoint>& local_addr,
+      const std::optional<net::IPEndPoint>& local_addr,
       const net::AddressList& remote_addr_list,
       network::mojom::TCPConnectedSocketOptionsPtr tcp_connected_socket_options,
       const net::MutableNetworkTrafficAnnotationTag& traffic_annotation,
@@ -168,8 +168,6 @@ MockOpenNetworkContext::CreateMockUDPSocket(
 
 class DirectSocketsOpenBrowserTest : public ContentBrowserTest {
  public:
-  ~DirectSocketsOpenBrowserTest() override = default;
-
   GURL GetTestOpenPageURL() {
     return embedded_test_server()->GetURL("/direct_sockets/open.html");
   }
@@ -192,8 +190,6 @@ class DirectSocketsOpenBrowserTest : public ContentBrowserTest {
   }
 
  private:
-  base::test::ScopedFeatureList feature_list_{features::kIsolatedWebApps};
-
   std::unique_ptr<test::IsolatedWebAppContentBrowserClient> client_;
 };
 
@@ -503,7 +499,7 @@ IN_PROC_BROWSER_TEST_F(DirectSocketsOpenBrowserTest,
 class MockOpenNetworkContextWithDnsQueryType : public MockOpenNetworkContext {
  public:
   MockOpenNetworkContextWithDnsQueryType(net::Error result,
-                                         base::StringPiece host_mapping_rules)
+                                         std::string_view host_mapping_rules)
       : MockOpenNetworkContext(result, host_mapping_rules) {}
 
   // MockOpenNetworkContext:
@@ -522,23 +518,23 @@ class MockOpenNetworkContextWithDnsQueryType : public MockOpenNetworkContext {
   }
 
   void set_expected_dns_query_type(
-      absl::optional<net::DnsQueryType> dns_query_type) {
+      std::optional<net::DnsQueryType> dns_query_type) {
     expected_dns_query_type_ = std::move(dns_query_type);
   }
 
  private:
-  absl::optional<net::DnsQueryType> expected_dns_query_type_;
+  std::optional<net::DnsQueryType> expected_dns_query_type_;
 };
 
 IN_PROC_BROWSER_TEST_F(DirectSocketsOpenBrowserTest, Open_DnsQueryType) {
-  constexpr base::StringPiece kHostname = "direct-sockets.com";
+  constexpr std::string_view kHostname = "direct-sockets.com";
 
   MockOpenNetworkContextWithDnsQueryType mock_network_context(
       net::OK, base::StringPrintf("MAP %s 98.76.54.32", kHostname.data()));
   DirectSocketsServiceImpl::SetNetworkContextForTesting(&mock_network_context);
 
   constexpr auto kDnsQueryTypeMapping =
-      base::MakeFixedFlatMap<net::DnsQueryType, base::StringPiece>({
+      base::MakeFixedFlatMap<net::DnsQueryType, std::string_view>({
           {net::DnsQueryType::A, "ipv4"},
           {net::DnsQueryType::AAAA, "ipv6"},
       });
@@ -614,5 +610,149 @@ IN_PROC_BROWSER_TEST_F(DirectSocketsOpenBrowserTest, OpenTcpServerOptions) {
             "ipv6Only can only be specified when localAddress is [::]"));
   }
 }
+
+enum class WorkerType { kShared, kService };
+enum class FeatureState { kDefault, kDisabled, kEnabled };
+
+template <WorkerType worker_type>
+class DirectSocketsWorkerExposureBrowserTest
+    : public DirectSocketsOpenBrowserTest,
+      public testing::WithParamInterface<FeatureState> {
+ public:
+  DirectSocketsWorkerExposureBrowserTest() {
+    switch (GetFeatureState()) {
+      case FeatureState::kDefault:
+        break;
+      case FeatureState::kEnabled:
+        InitWith(&base::test::ScopedFeatureList::InitAndEnableFeature);
+        break;
+      case FeatureState::kDisabled:
+        InitWith(&base::test::ScopedFeatureList::InitAndDisableFeature);
+        break;
+    }
+  }
+
+  void SetUp() override {
+    embedded_test_server()->RegisterRequestHandler(base::BindRepeating(
+        &DirectSocketsWorkerExposureBrowserTest::HandleRequest,
+        base::Unretained(this)));
+    DirectSocketsOpenBrowserTest::SetUp();
+  }
+
+  bool ShouldBeExposed() { return GetFeatureState() == FeatureState::kEnabled; }
+
+ private:
+  FeatureState GetFeatureState() { return GetParam(); }
+
+  void InitWith(auto init) {
+    switch (worker_type) {
+      case WorkerType::kService:
+        std::invoke(init, features_,
+                    blink::features::kDirectSocketsInServiceWorkers);
+        break;
+      case WorkerType::kShared:
+        std::invoke(init, features_,
+                    blink::features::kDirectSocketsInSharedWorkers);
+        break;
+    }
+  }
+
+  std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
+      const net::test_server::HttpRequest& request) {
+    if (request.relative_url.ends_with("shared_worker.js")) {
+      auto response = WorkerScriptResponse();
+      response->set_content(R"(
+        onconnect = e => {
+          const port = e.ports[0];
+          port.start();
+          port.postMessage({
+            'TCPSocket': typeof TCPSocket,
+            'UDPSocket': typeof UDPSocket,
+            'TCPServerSocket': typeof TCPServerSocket,
+          });
+        };
+      )");
+      return response;
+    }
+    if (request.relative_url.ends_with("service_worker.js")) {
+      auto response = WorkerScriptResponse();
+      response->set_content(R"(
+        addEventListener('message', e => {
+          e.source.postMessage({
+            'TCPSocket': typeof TCPSocket,
+            'UDPSocket': typeof UDPSocket,
+            'TCPServerSocket': typeof TCPServerSocket,
+          });
+        });
+      )");
+      return response;
+    }
+    return nullptr;
+  }
+
+  std::unique_ptr<net::test_server::BasicHttpResponse> WorkerScriptResponse() {
+    auto response = std::make_unique<net::test_server::BasicHttpResponse>();
+    response->set_code(net::HTTP_OK);
+    response->set_content_type("application/javascript");
+    response->AddCustomHeader("Cross-Origin-Embedder-Policy", "require-corp");
+    response->AddCustomHeader("Cross-Origin-Resource-Policy", "same-origin");
+    return response;
+  }
+
+  base::test::ScopedFeatureList features_;
+};
+
+using DirectSocketsSharedWorkerExposureBrowserTest =
+    DirectSocketsWorkerExposureBrowserTest<WorkerType::kShared>;
+
+IN_PROC_BROWSER_TEST_P(DirectSocketsSharedWorkerExposureBrowserTest, Exposure) {
+  static constexpr char kSharedWorkerStart[] = R"(
+    new Promise(resolve => {
+      const worker = new SharedWorker('/shared_worker.js');
+      worker.port.onmessage = e => resolve(e.data);
+    });
+  )";
+
+  std::string expected_typeof = ShouldBeExposed() ? "function" : "undefined";
+  EXPECT_EQ(EvalJs(shell(), kSharedWorkerStart).value.GetDict(),
+            base::Value::Dict()
+                .Set("TCPSocket", expected_typeof)
+                .Set("UDPSocket", expected_typeof)
+                .Set("TCPServerSocket", expected_typeof));
+}
+
+using DirectSocketsServiceWorkerExposureBrowserTest =
+    DirectSocketsWorkerExposureBrowserTest<WorkerType::kService>;
+
+IN_PROC_BROWSER_TEST_P(DirectSocketsServiceWorkerExposureBrowserTest,
+                       Exposure) {
+  static constexpr char kServiceWorkerStart[] = R"(
+    new Promise(async (resolve) => {
+      await navigator.serviceWorker.register('/service_worker.js');
+      navigator.serviceWorker.addEventListener('message', e => resolve(e.data));
+      const reg = await navigator.serviceWorker.ready;
+      reg.active.postMessage(null);
+    });
+  )";
+
+  std::string expected_typeof = ShouldBeExposed() ? "function" : "undefined";
+  EXPECT_EQ(EvalJs(shell(), kServiceWorkerStart).value.GetDict(),
+            base::Value::Dict()
+                .Set("TCPSocket", expected_typeof)
+                .Set("UDPSocket", expected_typeof)
+                .Set("TCPServerSocket", expected_typeof));
+}
+
+INSTANTIATE_TEST_SUITE_P(/**/,
+                         DirectSocketsSharedWorkerExposureBrowserTest,
+                         testing::Values(FeatureState::kDefault,
+                                         FeatureState::kEnabled,
+                                         FeatureState::kDisabled));
+
+INSTANTIATE_TEST_SUITE_P(/**/,
+                         DirectSocketsServiceWorkerExposureBrowserTest,
+                         testing::Values(FeatureState::kDefault,
+                                         FeatureState::kEnabled,
+                                         FeatureState::kDisabled));
 
 }  // namespace content

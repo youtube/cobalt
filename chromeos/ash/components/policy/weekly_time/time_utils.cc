@@ -20,10 +20,6 @@
 
 namespace policy {
 namespace weekly_time_utils {
-namespace {
-constexpr base::TimeDelta kWeek = base::Days(7);
-const char kFormatWeekdayHourMinute[] = "EEEE jj:mm a";
-}  // namespace
 
 bool GetOffsetFromTimezoneToGmt(const std::string& timezone,
                                 base::Clock* clock,
@@ -53,7 +49,7 @@ bool GetOffsetFromTimezoneToGmt(const icu::TimeZone& timezone,
     LOG(ERROR) << "Gregorian calendar error = " << u_errorName(status);
     return false;
   }
-  UDate cur_date = static_cast<UDate>(clock->Now().ToDoubleT() *
+  UDate cur_date = static_cast<UDate>(clock->Now().InSecondsFSinceUnixEpoch() *
                                       base::Time::kMillisecondsPerSecond);
   status = U_ZERO_ERROR;
   gregorian_calendar->setTime(cur_date, status);
@@ -72,29 +68,6 @@ bool GetOffsetFromTimezoneToGmt(const icu::TimeZone& timezone,
   // -|gmt_offset| is time which is added to local time to get GMT time.
   *offset = -gmt_offset;
   return true;
-}
-
-std::u16string WeeklyTimeToLocalizedString(const WeeklyTime& weekly_time,
-                                           base::Clock* clock) {
-  WeeklyTime result = weekly_time;
-  if (!weekly_time.timezone_offset()) {
-    // Get offset to convert the WeeklyTime
-    int offset;
-    auto local_time_zone = base::WrapUnique(icu::TimeZone::createDefault());
-    if (!GetOffsetFromTimezoneToGmt(*local_time_zone, clock, &offset)) {
-      LOG(ERROR) << "Unable to obtain offset for time agnostic timezone";
-      return std::u16string();
-    }
-    result = weekly_time.ConvertToCustomTimezone(-offset);
-  }
-  // Clock with the current time.
-  const auto now = clock->Now();
-  WeeklyTime now_weekly_time = WeeklyTime::GetGmtWeeklyTime(now);
-  // Offset the current time so that its day of the week and time match
-  // |day_of_week| and |milliseconds_|.
-  base::Time offset_time =
-      now + now_weekly_time.GetDurationTo(result.ConvertToTimezone(0));
-  return base::TimeFormatWithPattern(offset_time, kFormatWeekdayHourMinute);
 }
 
 std::vector<WeeklyTimeInterval> ConvertIntervalsToGmt(
@@ -119,11 +92,11 @@ bool Contains(const base::Time& time,
   return false;
 }
 
-absl::optional<base::Time> GetNextEventTime(
+std::optional<base::Time> GetNextEventTime(
     const base::Time& current_time,
     const std::vector<WeeklyTimeInterval>& weekly_time_intervals) {
   if (weekly_time_intervals.empty())
-    return absl::nullopt;
+    return std::nullopt;
 
   base::Time::Exploded exploded;
   current_time.UTCExplode(&exploded);
@@ -131,7 +104,7 @@ absl::optional<base::Time> GetNextEventTime(
 
   // Weekly intervals repeat every week, therefore the maximum duration till
   // next weekly interval is one week.
-  base::TimeDelta till_next_event = kWeek;
+  base::TimeDelta till_next_event = base::Days(7);
   for (const auto& interval : weekly_time_intervals) {
     if (weekly_time != interval.start())
       till_next_event = std::min(till_next_event,

@@ -9,6 +9,7 @@
 #include "base/base64.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
 #include "base/observer_list.h"
@@ -20,11 +21,6 @@
 #include "components/variations/variations_associated_data.h"
 #include "components/variations/variations_client.h"
 #include "components/variations/variations_features.h"
-
-// TODO: remove this feature flag after milestone 110.
-BASE_FEATURE(kSendLowEntropySourceVariationIDInAnyContext,
-             "SendLowEntropySourceVariationIDInAnyContext",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 namespace variations {
 namespace {
@@ -156,7 +152,7 @@ VariationsIdsProvider::GetVariationsVectorForWebPropertiesKeys() {
 }
 
 void VariationsIdsProvider::SetLowEntropySourceValue(
-    absl::optional<int> low_entropy_source_value) {
+    std::optional<int> low_entropy_source_value) {
   // The low entropy source value is an integer that is between 0 and 7999,
   // inclusive. See components/metrics/metrics_state_manager.cc for the logic to
   // generate it.
@@ -232,11 +228,14 @@ bool VariationsIdsProvider::ForceDisableVariationIds(
 }
 
 void VariationsIdsProvider::AddObserver(Observer* observer) {
-  observer_list_.AddObserver(observer);
+  base::AutoLock scoped_lock(lock_);
+  CHECK(!base::Contains(observer_list_, observer));
+  observer_list_.push_back(observer);
 }
 
 void VariationsIdsProvider::RemoveObserver(Observer* observer) {
-  observer_list_.RemoveObserver(observer);
+  base::AutoLock scoped_lock(lock_);
+  std::erase(observer_list_, observer);
 }
 
 void VariationsIdsProvider::ResetForTesting() {
@@ -275,11 +274,11 @@ void VariationsIdsProvider::DestroyInstanceForTesting() {
 }
 
 void VariationsIdsProvider::OnFieldTrialGroupFinalized(
-    const std::string& trial_name,
+    const base::FieldTrial& trial,
     const std::string& group_name) {
   base::AutoLock scoped_lock(lock_);
   const size_t old_size = variation_ids_set_.size();
-  CacheVariationsId(trial_name, group_name);
+  CacheVariationsId(trial.trial_name(), group_name);
   if (variation_ids_set_.size() != old_size)
     UpdateVariationIDsHeaderValue();
 }
@@ -294,8 +293,8 @@ void VariationsIdsProvider::OnSyntheticTrialsChanged(
   for (const SyntheticTrialGroup& group : groups) {
     VariationID id = GetGoogleVariationIDFromHashes(
         GOOGLE_WEB_PROPERTIES_ANY_CONTEXT, group.id());
-    // TODO(crbug/1294948): Handle duplicated IDs in such a way that is visible
-    // to developers, but non-intrusive to users. See
+    // TODO(crbug.com/40214121): Handle duplicated IDs in such a way that is
+    // visible to developers, but non-intrusive to users. See
     // crrev/c/3628020/comments/e278cd12_2bb863ef for discussions.
     if (id != EMPTY_ID) {
       synthetic_variation_ids_set_.insert(
@@ -344,8 +343,8 @@ void VariationsIdsProvider::CacheVariationsId(const std::string& trial_name,
   for (int i = 0; i < ID_COLLECTION_COUNT; ++i) {
     IDCollectionKey key = static_cast<IDCollectionKey>(i);
     const VariationID id = GetGoogleVariationID(key, trial_name, group_name);
-    // TODO(crbug/1294948): Handle duplicated IDs in such a way that is visible
-    // to developers, but non-intrusive to users. See
+    // TODO(crbug.com/40214121): Handle duplicated IDs in such a way that is
+    // visible to developers, but non-intrusive to users. See
     // crrev/c/3628020/comments/e278cd12_2bb863ef for discussions.
     if (id != EMPTY_ID)
       variation_ids_set_.insert(VariationIDEntry(id, key));
@@ -380,8 +379,8 @@ void VariationsIdsProvider::UpdateVariationIDsHeaderValue() {
       GenerateBase64EncodedProto(/*is_signed_in=*/true,
                                  /*is_first_party_context=*/true);
 
-  for (auto& observer : observer_list_) {
-    observer.VariationIdsHeaderUpdated();
+  for (auto* observer : observer_list_) {
+    observer->VariationIdsHeaderUpdated();
   }
 }
 
@@ -441,10 +440,7 @@ std::string VariationsIdsProvider::GenerateBase64EncodedProto(
 
   std::string serialized;
   proto.SerializeToString(&serialized);
-
-  std::string hashed;
-  base::Base64Encode(serialized, &hashed);
-  return hashed;
+  return base::Base64Encode(serialized);
 }
 
 bool VariationsIdsProvider::AddVariationIdsToSet(
@@ -535,16 +531,13 @@ VariationsIdsProvider::GetAllVariationIds() {
   // The entropy source value is used for retrospective A/A tests to validate
   // that there's no existing bias between two randomized groups of clients for
   // a later A/B study.
-  if (low_entropy_source_value_) {
+  if (low_entropy_source_value_.has_value()) {
     int source_value = low_entropy_source_value_.value() +
                        kLowEntropySourceVariationIdRangeMin;
     DCHECK_GE(source_value, kLowEntropySourceVariationIdRangeMin);
     DCHECK_LE(source_value, kLowEntropySourceVariationIdRangeMax);
-    auto context = base::FeatureList::IsEnabled(
-                       kSendLowEntropySourceVariationIDInAnyContext)
-                       ? GOOGLE_WEB_PROPERTIES_ANY_CONTEXT
-                       : GOOGLE_WEB_PROPERTIES_FIRST_PARTY;
-    all_variation_ids_set.insert(VariationIDEntry(source_value, context));
+    all_variation_ids_set.insert(
+        VariationIDEntry(source_value, GOOGLE_WEB_PROPERTIES_ANY_CONTEXT));
   }
 
   return all_variation_ids_set;

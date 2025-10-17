@@ -5,15 +5,26 @@ include_rules = [
   "+cc/paint",
   "+components/access_code_cast",
   "+components/account_id",
+  "+components/history",
+  "+components/favicon",
+  "+components/favicon_base",
   "+components/app_constants",
   "+components/app_restore",
   "+components/desks_storage",
   "+components/discardable_memory/public",
   "+components/discardable_memory/service/discardable_shared_memory_manager.h",
+  "+components/feedback",
   "+components/fullscreen_control",
+  "+components/global_media_controls",
   "+components/language/core/browser/pref_names.h",
+  "+components/language/core/common/locale_util.h",
+  "+components/lens",
   "+components/live_caption",
+  "+components/manta",
   "+components/media_message_center",
+  "+components/metrics/structured/structured_events.h",
+  "+components/metrics/structured/structured_metrics_client.h",
+  "+components/metrics/structured/test/test_structured_metrics_recorder.h",
   "+components/pref_registry",
   "+components/prefs",
   "+components/quirks",
@@ -21,11 +32,16 @@ include_rules = [
   "+components/soda",
   "+components/strings",
   "+components/sync",
+  "+components/sync_preferences/testing_pref_service_syncable.h",
   "+components/ui_devtools",
+  "+components/ukm",
+  "+components/url_formatter",
   "+components/url_matcher",
   "+components/user_education/common",
   "+components/user_education/views",
+  "+components/variations",
   "+components/vector_icons",
+  "+components/webapps/isolated_web_apps",
   "+components/version_info",
   "+components/viz/common",
   "+components/viz/host",
@@ -33,12 +49,15 @@ include_rules = [
   "+crypto",
   "+dbus",
   "+extensions/common/constants.h",
+  "+google_apis/gaia/gaia_auth_util.h",
+  "+google_apis/gaia/gaia_id.h",
   "+gpu/config",
   "+media",
   "+mojo/public",
   "+services/device/public",
   "+services/data_decoder/public",
   "+services/media_session/public",
+  "+services/metrics/public/cpp",
   "+services/video_capture/public/mojom",
   "+services/network/public",
   "+services/network/test",
@@ -49,6 +68,7 @@ include_rules = [
   "+third_party/icu",
   "+third_party/khronos/GLES2",
   "+third_party/re2",
+  "+third_party/rust/fend_core/v1/wrapper/fend_core.h",
   "+third_party/skia",
   "+net",
   "+ui",
@@ -63,15 +83,30 @@ include_rules = [
   "-chromeos",
   # //ash can use chromeos components that sit below it in the dependency tree.
   "+chromeos/ash/components/audio",
+  "+chromeos/ash/components/demo_mode",
+  "+chromeos/ash/components/boca",
+  "+chromeos/ash/components/growth",
+  "+chromeos/ash/components/auth_panel",
+  "+chromeos/ash/components/channel",
   "+chromeos/ash/components/cryptohome",
+  "+chromeos/ash/components/editor_menu",
+  "+chromeos/ash/components/emoji",
   "+chromeos/ash/components/feature_usage",
+  "+chromeos/ash/components/geolocation",
   "+chromeos/ash/components/human_presence",
+  "+chromeos/ash/components/install_attributes",
   "+chromeos/ash/components/local_search_service",
   "+chromeos/ash/components/login/auth",
+  "+chromeos/ash/components/mojo_service_manager",
   "+chromeos/ash/components/multidevice",
+  "+chromeos/ash/components/osauth",
   "+chromeos/ash/components/peripheral_notification",
+  "+chromeos/ash/components/phonehub",
   "+chromeos/ash/components/proximity_auth",
+  "+chromeos/ash/components/string_matching",
   "+chromeos/ash/components/system",
+  "+chromeos/components/magic_boost",
+  "+chromeos/components/mahi",
   "+chromeos/components/quick_answers",
   "+chromeos/components/security_token_pin",
   "+chromeos/components/sensors",
@@ -90,10 +125,13 @@ include_rules = [
   # could create subtle inconsistencies based on when observers are called.
   "-chromeos/ash/compoments/login/login_state",
   "+chromeos/ash/components/network",
+  # //ash can use resources from the internal ash resources repo.
+  "+chromeos/ash/resources/internal",
   # //ash can use the public interfaces of various services.
   "+chromeos/ash/services/assistant/public/cpp" ,
   "+chromeos/ash/services/assistant/test_support",
   "+chromeos/ash/services/bluetooth_config",
+  "+chromeos/ash/services/coral/public",
   "+chromeos/ash/services/hotspot_config",
   "+chromeos/ash/services/federated/public",
   "+chromeos/ash/services/libassistant/public",
@@ -106,6 +144,12 @@ include_rules = [
   "+chromeos/services/power/public",
   "+chromeos/strings",
   "+chromeos/ui",
+  "+chromeos/utils",
+
+  # ash/ should not depend on chromeos/ash/experiences, because ash is
+  # expected to provide basic UI functions to implement OS specific features
+  # (in chromeos/ash/experiences).
+  "-chromeos/ash/experiences",
 
   # ui/base/idle depends on SessionManagerClient so disallow it.
   "-ui/base/idle",
@@ -120,6 +164,7 @@ include_rules = [
   "+components/session_manager/session_manager_types.h",
   "-components/user_manager",
   "+components/user_manager/known_user.h",
+  "+components/user_manager/multi_user/multi_user_sign_in_policy.h",
   "+components/user_manager/user_directory_integrity_manager.h",
   "+components/user_manager/user_names.h",
   "+components/user_manager/user_type.h",
@@ -127,13 +172,16 @@ include_rules = [
 ]
 
 specific_include_rules = {
+  "ash_prefs\.cc": [
+    "+components/user_manager/user_manager.h",
+  ],
   "keyboard_capability_unittest\.cc": [
     "+device/udev_linux/fake_udev_loader.h",
   ],
   "policy_recommendation_restorer_unittest.cc": [
     "+components/sync_preferences/testing_pref_service_syncable.h"
   ],
-  "root_window_controller\.*": [
+  "root_window_controller\.(cc|h)": [
     "+ash/host"
   ],
   "shell.cc": [
@@ -143,4 +191,9 @@ specific_include_rules = {
   "window_manager.cc": [
     "+ash/host/ash_window_tree_host.h"
   ],
+  ".*test\.cc": [
+    # Allowed to access user_manager in test code to set up testing environment
+    # close to the production.
+    "+components/user_manager",
+  ]
 }

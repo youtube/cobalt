@@ -9,9 +9,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import android.content.Context;
-
-import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
@@ -24,19 +21,18 @@ import org.mockito.Spy;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 
 /** Unit tests for {@link UuidBasedUniqueIdentificationGenerator}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Batch(UniqueIdentificationGeneratorFactoryTest.IDENTITY_GENERATOR_BATCH_NAME)
 public class UuidBasedUniqueIdentificationGeneratorTest {
     // Tell R8 this class is spied on and shouldn't be made final.
-    @Spy
-    UuidBasedUniqueIdentificationGenerator mGenerator;
+    @Spy UuidBasedUniqueIdentificationGenerator mGenerator;
 
     @Before
     public void setUp() {
-        SharedPreferencesManager.getInstance().disableKeyCheckerForTesting();
+        ChromeSharedPreferences.getInstance().disableKeyCheckerForTesting();
     }
 
     @Test
@@ -91,9 +87,8 @@ public class UuidBasedUniqueIdentificationGeneratorTest {
 
     private UuidBasedUniqueIdentificationGenerator createSpiedGenerator(
             String preferenceKey, String uuidToReturn) {
-        Context context = ApplicationProvider.getApplicationContext();
         UuidBasedUniqueIdentificationGenerator spiedGenerator =
-                Mockito.spy(new UuidBasedUniqueIdentificationGenerator(context, preferenceKey));
+                Mockito.spy(new UuidBasedUniqueIdentificationGenerator(preferenceKey));
         doReturn(uuidToReturn).when(spiedGenerator).getUUID();
         return spiedGenerator;
     }

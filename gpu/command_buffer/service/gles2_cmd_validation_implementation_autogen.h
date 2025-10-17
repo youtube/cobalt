@@ -304,7 +304,6 @@ static const GLenum valid_g_l_state_table[] = {
     GL_STENCIL_BITS,
     GL_TEXTURE_BINDING_2D,
     GL_TEXTURE_BINDING_CUBE_MAP,
-    GL_TEXTURE_FILTERING_HINT_CHROMIUM,
     GL_UNPACK_ALIGNMENT,
     GL_BIND_GENERATES_RESOURCE_CHROMIUM,
     GL_VERTEX_ARRAY_BINDING_OES,
@@ -471,7 +470,6 @@ bool Validators::HintModeValidator::IsValid(const GLenum value) const {
 
 static const GLenum valid_hint_target_table[] = {
     GL_GENERATE_MIPMAP_HINT,
-    GL_TEXTURE_FILTERING_HINT_CHROMIUM,
 };
 
 static const GLenum valid_hint_target_table_es3[] = {
@@ -480,10 +478,6 @@ static const GLenum valid_hint_target_table_es3[] = {
 
 static const GLenum valid_image_internal_format_table[] = {
     GL_RGB,
-    GL_RGB_YCRCB_420_CHROMIUM,
-    GL_RGB_YCBCR_422_CHROMIUM,
-    GL_RGB_YCBCR_420V_CHROMIUM,
-    GL_RGB_YCBCR_P010_CHROMIUM,
     GL_RGBA,
 };
 
@@ -628,7 +622,6 @@ bool Validators::QueryTargetValidator::IsValid(const GLenum value) const {
     case GL_ANY_SAMPLES_PASSED_CONSERVATIVE_EXT:
     case GL_COMMANDS_ISSUED_CHROMIUM:
     case GL_COMMANDS_ISSUED_TIMESTAMP_CHROMIUM:
-    case GL_LATENCY_QUERY_CHROMIUM:
     case GL_ASYNC_PIXEL_PACK_COMPLETED_CHROMIUM:
     case GL_COMMANDS_COMPLETED_CHROMIUM:
     case GL_READBACK_SHADOW_COPIES_UPDATED_CHROMIUM:
@@ -736,9 +729,9 @@ static const GLenum valid_render_buffer_target_table[] = {
 
 bool Validators::ResetStatusValidator::IsValid(const GLenum value) const {
   switch (value) {
-    case GL_GUILTY_CONTEXT_RESET_ARB:
-    case GL_INNOCENT_CONTEXT_RESET_ARB:
-    case GL_UNKNOWN_CONTEXT_RESET_ARB:
+    case GL_GUILTY_CONTEXT_RESET:
+    case GL_INNOCENT_CONTEXT_RESET:
+    case GL_UNKNOWN_CONTEXT_RESET:
       return true;
   }
   return false;
@@ -828,16 +821,6 @@ bool Validators::StringTypeValidator::IsValid(const GLenum value) const {
     case GL_VERSION:
     case GL_SHADING_LANGUAGE_VERSION:
     case GL_EXTENSIONS:
-      return true;
-  }
-  return false;
-}
-
-bool Validators::SwapBuffersFlagsValidator::IsValid(
-    const GLbitfield value) const {
-  switch (value) {
-    case 0:
-    case gpu::SwapBuffersFlags::kVSyncParams:
       return true;
   }
   return false;
@@ -1108,30 +1091,11 @@ static const GLenum
 
 static const GLenum
     valid_texture_sized_texture_filterable_internal_format_table[] = {
-        GL_R8,
-        GL_R8_SNORM,
-        GL_R16F,
-        GL_RG8,
-        GL_RG8_SNORM,
-        GL_RG16F,
-        GL_RGB8,
-        GL_SRGB8,
-        GL_RGB565,
-        GL_RGB8_SNORM,
-        GL_R11F_G11F_B10F,
-        GL_RGB9_E5,
-        GL_RGB16F,
-        GL_RGBA8,
-        GL_SRGB8_ALPHA8,
-        GL_RGBA8_SNORM,
-        GL_RGB5_A1,
-        GL_RGBA4,
-        GL_RGB10_A2,
-        GL_RGBA16F,
-        GL_RGB_YCRCB_420_CHROMIUM,
-        GL_RGB_YCBCR_422_CHROMIUM,
-        GL_RGB_YCBCR_420V_CHROMIUM,
-        GL_RGB_YCBCR_P010_CHROMIUM,
+        GL_R8,        GL_R8_SNORM,   GL_R16F,           GL_RG8,
+        GL_RG8_SNORM, GL_RG16F,      GL_RGB8,           GL_SRGB8,
+        GL_RGB565,    GL_RGB8_SNORM, GL_R11F_G11F_B10F, GL_RGB9_E5,
+        GL_RGB16F,    GL_RGBA8,      GL_SRGB8_ALPHA8,   GL_RGBA8_SNORM,
+        GL_RGB5_A1,   GL_RGBA4,      GL_RGB10_A2,       GL_RGBA16F,
         GL_R16_EXT,
 };
 

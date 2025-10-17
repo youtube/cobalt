@@ -16,9 +16,9 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "components/language_detection/core/constants.h"
 #include "components/translate/core/browser/language_state.h"
 #include "components/translate/core/browser/translate_metrics_logger.h"
-#include "components/translate/core/common/translate_constants.h"
 #include "components/translate/core/common/translate_errors.h"
 
 namespace language {
@@ -89,7 +89,10 @@ class TranslateManager {
   // Returns the language to translate to.
   //
   // If provided a non-undefined |source_language|, returns the language from
-  // the auto translate list (if not empty).
+  // the auto translate list (if not empty and it supports translate).
+  //
+  // If the recent target language is not empty and supports translate returns
+  // that.
   //
   // If provided a non-null |language_model|, returns the first language from
   // the model that is supported by the translation service and that is not to
@@ -103,7 +106,8 @@ class TranslateManager {
   static std::string GetTargetLanguage(
       TranslatePrefs* prefs,
       language::LanguageModel* language_model,
-      const std::string source_lang_code = translate::kUnknownLanguageCode);
+      const std::string source_lang_code =
+          language_detection::kUnknownLanguageCode);
 
   // Returns the language to automatically translate to. |source_language| is
   // the webpage's source language.
@@ -138,6 +142,11 @@ class TranslateManager {
   // Logging should only be performed when this method is called to show the
   // Full Page Translate menu item.
   bool CanManuallyTranslate(bool menuLogging = false);
+
+  // Whether or not partial translation is supported for the current target
+  // language. Partial translate supports a subset of translation languages,
+  // but shares a target language with full page translation.
+  bool CanPartiallyTranslateTargetLanguage();
 
   bool IsMimeTypeSupported(const std::string& mime_type);
 

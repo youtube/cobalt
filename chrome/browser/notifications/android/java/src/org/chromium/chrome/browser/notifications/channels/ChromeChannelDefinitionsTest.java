@@ -9,25 +9,18 @@ import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.isIn;
 import static org.hamcrest.Matchers.not;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.BlockJUnit4ClassRunner;
 
-import org.chromium.chrome.test.util.browser.Features;
-
-/**
- * Java unit tests for ChannelDefinitions.
- */
+/** Java unit tests for ChannelDefinitions. */
 @RunWith(BlockJUnit4ClassRunner.class)
 public class ChromeChannelDefinitionsTest {
-    @Rule
-    public TestRule processor = new Features.JUnitProcessor();
 
     @Test
     public void testNoOverlapBetweenStartupAndLegacyChannelIds() {
-        assertThat(ChromeChannelDefinitions.getInstance().getStartupChannelIds(),
+        assertThat(
+                ChromeChannelDefinitions.getInstance().getStartupChannelIds(),
                 everyItem(not(isIn(ChromeChannelDefinitions.getInstance().getLegacyChannelIds()))));
     }
 }

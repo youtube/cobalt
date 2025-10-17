@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -15,6 +16,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/strings/strcat.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -24,7 +26,6 @@
 #include "components/feedback/redaction_tool/redaction_tool.h"
 #include "components/feedback/system_logs/system_logs_source.h"
 #include "data_collector_utils.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -139,7 +140,7 @@ void SystemLogSourceDataCollectorAdaptor::OnPIIDetected(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   system_logs_response_ = std::move(detection_result.first);
   pii_map_ = std::move(detection_result.second);
-  std::move(on_data_collected_callback).Run(/*error=*/absl::nullopt);
+  std::move(on_data_collected_callback).Run(/*error=*/std::nullopt);
 }
 
 void SystemLogSourceDataCollectorAdaptor::ExportCollectedDataWithPII(
@@ -181,12 +182,13 @@ void SystemLogSourceDataCollectorAdaptor::OnFilesWritten(
     DataCollectorDoneCallback on_exported_callback,
     bool success) {
   if (!success) {
-    SupportToolError error = {SupportToolErrorCode::kDataCollectorError,
-                              "Failed on data export."};
+    SupportToolError error = {
+        SupportToolErrorCode::kDataCollectorError,
+        base::StrCat({GetName(), "failed on data export."})};
     std::move(on_exported_callback).Run(error);
     return;
   }
-  std::move(on_exported_callback).Run(/*error=*/absl::nullopt);
+  std::move(on_exported_callback).Run(/*error=*/std::nullopt);
 }
 
 void SystemLogSourceDataCollectorAdaptor::SetLogSourceForTesting(

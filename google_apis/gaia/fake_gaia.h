@@ -6,33 +6,34 @@
 #define GOOGLE_APIS_GAIA_FAKE_GAIA_H_
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
 #include "google_apis/gaia/gaia_auth_consumer.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "net/http/http_status_code.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace base {
-class Value;
-}
+class ValueView;
+}  // namespace base
 
-namespace net {
-namespace test_server {
+namespace net::test_server {
 class BasicHttpResponse;
 struct HttpRequest;
 class HttpResponse;
-}
-}
+}  // namespace net::test_server
 
 // This is a test helper that implements a fake GAIA service for use in browser
 // tests. It's mainly intended for use with EmbeddedTestServer, for which it can
 // be registered as an additional request handler.
 class FakeGaia {
  public:
+  static GaiaId GetDefaultGaiaId() { return GaiaId("12345"); }
+
   using ScopeSet = std::set<std::string>;
   using RefreshTokenToDeviceIdMap = std::map<std::string, std::string>;
 
@@ -45,7 +46,7 @@ class FakeGaia {
     std::string token;
     std::string issued_to;
     std::string audience;
-    std::string user_id;
+    GaiaId user_id;
     ScopeSet scopes;
     int expires_in = 3600;
     std::string email;
@@ -54,13 +55,13 @@ class FakeGaia {
     std::string id_token;
   };
 
-  // Cookies and tokens for /MergeSession call seqeunce.
-  struct MergeSessionParams {
-    MergeSessionParams();
-    ~MergeSessionParams();
+  // Server configuration: account cookies and tokens.
+  struct Configuration {
+    Configuration();
+    ~Configuration();
 
     // Updates params with non-empty values from |params|.
-    void Update(const MergeSessionParams& params);
+    void Update(const Configuration& params);
 
     // Values of SID and LSID cookie that are set by /ServiceLoginAuth or its
     // equivalent at the end of the SAML login flow.
@@ -76,10 +77,7 @@ class FakeGaia {
     std::string access_token;
     std::string id_token;
 
-    // Uber token response from /OAuthLogin call.
-    std::string gaia_uber_token;
-
-    // Values of SID and LSID cookie generated from /MergeSession call.
+    // Values of SID and LSID cookie generated from multilogin call.
     std::string session_sid_cookie;
     std::string session_lsid_cookie;
 
@@ -87,7 +85,7 @@ class FakeGaia {
     std::string email;
 
     // List of signed out gaia IDs returned by /ListAccounts.
-    std::vector<std::string> signed_out_gaia_ids;
+    std::vector<GaiaId> signed_out_gaia_ids;
   };
 
   struct SyncTrustedVaultKeys {
@@ -106,20 +104,20 @@ class FakeGaia {
 
   virtual ~FakeGaia();
 
-  void SetFakeMergeSessionParams(const std::string& email,
-                                 const std::string& auth_sid_cookie,
-                                 const std::string& auth_lsid_cookie);
+  void SetConfigurationHelper(const std::string& email,
+                              const std::string& auth_sid_cookie,
+                              const std::string& auth_lsid_cookie);
 
   // Sets the initial value of tokens and cookies.
-  void SetMergeSessionParams(const MergeSessionParams& params);
+  void SetConfiguration(const Configuration& params);
 
   // Updates various params with non-empty values from |params|.
-  void UpdateMergeSessionParams(const MergeSessionParams& params);
+  void UpdateConfiguration(const Configuration& params);
 
   // Sets the specified |gaia_id| as corresponding to the given |email|
   // address when setting GAIA response headers.  If no mapping is given for
   // an email address, a default GAIA Id is used.
-  void MapEmailToGaiaId(const std::string& email, const std::string& gaia_id);
+  void MapEmailToGaiaId(const std::string& email, const GaiaId& gaia_id);
 
   // Adds sync trusted vault keys for |email|.
   void SetSyncTrustedVaultKeys(
@@ -216,32 +214,31 @@ class FakeGaia {
   // Returns the rart param from the embedded setup URL if any.
   const std::string& reauth_request_token() { return reauth_request_token_; }
 
+  // Returns the pwl param from the embedded setup URL if any.
+  const std::string& passwordless_support_level() {
+    return passwordless_support_level_;
+  }
+
   // Returns the fake server's URL that browser tests can visit to trigger a
   // RemoveLocalAccount event.
-  GURL GetFakeRemoveLocalAccountURL(const std::string& gaia_id) const;
+  GURL GetFakeRemoveLocalAccountURL(const GaiaId& gaia_id) const;
 
   void SetFakeSamlContinueResponse(
       const std::string& fake_saml_continue_response) {
     fake_saml_continue_response_ = fake_saml_continue_response;
   }
 
- protected:
-  // HTTP handler for /MergeSession.
-  virtual void HandleMergeSession(
-      const net::test_server::HttpRequest& request,
-      net::test_server::BasicHttpResponse* http_response);
-
  private:
   using AccessTokenInfoMap = std::multimap<std::string, AccessTokenInfo>;
-  using EmailToGaiaIdMap = std::map<std::string, std::string>;
+  using EmailToGaiaIdMap = std::map<std::string, GaiaId>;
   using SamlAccountIdpMap = std::map<std::string, GURL>;
   using SamlSsoProfileRedirectUrlMap = std::map<std::string, GURL>;
   using SamlDomainRedirectUrlMap = std::map<std::string, GURL>;
   using EmailToSyncTrustedVaultKeysMap =
       std::map<std::string, SyncTrustedVaultKeys>;
 
-  std::string GetGaiaIdOfEmail(const std::string& email) const;
-  std::string GetEmailOfGaiaId(const std::string& email) const;
+  GaiaId GetGaiaIdOfEmail(const std::string& email) const;
+  std::string GetEmailOfGaiaId(const GaiaId& gaia_id) const;
 
   void AddGoogleAccountsSigninHeader(
       net::test_server::BasicHttpResponse* http_response,
@@ -256,13 +253,13 @@ class FakeGaia {
 
   // Formats a JSON response with the data in |value|, setting the http status
   // to |status|.
-  void FormatJSONResponse(const base::Value& value,
+  void FormatJSONResponse(const base::ValueView& value,
                           net::HttpStatusCode status,
                           net::test_server::BasicHttpResponse* http_response);
 
   // Formats a JSON response with the data in |value|, setting the http status
   // to net::HTTP_OK.
-  void FormatOkJSONResponse(const base::Value& value,
+  void FormatOkJSONResponse(const base::ValueView& value,
                             net::test_server::BasicHttpResponse* http_response);
 
   using HttpRequestHandlerCallback = base::RepeatingCallback<void(
@@ -291,8 +288,6 @@ class FakeGaia {
   void HandleEmbeddedReauthChromeos(
       const net::test_server::HttpRequest& request,
       net::test_server::BasicHttpResponse* http_response);
-  void HandleOAuthLogin(const net::test_server::HttpRequest& request,
-                        net::test_server::BasicHttpResponse* http_response);
   void HandleEmbeddedLookupAccountLookup(
       const net::test_server::HttpRequest& request,
       net::test_server::BasicHttpResponse* http_response);
@@ -352,9 +347,9 @@ class FakeGaia {
 
   // Returns saml redirect based on given `request_url`. Returns empty object if
   // it fails to determine appropriate redirect url.
-  absl::optional<GURL> GetSamlRedirectUrl(const GURL& request_url) const;
+  std::optional<GURL> GetSamlRedirectUrl(const GURL& request_url) const;
 
-  MergeSessionParams merge_session_params_;
+  Configuration configuration_;
   EmailToGaiaIdMap email_to_gaia_id_map_;
   AccessTokenInfoMap access_token_info_map_;
   RequestHandlerMap request_handlers_;
@@ -371,6 +366,7 @@ class FakeGaia {
   std::string is_supervised_;
   std::string is_device_owner_;
   std::string reauth_request_token_;
+  std::string passwordless_support_level_;
   GaiaAuthConsumer::ReAuthProofTokenStatus next_reauth_status_ =
       GaiaAuthConsumer::ReAuthProofTokenStatus::kSuccess;
   GURL embedded_setup_chromeos_iframe_url_;

@@ -6,8 +6,6 @@ package org.chromium.chrome.browser.keyboard_accessory;
 
 import org.chromium.base.metrics.RecordHistogram;
 
-import java.security.InvalidParameterException;
-
 /**
  * This class provides helpers to record metrics related to the keyboard accessory and its sheets.
  */
@@ -22,16 +20,15 @@ public class ManualFillingMetricsRecorder {
             "KeyboardAccessory.AccessoryToggleClicked";
     public static final String UMA_KEYBOARD_ACCESSORY_SHEET_TRIGGERED =
             "KeyboardAccessory.AccessorySheetTriggered";
-    private static final String UMA_KEYBOARD_ACCESSORY_SHEET_SUGGESTION_SELECTED =
-            "KeyboardAccessory.AccessorySheetSuggestionsSelected";
+    private static final String UMA_KEYBOARD_ACCESSORY_SUGGESTION_SELECTED =
+            "KeyboardAccessory.SuggestionSelected";
+    private static final String UMA_KEYBOARD_ACCESSORY_TOUCH_EVENT_FILTERED =
+            "KeyboardAccessory.TouchEventFiltered";
     private static final String UMA_KEYBOARD_ACCESSORY_SHEET_TYPE_SUFFIX_PASSWORDS = "Passwords";
-    private static final String UMA_KEYBOARD_ACCESSORY_SHEET_TYPE_SUFFIX_CREDIT_CARDS =
-            "CreditCards";
+    private static final String UMA_KEYBOARD_ACCESSORY_SHEET_TYPE_SUFFIX_CREDIT_CARDS = "Payments";
     private static final String UMA_KEYBOARD_ACCESSORY_SHEET_TYPE_SUFFIX_ADDRESSES = "Addresses";
 
-    /**
-     * The Recorder itself should be stateless and have no need for an instance.
-     */
+    /** The Recorder itself should be stateless and have no need for an instance. */
     private ManualFillingMetricsRecorder() {}
 
     /**
@@ -65,13 +62,15 @@ public class ManualFillingMetricsRecorder {
     public static void recordSheetTrigger(
             @AccessoryTabType int tabType, @AccessorySheetTrigger int bucket) {
         RecordHistogram.recordEnumeratedHistogram(
-                getHistogramForType(UMA_KEYBOARD_ACCESSORY_SHEET_TRIGGERED, tabType), bucket,
+                getHistogramForType(UMA_KEYBOARD_ACCESSORY_SHEET_TRIGGERED, tabType),
+                bucket,
                 AccessorySheetTrigger.COUNT);
         if (tabType != AccessoryTabType.ALL) { // Record count for all tab types exactly once!
             RecordHistogram.recordEnumeratedHistogram(
                     getHistogramForType(
                             UMA_KEYBOARD_ACCESSORY_SHEET_TRIGGERED, AccessoryTabType.ALL),
-                    bucket, AccessorySheetTrigger.COUNT);
+                    bucket,
+                    AccessorySheetTrigger.COUNT);
         }
     }
 
@@ -117,37 +116,37 @@ public class ManualFillingMetricsRecorder {
 
     /**
      * Records that a suggestion was selected in one of the accessory tabs.
+     *
      * @param tabType The sheet to record for. An {@link AccessoryTabType}.
-     * @param isFieldObfuscated denotes whether a field is obfuscated (e.g. a password field).
+     * @param suggestionType The type of the suggestion accepted from the keyboard accessory tab
+     *     (e.g. a password field).
      */
-    static void recordSuggestionSelected(@AccessoryTabType int tabType, boolean isFieldObfuscated) {
-        @AccessorySuggestionType
-        int suggestionRecordingType = AccessorySuggestionType.COUNT;
-        switch (tabType) {
-            case AccessoryTabType.PASSWORDS:
-                suggestionRecordingType = isFieldObfuscated ? AccessorySuggestionType.PASSWORD
-                                                            : AccessorySuggestionType.USERNAME;
-                break;
-            case AccessoryTabType.CREDIT_CARDS:
-                suggestionRecordingType = AccessorySuggestionType.PAYMENT_INFO;
-                break;
-            case AccessoryTabType.ADDRESSES:
-                // TODO(crbug.com/965494): Consider splitting and/or separate recording.
-                suggestionRecordingType = AccessorySuggestionType.ADDRESS_INFO;
-                break;
-            case AccessoryTabType.OBSOLETE_TOUCH_TO_FILL:
-                throw new InvalidParameterException("Obsolete tabType: " + tabType);
-            case AccessoryTabType.ALL:
-                throw new InvalidParameterException("Unable to handle tabType: " + tabType);
-        }
+    static void recordSuggestionSelected(
+            @AccessoryTabType int tabType, @AccessorySuggestionType int suggestionType) {
+        assert tabType != AccessoryTabType.OBSOLETE_TOUCH_TO_FILL;
+        assert tabType != AccessoryTabType.ALL;
 
-        // TODO(crbug.com/965494): Double-check we don't record twice with new address filling.
+        // TODO(crbug.com/41460210): Double-check we don't record twice with new address filling.
         RecordHistogram.recordEnumeratedHistogram(
                 getHistogramForType(
-                        UMA_KEYBOARD_ACCESSORY_SHEET_SUGGESTION_SELECTED, AccessoryTabType.ALL),
-                suggestionRecordingType, AccessorySuggestionType.COUNT);
+                        UMA_KEYBOARD_ACCESSORY_SUGGESTION_SELECTED, AccessoryTabType.ALL),
+                suggestionType,
+                AccessorySuggestionType.MAX_VALUE);
         RecordHistogram.recordEnumeratedHistogram(
-                getHistogramForType(UMA_KEYBOARD_ACCESSORY_SHEET_SUGGESTION_SELECTED, tabType),
-                suggestionRecordingType, AccessorySuggestionType.COUNT);
+                getHistogramForType(UMA_KEYBOARD_ACCESSORY_SUGGESTION_SELECTED, tabType),
+                suggestionType,
+                AccessorySuggestionType.MAX_VALUE);
+    }
+
+    /**
+     * Records if at least 1 motion event was filtered because the Chrome window was fully or
+     * partially obscured.
+     *
+     * @param hasFilteredTouchEvents if at least 1 touch event was filtered by the {@link
+     *     KeyboardAccessoryView}.
+     */
+    public static void recordHasFilteredTouchEvents(boolean hasFilteredTouchEvents) {
+        RecordHistogram.recordBooleanHistogram(
+                UMA_KEYBOARD_ACCESSORY_TOUCH_EVENT_FILTERED, hasFilteredTouchEvents);
     }
 }

@@ -39,7 +39,6 @@ EnumTraits<network::mojom::AddressFamily, net::AddressFamily>::ToMojom(
       return AddressFamily::IPV6;
   }
   NOTREACHED();
-  return AddressFamily::UNSPECIFIED;
 }
 
 }  // namespace mojo

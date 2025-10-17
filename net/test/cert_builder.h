@@ -6,19 +6,23 @@
 #define NET_TEST_CERT_BUILDER_H_
 
 #include <map>
+#include <memory>
 #include <string>
+#include <string_view>
+#include <vector>
 
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/rand_util.h"
-#include "base/strings/string_piece_forward.h"
 #include "net/base/ip_address.h"
-#include "net/cert/pki/parse_certificate.h"
-#include "net/cert/pki/signature_algorithm.h"
+#include "net/cert/qwac.h"
 #include "net/cert/x509_certificate.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
+#include "third_party/boringssl/src/pki/parse_certificate.h"
+#include "third_party/boringssl/src/pki/signature_algorithm.h"
 
 class GURL;
 
@@ -26,11 +30,13 @@ namespace base {
 class FilePath;
 }
 
-namespace net {
-
+namespace bssl {
 namespace der {
 class Input;
-}
+}  // namespace der
+}  // namespace bssl
+
+namespace net {
 
 // CertBuilder is a helper class to dynamically create a test certificate.
 //
@@ -43,6 +49,24 @@ class Input;
 // dependent on ordering.
 class CertBuilder {
  public:
+  // Parameters for creating an embedded SignedCertificateTimestamp.
+  struct SctConfig {
+    SctConfig();
+    SctConfig(std::string log_id,
+              bssl::UniquePtr<EVP_PKEY> log_key,
+              base::Time timestamp);
+    SctConfig(const SctConfig&);
+    SctConfig(SctConfig&&);
+    ~SctConfig();
+    SctConfig& operator=(const SctConfig&);
+    SctConfig& operator=(SctConfig&&);
+
+    std::string log_id;
+    // Only EC keys are supported currently.
+    bssl::UniquePtr<EVP_PKEY> log_key;
+    base::Time timestamp;
+  };
+
   // Initializes the CertBuilder, if |orig_cert| is non-null it will be used as
   // a template. If |issuer| is null then the generated certificate will be
   // self-signed. Otherwise, it will be signed using |issuer|.
@@ -92,25 +116,25 @@ class CertBuilder {
   static std::array<std::unique_ptr<CertBuilder>, 2> CreateSimpleChain2();
 
   // Returns a compatible signature algorithm for |key|.
-  static absl::optional<SignatureAlgorithm> DefaultSignatureAlgorithmForKey(
-      EVP_PKEY* key);
+  static std::optional<bssl::SignatureAlgorithm>
+  DefaultSignatureAlgorithmForKey(EVP_PKEY* key);
 
   // Signs |tbs_data| with |key| using |signature_algorithm| appending the
   // signature onto |out_signature| and returns true if successful.
-  static bool SignData(SignatureAlgorithm signature_algorithm,
-                       base::StringPiece tbs_data,
+  static bool SignData(bssl::SignatureAlgorithm signature_algorithm,
+                       std::string_view tbs_data,
                        EVP_PKEY* key,
                        CBB* out_signature);
 
   static bool SignDataWithDigest(const EVP_MD* digest,
-                                 base::StringPiece tbs_data,
+                                 std::string_view tbs_data,
                                  EVP_PKEY* key,
                                  CBB* out_signature);
 
   // Returns a DER encoded AlgorithmIdentifier TLV for |signature_algorithm|
   // empty string on error.
   static std::string SignatureAlgorithmToDer(
-      SignatureAlgorithm signature_algorithm);
+      bssl::SignatureAlgorithm signature_algorithm);
 
   // Generates |num_bytes| random bytes, and then returns the hex encoding of
   // those bytes.
@@ -119,22 +143,27 @@ class CertBuilder {
   // Builds a DER encoded X.501 Name TLV containing a commonName of
   // |common_name| with type |common_name_tag|.
   static std::vector<uint8_t> BuildNameWithCommonNameOfType(
-      base::StringPiece common_name,
+      std::string_view common_name,
       unsigned common_name_tag);
+
+  // Returns a DER encoded SEQUENCE OF OBJECT IDENTIFIER from the vector of
+  // OID values.
+  static std::vector<uint8_t> BuildSequenceOfOid(
+      std::vector<bssl::der::Input> oids);
 
   // Set the version of the certificate. Note that only V3 certificates may
   // contain extensions, so if |version| is |V1| or |V2| you may want to also
   // call |ClearExtensions()| unless you intentionally want to generate an
   // invalid certificate.
-  void SetCertificateVersion(CertificateVersion version);
+  void SetCertificateVersion(bssl::CertificateVersion version);
 
   // Sets a value for the indicated X.509 (v3) extension.
-  void SetExtension(const der::Input& oid,
+  void SetExtension(const bssl::der::Input& oid,
                     std::string value,
                     bool critical = false);
 
   // Removes an extension (if present).
-  void EraseExtension(const der::Input& oid);
+  void EraseExtension(const bssl::der::Input& oid);
 
   // Removes all extensions.
   void ClearExtensions();
@@ -158,14 +187,24 @@ class CertBuilder {
   // removed.
   void SetCaIssuersAndOCSPUrls(const std::vector<GURL>& ca_issuers_urls,
                                const std::vector<GURL>& ocsp_urls);
+  // Same as |SetCaIssuersAndOCSPUrls| above, but the inputs can be arbitrary
+  // strings.
+  void SetCaIssuersAndOCSPUrls(const std::vector<std::string>& ca_issuers_urls,
+                               const std::vector<std::string>& ocsp_urls);
 
   // Sets a cRLDistributionPoints extension with a single DistributionPoint
   // with |url| in distributionPoint.fullName.
   void SetCrlDistributionPointUrl(const GURL& url);
+  // Same as |SetCrlDistributionPointUrl| above, but the inputs can be an
+  // arbitrary string.
+  void SetCrlDistributionPointUrl(const std::string_view& url);
 
   // Sets a cRLDistributionPoints extension with a single DistributionPoint
   // with |urls| in distributionPoints.fullName.
   void SetCrlDistributionPointUrls(const std::vector<GURL>& urls);
+  // Same as |SetCrlDistributionPointUrls| above, but the inputs can be
+  // arbitrary strings.
+  void SetCrlDistributionPointUrls(const std::vector<std::string>& urls);
 
   // Sets the issuer bytes that will be encoded into the generated certificate.
   // If this is not called, or |issuer_tlv| is empty, the subject field from
@@ -174,25 +213,25 @@ class CertBuilder {
 
   // Sets the subject to a Name with a single commonName attribute with
   // the value |common_name| tagged as a UTF8String.
-  void SetSubjectCommonName(base::StringPiece common_name);
+  void SetSubjectCommonName(std::string_view common_name);
 
   // Sets the subject to |subject_tlv|.
   void SetSubjectTLV(base::span<const uint8_t> subject_tlv);
 
   // Sets the SAN for the certificate to a single dNSName.
-  void SetSubjectAltName(base::StringPiece dns_name);
+  void SetSubjectAltName(std::string_view dns_name);
 
   // Sets the SAN for the certificate to the given dns names and ip addresses.
   void SetSubjectAltNames(const std::vector<std::string>& dns_names,
                           const std::vector<IPAddress>& ip_addresses);
 
-  // Sets the keyUsage extension. |usages| should contain the KeyUsageBit
+  // Sets the keyUsage extension. |usages| should contain the bssl::KeyUsageBit
   // values of the usages to set, and must not be empty.
-  void SetKeyUsages(const std::vector<KeyUsageBit>& usages);
+  void SetKeyUsages(const std::vector<bssl::KeyUsageBit>& usages);
 
   // Sets the extendedKeyUsage extension. |usages| should contain the DER OIDs
   // of the usage purposes to set, and must not be empty.
-  void SetExtendedKeyUsages(const std::vector<der::Input>& purpose_oids);
+  void SetExtendedKeyUsages(const std::vector<bssl::der::Input>& purpose_oids);
 
   // Sets the certificatePolicies extension with the specified policyIdentifier
   // OIDs, which must be specified in dotted string notation (e.g. "1.2.3.4").
@@ -209,11 +248,20 @@ class CertBuilder {
   // Sets the PolicyConstraints extension. If both |require_explicit_policy|
   // and |inhibit_policy_mapping| are nullopt, the PolicyConstraints extension
   // will removed.
-  void SetPolicyConstraints(absl::optional<uint64_t> require_explicit_policy,
-                            absl::optional<uint64_t> inhibit_policy_mapping);
+  void SetPolicyConstraints(std::optional<uint64_t> require_explicit_policy,
+                            std::optional<uint64_t> inhibit_policy_mapping);
 
   // Sets the inhibitAnyPolicy extension.
   void SetInhibitAnyPolicy(uint64_t skip_certs);
+
+  // Sets the QcStatements extension with statements as specified by
+  // `qc_statements`.
+  void SetQcStatements(std::vector<QcStatement> qc_statements);
+
+  // Sets the QcStatements extension to have QWAC statements: a QcCompliance
+  // statement with no info and a QcType statement with the info being the OIDs
+  // with values from `qc_types`.
+  void SetQwacQcStatements(std::vector<bssl::der::Input> qc_types);
 
   void SetValidity(base::Time not_before, base::Time not_after);
 
@@ -242,7 +290,7 @@ class CertBuilder {
   // CertBuilder was initialized from a template cert, the signature algorithm
   // of that cert will be used, or if there was no template cert, a default
   // algorithm will be used base on the signing key type.
-  void SetSignatureAlgorithm(SignatureAlgorithm signature_algorithm);
+  void SetSignatureAlgorithm(bssl::SignatureAlgorithm signature_algorithm);
 
   // Sets both signature AlgorithmIdentifier TLVs to encode in the generated
   // certificate.
@@ -252,17 +300,22 @@ class CertBuilder {
   // |SetSignatureAlgorithm|. If this method is not called, the signature
   // algorithm written to the output will be chosen to match the signature
   // algorithm used to sign the certificate.
-  void SetSignatureAlgorithmTLV(base::StringPiece signature_algorithm_tlv);
+  void SetSignatureAlgorithmTLV(std::string_view signature_algorithm_tlv);
 
   // Set only the outer Certificate signatureAlgorithm TLV. See
   // SetSignatureAlgorithmTLV comment for general notes.
-  void SetOuterSignatureAlgorithmTLV(base::StringPiece signature_algorithm_tlv);
+  void SetOuterSignatureAlgorithmTLV(std::string_view signature_algorithm_tlv);
 
   // Set only the tbsCertificate signature TLV. See SetSignatureAlgorithmTLV
   // comment for general notes.
-  void SetTBSSignatureAlgorithmTLV(base::StringPiece signature_algorithm_tlv);
+  void SetTBSSignatureAlgorithmTLV(std::string_view signature_algorithm_tlv);
 
+  void SetSerialNumber(uint64_t serial_number);
   void SetRandomSerialNumber();
+
+  // Sets the configuration that will be used to generate a
+  // SignedCertificateTimestampList extension in the certificate.
+  void SetSctConfig(std::vector<CertBuilder::SctConfig> sct_configs);
 
   // Sets the private key for the generated certificate to an EC key. If a key
   // was already set, it will be replaced.
@@ -275,6 +328,9 @@ class CertBuilder {
 
   // Loads the private key for the generated certificate from |key_file|.
   bool UseKeyFromFile(const base::FilePath& key_file);
+
+  // Sets the private key to be |key|.
+  void SetKey(bssl::UniquePtr<EVP_PKEY> key);
 
   // Returns the CertBuilder that issues this certificate. (Will be |this| if
   // certificate is self-signed.)
@@ -370,28 +426,37 @@ class CertBuilder {
   //   * All extensions (dropping any duplicates)
   //   * Signature algorithm (from Certificate)
   //   * Validity (expiration)
-  void InitFromCert(const der::Input& cert);
+  void InitFromCert(const bssl::der::Input& cert);
 
   // Assembles the CertBuilder into a TBSCertificate.
-  void BuildTBSCertificate(base::StringPiece signature_algorithm_tlv,
+  void BuildTBSCertificate(std::string_view signature_algorithm_tlv,
                            std::string* out);
 
+  void BuildSctListExtension(const std::string& pre_tbs_certificate,
+                             std::string* out);
+
   void GenerateCertificate();
+
+  void SetCaIssuersAndOCSPUrls(
+      const std::vector<std::pair<bssl::der::Input, std::string_view>>&
+          entries);
 
   struct ExtensionValue {
     bool critical = false;
     std::string value;
   };
 
-  CertificateVersion version_ = CertificateVersion::V3;
+  bssl::CertificateVersion version_ = bssl::CertificateVersion::V3;
   std::string validity_tlv_;
-  absl::optional<std::string> issuer_tlv_;
+  std::optional<std::string> issuer_tlv_;
   std::string subject_tlv_;
-  absl::optional<SignatureAlgorithm> signature_algorithm_;
+  std::optional<bssl::SignatureAlgorithm> signature_algorithm_;
   std::string outer_signature_algorithm_tlv_;
   std::string tbs_signature_algorithm_tlv_;
   uint64_t serial_number_ = 0;
   int default_pkey_id_ = EVP_PKEY_EC;
+
+  std::vector<SctConfig> sct_configs_;
 
   std::map<std::string, ExtensionValue> extensions_;
 

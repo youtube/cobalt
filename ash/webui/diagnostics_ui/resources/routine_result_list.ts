@@ -6,8 +6,8 @@ import './diagnostics_card.js';
 import './diagnostics_shared.css.js';
 import './routine_result_entry.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {RoutineGroup} from './routine_group.js';
@@ -30,8 +30,8 @@ type ResultsType = RoutineGroup[]|ResultStatusItem[];
  */
 
 export class RoutineResultListElement extends PolymerElement {
-  static get is(): string {
-    return 'routine-result-list';
+  static get is(): 'routine-result-list' {
+    return 'routine-result-list' as const;
   }
 
   static get template(): HTMLTemplateElement {
@@ -187,7 +187,7 @@ export class RoutineResultListElement extends PolymerElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'routine-result-list': RoutineResultListElement;
+    [RoutineResultListElement.is]: RoutineResultListElement;
   }
 }
 

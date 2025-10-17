@@ -8,6 +8,7 @@
 #include "base/command_line.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "build/build_config.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/sms/sms_fetcher_impl.h"
@@ -17,6 +18,7 @@
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/sms_fetcher.h"
 #include "content/public/common/content_switches.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
@@ -41,6 +43,7 @@ using ::testing::Return;
 
 namespace content {
 
+using OriginList = SmsFetcher::OriginList;
 using UserConsent = SmsFetcher::UserConsent;
 
 namespace {
@@ -54,7 +57,6 @@ class SmsBrowserTest : public ContentBrowserTest {
   ~SmsBrowserTest() override = default;
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    ContentBrowserTest::SetUpCommandLine(command_line);
     command_line->AppendSwitch(
         switches::kEnableExperimentalWebPlatformFeatures);
     command_line->AppendSwitchASCII(switches::kWebOtpBackend,
@@ -68,7 +70,7 @@ class SmsBrowserTest : public ContentBrowserTest {
     if (entries.empty())
       FAIL() << "No WebOTPServiceOutcome was recorded";
 
-    for (const auto* const entry : entries) {
+    for (const ukm::mojom::UkmEntry* const entry : entries) {
       const int64_t* metric = ukm_recorder()->GetEntryMetric(entry, "Outcome");
       if (metric && *metric == static_cast<int>(outcome)) {
         SUCCEED();
@@ -85,7 +87,7 @@ class SmsBrowserTest : public ContentBrowserTest {
     if (entries.empty())
       FAIL() << "No WebOTPServiceOutcome was recorded";
 
-    for (const auto* const entry : entries) {
+    for (const ukm::mojom::UkmEntry* const entry : entries) {
       const int64_t* metric = ukm_recorder()->GetEntryMetric(entry, "Outcome");
       if (metric && *metric == static_cast<int>(outcome)) {
         bool actual_cross_origin =
@@ -104,7 +106,7 @@ class SmsBrowserTest : public ContentBrowserTest {
 
     ASSERT_FALSE(entries.empty());
 
-    for (const auto* const entry : entries) {
+    for (const ukm::mojom::UkmEntry* const entry : entries) {
       if (ukm_recorder()->GetEntryMetric(entry, metric_name)) {
         SUCCEED();
         return;
@@ -127,7 +129,7 @@ class SmsBrowserTest : public ContentBrowserTest {
 
     ASSERT_FALSE(entries.empty());
 
-    for (const auto* const entry : entries) {
+    for (const ukm::mojom::UkmEntry* const entry : entries) {
       const int64_t* metric =
           ukm_recorder()->GetEntryMetric(entry, "SmsParsingStatus");
       if (metric && *metric == status) {
@@ -209,7 +211,13 @@ class SmsBrowserTest : public ContentBrowserTest {
 
 }  // namespace
 
-IN_PROC_BROWSER_TEST_F(SmsBrowserTest, Receive) {
+// TODO(crbug.com/41486967): Flaky on Win Debug
+#if BUILDFLAG(IS_WIN) && !defined(NDEBUG)
+#define MAYBE_Receive DISABLED_Receive
+#else
+#define MAYBE_Receive Receive
+#endif
+IN_PROC_BROWSER_TEST_F(SmsBrowserTest, MAYBE_Receive) {
   base::HistogramTester histogram_tester;
   GURL url = GetTestUrl(nullptr, "simple_page.html");
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -626,7 +634,13 @@ IN_PROC_BROWSER_TEST_F(SmsBrowserTest, DISABLED_TwoTabsDifferentOrigin) {
   ExpectOutcomeUKM(url2, blink::WebOTPServiceOutcome::kSuccess);
 }
 
-IN_PROC_BROWSER_TEST_F(SmsBrowserTest, SmsReceivedAfterTabIsClosed) {
+// TODO(crbug.com/41486967): Flaky on Win Debug
+#if BUILDFLAG(IS_WIN) && !defined(NDEBUG)
+#define MAYBE_SmsReceivedAfterTabIsClosed DISABLED_SmsReceivedAfterTabIsClosed
+#else
+#define MAYBE_SmsReceivedAfterTabIsClosed SmsReceivedAfterTabIsClosed
+#endif
+IN_PROC_BROWSER_TEST_F(SmsBrowserTest, MAYBE_SmsReceivedAfterTabIsClosed) {
   GURL url = GetTestUrl(nullptr, "simple_page.html");
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
@@ -738,13 +752,13 @@ IN_PROC_BROWSER_TEST_F(SmsBrowserTest, SmsFetcherUAF) {
       }));
 
   service->Receive(base::BindLambdaForTesting(
-      [](SmsStatus status, const absl::optional<std::string>& otp) {
+      [](SmsStatus status, const std::optional<std::string>& otp) {
         EXPECT_EQ(SmsStatus::kSuccess, status);
         EXPECT_EQ("ABC234", otp);
       }));
 
   service2->Receive(base::BindLambdaForTesting(
-      [&navigate](SmsStatus status, const absl::optional<std::string>& otp) {
+      [&navigate](SmsStatus status, const std::optional<std::string>& otp) {
         EXPECT_EQ(SmsStatus::kSuccess, status);
         EXPECT_EQ("DEF567", otp);
         navigate.Quit();
@@ -858,55 +872,6 @@ IN_PROC_BROWSER_TEST_F(SmsBrowserTest,
   loop.Run();
 
   ExpectNoOutcomeUKM();
-}
-
-// Disabled test: https://crbug.com/1134455
-IN_PROC_BROWSER_TEST_F(SmsBrowserTest, DISABLED_RecordPendingOriginCount) {
-  base::HistogramTester histogram_tester;
-  auto provider = std::make_unique<MockSmsProvider>();
-  MockSmsProvider* mock_provider_ptr = provider.get();
-  BrowserMainLoop::GetInstance()->SetSmsProviderForTesting(std::move(provider));
-
-  Shell* tab1 = CreateBrowser();
-  Shell* tab2 = CreateBrowser();
-
-  net::EmbeddedTestServer https_server(net::EmbeddedTestServer::TYPE_HTTPS);
-  https_server.ServeFilesFromSourceDirectory(GetTestDataFilePath());
-  ASSERT_TRUE(https_server.Start());
-
-  GURL url1 = https_server.GetURL("a.com", "/simple_page.html");
-  GURL url2 = https_server.GetURL("b.com", "/simple_page.html");
-  EXPECT_TRUE(NavigateToURL(tab1, url1));
-  EXPECT_TRUE(NavigateToURL(tab2, url2));
-
-  EXPECT_CALL(*mock_provider_ptr, Retrieve(_, _)).Times(2);
-
-  tab1->web_contents()->SetDelegate(&delegate_);
-  tab2->web_contents()->SetDelegate(&delegate_);
-
-  std::string script = R"(
-    var request = navigator.credentials.get({otp: {transport: ["sms"]}})
-      .then(({code}) => {
-        return code;
-      });
-  )";
-  ExecuteScriptAsync(tab1, script);
-  ExecuteScriptAsync(tab2, script);
-
-  ExpectSmsPrompt();
-  mock_provider_ptr->NotifyReceive(OriginList{url::Origin::Create(url1)},
-                                   "code1", UserConsent::kNotObtained);
-  ConfirmPrompt();
-  EXPECT_EQ("code1", EvalJs(tab1, "request"));
-
-  ExpectSmsPrompt();
-  mock_provider_ptr->NotifyReceive(OriginList{url::Origin::Create(url2)},
-                                   "code2", UserConsent::kNotObtained);
-  ConfirmPrompt();
-  EXPECT_EQ("code2", EvalJs(tab2, "request"));
-
-  histogram_tester.ExpectBucketCount("Blink.Sms.PendingOriginCount", 1, 1);
-  histogram_tester.ExpectBucketCount("Blink.Sms.PendingOriginCount", 2, 1);
 }
 
 // Verifies that the metrics are correctly recorded when an invalid SMS cannot
@@ -1260,7 +1225,8 @@ class MockSmsPrerenderingWebContentsDelegate : public WebContentsDelegate {
                     base::OnceCallback<void()> on_confirm,
                     base::OnceCallback<void()> on_cancel));
   PreloadingEligibility IsPrerender2Supported(
-      WebContents& web_contents) override {
+      WebContents& web_contents,
+      PreloadingTriggerType trigger_type) override {
     return PreloadingEligibility::kEligible;
   }
 };
@@ -1301,7 +1267,8 @@ IN_PROC_BROWSER_TEST_F(SmsPrerenderingBrowserTest,
 
   // Load a page in the prerendering.
   GURL prerender_url = https_server_.GetURL("/simple_page.html?prerendering");
-  const int host_id = prerender_helper()->AddPrerender(prerender_url);
+  const FrameTreeNodeId host_id =
+      prerender_helper()->AddPrerender(prerender_url);
   content::RenderFrameHost* prerender_rfh =
       prerender_helper()->GetPrerenderedMainFrameHost(host_id);
 
@@ -1325,7 +1292,7 @@ IN_PROC_BROWSER_TEST_F(SmsPrerenderingBrowserTest,
       u"(async () => {"
       u" await navigator.credentials.get({otp: {transport: ['sms']}});"
       u"}) ();",
-      base::NullCallback());
+      base::NullCallback(), ISOLATED_WORLD_ID_GLOBAL);
 
   // Activate the prerendered page.
   prerender_helper()->NavigatePrimaryPage(prerender_url);

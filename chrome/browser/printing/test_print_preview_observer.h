@@ -5,15 +5,18 @@
 #ifndef CHROME_BROWSER_PRINTING_TEST_PRINT_PREVIEW_OBSERVER_H_
 #define CHROME_BROWSER_PRINTING_TEST_PRINT_PREVIEW_OBSERVER_H_
 
+#include <optional>
+
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "build/build_config.h"
 #include "chrome/browser/ui/webui/print_preview/print_preview_ui.h"
 #include "content/public/test/browser_test_utils.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace base {
-class RunLoop;
-}
+#if BUILDFLAG(IS_WIN)
+#include "printing/printing_utils.h"
+#endif
+
 namespace content {
 class WebContents;
 }
@@ -37,14 +40,13 @@ class TestPrintPreviewObserver : PrintPreviewUI::TestDelegate {
   // convenience for callers that do not need the returned result.
   void WaitUntilPreviewIsReady();
 
-  // If a test modifies certain Print Preview settings, then another preview
-  // render will be automatically initiated.  This call resets the observer for
-  // when that next render will be expected.
-  // This doesn't work for all such settings at this time; e.g., changes to
-  // N-up are not supported since `pages_per_sheet_` are constant from ctor.
-  void ResetForAnotherPreview();
-
   uint32_t rendered_page_count() const { return rendered_page_count_; }
+
+#if BUILDFLAG(IS_WIN)
+  std::optional<DocumentDataType> last_document_composite_data_type() const {
+    return last_document_composite_data_type_;
+  }
+#endif
 
  private:
   void EnsureWaitForLoaded();
@@ -52,9 +54,10 @@ class TestPrintPreviewObserver : PrintPreviewUI::TestDelegate {
   // PrintPreviewUI::TestDelegate:
   void DidGetPreviewPageCount(uint32_t page_count) override;
   void DidRenderPreviewPage(content::WebContents* preview_dialog) override;
-  void PreviewDocumentReady(content::WebContents* preview_dialog) override;
+  void PreviewDocumentReady(content::WebContents* preview_dialog,
+                            base::span<const uint8_t> data) override;
 
-  absl::optional<content::DOMMessageQueue> queue_;
+  std::optional<content::DOMMessageQueue> queue_;
 
   // Rendered pages are provided after N-up processing, which will be different
   // from the count provided to `DidGetPreviewPageCount()` when
@@ -63,11 +66,14 @@ class TestPrintPreviewObserver : PrintPreviewUI::TestDelegate {
   uint32_t expected_rendered_page_count_ = 1;
   uint32_t rendered_page_count_ = 0;
 
+#if BUILDFLAG(IS_WIN)
+  std::optional<DocumentDataType> last_document_composite_data_type_;
+#endif
+
   const bool wait_for_loaded_;
-  raw_ptr<content::WebContents, DanglingUntriaged> preview_dialog_ = nullptr;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION base::RunLoop* run_loop_ = nullptr;
+  raw_ptr<content::WebContents, FlakyDanglingUntriaged> preview_dialog_ =
+      nullptr;
+  base::OnceClosure quit_closure_;
 };
 
 }  // namespace printing

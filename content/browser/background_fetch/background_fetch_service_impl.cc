@@ -23,7 +23,6 @@
 #include "content/public/browser/service_worker_version_base_info.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom.h"
 
@@ -67,16 +66,11 @@ void BackgroundFetchServiceImpl::CreateForWorker(
     return;
   }
 
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<BackgroundFetchServiceImpl>(
-          std::move(context), info.storage_key,
-          net::IsolationInfo::Create(
-              net::IsolationInfo::RequestType::kOther,
-              url::Origin::Create(info.storage_key.top_level_site().GetURL()),
-              info.storage_key.origin(), info.storage_key.ToNetSiteForCookies(),
-              /*party_context=*/absl::nullopt, info.storage_key.nonce()),
-          render_process_host, /*rfh=*/nullptr),
-      std::move(receiver));
+  mojo::MakeSelfOwnedReceiver(std::make_unique<BackgroundFetchServiceImpl>(
+                                  std::move(context), info.storage_key,
+                                  info.storage_key.ToPartialNetIsolationInfo(),
+                                  render_process_host, /*rfh=*/nullptr),
+                              std::move(receiver));
 }
 
 // static
@@ -90,7 +84,7 @@ void BackgroundFetchServiceImpl::CreateForFrame(
     // The renderer should have checked and disallowed the request for fenced
     // frames and throw exception in blink::BackgroundFetchManager. Ignore the
     // request and mark it as bad if it didn't happen for some reason.
-    // TODO(crbug.com/1271051) Follow-up on this line depending on the
+    // TODO(crbug.com/40205566) Follow-up on this line depending on the
     // conclusion at
     // https://groups.google.com/a/chromium.org/g/navigation-dev/c/BZLlGsL2-64
     bad_message::ReceivedBadMessage(
@@ -109,7 +103,7 @@ void BackgroundFetchServiceImpl::CreateForFrame(
                          ->GetBackgroundFetchContext());
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<BackgroundFetchServiceImpl>(
-          std::move(context), rfhi->storage_key(),
+          std::move(context), rfhi->GetStorageKey(),
           rfhi->GetIsolationInfoForSubresources(), rfhi->GetProcess(), rfhi),
       std::move(receiver));
 }
@@ -123,7 +117,7 @@ BackgroundFetchServiceImpl::BackgroundFetchServiceImpl(
     : background_fetch_context_(std::move(background_fetch_context)),
       storage_key_(std::move(storage_key)),
       isolation_info_(std::move(isolation_info)),
-      rph_id_(rph->GetID()),
+      rph_id_(rph->GetDeprecatedID()),
       rfh_id_(rfh ? rfh->GetGlobalId() : GlobalRenderFrameHostId()) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);

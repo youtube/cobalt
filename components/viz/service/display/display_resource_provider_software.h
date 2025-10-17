@@ -5,31 +5,38 @@
 #ifndef COMPONENTS_VIZ_SERVICE_DISPLAY_DISPLAY_RESOURCE_PROVIDER_SOFTWARE_H_
 #define COMPONENTS_VIZ_SERVICE_DISPLAY_DISPLAY_RESOURCE_PROVIDER_SOFTWARE_H_
 
+#include <memory>
 #include <utility>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "components/viz/service/display/display_resource_provider.h"
 #include "components/viz/service/viz_service_export.h"
+#include "gpu/command_buffer/service/blocking_sequence_runner.h"
+#include "gpu/command_buffer/service/memory_tracking.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 
-namespace viz {
+namespace gpu {
+class SharedImageManager;
+class Scheduler;
+}
 
-class SharedBitmapManager;
+namespace viz {
 
 // DisplayResourceProvider implementation used with SoftwareRenderer.
 class VIZ_SERVICE_EXPORT DisplayResourceProviderSoftware
     : public DisplayResourceProvider {
  public:
   explicit DisplayResourceProviderSoftware(
-      SharedBitmapManager* shared_bitmap_manager);
+      gpu::SharedImageManager* shared_image_manager,
+      gpu::Scheduler* scheduler);
   ~DisplayResourceProviderSoftware() override;
 
   class VIZ_SERVICE_EXPORT ScopedReadLockSkImage {
    public:
     ScopedReadLockSkImage(DisplayResourceProviderSoftware* resource_provider,
-                          ResourceId resource_id,
-                          SkAlphaType alpha_type);
+                          ResourceId resource_id);
     ~ScopedReadLockSkImage();
 
     ScopedReadLockSkImage(const ScopedReadLockSkImage&) = delete;
@@ -47,11 +54,17 @@ class VIZ_SERVICE_EXPORT DisplayResourceProviderSoftware
     sk_sp<SkImage> sk_image_;
   };
 
+  // Waits on the SyncToken and returns MemoryImageRepresentation of the
+  // SharedImage pointed by mailbox.
+  std::unique_ptr<gpu::MemoryImageRepresentation> GetSharedImageRepresentation(
+      const gpu::Mailbox& mailbox,
+      const gpu::SyncToken& sync_token);
+
  private:
   // These functions are used by ScopedReadLockSkImage to lock and unlock
   // resources.
   const ChildResource* LockForRead(ResourceId id);
-  void UnlockForRead(ResourceId id);
+  void UnlockForRead(ResourceId id, const SkImage* sk_image);
 
   // DisplayResourceProvider overrides:
   std::vector<ReturnedResource> DeleteAndReturnUnusedResourcesToChildImpl(
@@ -59,12 +72,32 @@ class VIZ_SERVICE_EXPORT DisplayResourceProviderSoftware
       DeleteStyle style,
       const std::vector<ResourceId>& unused) override;
 
-  void PopulateSkBitmapWithResource(SkBitmap* sk_bitmap,
-                                    const ChildResource* resource,
-                                    SkAlphaType alpha_type);
+  void WaitSyncToken(gpu::SyncToken sync_token);
 
-  const raw_ptr<SharedBitmapManager> shared_bitmap_manager_;
+  const raw_ptr<gpu::SharedImageManager> shared_image_manager_;
+  const raw_ptr<gpu::Scheduler> gpu_scheduler_;
+  std::unique_ptr<gpu::BlockingSequenceRunner> blocking_sequence_runner_;
+
   base::flat_map<ResourceId, sk_sp<SkImage>> resource_sk_images_;
+
+  std::unique_ptr<gpu::MemoryTypeTracker> memory_tracker_;
+
+  struct SharedImageAccess {
+    SharedImageAccess();
+    ~SharedImageAccess();
+    SharedImageAccess(SharedImageAccess&& other);
+    SharedImageAccess& operator=(SharedImageAccess&& other);
+
+    SharedImageAccess(const SharedImageAccess&) = delete;
+    SharedImageAccess& operator=(const SharedImageAccess&) = delete;
+
+    std::unique_ptr<gpu::MemoryImageRepresentation> representation;
+    std::unique_ptr<gpu::MemoryImageRepresentation::ScopedReadAccess>
+        read_access;
+  };
+
+  base::flat_map<ResourceId, std::unique_ptr<SharedImageAccess>>
+      resource_shared_images_;
 };
 
 }  // namespace viz

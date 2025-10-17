@@ -7,9 +7,11 @@
 #include <memory>
 #include <utility>
 
-#include "android_webview/browser_jni_headers/AwWebResourceInterceptResponse_jni.h"
 #include "base/android/jni_android.h"
 #include "components/embedder_support/android/util/web_resource_response.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "android_webview/browser_jni_headers/AwWebResourceInterceptResponse_jni.h"
 
 using base::android::ScopedJavaLocalRef;
 
@@ -20,6 +22,14 @@ AwWebResourceInterceptResponse::AwWebResourceInterceptResponse(
     : java_object_(obj) {}
 
 AwWebResourceInterceptResponse::~AwWebResourceInterceptResponse() = default;
+AwWebResourceInterceptResponse::AwWebResourceInterceptResponse(
+    AwWebResourceInterceptResponse&) = default;
+AwWebResourceInterceptResponse& AwWebResourceInterceptResponse::operator=(
+    AwWebResourceInterceptResponse&) = default;
+AwWebResourceInterceptResponse::AwWebResourceInterceptResponse(
+    AwWebResourceInterceptResponse&&) = default;
+AwWebResourceInterceptResponse& AwWebResourceInterceptResponse::operator=(
+    AwWebResourceInterceptResponse&&) = default;
 
 bool AwWebResourceInterceptResponse::RaisedException(JNIEnv* env) const {
   return Java_AwWebResourceInterceptResponse_getRaisedException(env,
@@ -32,11 +42,7 @@ bool AwWebResourceInterceptResponse::HasResponse(JNIEnv* env) const {
 
 std::unique_ptr<embedder_support::WebResourceResponse>
 AwWebResourceInterceptResponse::GetResponse(JNIEnv* env) const {
-  ScopedJavaLocalRef<jobject> j_response =
-      Java_AwWebResourceInterceptResponse_getResponse(env, java_object_);
-  if (!j_response)
-    return nullptr;
-  return std::make_unique<embedder_support::WebResourceResponse>(j_response);
+  return Java_AwWebResourceInterceptResponse_getResponse(env, java_object_);
 }
 
 }  // namespace android_webview

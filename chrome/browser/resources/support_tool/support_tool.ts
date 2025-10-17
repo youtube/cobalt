@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/polymer/v3_0/iron-pages/iron-pages.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import 'chrome://resources/cr_elements/cr_page_selector/cr_page_selector.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import './data_collectors.js';
 import './issue_details.js';
@@ -12,16 +12,17 @@ import './pii_selection.js';
 import './data_export_done.js';
 import './support_tool_shared.css.js';
 
-import {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {BrowserProxy, BrowserProxyImpl, PiiDataItem, StartDataCollectionResult} from './browser_proxy.js';
-import {DataCollectorsElement} from './data_collectors.js';
-import {DataExportDoneElement} from './data_export_done.js';
-import {IssueDetailsElement} from './issue_details.js';
-import {PiiSelectionElement} from './pii_selection.js';
-import {SpinnerPageElement} from './spinner_page.js';
+import type {BrowserProxy, PiiDataItem, StartDataCollectionResult} from './browser_proxy.js';
+import {BrowserProxyImpl} from './browser_proxy.js';
+import type {DataCollectorsElement} from './data_collectors.js';
+import type {DataExportDoneElement} from './data_export_done.js';
+import type {IssueDetailsElement} from './issue_details.js';
+import type {PiiSelectionElement} from './pii_selection.js';
+import type {SpinnerPageElement} from './spinner_page.js';
 import {getTemplate} from './support_tool.html.js';
 
 export enum SupportToolPageIndex {
@@ -69,7 +70,7 @@ export class SupportToolElement extends SupportToolElementBase {
         value: SupportToolPageIndex.ISSUE_DETAILS,
         observer: 'onSelectedPageChange_',
       },
-      supportToolPageIndex_: {
+      supportToolPageIndexEnum_: {
         readonly: true,
         type: Object,
         value: SupportToolPageIndex,
@@ -82,8 +83,8 @@ export class SupportToolElement extends SupportToolElementBase {
     };
   }
 
-  private errorMessage_: string;
-  private selectedPage_: SupportToolPageIndex;
+  declare private errorMessage_: string;
+  declare private selectedPage_: SupportToolPageIndex;
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
 
   override connectedCallback() {

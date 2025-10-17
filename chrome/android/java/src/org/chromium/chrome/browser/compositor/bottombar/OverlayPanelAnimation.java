@@ -7,20 +7,22 @@ package org.chromium.chrome.browser.compositor.bottombar;
 import android.animation.Animator;
 import android.content.Context;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.MathUtils;
+import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.compositor.bottombar.OverlayPanel.PanelState;
 import org.chromium.chrome.browser.compositor.bottombar.OverlayPanel.StateChangeReason;
 import org.chromium.chrome.browser.compositor.layouts.LayoutUpdateHost;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimationHandler;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimator;
+import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.widget.animation.CancelAwareAnimatorListener;
 
-/**
- * Base abstract class for animating the Overlay Panel.
- */
+/** Base abstract class for animating the Overlay Panel. */
 public abstract class OverlayPanelAnimation extends OverlayPanelBase {
     /**
      * The base duration of animations in milliseconds. This value is based on
@@ -57,10 +59,25 @@ public abstract class OverlayPanelAnimation extends OverlayPanelBase {
      * @param context The current Android {@link Context}.
      * @param updateHost The {@link LayoutUpdateHost} used to request updates in the Layout.
      * @param toolbarHeightDp The height of the toolbar in dp.
+     * @param desktopWindowStateManager Manager to get desktop window and app header state.
+     * @param browserControlsStateProvider The {@link BrowserControlsStateProvider} for measuring
+     *     controls.
+     * @param bottomControlsStacker The {@link BottomControlsStacker} for observing and changing
+     *     browser controls heights.
      */
     public OverlayPanelAnimation(
-            Context context, LayoutUpdateHost updateHost, float toolbarHeightDp) {
-        super(context, toolbarHeightDp);
+            Context context,
+            LayoutUpdateHost updateHost,
+            float toolbarHeightDp,
+            DesktopWindowStateManager desktopWindowStateManager,
+            @NonNull BrowserControlsStateProvider browserControlsStateProvider,
+            @NonNull BottomControlsStacker bottomControlsStacker) {
+        super(
+                context,
+                toolbarHeightDp,
+                desktopWindowStateManager,
+                browserControlsStateProvider,
+                bottomControlsStacker);
         mUpdateHost = updateHost;
     }
 
@@ -131,8 +148,11 @@ public abstract class OverlayPanelAnimation extends OverlayPanelBase {
         boolean isFullWidthSizePanel = isFullWidthSizePanel();
         // We support resize from any full width to full width, or from narrow width to narrow width
         // when the width does not change (as when the keyboard is shown/hidden).
-        boolean isPanelResizeSupported = isFullWidthSizePanel && wasFullWidthSizePanel
-                || !isFullWidthSizePanel && !wasFullWidthSizePanel && width == previousWidth;
+        boolean isPanelResizeSupported =
+                (isFullWidthSizePanel && wasFullWidthSizePanel)
+                        || (!isFullWidthSizePanel
+                                && !wasFullWidthSizePanel
+                                && width == previousWidth);
 
         // TODO(pedrosimonetti): See crbug.com/568351.
         // We can't keep the panel opened after a viewport size change when the panel's
@@ -158,12 +178,15 @@ public abstract class OverlayPanelAnimation extends OverlayPanelBase {
             // has the effect of destroying the Views used by the Panel (which are
             // children of the CompositorViewHolder), and if we do that synchronously
             // it will cause a crash in {@link FrameLayout#layoutChildren()}.
-            mContainerView.getHandler().post(new Runnable() {
-                @Override
-                public void run() {
-                    closePanel(StateChangeReason.UNKNOWN, false);
-                }
-            });
+            mContainerView
+                    .getHandler()
+                    .post(
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    closePanel(StateChangeReason.UNKNOWN, false);
+                                }
+                            });
         }
     }
 
@@ -183,9 +206,7 @@ public abstract class OverlayPanelAnimation extends OverlayPanelBase {
         }
     }
 
-    /**
-     * Updates the Panel so it preserves its state when the size changes.
-     */
+    /** Updates the Panel so it preserves its state when the size changes. */
     protected void updatePanelForSizeChange() {
         resizePanelToState(getPanelState(), StateChangeReason.UNKNOWN);
     }
@@ -236,17 +257,15 @@ public abstract class OverlayPanelAnimation extends OverlayPanelBase {
     // Animation Helpers
     // ============================================================================================
 
-    /**
-     * Animates the Panel to its nearest state.
-     */
+    /** Animates the Panel to its nearest state. */
     protected void animateToNearestState() {
         // Calculate the nearest state from the current position, and then calculate the duration
         // of the animation that will start with a desired initial velocity and move the desired
         // amount of dps (displacement).
         final @PanelState int nearestState = findNearestPanelStateFromHeight(getHeight(), 0.0f);
         final float displacement = getPanelHeightFromState(nearestState) - getHeight();
-        final long duration = calculateAnimationDuration(
-                INITIAL_ANIMATION_VELOCITY_DP_PER_SECOND, displacement);
+        final long duration =
+                calculateAnimationDuration(INITIAL_ANIMATION_VELOCITY_DP_PER_SECOND, displacement);
 
         animatePanelToState(nearestState, StateChangeReason.SWIPE, duration);
     }
@@ -257,8 +276,7 @@ public abstract class OverlayPanelAnimation extends OverlayPanelBase {
      * @param velocity The velocity of the gesture in dps per second.
      */
     protected void animateToProjectedState(float velocity) {
-        @PanelState
-        int projectedState = getProjectedState(velocity);
+        @PanelState int projectedState = getProjectedState(velocity);
 
         final float displacement = getPanelHeightFromState(projectedState) - getHeight();
         final long duration = calculateAnimationDuration(velocity, displacement);
@@ -271,13 +289,13 @@ public abstract class OverlayPanelAnimation extends OverlayPanelBase {
      * @return The projected state the Panel will be if the given velocity is applied.
      */
     protected @PanelState int getProjectedState(float velocity) {
-        final float kickY = calculateAnimationDisplacement(velocity, BASE_ANIMATION_DURATION_MS);
+        final float kickY =
+                calculateAnimationDisplacement(velocity, (float) BASE_ANIMATION_DURATION_MS);
         final float projectedHeight = getHeight() - kickY;
 
         // Calculate the projected state the Panel will be at the end of the fling movement and the
         // duration of the animation given the current velocity and the projected displacement.
-        @PanelState
-        int projectedState = findNearestPanelStateFromHeight(projectedHeight, velocity);
+        @PanelState int projectedState = findNearestPanelStateFromHeight(projectedHeight, velocity);
 
         return projectedState;
     }
@@ -292,13 +310,11 @@ public abstract class OverlayPanelAnimation extends OverlayPanelBase {
      */
     protected float calculateAnimationDisplacement(float initialVelocity, float duration) {
         // NOTE(pedrosimonetti): This formula assumes the deceleration curve is
-        // quadratic (t^2),
-        // hence the displacement formula should be:
+        // quadratic (t^2), hence the displacement formula should be:
         // displacement = initialVelocity * duration / 2
         //
         // We are also converting the duration from milliseconds to seconds,
-        // which explains why
-        // we are dividing by 2000 (2 * 1000) instead of 2.
+        // which explains why we are dividing by 2000 (2 * 1000) instead of 2.
         return initialVelocity * duration / 2000;
     }
 
@@ -312,20 +328,18 @@ public abstract class OverlayPanelAnimation extends OverlayPanelBase {
      */
     private long calculateAnimationDuration(float initialVelocity, float displacement) {
         // NOTE(pedrosimonetti): This formula assumes the deceleration curve is
-        // quadratic (t^2),
-        // hence the duration formula should be:
+        // quadratic (t^2), hence the duration formula should be:
         // duration = 2 * displacement / initialVelocity
         //
         // We are also converting the duration from seconds to milliseconds,
-        // which explains why
-        // we are multiplying by 2000 (2 * 1000) instead of 2.
-        return MathUtils.clamp(Math.round(Math.abs(2000 * displacement / initialVelocity)),
-                MINIMUM_ANIMATION_DURATION_MS, MAXIMUM_ANIMATION_DURATION_MS);
+        // which explains why we are multiplying by 2000 (2 * 1000) instead of 2.
+        return MathUtils.clamp(
+                Math.round(Math.abs(2000 * displacement / initialVelocity)),
+                MINIMUM_ANIMATION_DURATION_MS,
+                MAXIMUM_ANIMATION_DURATION_MS);
     }
 
-    /**
-     * Cancels any height animation in progress.
-     */
+    /** Cancels any height animation in progress. */
     protected void cancelHeightAnimation() {
         if (mHeightAnimator != null) mHeightAnimator.cancel();
     }
@@ -342,9 +356,7 @@ public abstract class OverlayPanelAnimation extends OverlayPanelBase {
     // Layout Integration
     // ============================================================================================
 
-    /**
-     * Requests a new frame to be updated and rendered.
-     */
+    /** Requests a new frame to be updated and rendered. */
     protected void requestUpdate() {
         // NOTE(pedrosimonetti): mUpdateHost will be null in the ContextualSearchEventFilterTest,
         // so we always need to check if it's null before calling requestUpdate.
@@ -368,15 +380,17 @@ public abstract class OverlayPanelAnimation extends OverlayPanelBase {
 
         if (mHeightAnimator != null) mHeightAnimator.cancel();
 
-        mHeightAnimator = CompositorAnimator.ofFloat(
-                getAnimationHandler(), getHeight(), height, duration, null);
+        mHeightAnimator =
+                CompositorAnimator.ofFloat(
+                        getAnimationHandler(), getHeight(), height, duration, null);
         mHeightAnimator.addUpdateListener(animator -> setPanelHeight(animator.getAnimatedValue()));
-        mHeightAnimator.addListener(new CancelAwareAnimatorListener() {
-            @Override
-            public void onEnd(Animator animation) {
-                onHeightAnimationFinished();
-            }
-        });
+        mHeightAnimator.addListener(
+                new CancelAwareAnimatorListener() {
+                    @Override
+                    public void onEnd(Animator animation) {
+                        onHeightAnimationFinished();
+                    }
+                });
         mHeightAnimator.start();
     }
 

@@ -18,7 +18,7 @@
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 #include "third_party/leveldatabase/src/include/leveldb/iterator.h"
 
-namespace content {
+namespace content::indexed_db {
 
 TransactionalLevelDBIterator::TransactionalLevelDBIterator(
     std::unique_ptr<leveldb::Iterator> it,
@@ -91,8 +91,7 @@ leveldb::Status TransactionalLevelDBIterator::SeekToLast() {
   return WrappedIteratorStatus();
 }
 
-leveldb::Status TransactionalLevelDBIterator::Seek(
-    const base::StringPiece& target) {
+leveldb::Status TransactionalLevelDBIterator::Seek(std::string_view target) {
   DCHECK(db_);
   CheckState();
 
@@ -154,17 +153,17 @@ leveldb::Status TransactionalLevelDBIterator::Prev() {
   return WrappedIteratorStatus();
 }
 
-base::StringPiece TransactionalLevelDBIterator::Key() const {
+std::string_view TransactionalLevelDBIterator::Key() const {
   DCHECK(db_);
   DCHECK(IsValid());
   CheckState();
 
   if (IsEvicted())
     return key_before_eviction_;
-  return leveldb_env::MakeStringPiece(iterator_->key());
+  return leveldb_env::MakeStringView(iterator_->key());
 }
 
-base::StringPiece TransactionalLevelDBIterator::Value() const {
+std::string_view TransactionalLevelDBIterator::Value() const {
   DCHECK(db_);
   DCHECK(IsValid());
   CheckState();
@@ -176,7 +175,7 @@ base::StringPiece TransactionalLevelDBIterator::Value() const {
   db_->OnIteratorUsed(non_const);
   if (IsEvicted())
     return value_before_eviction_;
-  return leveldb_env::MakeStringPiece(iterator_->value());
+  return leveldb_env::MakeStringView(iterator_->value());
 }
 
 void TransactionalLevelDBIterator::EvictLevelDBIterator() {
@@ -275,4 +274,4 @@ void TransactionalLevelDBIterator::CheckState() const {
 #endif
 }
 
-}  // namespace content
+}  // namespace content::indexed_db

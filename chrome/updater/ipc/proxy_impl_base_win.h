@@ -11,17 +11,19 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/debug/alias.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
+#include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
-#include "base/task/single_thread_task_runner.h"
-#include "base/task/single_thread_task_runner_thread_mode.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/platform_thread.h"
 #include "base/types/expected.h"
+#include "base/types/expected_macros.h"
 #include "base/win/win_util.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/win_util.h"
@@ -39,26 +41,26 @@ template <typename Derived,
 class ProxyImplBase {
  public:
   // Releases `impl` on `task_runner_`.
-  static void Destroy(scoped_refptr<Derived>& impl) {
-    scoped_refptr<Derived> this_impl;
-    this_impl.swap(impl);
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner =
-        this_impl->task_runner_;
-    task_runner->PostTask(FROM_HERE, base::BindOnce(
-                                         [](scoped_refptr<Derived> impl) {
-                                           CHECK(impl);
-                                           impl = nullptr;
-                                         },
-                                         std::move(this_impl)));
-    CHECK(!this_impl);
+  static void Destroy(scoped_refptr<Derived> impl) {
+    scoped_refptr<base::SequencedTaskRunner> task_runner = impl->task_runner_;
+    task_runner->PostTask(FROM_HERE,
+                          base::BindOnce([](scoped_refptr<Derived> /*impl*/) {},
+                                         std::move(impl)));
   }
 
  protected:
   explicit ProxyImplBase(UpdaterScope scope) : scope_(scope) {
     DETACH_FROM_SEQUENCE(sequence_checker_);
+    VLOG(3) << __func__ << ": Interface: " << typeid(Interface).name()
+            << ": iid_user: " << StringFromGuid(iid_user)
+            << ": iid_system: " << StringFromGuid(iid_system)
+            << ": scope: " << scope;
   }
 
-  ~ProxyImplBase() { VLOG(2) << __func__; }
+  ~ProxyImplBase() {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    VLOG(2) << __func__;
+  }
 
   void PostRPCTask(base::OnceClosure task) {
     task_runner_->PostTask(FROM_HERE, std::move(task));
@@ -70,9 +72,9 @@ class ProxyImplBase {
     // Retry creating the object if the call fails. Don't retry if
     // the error is `REGDB_E_CLASSNOTREG` because the error can occur during
     // normal operation and retrying on registration issues does not help.
-    HResultOr<Microsoft::WRL::ComPtr<IUnknown>> server =
-        [](REFCLSID clsid) -> decltype(server) {
-      constexpr int kNumTries = 2;
+    const auto create_server =
+        [](REFCLSID clsid) -> HResultOr<Microsoft::WRL::ComPtr<IUnknown>> {
+      static constexpr int kNumTries = 2;
       HRESULT hr = E_FAIL;
       for (int i = 0; i != kNumTries; ++i) {
         Microsoft::WRL::ComPtr<IUnknown> server;
@@ -81,13 +83,8 @@ class ProxyImplBase {
         if (SUCCEEDED(hr)) {
           return server;
         }
-        VLOG(2) << "::CoCreateInstance failed: "
-                << base::win::WStringFromGUID(clsid) << ": " << std::hex << hr;
-
-        // TODO(crbug.com/1425609) - revert the CL that introduced this logging
-        // after the bug is resolved.
-        LogClsidEntries(clsid);
-
+        VLOG(2) << "::CoCreateInstance failed: " << StringFromGuid(clsid)
+                << ": " << std::hex << hr;
         if (hr == REGDB_E_CLASSNOTREG) {
           return base::unexpected(hr);
         }
@@ -96,22 +93,20 @@ class ProxyImplBase {
         base::PlatformThread::Sleep(kCreateUpdaterInstanceDelay);
       }
       return base::unexpected(hr);
-    }(Derived::GetClassGuid(scope_));
-
-    if (!server.has_value()) {
-      return base::unexpected(server.error());
-    }
+    };
+    ASSIGN_OR_RETURN(Microsoft::WRL::ComPtr<IUnknown> server,
+                     create_server(Derived::GetClassGuid(scope_)));
 
     Microsoft::WRL::ComPtr<Interface> server_interface;
     REFIID iid = IsSystemInstall(scope_) ? iid_system : iid_user;
-    HRESULT hr = server->CopyTo(iid, IID_PPV_ARGS_Helper(&server_interface));
-    if (FAILED(hr)) {
-      VLOG(2) << "Failed to query the interface: "
-              << base::win::WStringFromGUID(iid) << ": " << std::hex << hr;
-      return base::unexpected(hr);
+    const HRESULT hr =
+        server.CopyTo(iid, IID_PPV_ARGS_Helper(&server_interface));
+    if (SUCCEEDED(hr)) {
+      return server_interface;
     }
-
-    return server_interface;
+    VLOG(2) << "Failed to query the interface: " << StringFromGuid(iid) << ": "
+            << std::hex << hr;
+    return base::unexpected(hr);
   }
 
   HRESULT hresult() const {
@@ -126,30 +121,31 @@ class ProxyImplBase {
     return interface_.value();
   }
 
-  bool ConnectToServer() {
+  UpdaterScope scope() const { return scope_; }
+
+  HRESULT ConnectToServer() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (interface_.has_value()) {
-      return true;
+      return S_OK;
     }
     interface_ = CreateInterface();
-    return interface_.has_value();
+    return interface_.has_value() ? S_OK : interface_.error();
   }
 
   // Bound to the `task_runner_` sequence.
   SEQUENCE_CHECKER(sequence_checker_);
 
  private:
-  // Runs the tasks which invoke outbound COM calls and receive inbound COM
-  // callbacks. This task runner is thread-affine with the platform COM STA.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_ =
-      base::ThreadPool::CreateCOMSTATaskRunner(
-          {base::TaskPriority::USER_VISIBLE,
-           base::TaskShutdownBehavior::BLOCK_SHUTDOWN},
-          base::SingleThreadTaskRunnerThreadMode::DEDICATED);
+  // Sequences the outbound calls so that the main sequence is not blocked on an
+  // RPC call.
+  scoped_refptr<base::SequencedTaskRunner> task_runner_ =
+      base::ThreadPool::CreateSequencedTaskRunner(
+          {base::TaskPriority::USER_BLOCKING,
+           base::TaskShutdownBehavior::BLOCK_SHUTDOWN,
+           base::WithBaseSyncPrimitives(), base::MayBlock()});
 
   const UpdaterScope scope_;
 
-  // Interface owned by the STA. It must be created and released by the STA.
   HResultOr<Microsoft::WRL::ComPtr<Interface>> interface_ =
       base::unexpected(S_OK);
 };

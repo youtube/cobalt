@@ -71,31 +71,27 @@ void WebSubThread::Run(base::RunLoop* run_loop) {
       return;
     case WebThread::ID_COUNT:
       NOTREACHED();
-      break;
   }
 }
 
 void WebSubThread::CleanUp() {
   DCHECK_CALLED_ON_VALID_THREAD(web_thread_checker_);
 
-  if (identifier_ == WebThread::IO && g_io_thread_delegate)
+  if (identifier_ == WebThread::IO && g_io_thread_delegate) {
     g_io_thread_delegate->CleanUp();
+  }
 
   web_thread_.reset();
 }
 
 void WebSubThread::UIThreadRun(base::RunLoop* run_loop) {
   Thread::Run(run_loop);
-  // Inhibit tail calls of Run and inhibit code folding.
-  const int line_number = __LINE__;
-  base::debug::Alias(&line_number);
+  NO_CODE_FOLDING();
 }
 
 void WebSubThread::IOThreadRun(base::RunLoop* run_loop) {
   Thread::Run(run_loop);
-  // Inhibit tail calls of Run and inhibit code folding.
-  const int line_number = __LINE__;
-  base::debug::Alias(&line_number);
+  NO_CODE_FOLDING();
 }
 
 }  // namespace web

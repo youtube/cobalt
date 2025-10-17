@@ -5,21 +5,24 @@
 #ifndef CC_PAINT_SCOPED_RASTER_FLAGS_H_
 #define CC_PAINT_SCOPED_RASTER_FLAGS_H_
 
-#include "base/containers/stack_container.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include <optional>
+
+#include "base/memory/stack_allocated.h"
 #include "cc/paint/decode_stashing_image_provider.h"
 #include "cc/paint/paint_export.h"
 #include "cc/paint/paint_flags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cc {
 
 // A helper class to modify the flags for raster. This includes alpha folding
 // from SaveLayers and decoding images.
 class CC_PAINT_EXPORT ScopedRasterFlags {
+  STACK_ALLOCATED();
+
  public:
   // |flags| and |image_provider| must outlive this class.
-  template <class F, class = std::enable_if_t<std::is_same_v<F, float>>>
+  template <class F>
+    requires(std::is_same_v<F, float>)
   ScopedRasterFlags(const PaintFlags* flags,
                     ImageProvider* image_provider,
                     const SkMatrix& ctm,
@@ -75,11 +78,9 @@ class CC_PAINT_EXPORT ScopedRasterFlags {
     return &*modified_flags_;
   }
 
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION const PaintFlags* original_flags_;
-  absl::optional<PaintFlags> modified_flags_;
-  absl::optional<DecodeStashingImageProvider> decode_stashing_image_provider_;
+  const PaintFlags* original_flags_ = nullptr;
+  std::optional<PaintFlags> modified_flags_;
+  std::optional<DecodeStashingImageProvider> decode_stashing_image_provider_;
   bool decode_failed_ = false;
 };
 

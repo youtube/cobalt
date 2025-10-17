@@ -17,7 +17,8 @@
 namespace gtk {
 
 void AddGtkNativeColorMixer(ui::ColorProvider* provider,
-                            const ui::ColorProviderManager::Key& key) {
+                            const ui::ColorProviderKey& key,
+                            std::optional<SkColor> accent_color) {
   if (key.system_theme != ui::SystemTheme::kGtk) {
     return;
   }
@@ -25,7 +26,7 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
   ui::ColorMixer& mixer = provider->AddMixer();
 
   const std::string header_selector =
-      key.frame_type == ui::ColorProviderManager::FrameType::kChromium
+      key.frame_type == ui::ColorProviderKey::FrameType::kChromium
           ? "headerbar.header-bar.titlebar"
           : "menubar";
   const std::string header_selector_inactive = header_selector + ":backdrop";
@@ -34,7 +35,6 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
 
   const SkColor primary_bg = GetBgColor("");
   const SkColor button_bg_disabled = GetBgColor("button.text-button:disabled");
-  const SkColor button_border = GetBorderColor("button");
   const SkColor frame_color =
       SkColorSetA(GetBgColor(header_selector), SK_AlphaOPAQUE);
   const SkColor frame_color_inactive =
@@ -44,14 +44,24 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
   const SkColor entry_border = GetBorderColor("entry");
   const SkColor toolbar_color =
       color_utils::GetResultingPaintColor(primary_bg, frame_color);
-  const SkColor accent = GetFgColor(
+  const SkColor accent_fg = GetFgColor(
       "treeview.view "
       "treeview.view.cell:selected:focus label");
+  const SkColor accent_bg =
+      accent_color.value_or(GetBgColor("treeview.view "
+                                       "treeview.view.cell:selected:focus"));
+
+  static constexpr char kTextFocused[] =
+      "textview.view:focus:focus-within text:focus:focus-within";
+  static constexpr char kSelectionFocused[] =
+      "textview.view:focus:focus-within text:focus:focus-within "
+      "selection:focus:focus-within";
+  const SkColor kSelectedTextBackground = GetBgColor(kSelectionFocused);
+  const SkColor kSelectedTextForeground =
+      GetFgColor(GtkCheckVersion(4) ? kTextFocused : kSelectionFocused);
 
   // Core colors
-  mixer[ui::kColorAccent] = {
-      GetBgColor("treeview.view "
-                 "treeview.view.cell:selected:focus")};
+  mixer[ui::kColorAccent] = {accent_bg};
   mixer[ui::kColorAlertHighSeverity] = {SelectBasedOnDarkInput(
       ui::kColorPrimaryBackground, gfx::kGoogleRed300, gfx::kGoogleRed600)};
   mixer[ui::kColorAlertLowSeverity] = {SelectBasedOnDarkInput(
@@ -71,9 +81,8 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
   mixer[ui::kColorPrimaryBackground] = {primary_bg};
   mixer[ui::kColorPrimaryForeground] = {label_fg};
   mixer[ui::kColorSecondaryForeground] = {label_fg_disabled};
-  mixer[ui::kColorTextSelectionBackground] = {
-      GetSelectionBgColor("label selection")};
-  mixer[ui::kColorTextSelectionForeground] = {GetFgColor("label selection")};
+  mixer[ui::kColorTextSelectionBackground] = {kSelectedTextBackground};
+  mixer[ui::kColorTextSelectionForeground] = {kSelectedTextForeground};
 
   // UI element colors
   mixer[ui::kColorAvatarHeaderArt] =
@@ -81,14 +90,21 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
                  gfx::kGoogleGreyAlpha300);
   mixer[ui::kColorAvatarIconGuest] =
       DeriveDefaultIconColor(ui::kColorPrimaryForeground);
+  mixer[ui::kColorBubbleBackground] = {ui::kColorPrimaryBackground};
+  mixer[ui::kColorBubbleFooterBackground] = {ui::kColorBubbleBackground};
   mixer[ui::kColorButtonBackground] = {GetBgColor("button")};
+  mixer[ui::kColorButtonBackgroundProminent] =
+      PickGoogleColor(ui::kColorAccent, ui::kColorDialogBackground,
+                      color_utils::kMinimumVisibleContrastRatio);
+  mixer[ui::kColorButtonBackgroundProminentFocused] = {
+      ui::kColorButtonBackgroundProminent};
   mixer[ui::kColorButtonBackgroundProminentDisabled] = {button_bg_disabled};
-  mixer[ui::kColorButtonBorder] = {button_border};
+  mixer[ui::kColorButtonBorder] = {GetBorderColor("button")};
   mixer[ui::kColorButtonBorderDisabled] = {button_bg_disabled};
   mixer[ui::kColorButtonForeground] = {GetFgColor("button.text-button label")};
   mixer[ui::kColorButtonForegroundDisabled] = {
       GetFgColor("button.text-button:disabled label")};
-  mixer[ui::kColorButtonForegroundProminent] = {accent};
+  mixer[ui::kColorButtonForegroundProminent] = {accent_fg};
   mixer[ui::kColorDialogForeground] = {ui::kColorPrimaryForeground};
   mixer[ui::kColorDropdownBackground] = {GetBgColor(base::StrCat(
       {"combobox window.background.popup ", "menu(gtk-combobox-popup-menu) ",
@@ -108,10 +124,10 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
   mixer[ui::kColorHelpIconActive] = {GetFgColor("button.image-button:hover")};
   mixer[ui::kColorIcon] = {GetFgColor("button.flat.scale image")};
   mixer[ui::kColorHelpIconInactive] = {GetFgColor("button.image-button")};
-  mixer[ui::kColorLinkForeground] = {GetFgColor("label.link:link")};
+  mixer[ui::kColorLinkForegroundDefault] = {GetFgColor("label.link:link")};
   mixer[ui::kColorLinkForegroundDisabled] = {
       GetFgColor("label.link:link:disabled")};
-  mixer[ui::kColorLinkForegroundPressed] = {
+  mixer[ui::kColorLinkForegroundPressedDefault] = {
       GetFgColor("label.link:link:hover:active")};
   mixer[ui::kColorMenuBackground] = {GetBgColor(GtkCssMenu())};
   mixer[ui::kColorMenuBorder] = {GetBorderColor(GtkCssMenu())};
@@ -131,7 +147,7 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
       base::StrCat({GtkCssMenu(), " ", GtkCssMenuItem(), ":hover label"}))};
   mixer[ui::kColorMenuSeparator] = {
       GetSeparatorColor(base::StrCat({GtkCssMenu(), " separator.horizontal"}))};
-  mixer[ui::kColorNotificationInputForeground] = {accent};
+  mixer[ui::kColorNotificationInputForeground] = {accent_fg};
   mixer[ui::kColorOverlayScrollbarFill] = {GetBgColor("scrollbar slider")};
   mixer[ui::kColorOverlayScrollbarFillHovered] = {
       GetBgColor("scrollbar slider:hover")};
@@ -168,6 +184,7 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
       GetFgColor("treeview.view button label")};
   mixer[ui::kColorTableHeaderSeparator] = {
       GetBorderColor("treeview.view button")};
+  mixer[ui::kColorTableRowHighlight] = {ui::kColorSysStateHoverOnSubtle};
   mixer[ui::kColorTextfieldBackground] = {GetBgColor("textview.view")};
   mixer[ui::kColorTextfieldBackgroundDisabled] = {
       GetBgColor("textview.view:disabled")};
@@ -175,10 +192,8 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
   mixer[ui::kColorTextfieldForegroundDisabled] = {
       GetFgColor("textview.view:disabled text")};
   mixer[ui::kColorTextfieldForegroundPlaceholder] = {GtkCheckVersion(4)};
-  mixer[ui::kColorTextfieldSelectionBackground] = {
-      GetSelectionBgColor("textview.view text selection")};
-  mixer[ui::kColorTextfieldSelectionForeground] = {
-      GetFgColor("textview.view text selection")};
+  mixer[ui::kColorTextfieldSelectionBackground] = {kSelectedTextBackground};
+  mixer[ui::kColorTextfieldSelectionForeground] = {kSelectedTextForeground};
   mixer[ui::kColorThrobber] = {GetFgColor("spinner")};
   mixer[ui::kColorThrobberPreconnect] = {GetFgColor("spinner:disabled")};
   mixer[ui::kColorToggleButtonTrackOff] = {
@@ -194,7 +209,7 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
   mixer[ui::kColorTreeNodeForeground] = {
       GetFgColor("treeview.view treeview.view.cell "
                  "label")};
-  mixer[ui::kColorTreeNodeForegroundSelectedFocused] = {accent};
+  mixer[ui::kColorTreeNodeForegroundSelectedFocused] = {accent_fg};
   mixer[ui::kColorTreeNodeBackgroundSelectedUnfocused] = {
       GetBgColor("treeview.view "
                  "treeview.view.cell:selected")};
@@ -217,7 +232,7 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
       GetFgColor(header_selector_inactive + " label.title")};
   mixer[ui::kColorNativeToolbarBackground] = {toolbar_color};
   mixer[ui::kColorNativeTextfieldBorderUnfocused] = {entry_border};
-  mixer[ui::kColorNativeButtonBorder] = {button_border};
+  mixer[ui::kColorNativeBoxFrameBorder] = {GetBorderColor("box.frame")};
   mixer[ui::kColorNativeLabelForeground] = {label_fg};
 }
 

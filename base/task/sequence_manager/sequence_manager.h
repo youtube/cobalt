@@ -12,10 +12,10 @@
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/compiler_specific.h"
 #include "base/dcheck_is_on.h"
 #include "base/memory/raw_ptr.h"
 #include "base/message_loop/message_pump_type.h"
-#include "base/message_loop/timer_slack.h"
 #include "base/task/sequence_manager/task_queue_impl.h"
 #include "base/task/sequence_manager/task_time_observer.h"
 #include "base/task/sequenced_task_runner.h"
@@ -29,10 +29,6 @@ class MessagePump;
 class TaskObserver;
 
 namespace sequence_manager {
-namespace internal {
-class TestTaskQueue;
-}  // namespace internal
-
 class TimeDomain;
 
 // SequenceManager manages TaskQueues which have different properties
@@ -50,29 +46,6 @@ class BASE_EXPORT SequenceManager {
     virtual void OnExitNestedRunLoop() = 0;
   };
 
-  struct MetricRecordingSettings {
-    // This parameter will be updated for consistency on creation (setting
-    // value to 0 when ThreadTicks are not supported).
-    explicit MetricRecordingSettings(
-        double task_sampling_rate_for_recording_cpu_time);
-
-    // The proportion of the tasks for which the cpu time will be
-    // sampled or 0 if this is not enabled.
-    // Since randomised sampling requires the use of Rand(), it is enabled only
-    // on platforms which support it.
-    // If it is 1 then cpu time is measured for each task, so the integral
-    // metrics (as opposed to per-task metrics) can be recorded.
-    double task_sampling_rate_for_recording_cpu_time = 0;
-
-    bool records_cpu_time_for_some_tasks() const {
-      return task_sampling_rate_for_recording_cpu_time > 0.0;
-    }
-
-    bool records_cpu_time_for_all_tasks() const {
-      return task_sampling_rate_for_recording_cpu_time == 1.0;
-    }
-  };
-
   class BASE_EXPORT PrioritySettings {
    public:
     // This limit is based on an implementation detail of `TaskQueueSelector`'s
@@ -82,8 +55,8 @@ class BASE_EXPORT SequenceManager {
 
     static PrioritySettings CreateDefault();
 
-    template <typename T,
-              typename = typename std::enable_if_t<std::is_enum_v<T>>>
+    template <typename T>
+      requires(std::is_enum_v<T>)
     PrioritySettings(T priority_count, T default_priority)
         : PrioritySettings(
               static_cast<TaskQueue::QueuePriority>(priority_count),
@@ -99,7 +72,7 @@ class BASE_EXPORT SequenceManager {
 
     ~PrioritySettings();
 
-    PrioritySettings(PrioritySettings&&);
+    PrioritySettings(PrioritySettings&&) noexcept;
     PrioritySettings& operator=(PrioritySettings&&);
 
     TaskQueue::QueuePriority priority_count() const { return priority_count_; }
@@ -136,11 +109,13 @@ class BASE_EXPORT SequenceManager {
         std::vector<TimeDelta> per_priority_cross_thread_task_delay,
         std::vector<TimeDelta> per_priority_same_thread_task_delay);
 
-    const std::vector<TimeDelta>& per_priority_cross_thread_task_delay() const {
+    const std::vector<TimeDelta>& per_priority_cross_thread_task_delay() const
+        LIFETIME_BOUND {
       return per_priority_cross_thread_task_delay_;
     }
 
-    const std::vector<TimeDelta>& per_priority_same_thread_task_delay() const {
+    const std::vector<TimeDelta>& per_priority_same_thread_task_delay() const
+        LIFETIME_BOUND {
       return per_priority_same_thread_task_delay_;
     }
 
@@ -154,8 +129,7 @@ class BASE_EXPORT SequenceManager {
 #endif
   };
 
-  // Settings defining the desired SequenceManager behaviour: the type of the
-  // MessageLoop and whether randomised sampling should be enabled.
+  // Settings defining the desired SequenceManager behaviour.
   struct BASE_EXPORT Settings {
     class Builder;
 
@@ -175,7 +149,11 @@ class BASE_EXPORT SequenceManager {
     ~Settings();
 
     MessagePumpType message_loop_type = MessagePumpType::DEFAULT;
-    bool randomised_sampling_enabled = false;
+
+    // Whether or not CPU time should be sampled for a fixed percentage of
+    // tasks.
+    bool sample_cpu_time = false;
+
     raw_ptr<const TickClock, DanglingUntriaged> clock =
         DefaultTickClock::GetInstance();
 
@@ -231,6 +209,10 @@ class BASE_EXPORT SequenceManager {
   // circumstances. The ownership of the pump is transferred to SequenceManager.
   virtual void BindToMessagePump(std::unique_ptr<MessagePump> message_pump) = 0;
 
+  // Gets a pointer to the message pump that this sequence manager is bound to,
+  // if any.
+  virtual MessagePump* GetMessagePump() const = 0;
+
   // Must be called on the main thread.
   // Can be called only once, before creating TaskQueues.
   // Observer must outlive the SequenceManager.
@@ -259,7 +241,7 @@ class BASE_EXPORT SequenceManager {
   // Returns a wake-up for the next delayed task which is not ripe for
   // execution. If there are no such tasks (immediate tasks don't count),
   // returns nullopt.
-  virtual absl::optional<WakeUp> GetNextDelayedWakeUp() const = 0;
+  virtual std::optional<WakeUp> GetNextDelayedWakeUp() const = 0;
 
   // Sets the SingleThreadTaskRunner that will be returned by
   // SingleThreadTaskRunner::GetCurrentDefault on the main thread.
@@ -279,25 +261,17 @@ class BASE_EXPORT SequenceManager {
   // logic at the cost of a potentially worse latency. 1 by default.
   virtual void SetWorkBatchSize(int work_batch_size) = 0;
 
-  // Requests desired timer precision from the OS.
-  // Has no effect on some platforms.
-  virtual void SetTimerSlack(TimerSlack timer_slack) = 0;
-
   // Enables crash keys that can be set in the scope of a task which help
   // to identify the culprit if upcoming work results in a crash.
   // Key names must be thread-specific to avoid races and corrupted crash dumps.
   virtual void EnableCrashKeys(const char* async_stack_crash_key) = 0;
 
-  // Returns the metric recording configuration for the current SequenceManager.
-  virtual const MetricRecordingSettings& GetMetricRecordingSettings() const = 0;
-
   virtual TaskQueue::QueuePriority GetPriorityCount() const = 0;
 
-  // Creates a vanilla TaskQueue rather than a user type derived from it. This
-  // should be used if you don't wish to sub class TaskQueue.
-  // Must be called on the main thread.
-  virtual scoped_refptr<TaskQueue> CreateTaskQueue(
-      const TaskQueue::Spec& spec) = 0;
+  // Creates a `TaskQueue` and returns a `TaskQueue::Handle`for it. The queue is
+  // owned by the handle and shut down when the handle is destroyed. Must be
+  // called on the main thread.
+  virtual TaskQueue::Handle CreateTaskQueue(const TaskQueue::Spec& spec) = 0;
 
   // Returns true iff this SequenceManager has no immediate work to do. I.e.
   // there are no pending non-delayed tasks or delayed tasks that are due to
@@ -313,11 +287,6 @@ class BASE_EXPORT SequenceManager {
   // Returns a JSON string which describes all pending tasks.
   virtual std::string DescribeAllPendingTasks() const = 0;
 
-  // While Now() is less than `prioritize_until` we will alternate between a
-  // SequenceManager task and a yielding to the underlying sequence (e.g., the
-  // message pump).
-  virtual void PrioritizeYieldingToNative(base::TimeTicks prioritize_until) = 0;
-
   // Adds an observer which reports task execution. Can only be called on the
   // same thread that `this` is running on.
   virtual void AddTaskObserver(TaskObserver* task_observer) = 0;
@@ -325,12 +294,6 @@ class BASE_EXPORT SequenceManager {
   // Removes an observer which reports task execution. Can only be called on the
   // same thread that `this` is running on.
   virtual void RemoveTaskObserver(TaskObserver* task_observer) = 0;
-
- protected:
-  friend class internal::TestTaskQueue;  // For CreateTaskQueueImpl().
-
-  virtual std::unique_ptr<internal::TaskQueueImpl> CreateTaskQueueImpl(
-      const TaskQueue::Spec& spec) = 0;
 };
 
 class BASE_EXPORT SequenceManager::Settings::Builder {
@@ -341,7 +304,9 @@ class BASE_EXPORT SequenceManager::Settings::Builder {
   // Sets the MessagePumpType which is used to create a MessagePump.
   Builder& SetMessagePumpType(MessagePumpType message_loop_type);
 
-  Builder& SetRandomisedSamplingEnabled(bool randomised_sampling_enabled);
+  // Whether or not CPU time will be sampled for tasks at a fixed sampling
+  // ratio.
+  Builder& SetShouldSampleCPUTime(bool enable);
 
   // Sets the TickClock the SequenceManager uses to obtain Now.
   Builder& SetTickClock(const TickClock* clock);

@@ -6,13 +6,15 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
-#include "chrome/browser/feed/android/jni_headers/FeedImageFetchClient_jni.h"
 #include "chrome/browser/feed/feed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "components/feed/core/v2/public/feed_api.h"
 #include "components/feed/core/v2/public/feed_service.h"
 #include "components/feed/core/v2/public/types.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/browser/feed/android/jni_headers/FeedImageFetchClient_jni.h"
 
 using base::android::JavaParamRef;
 
@@ -43,7 +45,7 @@ FeedApi* GetFeedStream() {
 
 jint JNI_FeedImageFetchClient_SendRequest(
     JNIEnv* env,
-    const JavaParamRef<jstring>& j_url,
+    std::string& url,
     const JavaParamRef<jobject>& j_response_callback) {
   // Keep the callback as a ScopedJavaGlobalRef to enable binding it for use
   // with OnFetchFinished.
@@ -56,7 +58,7 @@ jint JNI_FeedImageFetchClient_SendRequest(
   }
 
   return stream
-      ->FetchImage(GURL(base::android::ConvertJavaStringToUTF8(env, j_url)),
+      ->FetchImage(GURL(url),
                    base::BindOnce(&OnFetchFinished, env, std::move(callback)))
       .GetUnsafeValue();
 }

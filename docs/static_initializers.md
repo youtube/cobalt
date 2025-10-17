@@ -10,7 +10,7 @@ Note: Another name for static initializers is "global constructors".
 
 # How Static Initializers are Checked
 
-* For Linux and Mac:
+* For Linux, Mac and iOS:
   * The expected count is stored in [//testing/scripts/check_static_initializers.py](https://source.chromium.org/chromium/chromium/src/+/main:testing/scripts/check_static_initializers.py)
 * For Android:
   * The expected count is stored in [//chrome/android/static_initializers.gni](https://cs.chromium.org/chromium/src/chrome/android/static_initializers.gni)
@@ -35,7 +35,7 @@ For Android:
     # Build with: is_official_build=true is_chrome_branded=true
     # This will dump the list of SI's only when they don't match the expected
     # number in static_initializers.gni (this is what the bots use).
-    ninja chrome/android:monochrome_static_initializers
+    ninja chrome/android:check_chrome_static_initializers
     # or, to dump directly:
     tools/linux/dump-static-initializers.py out/Release/lib.unstripped/libmonochrome.so
 

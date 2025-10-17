@@ -48,7 +48,6 @@ CSSSkewX* CSSSkewX::FromCSSValue(const CSSFunctionValue& value) {
         CSSNumericValue::FromCSSValue(To<CSSPrimitiveValue>(value.Item(0))));
   }
   NOTREACHED();
-  return nullptr;
 }
 
 DOMMatrix* CSSSkewX::toMatrix(ExceptionState&) const {

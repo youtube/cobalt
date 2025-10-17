@@ -27,6 +27,7 @@ class SkiaOutputSurface;
 namespace cc {
 
 struct ApplyViewportChangesArgs;
+struct BeginMainFrameMetrics;
 
 // Used by test stubs to notify the test when something interesting happens.
 class TestHooks : public AnimationDelegate {
@@ -42,7 +43,6 @@ class TestHooks : public AnimationDelegate {
                                           bool has_damage) {}
   virtual void DidFinishImplFrameOnThread(LayerTreeHostImpl* host_impl) {}
   virtual void WillSendBeginMainFrameOnThread(LayerTreeHostImpl* host_impl) {}
-  virtual void DidSendBeginMainFrameOnThread(LayerTreeHostImpl* host_impl) {}
   virtual void BeginMainFrameAbortedOnThread(
       LayerTreeHostImpl* host_impl,
       CommitEarlyOutReason reason,
@@ -62,17 +62,16 @@ class TestHooks : public AnimationDelegate {
       LayerTreeHostImpl::FrameData* frame_data,
       DrawResult draw_result);
   virtual void DrawLayersOnThread(LayerTreeHostImpl* host_impl) {}
+  virtual void WillSubmitCompositorFrame(LayerTreeHostImpl* host_impl,
+                                         const viz::CompositorFrame& frame) {}
   virtual void WillNotifyReadyToActivateOnThread(LayerTreeHostImpl* host_impl) {
   }
   virtual void NotifyReadyToActivateOnThread(LayerTreeHostImpl* host_impl) {}
   virtual void NotifyReadyToDrawOnThread(LayerTreeHostImpl* host_impl) {}
   virtual void NotifyAllTileTasksCompleted(LayerTreeHostImpl* host_impl) {}
   virtual void NotifyTileStateChangedOnThread(LayerTreeHostImpl* host_impl,
-                                              const Tile* tile) {}
-  virtual void WillReceiveCompositorFrameAckOnThread(
-      LayerTreeHostImpl* host_impl) {}
-  virtual void DidReceiveCompositorFrameAckOnThread(
-      LayerTreeHostImpl* host_impl) {}
+                                              const Tile* tile,
+                                              bool update_damage) {}
   virtual void DidRunBeginMainFrame() {}
   virtual void DidReceivePresentationTimeOnThread(
       LayerTreeHostImpl* host_impl,
@@ -117,12 +116,17 @@ class TestHooks : public AnimationDelegate {
   virtual void DidInitializeLayerTreeFrameSink() {}
   virtual void DidFailToInitializeLayerTreeFrameSink() {}
   virtual void DidAddAnimation() {}
+  virtual void OnCommitRequested() {}
   virtual void WillCommit(const CommitState&) {}
   virtual void DidCommit() {}
   virtual void DidCommitAndDrawFrame() {}
-  virtual void DidReceiveCompositorFrameAck() {}
   virtual void DidActivateSyncTree() {}
-  virtual void NotifyThroughputTrackerResults(CustomTrackerResults results) {}
+  virtual void NotifyCompositorMetricsTrackerResults(
+      CustomTrackerResults results) {}
+  virtual std::unique_ptr<BeginMainFrameMetrics> GetBeginMainFrameMetrics();
+  virtual void DidPresentCompositorFrame(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& frame_timing_details) {}
 
   // AnimationDelegate implementation.
   void NotifyAnimationStarted(base::TimeTicks monotonic_time,
@@ -140,7 +144,7 @@ class TestHooks : public AnimationDelegate {
       base::TimeTicks animation_start_time,
       std::unique_ptr<gfx::AnimationCurve> curve) override {}
   void NotifyLocalTimeUpdated(
-      absl::optional<base::TimeDelta> local_time) override {}
+      std::optional<base::TimeDelta> local_time) override {}
 
   // OutputSurface indirections to the LayerTreeTest, that can be further
   // overridden.

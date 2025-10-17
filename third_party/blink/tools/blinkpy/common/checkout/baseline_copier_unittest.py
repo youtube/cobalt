@@ -1,4 +1,4 @@
-# Copyright 2023 The Chromium Authors. All rights reserved.
+# Copyright 2023 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -27,8 +27,8 @@ class BaselineCopierTest(BaselineTest):
                 'port_name': 'test-linux-trusty',
                 'specifiers': ['Release', 'Trusty'],
                 'steps': {
-                    'blink_web_tests (with patch)': {},
-                    'fake_flag_blink_web_tests (with patch)': {
+                    'blink_web_tests': {},
+                    'fake_flag_blink_web_tests': {
                         'flag_specific': 'fake-flag',
                     },
                 },
@@ -67,8 +67,7 @@ class BaselineCopierTest(BaselineTest):
         baseline_set = TestBaselineSet(self.host.builders)
         for test, builder_name, step_name in runs:
             build = Build(builder_name, 1000)
-            baseline_set.add(test, build, step_name
-                             or 'blink_web_tests (with patch)')
+            baseline_set.add(test, build, step_name or 'blink_web_tests')
         return baseline_set
 
     def test_demote(self):
@@ -164,7 +163,7 @@ class BaselineCopierTest(BaselineTest):
             ('failures/expected/image.html', 'MOCK win7-rel', None),
             ('failures/expected/image.html', 'MOCK linux-trusty-rel', None),
             ('failures/expected/image.html', 'MOCK linux-trusty-rel',
-             'fake_flag_blink_web_tests (with patch)'),
+             'fake_flag_blink_web_tests'),
             ('failures/expected/image.html', 'MOCK linux-precise-rel', None),
         ])
         self.copier.write_copies(
@@ -262,7 +261,7 @@ class BaselineCopierTest(BaselineTest):
             })
         baseline_set = self._baseline_set([
             ('failures/expected/image.html', 'MOCK linux-trusty-rel',
-             'fake_flag_blink_web_tests (with patch)'),
+             'fake_flag_blink_web_tests'),
         ])
         self.copier.write_copies(
             self.copier.find_baselines_to_copy('failures/expected/image.html',
@@ -290,7 +289,7 @@ class BaselineCopierTest(BaselineTest):
         # counterpart.
         baseline_set = self._baseline_set([
             ('failures/expected/image.html', 'MOCK linux-trusty-rel',
-             'fake_flag_blink_web_tests (with patch)'),
+             'fake_flag_blink_web_tests'),
         ])
         self.copier.write_copies(
             self.copier.find_baselines_to_copy('failures/expected/image.html',
@@ -499,4 +498,24 @@ class BaselineCopierTest(BaselineTest):
                 None,
                 'platform/test-win-win7/virtual/other_virtual/':
                 'virtual win10 result',
+            })
+
+    def test_copy_for_physical_test_under_virtual_dir(self):
+        self._write_baselines(
+            'physical1-expected.txt', {
+                'platform/test-mac-mac10.11/virtual/virtual_empty_bases/':
+                'virtual mac10.11 result',
+            })
+        baseline_set = self._baseline_set([
+            ('virtual/virtual_empty_bases/physical1.html', 'MOCK mac10.11-rel',
+             None),
+        ])
+        self.copier.write_copies(
+            self.copier.find_baselines_to_copy(
+                'virtual/virtual_empty_bases/physical1.html', 'txt',
+                baseline_set))
+        self._assert_baselines(
+            'physical1-expected.txt', {
+                'platform/test-mac-mac10.10/virtual/virtual_empty_bases/':
+                'virtual mac10.11 result',
             })

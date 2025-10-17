@@ -31,7 +31,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-// TODO(crbug.com/1039517): Disabled all tests because they lead the flakiness
+// TODO(crbug.com/40666874): Disabled all tests because they lead the flakiness
 // dashboard. The root cause is documented in the bug.
 #if !BUILDFLAG(IS_ANDROID)
 
@@ -51,13 +51,6 @@ enum ImportantReasonForTesting {
   NOTIFICATIONS = 4
 };
 
-// We only need to reproduce the values that we are testing. The values here
-// need to match the values in important_sites_util.
-enum CrossedReasonForTesting {
-  CROSSED_NOTIFICATIONS_AND_ENGAGEMENT = 3,
-  CROSSED_REASON_UNKNOWN = 7,
-};
-
 }  // namespace
 
 class ImportantSitesUtilTest : public ChromeRenderViewHostTestHarness {
@@ -68,10 +61,12 @@ class ImportantSitesUtilTest : public ChromeRenderViewHostTestHarness {
   }
 
   TestingProfile::TestingFactories GetTestingFactories() const override {
-    return {{BookmarkModelFactory::GetInstance(),
-             BookmarkModelFactory::GetDefaultFactory()},
-            {HistoryServiceFactory::GetInstance(),
-             HistoryServiceFactory::GetDefaultFactory()}};
+    return {TestingProfile::TestingFactory{
+                BookmarkModelFactory::GetInstance(),
+                BookmarkModelFactory::GetDefaultFactory()},
+            TestingProfile::TestingFactory{
+                HistoryServiceFactory::GetInstance(),
+                HistoryServiceFactory::GetDefaultFactory()}};
   }
 
   void AddContentSetting(ContentSettingsType type,
@@ -126,7 +121,7 @@ class ImportantSitesUtilTest : public ChromeRenderViewHostTestHarness {
   }
 
  private:
-  raw_ptr<BookmarkModel> model_ = nullptr;
+  raw_ptr<BookmarkModel, DanglingUntriaged> model_ = nullptr;
 };
 
 TEST_F(ImportantSitesUtilTest, TestNoImportantSites) {
@@ -406,13 +401,6 @@ TEST_F(ImportantSitesUtilTest, Metrics) {
   EXPECT_THAT(
       histogram_tester.GetAllSamples("Storage.ImportantSites.CBDIgnoredReason"),
       testing::ElementsAre(base::Bucket(BOOKMARKS, 1)));
-
-  // Bookmarks are "unknown", as they were added after the crossed reasons.
-  EXPECT_THAT(histogram_tester.GetAllSamples(
-                  "Storage.BlacklistedImportantSites.Reason"),
-              testing::ElementsAre(
-                  base::Bucket(CROSSED_NOTIFICATIONS_AND_ENGAGEMENT, 1),
-                  base::Bucket(CROSSED_REASON_UNKNOWN, 1)));
 }
 
 TEST_F(ImportantSitesUtilTest, DialogExcluding) {
@@ -468,6 +456,33 @@ TEST_F(ImportantSitesUtilTest, DialogExcluding) {
 
   // Dialog should be disabled.
   EXPECT_TRUE(ImportantSitesUtil::IsDialogDisabled(profile()));
+}
+
+TEST_F(ImportantSitesUtilTest, ExcludeNonRegisterableDomains) {
+  SiteEngagementService* service = SiteEngagementService::Get(profile());
+  ASSERT_TRUE(service);
+
+  GURL url1("http://www.google.com/");
+  GURL url2("chrome://newtab/");
+  GURL url3("chrome://settings/");
+  GURL url4("http://localhost/");
+
+  // Set a bunch of positive signals.
+  service->ResetBaseScoreForURL(url1, 8);
+  service->ResetBaseScoreForURL(url2, 9);
+  AddBookmark(url3);
+  AddContentSetting(ContentSettingsType::NOTIFICATIONS, CONTENT_SETTING_ALLOW,
+                    url4);
+
+  std::vector<ImportantDomainInfo> important_sites =
+      ImportantSitesUtil::GetImportantRegisterableDomains(profile(),
+                                                          kNumImportantSites);
+
+  ASSERT_EQ(1u, important_sites.size());
+  std::vector<std::string> expected_sorted_domains = {"google.com"};
+  std::vector<GURL> expected_sorted_origins = {url1};
+  ExpectImportantResultsEq(expected_sorted_domains, expected_sorted_origins,
+                           important_sites);
 }
 
 }  // namespace site_engagement

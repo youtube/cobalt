@@ -18,7 +18,8 @@ XRPlaneManager::XRPlaneManager(base::PassKey<XRSession> pass_key,
 void XRPlaneManager::ProcessPlaneInformation(
     const device::mojom::blink::XRPlaneDetectionData* detected_planes_data,
     double timestamp) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("xr.debug"), __func__);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("xr.debug"),
+               "ProcessPlaneInformation");
 
   if (!detected_planes_data) {
     DVLOG(3) << __func__ << ": detected_planes_data is null";
@@ -65,7 +66,7 @@ void XRPlaneManager::ProcessPlaneInformation(
     // as-is.
     if (!base::Contains(updated_planes, plane_id)) {
       auto it = plane_ids_to_planes_.find(plane_id);
-      DCHECK(it != plane_ids_to_planes_.end());
+      CHECK(it != plane_ids_to_planes_.end());
       updated_planes.insert(plane_id, it->value);
     }
   }

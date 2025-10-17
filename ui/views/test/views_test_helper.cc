@@ -15,15 +15,18 @@ ViewsTestHelper::GetFallbackTestViewsDelegate() {
 
 void ViewsTestHelper::SetUpTestViewsDelegate(
     TestViewsDelegate* delegate,
-    absl::optional<ViewsDelegate::NativeWidgetFactory> factory) {
-  if (factory.has_value())
+    std::optional<ViewsDelegate::NativeWidgetFactory> factory) {
+  if (factory.has_value()) {
     delegate->set_native_widget_factory(factory.value());
+  }
 }
+
+void ViewsTestHelper::TearDownTestViewsDelegate(TestViewsDelegate* delegate) {}
 
 void ViewsTestHelper::SetUp() {}
 
 gfx::NativeWindow ViewsTestHelper::GetContext() {
-  return nullptr;
+  return gfx::NativeWindow();
 }
 
 }  // namespace views

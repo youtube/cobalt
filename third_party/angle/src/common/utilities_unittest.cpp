@@ -35,11 +35,23 @@ TEST(ParseResourceName, NegativeArrayIndex)
     EXPECT_EQ(GL_INVALID_INDEX, indices.back());
 }
 
+// Parsing a letter array index should result in INVALID_INDEX.
+TEST(ParseResourceName, LetterArrayIndex)
+{
+    std::vector<unsigned int> indices;
+    EXPECT_EQ("foo", gl::ParseResourceName("foo[a]", &indices));
+    ASSERT_EQ(1u, indices.size());
+    EXPECT_EQ(GL_INVALID_INDEX, indices.back());
+}
+
 // Parsing no array indices should result in an empty array.
 TEST(ParseResourceName, NoArrayIndex)
 {
     std::vector<unsigned int> indices;
     EXPECT_EQ("foo", gl::ParseResourceName("foo", &indices));
+    EXPECT_TRUE(indices.empty());
+
+    EXPECT_EQ("foo[]", gl::ParseResourceName("foo[]", &indices));
     EXPECT_TRUE(indices.empty());
 }
 
@@ -175,6 +187,71 @@ TEST(ParseArrayIndex, ArrayIndexOutOfRange)
     EXPECT_EQ(GL_INVALID_INDEX,
               gl::ParseArrayIndex("foo[4294967296]", &nameLengthWithoutArrayIndex));
     EXPECT_EQ(15u, nameLengthWithoutArrayIndex);
+}
+
+// Test that ConstStrLen works.
+TEST(Utilities, ConstStrLen)
+{
+    constexpr auto v1 = angle::ConstStrLen(nullptr);
+    EXPECT_EQ(0u, v1);
+    constexpr auto v2 = angle::ConstStrLen("");
+    EXPECT_EQ(0u, v2);
+    constexpr auto v3 = angle::ConstStrLen("a");
+    EXPECT_EQ(1u, v3);
+    constexpr char c[5] = "cc\0c";
+    constexpr auto v4   = angle::ConstStrLen(c);
+    EXPECT_EQ(2u, v4);
+    constexpr char d[] = "dddd";
+    constexpr auto v5  = angle::ConstStrLen(d);
+    EXPECT_EQ(4u, v5);
+    constexpr char *e = nullptr;
+    constexpr auto v6 = angle::ConstStrLen(e);
+    EXPECT_EQ(0u, v6);
+
+    // Non-constexpr invocations
+    const char cc[5] = "cc\0c";
+    auto n1          = angle::ConstStrLen(cc);
+    EXPECT_EQ(2u, n1);
+    const char *dd = "ddd";
+    auto n2        = angle::ConstStrLen(dd);
+    EXPECT_EQ(3u, n2);
+}
+
+// Tests gl::ComputeIndexRange().
+TEST(Utilities, IndexRanges)
+{
+    constexpr auto b    = gl::DrawElementsType::UnsignedByte;
+    uint8_t vertices1[] = {1, 2, 3, 4, 0xff, 6, 5, 7, 10, 0xff, 0xff, 0xff, 9, 8, 0xff};
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 0, true), gl::IndexRange());
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 0, false), gl::IndexRange());
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 1, true), gl::IndexRange(1, 1));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 1, false), gl::IndexRange(1, 1));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 2, true), gl::IndexRange(1, 2));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 2, false), gl::IndexRange(1, 2));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 4, true), gl::IndexRange(1, 4));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 4, false), gl::IndexRange(1, 4));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 5, true), gl::IndexRange(1, 4));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 5, false), gl::IndexRange(1, 255));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 15, true), gl::IndexRange(1, 10));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 15, false), gl::IndexRange(1, 255));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1, 15, false), gl::IndexRange(1, 255));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1 + 9, 3, false), gl::IndexRange(255, 255));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1 + 9, 3, true), gl::IndexRange());
+    EXPECT_EQ(ComputeIndexRange(b, vertices1 + 9, 4, false), gl::IndexRange(9, 255));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1 + 9, 4, true), gl::IndexRange(9, 9));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1 + 8, 4, false), gl::IndexRange(10, 255));
+    EXPECT_EQ(ComputeIndexRange(b, vertices1 + 8, 4, true), gl::IndexRange(10, 10));
+    uint8_t vertices2[] = {
+        0xff,
+        0xff,
+        2,
+    };
+    EXPECT_EQ(ComputeIndexRange(b, vertices2, 1, true), gl::IndexRange());
+    EXPECT_EQ(ComputeIndexRange(b, vertices2, 1, false), gl::IndexRange(255, 255));
+    EXPECT_EQ(ComputeIndexRange(b, vertices2, 2, true), gl::IndexRange());
+    EXPECT_EQ(ComputeIndexRange(b, vertices2, 2, false), gl::IndexRange(255, 255));
+    EXPECT_EQ(ComputeIndexRange(b, vertices2, 3, true), gl::IndexRange(2, 2));
+    EXPECT_EQ(ComputeIndexRange(b, vertices2, 3, false), gl::IndexRange(2, 255));
 }
 
 }  // anonymous namespace

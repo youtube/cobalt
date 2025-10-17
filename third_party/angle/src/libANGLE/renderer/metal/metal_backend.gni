@@ -22,6 +22,8 @@ metal_backend_sources = [
   "IOSurfaceSurfaceMtl.mm",
   "ImageMtl.h",
   "ImageMtl.mm",
+  "ProgramExecutableMtl.h",
+  "ProgramExecutableMtl.mm",
   "ProgramMtl.h",
   "ProgramMtl.mm",
   "ProvokingVertexHelper.h",
@@ -48,6 +50,8 @@ metal_backend_sources = [
   "VertexArrayMtl.mm",
   "blocklayoutMetal.cpp",
   "blocklayoutMetal.h",
+  "mtl_buffer_manager.h",
+  "mtl_buffer_manager.mm",
   "mtl_buffer_pool.h",
   "mtl_buffer_pool.mm",
   "mtl_command_buffer.h",
@@ -65,6 +69,8 @@ metal_backend_sources = [
   "mtl_msl_utils.mm",
   "mtl_occlusion_query_pool.h",
   "mtl_occlusion_query_pool.mm",
+  "mtl_pipeline_cache.h",
+  "mtl_pipeline_cache.mm",
   "mtl_render_utils.h",
   "mtl_render_utils.mm",
   "mtl_resource_spi.h",
@@ -74,15 +80,21 @@ metal_backend_sources = [
   "mtl_state_cache.mm",
   "mtl_utils.h",
   "mtl_utils.mm",
-  "process.cpp",
-  "process.h",
   "renderermtl_utils.cpp",
   "renderermtl_utils.h",
   "shaders/constants.h",
-  "shaders/mtl_internal_shaders_2_0_ios_autogen.h",
-  "shaders/mtl_internal_shaders_2_0_macos_autogen.h",
-  "shaders/mtl_internal_shaders_2_1_ios_autogen.h",
-  "shaders/mtl_internal_shaders_2_1_macos_autogen.h",
   "shaders/mtl_internal_shaders_src_autogen.h",
   "shaders/rewrite_indices_shared.h",
 ]
+
+# We can build the ANGLE internal shaders at build-time if we have access to the Mac SDK in the "build" dir.
+# Building internal shaders for iOS is not supported. The Chromium Mac SDK does not have all the required files.
+# This is also an issue when cross-compiling for mac.
+metal_internal_shader_compilation_supported =
+    angle_has_build && !is_ios && target_os == host_os
+
+metal_internal_shaders_header =
+    "$root_gen_dir/angle/mtl_internal_shaders_metallib.h"
+if (metal_internal_shader_compilation_supported) {
+  metal_backend_sources += [ metal_internal_shaders_header ]
+}

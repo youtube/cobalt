@@ -11,8 +11,7 @@
 namespace ash {
 
 // Interface between the device disabled screen and its representation.
-class DeviceDisabledScreenView
-    : public base::SupportsWeakPtr<DeviceDisabledScreenView> {
+class DeviceDisabledScreenView {
  public:
   inline constexpr static StaticOobeScreenId kScreenId{"device-disabled",
                                                        "DeviceDisabledScreen"};
@@ -22,18 +21,37 @@ class DeviceDisabledScreenView
   // Sets some properties of the `DeviceDisabledScreen`, then shows the screen,
   // by calling `ShowInWebUI()`. Receives the following data, respectively:
   // serial number of the device, domain that owns the device (can be empty),
-  // message from the admin, and a flag indicating if the device was disabled
-  // because it's in AD mode (which is no longer supported).
-  virtual void Show(const std::string& serial,
-                    const std::string& domain,
-                    const std::string& message,
-                    bool is_disabled_ad_device) = 0;
+  // message from the admin, flag indicating if the device was disabled
+  // because the device is in restriction schedule, device name, and the day and
+  // time at which the restriction schedule ends.
+  struct Params {
+    Params();
+    ~Params();
+    Params(const Params&) = delete;
+    Params& operator=(Params&) = delete;
+    std::string serial;
+    std::string domain;
+    std::string message;
+    bool device_restriction_schedule_enabled;
+    std::u16string device_name;
+    std::u16string restriction_schedule_end_day;
+    std::u16string restriction_schedule_end_time;
+  };
+  virtual void Show(const Params& params) = 0;
+
   virtual void UpdateMessage(const std::string& message) = 0;
+
+  virtual void UpdateRestrictionScheduleMessage(
+      const std::u16string& end_day,
+      const std::u16string& end_time) = 0;
+
+  // Gets a WeakPtr to the instance.
+  virtual base::WeakPtr<DeviceDisabledScreenView> AsWeakPtr() = 0;
 };
 
 // WebUI implementation of DeviceDisabledScreenActor.
-class DeviceDisabledScreenHandler : public DeviceDisabledScreenView,
-                                    public BaseScreenHandler {
+class DeviceDisabledScreenHandler final : public DeviceDisabledScreenView,
+                                          public BaseScreenHandler {
  public:
   using TView = DeviceDisabledScreenView;
 
@@ -46,15 +64,19 @@ class DeviceDisabledScreenHandler : public DeviceDisabledScreenView,
   ~DeviceDisabledScreenHandler() override;
 
   // DeviceDisabledScreenView:
-  void Show(const std::string& serial,
-            const std::string& domain,
-            const std::string& message,
-            bool is_disabled_ad_device) override;
+  void Show(const Params& params) override;
   void UpdateMessage(const std::string& message) override;
+  void UpdateRestrictionScheduleMessage(
+      const std::u16string& end_day,
+      const std::u16string& end_time) override;
+  base::WeakPtr<DeviceDisabledScreenView> AsWeakPtr() override;
 
   // BaseScreenHandler:
   void DeclareLocalizedValues(
       ::login::LocalizedValuesBuilder* builder) override;
+
+ private:
+  base::WeakPtrFactory<DeviceDisabledScreenView> weak_ptr_factory_{this};
 };
 
 }  // namespace ash

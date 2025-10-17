@@ -18,11 +18,15 @@ class CompositorFrame;
 }  // namespace viz
 
 namespace gfx {
-class GpuMemoryBuffer;
 class Rect;
 }  // namespace gfx
 
+namespace gpu {
+class ClientSharedImage;
+}  // namespace gpu
+
 namespace ash {
+class FastInkHostTestApi;
 
 // FastInkHost is used to support low-latency rendering. It supports
 // 'auto-refresh' mode which provide minimum latency updates for the
@@ -30,7 +34,7 @@ namespace ash {
 // when possible and trigger continuous updates.
 class ASH_EXPORT FastInkHost : public FrameSinkHost {
  public:
-  // Provides flicker free painting to a GPU memory buffer.
+  // Provides flicker free painting to a mappable SharedImage.
   class ScopedPaint {
    public:
     ScopedPaint(const FastInkHost* host,
@@ -44,10 +48,10 @@ class ASH_EXPORT FastInkHost : public FrameSinkHost {
     gfx::Canvas& canvas() { return canvas_; }
 
    private:
-    raw_ptr<gfx::GpuMemoryBuffer, ExperimentalAsh> gpu_memory_buffer_;
+    const raw_ptr<FastInkHost> host_;
 
     // Damage rect in the buffer coordinates.
-    const gfx::Rect damage_rect_;
+    gfx::Rect damage_rect_;
     gfx::Canvas canvas_;
   };
 
@@ -67,9 +71,8 @@ class ASH_EXPORT FastInkHost : public FrameSinkHost {
 
   // FrameSinkHost:
   void Init(aura::Window* host_window) override;
-  void InitForTesting(
-      aura::Window* host_window,
-      std::unique_ptr<cc::LayerTreeFrameSink> layer_tree_frame_sink) override;
+  void InitForTesting(aura::Window* host_window,
+                      FrameSinkFactory frame_sink_factory) override;
 
  protected:
   // FrameSinkHost:
@@ -79,13 +82,32 @@ class ASH_EXPORT FastInkHost : public FrameSinkHost {
       bool auto_update,
       const gfx::Size& last_submitted_frame_size,
       float last_submitted_frame_dsf) override;
+  void OnFirstFrameRequested() override;
+  void OnFrameSinkLost() override;
 
  private:
-  void InitializeFastInkBuffer(aura::Window* host_window);
+  friend FastInkHostTestApi;
 
-  std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer_;
+  void InitBufferMetadata(aura::Window* host_window);
+  void InitializeFastInkBuffer(aura::Window* host_window);
+  gfx::Rect BufferRectFromWindowRect(const gfx::Rect& rect_in_window) const;
+  void Draw(SkBitmap bitmap, const gfx::Rect& damage_rect);
+  void DrawBitmap(SkBitmap bitmap, const gfx::Rect& damage_rect);
+  void ResetGpuBuffer();
 
   gfx::Transform window_to_buffer_transform_;
+
+  gfx::Size buffer_size_;
+
+  struct PendingBitmap {
+    SkBitmap bitmap;
+    gfx::Rect damage_rect;
+  };
+  std::vector<PendingBitmap> pending_bitmaps_;
+
+  scoped_refptr<gpu::ClientSharedImage> client_shared_image_;
+  gpu::SyncToken sync_token_;
+  scoped_refptr<viz::RasterContextProvider> context_provider_;
 };
 
 }  // namespace ash

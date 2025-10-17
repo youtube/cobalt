@@ -23,7 +23,7 @@ RequestQueue<T>::RequestQueue(
     const base::RepeatingClosure& start_request_callback)
     : backoff_policy_(backoff_policy),
       start_request_callback_(start_request_callback),
-      active_request_(absl::nullopt) {}
+      active_request_(std::nullopt) {}
 
 template <typename T>
 RequestQueue<T>::~RequestQueue() = default;
@@ -93,14 +93,16 @@ base::TimeTicks RequestQueue<T>::NextReleaseTime() const {
 
 template <typename T>
 void RequestQueue<T>::StartNextRequest() {
-  if (active_request_)
+  if (active_request_) {
     // Already running a request, assume this method will be called again when
     // the request is done.
     return;
+  }
 
-  if (empty())
+  if (empty()) {
     // No requests in the queue, so we're done.
     return;
+  }
 
   base::TimeTicks next_release = NextReleaseTime();
   base::TimeTicks now = base::TimeTicks::Now();

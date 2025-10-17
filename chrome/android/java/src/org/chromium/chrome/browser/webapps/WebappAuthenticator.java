@@ -9,7 +9,6 @@ import android.util.Log;
 
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
-import org.chromium.base.StrictModeContext;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -44,18 +43,15 @@ public class WebappAuthenticator {
 
     /**
      * @see #getMacForUrl
-     *
      * @param url The URL to validate.
      * @param mac The bytes of a previously-calculated MAC.
-     *
      * @return true if the MAC is a valid MAC for the URL, false otherwise.
      */
     public static boolean isUrlValid(String url, byte[] mac) {
         byte[] goodMac;
-        // TODO(crbug.com/525785): Temporarily allowing disk access until more permanent fix is in.
-        try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
-            goodMac = getMacForUrl(url);
-        }
+        // TODO(crbug.com/41198030): Temporarily allowing disk access until more permanent fix is
+        // in.
+        goodMac = getMacForUrl(url);
         if (goodMac == null) {
             return false;
         }
@@ -130,8 +126,12 @@ public class WebappAuthenticator {
         byte[] keyBytes = key.getEncoded();
         FileOutputStream output = null;
         if (MAC_KEY_BYTE_COUNT != keyBytes.length) {
-            Log.e(TAG, "writeKeyToFile got key encoded bytes length " + keyBytes.length
-                    + "; expected " + MAC_KEY_BYTE_COUNT);
+            Log.e(
+                    TAG,
+                    "writeKeyToFile got key encoded bytes length "
+                            + keyBytes.length
+                            + "; expected "
+                            + MAC_KEY_BYTE_COUNT);
             return false;
         }
 
@@ -174,9 +174,7 @@ public class WebappAuthenticator {
         }
     }
 
-    /**
-     * Generates the authentication encryption key in a background thread (if necessary).
-     */
+    /** Generates the authentication encryption key in a background thread (if necessary). */
     private static SecretKey generateMacKey() {
         if (sKey != null) {
             return sKey;

@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/core/frame/viewport_data.h"
 
+#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
+
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -113,6 +115,21 @@ void ViewportData::UpdateViewportDescription() {
       // Even though we bind the mojo interface above there still may be cases
       // where this will fail (e.g. unit tests).
       display_cutout_host_->NotifyViewportFitChanged(current_viewport_fit);
+
+      // Track usage of any non-default viewport-fit.
+      if (document_->GetFrame()->IsOutermostMainFrame()) {
+        if (current_viewport_fit == mojom::blink::ViewportFit::kContain) {
+          UseCounter::Count(document_, WebFeature::kViewportFitContain);
+        } else if (current_viewport_fit == mojom::blink::ViewportFit::kCover ||
+                   current_viewport_fit ==
+                       mojom::blink::ViewportFit::kCoverForcedByUserAgent) {
+          UseCounter::Count(document_, WebFeature::kViewportFitCover);
+          // TODO(https://crbug.com/1482559) remove tracking this union of
+          // features after data collected (end of '23)
+          UseCounter::Count(document_,
+                            WebFeature::kViewportFitCoverOrSafeAreaInsetBottom);
+        }
+      }
     }
 
     viewport_fit_ = current_viewport_fit;
@@ -122,6 +139,30 @@ void ViewportData::UpdateViewportDescription() {
       document_->GetPage()->GetVisualViewport().IsActiveViewport()) {
     document_->GetPage()->GetChromeClient().DispatchViewportPropertiesDidChange(
         GetViewportDescription());
+  }
+}
+
+void ViewportData::SetHasComplexSafaAreaConstraint(bool value) {
+  if (has_complex_safe_area_constraint_ == value || !document_->GetFrame()) {
+    return;
+  }
+
+  if (AssociatedInterfaceProvider* provider =
+          document_->GetFrame()
+              ->Client()
+              ->GetRemoteNavigationAssociatedInterfaces()) {
+    // Bind the mojo interface.
+    if (!display_cutout_host_.is_bound()) {
+      provider->GetInterface(
+          display_cutout_host_.BindNewEndpointAndPassReceiver(
+              provider->GetTaskRunner()));
+      DCHECK(display_cutout_host_.is_bound());
+    }
+
+    // Even though we bind the mojo interface above there still may be cases
+    // where this will fail (e.g. unit tests).
+    display_cutout_host_->NotifyComplexSafeAreaConstraintChanged(value);
+    has_complex_safe_area_constraint_ = value;
   }
 }
 

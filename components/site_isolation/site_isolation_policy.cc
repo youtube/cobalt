@@ -46,23 +46,17 @@ bool ShouldDisableSiteIsolationDueToMemorySlow(
   //   reduce the amount of memory seen by AmountOfPhysicalMemoryMB(). Both
   //   partial and strict site isolation thresholds can be overridden via
   //   params defined in a kSiteIsolationMemoryThresholds field trial.
-  // - Desktop does not enforce a default memory threshold, but for now we
-  //   still support a threshold defined via a kSiteIsolationMemoryThresholds
-  //   field trial.  The trial typically carries the threshold in a param; if
-  //   it doesn't, use a default that's slightly higher than 1GB (see
-  //   https://crbug.com/844118).
-  int default_memory_threshold_mb;
+  // - Desktop does not enforce a default memory threshold.
 #if BUILDFLAG(IS_ANDROID)
+  int default_memory_threshold_mb;
   if (site_isolation_mode == content::SiteIsolationMode::kStrictSiteIsolation) {
     default_memory_threshold_mb = 3200;
   } else {
     default_memory_threshold_mb = 1900;
   }
-#else
-  default_memory_threshold_mb = 1077;
-#endif
 
-  if (base::FeatureList::IsEnabled(features::kSiteIsolationMemoryThresholds)) {
+  if (base::FeatureList::IsEnabled(
+          features::kSiteIsolationMemoryThresholdsAndroid)) {
     std::string param_name;
     switch (site_isolation_mode) {
       case content::SiteIsolationMode::kStrictSiteIsolation:
@@ -73,12 +67,11 @@ bool ShouldDisableSiteIsolationDueToMemorySlow(
         break;
     }
     int memory_threshold_mb = base::GetFieldTrialParamByFeatureAsInt(
-        features::kSiteIsolationMemoryThresholds, param_name,
+        features::kSiteIsolationMemoryThresholdsAndroid, param_name,
         default_memory_threshold_mb);
     return base::SysInfo::AmountOfPhysicalMemoryMB() <= memory_threshold_mb;
   }
 
-#if BUILDFLAG(IS_ANDROID)
   if (base::SysInfo::AmountOfPhysicalMemoryMB() <=
       default_memory_threshold_mb) {
     return true;
@@ -106,6 +99,34 @@ bool CachedDisableSiteIsolation(
   return decisions.should_disable_partial;
 }
 
+bool ShouldDisableOriginIsolationDueToMemorySlow() {
+#if BUILDFLAG(IS_ANDROID)
+  // We won't enable OI on Android by default, but users should be able to turn
+  // it on themselves if they wish. No need for us to enforce memory
+  // restrictions in that case.
+  return false;
+#else
+  // TODO(crbug.com/40259221): This value currently matches the default
+  // threshold for site isolation, but once more trial data is available it
+  // should be adjusted.
+  int default_memory_threshold_mb = 1077;
+  if (base::FeatureList::IsEnabled(features::kOriginIsolationMemoryThreshold)) {
+    int memory_threshold_mb = base::GetFieldTrialParamByFeatureAsInt(
+        features::kOriginIsolationMemoryThreshold,
+        features::kOriginIsolationMemoryThresholdParamName,
+        default_memory_threshold_mb);
+    return base::SysInfo::AmountOfPhysicalMemoryMB() <= memory_threshold_mb;
+  }
+  return false;
+#endif
+}
+
+bool CachedDisableOriginIsolation() {
+  static const bool should_disable_origin_isolation =
+      ShouldDisableOriginIsolationDueToMemorySlow();
+  return should_disable_origin_isolation;
+}
+
 }  // namespace
 
 // static
@@ -127,8 +148,9 @@ bool SiteIsolationPolicy::IsIsolationForPasswordSitesEnabled() {
   // chrome://flags, enterprise policy controlled via
   // switches::kDisableSiteIsolationForPolicy, and memory threshold checks in
   // ShouldDisableSiteIsolationDueToMemoryThreshold().
-  if (!content::SiteIsolationPolicy::AreDynamicIsolatedOriginsEnabled())
+  if (!content::SiteIsolationPolicy::AreDynamicIsolatedOriginsEnabled()) {
     return false;
+  }
 
   // The feature needs to be checked last, because checking the feature
   // activates the field trial and assigns the client either to a control or an
@@ -153,8 +175,9 @@ bool SiteIsolationPolicy::IsIsolationForOAuthSitesEnabled() {
   // chrome://flags, enterprise policy controlled via
   // switches::kDisableSiteIsolationForPolicy, and memory threshold checks in
   // ShouldDisableSiteIsolationDueToMemoryThreshold().
-  if (!content::SiteIsolationPolicy::AreDynamicIsolatedOriginsEnabled())
+  if (!content::SiteIsolationPolicy::AreDynamicIsolatedOriginsEnabled()) {
     return false;
+  }
 
   // The feature needs to be checked last, because checking the feature
   // activates the field trial and assigns the client either to a control or an
@@ -183,6 +206,14 @@ bool SiteIsolationPolicy::ShouldDisableSiteIsolationDueToMemoryThreshold(
     return CachedDisableSiteIsolation(site_isolation_mode);
   }
   return ShouldDisableSiteIsolationDueToMemorySlow(site_isolation_mode);
+}
+
+// static
+bool SiteIsolationPolicy::ShouldDisableOriginIsolationDueToMemoryThreshold() {
+  if (!g_disallow_memory_threshold_caching_for_testing) {
+    return CachedDisableOriginIsolation();
+  }
+  return ShouldDisableOriginIsolationDueToMemorySlow();
 }
 
 // static
@@ -218,8 +249,9 @@ void SiteIsolationPolicy::PersistUserTriggeredIsolatedOrigin(
       site_isolation::prefs::kUserTriggeredIsolatedOrigins);
   base::Value::List& list = update.Get();
   base::Value value(origin.Serialize());
-  if (!base::Contains(list, value))
+  if (!base::Contains(list, value)) {
     list.Append(std::move(value));
+  }
 }
 
 // static
@@ -247,8 +279,8 @@ void SiteIsolationPolicy::PersistWebTriggeredIsolatedOrigin(
   while (dict.size() > max_size) {
     auto oldest_site_time_pair = std::min_element(
         dict.begin(), dict.end(), [](auto pair_a, auto pair_b) {
-          absl::optional<base::Time> time_a = base::ValueToTime(pair_a.second);
-          absl::optional<base::Time> time_b = base::ValueToTime(pair_b.second);
+          std::optional<base::Time> time_a = base::ValueToTime(pair_a.second);
+          std::optional<base::Time> time_b = base::ValueToTime(pair_b.second);
           // has_value() should always be true unless the prefs were corrupted.
           // In that case, prioritize the corrupted entry for removal.
           return (time_a.has_value() ? time_a.value() : base::Time::Min()) <
@@ -295,7 +327,7 @@ void SiteIsolationPolicy::ApplyPersistedIsolatedOrigins(
         pref_service->GetDict(prefs::kWebTriggeredIsolatedOrigins);
     for (auto site_time_pair : dict) {
       // Only isolate origins that haven't expired.
-      absl::optional<base::Time> timestamp =
+      std::optional<base::Time> timestamp =
           base::ValueToTime(site_time_pair.second);
       base::TimeDelta expiration_timeout =
           ::features::
@@ -313,8 +345,9 @@ void SiteIsolationPolicy::ApplyPersistedIsolatedOrigins(
       ScopedDictPrefUpdate update(pref_service,
                                   prefs::kWebTriggeredIsolatedOrigins);
       base::Value::Dict& updated_dict = update.Get();
-      for (const auto& entry : expired_entries)
+      for (const auto& entry : expired_entries) {
         updated_dict.Remove(entry);
+      }
     }
 
     if (!origins.empty()) {
@@ -335,8 +368,9 @@ void SiteIsolationPolicy::IsolateStoredOAuthSites(
   // other isolation requirements (such as memory threshold) are satisfied.
   // Note that we don't clear logged-in sites from prefs if site isolation is
   // disabled so that they can be used if isolation is re-enabled later.
-  if (!IsIsolationForOAuthSitesEnabled())
+  if (!IsIsolationForOAuthSitesEnabled()) {
     return;
+  }
 
   auto* policy = content::ChildProcessSecurityPolicy::GetInstance();
   policy->AddFutureIsolatedOrigins(
@@ -354,8 +388,9 @@ void SiteIsolationPolicy::IsolateStoredOAuthSites(
 void SiteIsolationPolicy::IsolateNewOAuthURL(
     content::BrowserContext* browser_context,
     const GURL& signed_in_url) {
-  if (!IsIsolationForOAuthSitesEnabled())
+  if (!IsIsolationForOAuthSitesEnabled()) {
     return;
+  }
 
   // OAuth information is currently persisted and restored by other layers. See
   // login_detection::prefs::SaveSiteToOAuthSignedInList().
@@ -370,7 +405,7 @@ void SiteIsolationPolicy::IsolateNewOAuthURL(
 // static
 bool SiteIsolationPolicy::ShouldPdfCompositorBeEnabledForOopifs() {
 #if BUILDFLAG(IS_ANDROID)
-  // TODO(crbug.com/1022917): Always enable on Android, at which point, this
+  // TODO(crbug.com/40657857): Always enable on Android, at which point, this
   // method should go away.
   //
   // Only use the PDF compositor when one of the site isolation modes that

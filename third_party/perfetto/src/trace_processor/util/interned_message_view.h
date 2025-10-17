@@ -17,11 +17,17 @@
 #ifndef SRC_TRACE_PROCESSOR_UTIL_INTERNED_MESSAGE_VIEW_H_
 #define SRC_TRACE_PROCESSOR_UTIL_INTERNED_MESSAGE_VIEW_H_
 
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <utility>
+
+#include "perfetto/base/compiler.h"
+#include "perfetto/base/logging.h"
 #include "perfetto/ext/base/flat_hash_map.h"
 #include "perfetto/trace_processor/trace_blob_view.h"
 
-namespace perfetto {
-namespace trace_processor {
+namespace perfetto::trace_processor {
 
 #if PERFETTO_DCHECK_IS_ON()
 // When called from GetOrCreateDecoder(), should include the stringified name of
@@ -71,7 +77,9 @@ class InternedMessageView {
     if (PERFETTO_TYPE_IDENTIFIER &&
         strcmp(decoder_type_,
                // GCC complains if this arg can be null.
-               PERFETTO_TYPE_IDENTIFIER ? PERFETTO_TYPE_IDENTIFIER : "") != 0) {
+               static_cast<bool>(PERFETTO_TYPE_IDENTIFIER)
+                   ? PERFETTO_TYPE_IDENTIFIER
+                   : "") != 0) {
       PERFETTO_FATAL(
           "Interning entry accessed under different types! previous type: "
           "%s. new type: %s.",
@@ -95,13 +103,12 @@ class InternedMessageView {
     if (!field.data)
       return nullptr;
     TraceBlobView submessage = message_.slice(field.data, field.size);
-    InternedMessageView* submessage_view =
-        new InternedMessageView(std::move(submessage));
+    auto* submessage_view = new InternedMessageView(std::move(submessage));
     it_and_ins.first->reset(submessage_view);
     return submessage_view;
   }
 
-  const TraceBlobView& message() { return message_; }
+  const TraceBlobView& message() const { return message_; }
 
  private:
   using SubMessageViewMap =
@@ -130,7 +137,6 @@ class InternedMessageView {
   SubMessageViewMap submessages_;
 };
 
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor
 
 #endif  // SRC_TRACE_PROCESSOR_UTIL_INTERNED_MESSAGE_VIEW_H_

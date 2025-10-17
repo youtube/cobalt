@@ -11,6 +11,11 @@
 #include "content/public/browser/web_contents_media_capture_id.h"
 #include "media/capture/video/video_capture_buffer_pool.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "services/video_effects/public/cpp/buildflags.h"
+
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+#include "services/video_effects/public/mojom/video_effects_processor.mojom.h"
+#endif
 
 using media::VideoFrameConsumerFeedbackObserver;
 
@@ -28,23 +33,26 @@ class DeviceLauncherCallbacks final
   DeviceLauncherCallbacks(const DeviceLauncherCallbacks&) = delete;
   DeviceLauncherCallbacks& operator=(const DeviceLauncherCallbacks&) = delete;
 
-  ~DeviceLauncherCallbacks() override {}
+  ~DeviceLauncherCallbacks() override = default;
 
   // content::VideoCaptureDeviceLauncher::Callbacks implementations
   void OnDeviceLaunched(
       std::unique_ptr<content::LaunchedVideoCaptureDevice> device) override {
-    if (video_capture_host_)
+    if (video_capture_host_) {
       video_capture_host_->OnDeviceLaunched(std::move(device));
+    }
   }
 
   void OnDeviceLaunchFailed(media::VideoCaptureError error) override {
-    if (video_capture_host_)
+    if (video_capture_host_) {
       video_capture_host_->OnDeviceLaunchFailed(error);
+    }
   }
 
   void OnDeviceLaunchAborted() override {
-    if (video_capture_host_)
+    if (video_capture_host_) {
       video_capture_host_->OnDeviceLaunchAborted();
+    }
   }
 
  private:
@@ -99,7 +107,11 @@ void SingleClientVideoCaptureHost::Start(
       base::BindOnce([](std::unique_ptr<content::VideoCaptureDeviceLauncher>,
                         std::unique_ptr<DeviceLauncherCallbacks>) {},
                      std::move(device_launcher),
-                     std::move(device_launcher_callbacks)));
+                     std::move(device_launcher_callbacks)),
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+      mojo::PendingRemote<video_effects::mojom::VideoEffectsProcessor>{},
+#endif
+      mojo::PendingRemote<media::mojom::ReadonlyVideoEffectsManager>{});
 }
 
 void SingleClientVideoCaptureHost::Stop(
@@ -107,14 +119,16 @@ void SingleClientVideoCaptureHost::Stop(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(1) << __func__;
 
-  if (!observer_)
+  if (!observer_) {
     return;
+  }
 
   // Returns all the buffers.
   std::vector<int> buffers_in_use;
   buffers_in_use.reserve(buffer_context_map_.size());
-  for (const auto& entry : buffer_context_map_)
+  for (const auto& entry : buffer_context_map_) {
     buffers_in_use.push_back(entry.first);
+  }
   for (int buffer_id : buffers_in_use) {
     OnFinishedConsumingBuffer(buffer_id, media::VideoCaptureFeedback());
   }
@@ -131,8 +145,9 @@ void SingleClientVideoCaptureHost::Stop(
 void SingleClientVideoCaptureHost::Pause(
     const base::UnguessableToken& device_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (launched_device_)
+  if (launched_device_) {
     launched_device_->MaybeSuspendDevice();
+  }
 }
 
 void SingleClientVideoCaptureHost::Resume(
@@ -140,15 +155,17 @@ void SingleClientVideoCaptureHost::Resume(
     const base::UnguessableToken& session_id,
     const VideoCaptureParams& params) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (launched_device_)
+  if (launched_device_) {
     launched_device_->ResumeDevice();
+  }
 }
 
 void SingleClientVideoCaptureHost::RequestRefreshFrame(
     const base::UnguessableToken& device_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (launched_device_)
+  if (launched_device_) {
     launched_device_->RequestRefreshFrame();
+  }
 }
 
 void SingleClientVideoCaptureHost::ReleaseBuffer(
@@ -184,14 +201,8 @@ void SingleClientVideoCaptureHost::OnCaptureConfigurationChanged() {
   // Ignore this call.
 }
 
-void SingleClientVideoCaptureHost::OnFrameDropped(
-    const base::UnguessableToken& device_id,
-    media::VideoCaptureFrameDropReason reason) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // Ignore this call.
-}
-
-void SingleClientVideoCaptureHost::OnNewCropVersion(uint32_t crop_version) {
+void SingleClientVideoCaptureHost::OnNewSubCaptureTargetVersion(
+    uint32_t sub_capture_target_version) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Ignore this call.
 }
@@ -222,13 +233,12 @@ void SingleClientVideoCaptureHost::OnNewBuffer(
 }
 
 void SingleClientVideoCaptureHost::OnFrameReadyInBuffer(
-    media::ReadyFrameInBuffer frame,
-    std::vector<media::ReadyFrameInBuffer> scaled_frames) {
+    media::ReadyFrameInBuffer frame) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(3) << __func__ << ": buffer_id=" << frame.buffer_id;
   DCHECK(observer_);
   const auto id_iter = id_map_.find(frame.buffer_id);
-  DCHECK(id_iter != id_map_.end());
+  CHECK(id_iter != id_map_.end());
   const int buffer_context_id = id_iter->second;
   const auto insert_result = buffer_context_map_.emplace(
       std::make_pair(buffer_context_id,
@@ -237,8 +247,7 @@ void SingleClientVideoCaptureHost::OnFrameReadyInBuffer(
   DCHECK(insert_result.second);
   // This implementation does not forward scaled frames.
   observer_->OnBufferReady(media::mojom::ReadyBuffer::New(
-                               buffer_context_id, std::move(frame.frame_info)),
-                           {});
+      buffer_context_id, std::move(frame.frame_info)));
 }
 
 void SingleClientVideoCaptureHost::OnBufferRetired(int buffer_id) {
@@ -246,7 +255,7 @@ void SingleClientVideoCaptureHost::OnBufferRetired(int buffer_id) {
   DVLOG(3) << __func__ << ": buffer_id=" << buffer_id;
 
   const auto id_iter = id_map_.find(buffer_id);
-  DCHECK(id_iter != id_map_.end());
+  CHECK(id_iter != id_map_.end());
   const int buffer_context_id = id_iter->second;
   id_map_.erase(id_iter);
   if (buffer_context_map_.find(buffer_context_id) ==
@@ -264,9 +273,10 @@ void SingleClientVideoCaptureHost::OnBufferRetired(int buffer_id) {
 void SingleClientVideoCaptureHost::OnError(media::VideoCaptureError error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   VLOG(1) << __func__;
-  if (observer_)
+  if (observer_) {
     observer_->OnStateChanged(
         media::mojom::VideoCaptureResult::NewErrorCode(error));
+  }
 }
 
 void SingleClientVideoCaptureHost::OnFrameDropped(

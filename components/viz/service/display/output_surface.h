@@ -11,23 +11,27 @@
 #include "base/functional/callback_helpers.h"
 #include "base/threading/thread_checker.h"
 #include "components/viz/common/display/update_vsync_parameters_callback.h"
-#include "components/viz/common/gpu/gpu_vsync_callback.h"
-#include "components/viz/common/resources/resource_format.h"
+#include "components/viz/common/frame_sinks/copy_output_request.h"
 #include "components/viz/common/resources/returned_resource.h"
+#include "components/viz/common/resources/shared_image_format.h"
 #include "components/viz/service/display/pending_swap_params.h"
+#include "components/viz/service/display/render_pass_alpha_type.h"
 #include "components/viz/service/display/software_output_device.h"
 #include "components/viz/service/viz_service_export.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/service/gpu_task_scheduler_helper.h"
 #include "gpu/ipc/common/surface_handle.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkM44.h"
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/overlay_transform.h"
 #include "ui/gfx/surface_origin.h"
 #include "ui/latency/latency_info.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "ui/gfx/android/surface_control_frame_rate.h"
+#endif
 
 namespace gfx {
 namespace mojom {
@@ -51,8 +55,7 @@ class VIZ_SERVICE_EXPORT OutputSurface {
  public:
   enum Type {
     kSoftware = 0,
-    kOpenGL = 1,
-    kVulkan = 2,
+    kSkia = 1,
   };
 
   enum class OrientationMode {
@@ -60,16 +63,28 @@ class VIZ_SERVICE_EXPORT OutputSurface {
                 // the user.
     kHardware,  // The orientation same to the hardware.
   };
+
+  // Level of DComp support. Each value implies support for the features
+  // provided by the values before it.
+  enum class DCSupportLevel {
+    // Direct composition is not supported.
+    kNone,
+    // Support for presenting |IDXGISwapChain| and |IDCompositionSurface|.
+    kDCLayers,
+    // Support for presenting |IDCompositionTexture|.
+    kDCompTexture,
+  };
+
   struct Capabilities {
     Capabilities();
+    ~Capabilities();
     Capabilities(const Capabilities& capabilities);
     Capabilities& operator=(const Capabilities& capabilities);
 
     PendingSwapParams pending_swap_params{1};
-    // The number of buffers for the SkiaOutputDevice. If the
-    // |supports_post_sub_buffer| true, SkiaOutputSurfaceImpl will track target
-    // damaged area based on this number.
-    int number_of_buffers = 2;
+    // The number of primary plane buffers. This value is only used when
+    // `renderer_allocates_images` is true.
+    int number_of_buffers = 0;
     // Whether this output surface renders to the default OpenGL zero
     // framebuffer or to an offscreen framebuffer.
     bool uses_default_gl_framebuffer = true;
@@ -81,20 +96,14 @@ class VIZ_SERVICE_EXPORT OutputSurface {
     // (i.e. viewport) of its contents for display, allowing the DirectRenderer
     // to apply resize optimization by padding to its width/height.
     bool supports_viewporter = false;
-    // Whether this OutputSurface supports gpu vsync callbacks.
-    bool supports_gpu_vsync = false;
     // OutputSurface's orientation mode.
     OrientationMode orientation_mode = OrientationMode::kLogic;
     // Whether this OutputSurface supports direct composition layers.
-    bool supports_dc_layers = false;
+    DCSupportLevel dc_support_level = DCSupportLevel::kNone;
     // Whether this OutputSurface should skip DrawAndSwap(). This is true for
     // the unified display on Chrome OS. All drawing is handled by the physical
     // displays so the unified display should skip that work.
     bool skips_draw = false;
-    // Indicates whether this surface will invalidate only the damage rect.
-    // When this is false contents outside the damaged area might need to be
-    // recomposited to the surface.
-    bool only_invalidates_damage_rect = true;
     // Whether OutputSurface::GetTargetDamageBoundingRect is implemented and
     // will return a bounding rectangle of the target buffer invalidated area.
     bool supports_target_damage = false;
@@ -104,8 +113,6 @@ class VIZ_SERVICE_EXPORT OutputSurface {
     // This is copied over from gpu feature info since there is no easy way to
     // share that out of skia output surface.
     bool android_surface_control_feature_enabled = false;
-    // True if the buffer content will be preserved after presenting.
-    bool preserve_buffer_content = false;
     // True if the SkiaOutputDevice will set
     // SwapBuffersCompleteParams::frame_buffer_damage_area for every
     // SwapBuffers complete callback.
@@ -115,12 +122,14 @@ class VIZ_SERVICE_EXPORT OutputSurface {
     int max_render_target_size = 0;
     // The root surface is rendered using vulkan secondary command buffer.
     bool root_is_vulkan_secondary_command_buffer = false;
+    // Maximum number of non-required YUV overlays that will be promoted per
+    // frame. Currently only used with DirectComposition.
     // Some new Intel GPUs support two YUV MPO planes. Promoting two videos
     // to hardware overlays in these platforms will benefit power consumption.
-    bool supports_two_yuv_hardware_overlays = false;
+    int allowed_yuv_overlay_count = 1;
     // True if the OS supports delegated ink trails.
-    // This is currently only implemented on Win10 with DirectComposition on the
-    // SkiaRenderer.
+    // This is currently only implemented on Win10 and Win11 with
+    // DirectComposition on the SkiaRenderer.
     bool supports_delegated_ink = false;
     // True if the OutputSurface can resize to match the size of the root
     // surface. E.g. Wayland protocol allows this.
@@ -139,17 +148,20 @@ class VIZ_SERVICE_EXPORT OutputSurface {
     // Wayland backend is able to delegate these overlays without buffer
     // backings depending on the availability of a certain protocol.
     bool supports_non_backed_solid_color_overlays = false;
+    // Whether the platform supports single pixel buffer protocol.
+    bool supports_single_pixel_buffer = false;
+    // Whether make current needs to be called for swap buffers.
+    bool present_requires_make_current = true;
 
-    // SkColorType for all supported buffer formats.
-    SkColorType sk_color_types[static_cast<int>(gfx::BufferFormat::LAST) + 1] =
-        {};
+    // Map from SharedImageFormat to its associated SkColorType.
+    base::flat_map<SharedImageFormat, SkColorType> sk_color_type_map;
 
     // Max size for textures.
     int max_texture_size = 0;
   };
 
   // Constructor for skia-based compositing.
-  explicit OutputSurface(Type type);
+  OutputSurface();
   // Constructor for software compositing.
   explicit OutputSurface(std::unique_ptr<SoftwareOutputDevice> software_device);
 
@@ -184,44 +196,16 @@ class VIZ_SERVICE_EXPORT OutputSurface {
   virtual void EnsureBackbuffer() = 0;
   virtual void DiscardBackbuffer() = 0;
 
-  // Marks that the given rectangle will be drawn to on the default, bound
-  // framebuffer. The contents of the framebuffer are undefined after this
-  // command and must be filled in completely before a swap happens. Drawing
-  // outside this rectangle causes undefined behavior.
-  //
-  // Note: This is only valid to call if `capabilities().supports_dc_layers` is
-  // true. It can only be called once per swap and must be called before
-  // drawing to the default framebuffer.
-  virtual void SetDrawRectangle(const gfx::Rect& rect);
-
-  // Enable or disable DC layers. Must be called before DC layers are scheduled.
-  // Only valid if |capabilities().supports_dc_layers| is true.
-  virtual void SetEnableDCLayers(bool enabled);
-
-  // Returns true if a main image overlay plane should be scheduled.
-  virtual bool IsDisplayedAsOverlayPlane() const = 0;
-
-  // Returns the |mailbox| corresponding to the main image's overlay.
-  virtual gpu::Mailbox GetOverlayMailbox() const;
-
   // Reshape the output surface.
   struct ReshapeParams {
     gfx::Size size;
     float device_scale_factor = 1.f;
     gfx::ColorSpace color_space;
-    // TODO(sunnyps): Change to SkColorType.
-    gfx::BufferFormat format = gfx::BufferFormat::RGBA_8888;
-    SkAlphaType alpha_type = kPremul_SkAlphaType;
+    SharedImageFormat format = SinglePlaneFormat::kRGBA_8888;
+    RenderPassAlphaType alpha_type = RenderPassAlphaType::kPremul;
 
-    bool operator==(const ReshapeParams& other) const {
-      return size == other.size &&
-             device_scale_factor == other.device_scale_factor &&
-             color_space == other.color_space && format == other.format &&
-             alpha_type == other.alpha_type;
-    }
-    bool operator!=(const ReshapeParams& other) const {
-      return !(*this == other);
-    }
+    friend bool operator==(const ReshapeParams&,
+                           const ReshapeParams&) = default;
   };
   virtual void Reshape(const ReshapeParams& params) = 0;
 
@@ -245,13 +229,6 @@ class VIZ_SERVICE_EXPORT OutputSurface {
   virtual void SetUpdateVSyncParametersCallback(
       UpdateVSyncParametersCallback callback) = 0;
 
-  // Set a callback for vsync signal from GPU service for begin frames.  The
-  // callbacks must be received on the calling thread.
-  virtual void SetGpuVSyncCallback(GpuVSyncCallback callback);
-
-  // Enable or disable vsync callback based on whether begin frames are needed.
-  virtual void SetGpuVSyncEnabled(bool enabled);
-
   virtual void SetVSyncDisplayID(int64_t display_id) {}
 
   // When the device is rotated, the scene prepared by the UI is in the logical
@@ -272,7 +249,9 @@ class VIZ_SERVICE_EXPORT OutputSurface {
   virtual void SetDisplayTransformHint(gfx::OverlayTransform transform) = 0;
   virtual gfx::OverlayTransform GetDisplayTransform() = 0;
 
+#if BUILDFLAG(IS_ANDROID)
   virtual base::ScopedClosureRunner GetCacheBackBufferCb();
+#endif
 
   // If set to true, the OutputSurface must deliver
   // OutputSurfaceclient::DidSwapWithSize notifications to its client.
@@ -289,14 +268,23 @@ class VIZ_SERVICE_EXPORT OutputSurface {
       const gfx::SwapResponse& response,
       std::vector<ui::LatencyInfo>* latency_info);
 
+#if BUILDFLAG(IS_ANDROID)
   // Notifies the OutputSurface of rate of content updates in frames per second.
-  virtual void SetFrameRate(float frame_rate) {}
+  virtual void SetFrameRate(gfx::SurfaceControlFrameRate frame_rate) {}
+#endif
 
   // Sends the pending delegated ink renderer receiver to GPU Main to allow the
   // browser process to send points directly there.
   virtual void InitDelegatedInkPointRendererReceiver(
       mojo::PendingReceiver<gfx::mojom::DelegatedInkPointRenderer>
           pending_receiver);
+
+  // Read back the contents of this output surface. This reads back the root
+  // render pass and does not affect rendering in the ways that a copy request
+  // might (e.g. damage, overlays, etc). This uses |CopyOutputRequestCallback|
+  // to be able to be used with code that consumes copy output responses.
+  virtual void ReadbackForTesting(
+      CopyOutputRequest::CopyOutputRequestCallback result_callback);
 
  protected:
   struct OutputSurface::Capabilities capabilities_;
@@ -306,6 +294,13 @@ class VIZ_SERVICE_EXPORT OutputSurface {
   std::unique_ptr<SoftwareOutputDevice> software_device_;
   SkM44 color_matrix_;
 };
+
+#if BUILDFLAG(IS_WIN)
+// Helper to check that DComp textures are supported before checking for
+// `features::IsDelegatedCompositingEnabled()`.
+bool IsDelegatedCompositingSupportedAndEnabled(
+    OutputSurface::DCSupportLevel support_level);
+#endif
 
 }  // namespace viz
 

@@ -10,10 +10,8 @@
 #include <vector>
 
 #include "base/feature_list.h"
-#include "base/notreached.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/gpu/vulkan_context_provider.h"
-#include "components/viz/common/resources/resource_format_utils.h"
 #include "components/viz/service/display_embedder/skia_output_surface_dependency.h"
 #include "gpu/command_buffer/service/external_semaphore.h"
 #include "ui/gfx/geometry/rect_conversions.h"
@@ -48,7 +46,6 @@ OutputPresenterFuchsia::OutputPresenterFuchsia(
     SkiaOutputSurfaceDependency* deps)
     : window_surface_(window_surface), dependency_(deps) {
   CHECK(window_surface_);
-  CHECK(features::ShouldRendererAllocateImages());
 }
 
 OutputPresenterFuchsia::~OutputPresenterFuchsia() = default;
@@ -60,26 +57,14 @@ void OutputPresenterFuchsia::InitializeCapabilities(
   capabilities->supports_post_sub_buffer = false;
   capabilities->supports_surfaceless = true;
 
-  capabilities->sk_color_types[static_cast<int>(gfx::BufferFormat::RGBA_8888)] =
+  capabilities->sk_color_type_map[SinglePlaneFormat::kRGBA_8888] =
       kRGBA_8888_SkColorType;
-  capabilities->sk_color_types[static_cast<int>(gfx::BufferFormat::BGRA_8888)] =
+  capabilities->sk_color_type_map[SinglePlaneFormat::kBGRA_8888] =
       kRGBA_8888_SkColorType;
 }
 
-bool OutputPresenterFuchsia::Reshape(const SkImageInfo& image_info,
-                                     const gfx::ColorSpace& color_space,
-                                     int sample_count,
-                                     float device_scale_factor,
-                                     gfx::OverlayTransform transform) {
+bool OutputPresenterFuchsia::Reshape(const ReshapeParams& params) {
   return true;
-}
-
-std::vector<std::unique_ptr<OutputPresenter::Image>>
-OutputPresenterFuchsia::AllocateImages(gfx::ColorSpace color_space,
-                                       gfx::Size image_size,
-                                       size_t num_images) {
-  NOTREACHED();
-  return {};
 }
 
 void OutputPresenterFuchsia::Present(
@@ -98,28 +83,12 @@ void OutputPresenterFuchsia::Present(
   next_frame_.reset();
 }
 
-void OutputPresenterFuchsia::SchedulePrimaryPlane(
-    const OverlayProcessorInterface::OutputSurfaceOverlayPlane& plane,
-    Image* image,
-    bool is_submitted) {
-  NOTREACHED();
-}
-
 void OutputPresenterFuchsia::ScheduleOverlayPlane(
     const OutputPresenter::OverlayPlaneCandidate& overlay_plane_candidate,
-    ScopedOverlayAccess* access,
-    std::unique_ptr<gfx::GpuFence> acquire_fence) {
-  // TODO(msisov): this acquire fence is only valid when tiles are rastered for
-  // scanout usage, which are used for DelegatedCompositing in LaCros. It's not
-  // expected to have this fence created for fuchsia. As soon as a better place
-  // for this fence is found, this will be removed. For now, add a dcheck that
-  // verifies the fence is null.
-  DCHECK(!acquire_fence);
-
+    ScopedOverlayAccess* access) {
   if (!next_frame_)
     next_frame_.emplace();
 
-  DCHECK(overlay_plane_candidate.mailbox.IsSharedImage());
   auto pixmap = access ? access->GetNativePixmap() : nullptr;
 
   if (!pixmap) {
@@ -155,9 +124,8 @@ void OutputPresenterFuchsia::ScheduleOverlayPlane(
     overlay.pixmap = std::move(pixmap);
     overlay.overlay_plane_data = gfx::OverlayPlaneData(
         overlay_plane_candidate.plane_z_order,
-        absl::get<gfx::OverlayTransform>(overlay_plane_candidate.transform),
-        overlay_plane_candidate.display_rect, overlay_plane_candidate.uv_rect,
-        !overlay_plane_candidate.is_opaque,
+        overlay_plane_candidate.transform, overlay_plane_candidate.display_rect,
+        overlay_plane_candidate.uv_rect, !overlay_plane_candidate.is_opaque,
         gfx::ToRoundedRect(overlay_plane_candidate.damage_rect),
         overlay_plane_candidate.opacity, overlay_plane_candidate.priority_hint,
         overlay_plane_candidate.rounded_corners,

@@ -39,6 +39,10 @@ namespace gcm {
 class GCMDriver;
 }  // namespace gcm
 
+namespace instance_id {
+class InstanceIDDriver;
+}  // namespace instance_id
+
 namespace network {
 class SharedURLLoaderFactory;
 }  // namespace network
@@ -49,15 +53,12 @@ namespace device_sync {
 
 class ClientAppMetadataProvider;
 class CryptAuthClientFactory;
-class CryptAuthDeviceManager;
 class CryptAuthDeviceNotifier;
 class CryptAuthDeviceRegistry;
 class CryptAuthFeatureStatusSetter;
 class CryptAuthKeyRegistry;
 class CryptAuthScheduler;
 class CryptAuthV2DeviceManager;
-class GcmDeviceInfoProvider;
-class SoftwareFeatureManager;
 
 // Concrete DeviceSync implementation. When DeviceSyncImpl is constructed, it
 // starts an initialization flow with the following steps:
@@ -81,8 +82,8 @@ class DeviceSyncImpl : public DeviceSyncBase,
     static std::unique_ptr<DeviceSyncBase> Create(
         signin::IdentityManager* identity_manager,
         gcm::GCMDriver* gcm_driver,
+        instance_id::InstanceIDDriver* instance_id_driver,
         PrefService* profile_prefs,
-        const GcmDeviceInfoProvider* gcm_device_info_provider,
         ClientAppMetadataProvider* client_app_metadata_provider,
         scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
         std::unique_ptr<base::OneShotTimer> timer,
@@ -96,8 +97,8 @@ class DeviceSyncImpl : public DeviceSyncBase,
     virtual std::unique_ptr<DeviceSyncBase> CreateInstance(
         signin::IdentityManager* identity_manager,
         gcm::GCMDriver* gcm_driver,
+        instance_id::InstanceIDDriver* instance_id_driver,
         PrefService* profile_prefs,
-        const GcmDeviceInfoProvider* gcm_device_info_provider,
         ClientAppMetadataProvider* client_app_metadata_provider,
         scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
         std::unique_ptr<base::OneShotTimer> timer,
@@ -190,7 +191,7 @@ class DeviceSyncImpl : public DeviceSyncBase,
     std::string device_public_key_;
     multidevice::SoftwareFeature software_feature_;
     bool enabled_;
-    raw_ptr<RemoteDeviceProvider, ExperimentalAsh> remote_device_provider_;
+    raw_ptr<RemoteDeviceProvider> remote_device_provider_;
     SetSoftwareFeatureStateCallback callback_;
   };
 
@@ -214,15 +215,15 @@ class DeviceSyncImpl : public DeviceSyncBase,
     std::string device_instance_id_;
     multidevice::SoftwareFeature software_feature_;
     FeatureStatusChange status_change_;
-    raw_ptr<RemoteDeviceProvider, ExperimentalAsh> remote_device_provider_;
+    raw_ptr<RemoteDeviceProvider> remote_device_provider_;
     SetFeatureStatusCallback callback_;
   };
 
   DeviceSyncImpl(
       signin::IdentityManager* identity_manager,
       gcm::GCMDriver* gcm_driver,
+      instance_id::InstanceIDDriver* instance_id_driver,
       PrefService* profile_prefs,
-      const GcmDeviceInfoProvider* gcm_device_info_provider,
       ClientAppMetadataProvider* client_app_metadata_provider,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       base::Clock* clock,
@@ -245,32 +246,18 @@ class DeviceSyncImpl : public DeviceSyncBase,
   void FetchClientAppMetadata();
   void OnClientAppMetadataFetchTimeout();
   void OnClientAppMetadataFetched(
-      const absl::optional<cryptauthv2::ClientAppMetadata>&
-          client_app_metadata);
+      const std::optional<cryptauthv2::ClientAppMetadata>& client_app_metadata);
   void OnClientAppMetadataFetchFailure();
   void WaitForValidEnrollment();
   void InitializeCryptAuthManagementObjects();
   void CompleteInitializationAfterSuccessfulEnrollment();
 
-  absl::optional<multidevice::RemoteDevice> GetSyncedDeviceWithPublicKey(
+  std::optional<multidevice::RemoteDevice> GetSyncedDeviceWithPublicKey(
       const std::string& public_key) const;
 
-  void OnSetSoftwareFeatureStateSuccess();
-  void OnSetSoftwareFeatureStateError(const base::UnguessableToken& request_id,
-                                      NetworkRequestError error);
   void OnSetFeatureStatusSuccess();
   void OnSetFeatureStatusError(const base::UnguessableToken& request_id,
                                NetworkRequestError error);
-  void OnFindEligibleDevicesSuccess(
-      base::OnceCallback<void(mojom::NetworkRequestResult,
-                              mojom::FindEligibleDevicesResponsePtr)> callback,
-      const std::vector<cryptauth::ExternalDeviceInfo>& eligible_devices,
-      const std::vector<cryptauth::IneligibleDevice>& ineligible_devices);
-  void OnFindEligibleDevicesError(
-      const base::OnceCallback<void(mojom::NetworkRequestResult,
-                                    mojom::FindEligibleDevicesResponsePtr)>
-          callback,
-      NetworkRequestError error);
   void OnNotifyDevicesSuccess(const base::UnguessableToken& request_id);
   void OnNotifyDevicesError(const base::UnguessableToken& request_id,
                             NetworkRequestError error);
@@ -287,15 +274,13 @@ class DeviceSyncImpl : public DeviceSyncBase,
   void StartSetSoftwareFeatureTimer();
   void OnSetSoftwareFeatureTimerFired();
 
-  raw_ptr<signin::IdentityManager, ExperimentalAsh> identity_manager_;
-  raw_ptr<gcm::GCMDriver, ExperimentalAsh> gcm_driver_;
-  raw_ptr<PrefService, ExperimentalAsh> profile_prefs_;
-  raw_ptr<const GcmDeviceInfoProvider, ExperimentalAsh>
-      gcm_device_info_provider_;
-  raw_ptr<ClientAppMetadataProvider, ExperimentalAsh>
-      client_app_metadata_provider_;
+  raw_ptr<signin::IdentityManager> identity_manager_;
+  raw_ptr<gcm::GCMDriver> gcm_driver_;
+  raw_ptr<instance_id::InstanceIDDriver> instance_id_driver_;
+  raw_ptr<PrefService> profile_prefs_;
+  raw_ptr<ClientAppMetadataProvider> client_app_metadata_provider_;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
-  raw_ptr<base::Clock, ExperimentalAsh> clock_;
+  raw_ptr<base::Clock> clock_;
   std::unique_ptr<base::OneShotTimer> timer_;
   AttestationCertificatesSyncer::GetAttestationCertificatesFunction
       get_attestation_certificates_function_;
@@ -313,7 +298,7 @@ class DeviceSyncImpl : public DeviceSyncBase,
   base::flat_map<base::UnguessableToken, GetDevicesActivityStatusCallback>
       get_devices_activity_status_callbacks_;
 
-  absl::optional<cryptauthv2::ClientAppMetadata> client_app_metadata_;
+  std::optional<cryptauthv2::ClientAppMetadata> client_app_metadata_;
   size_t num_gcm_registration_failures_ = 0;
   size_t num_client_app_metadata_fetch_failures_ = 0;
   base::TimeTicks initialization_start_timestamp_;
@@ -334,9 +319,7 @@ class DeviceSyncImpl : public DeviceSyncBase,
   std::unique_ptr<CryptAuthFeatureStatusSetter> feature_status_setter_;
 
   std::unique_ptr<CryptAuthEnrollmentManager> cryptauth_enrollment_manager_;
-  std::unique_ptr<CryptAuthDeviceManager> cryptauth_device_manager_;
   std::unique_ptr<RemoteDeviceProvider> remote_device_provider_;
-  std::unique_ptr<SoftwareFeatureManager> software_feature_manager_;
   std::unique_ptr<CryptAuthDeviceActivityGetter>
       cryptauth_device_activity_getter_;
 

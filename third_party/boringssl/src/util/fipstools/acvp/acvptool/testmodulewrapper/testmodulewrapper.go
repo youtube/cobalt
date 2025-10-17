@@ -1,16 +1,16 @@
-// Copyright (c) 2021, Google Inc.
+// Copyright 2021 The BoringSSL Authors
 //
-// Permission to use, copy, modify, and/or distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-// SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-// OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // testmodulewrapper is a modulewrapper binary that works with acvptool and
 // implements the primitives that BoringSSL's modulewrapper doesn't, so that
@@ -20,22 +20,36 @@ package main
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/ed25519"
+	"crypto/hkdf"
 	"crypto/hmac"
+	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/sha3"
+	"crypto/sha512"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"os"
 
-	"golang.org/x/crypto/hkdf"
+	"filippo.io/edwards25519"
+
 	"golang.org/x/crypto/xts"
 )
 
+var (
+	output       io.Writer
+	outputBuffer *bytes.Buffer
+)
+
 var handlers = map[string]func([][]byte) error{
+	"flush":                    flush,
 	"getConfig":                getConfig,
 	"KDF-counter":              kdfCounter,
 	"AES-XTS/encrypt":          xtsEncrypt,
@@ -45,6 +59,34 @@ var handlers = map[string]func([][]byte) error{
 	"hmacDRBG-pr/SHA2-256":     hmacDRBGPredictionResistance,
 	"AES-CBC-CS3/encrypt":      ctsEncrypt,
 	"AES-CBC-CS3/decrypt":      ctsDecrypt,
+	"PBKDF":                    pbkdf,
+	"EDDSA/keyGen":             eddsaKeyGen,
+	"EDDSA/keyVer":             eddsaKeyVer,
+	"EDDSA/sigGen":             eddsaSigGen,
+	"EDDSA/sigVer":             eddsaSigVer,
+	"SHAKE-128":                shakeAftVot(sha3.NewSHAKE128),
+	"SHAKE-128/VOT":            shakeAftVot(sha3.NewSHAKE128),
+	"SHAKE-128/MCT":            shakeMct(sha3.NewSHAKE128),
+	"SHAKE-256":                shakeAftVot(sha3.NewSHAKE256),
+	"SHAKE-256/VOT":            shakeAftVot(sha3.NewSHAKE256),
+	"SHAKE-256/MCT":            shakeMct(sha3.NewSHAKE256),
+	"cSHAKE-128":               cShakeAft(sha3.NewCSHAKE128),
+	"cSHAKE-128/MCT":           cShakeMct(sha3.NewCSHAKE128),
+	"cSHAKE-256":               cShakeAft(sha3.NewCSHAKE256),
+	"cSHAKE-256/MCT":           cShakeMct(sha3.NewCSHAKE256),
+}
+
+func flush(args [][]byte) error {
+	if outputBuffer == nil {
+		return nil
+	}
+
+	if _, err := os.Stdout.Write(outputBuffer.Bytes()); err != nil {
+		return err
+	}
+	outputBuffer = new(bytes.Buffer)
+	output = outputBuffer
+	return nil
 }
 
 func getConfig(args [][]byte) error {
@@ -52,8 +94,11 @@ func getConfig(args [][]byte) error {
 		return fmt.Errorf("getConfig received %d args", len(args))
 	}
 
-	return reply([]byte(`[
+	if err := reply([]byte(`[
 	{
+		"algorithm": "acvptool",
+		"features": ["batch"]
+	}, {
 		"algorithm": "KDF",
 		"revision": "1.0",
 		"capabilities": [{
@@ -145,8 +190,111 @@ func getConfig(args [][]byte) error {
 		  128,
 		  256
 		]
+	}, {
+		"algorithm": "PBKDF",
+		"revision":"1.0",
+		"capabilities": [{
+			"iterationCount":[{
+				"min":1,
+				"max":10000,
+				"increment":1
+			}],
+			"keyLen": [{
+				"min":112,
+				"max":4096,
+				"increment":8
+			}],
+			"passwordLen":[{
+				"min":8,
+				"max":64,
+				"increment":1
+			}],
+			"saltLen":[{
+				"min":128,
+				"max":512,
+				"increment":8
+			}],
+			"hmacAlg":[
+				"SHA2-224",
+				"SHA2-256",
+				"SHA2-384",
+				"SHA2-512",
+				"SHA2-512/224",
+				"SHA2-512/256",
+				"SHA3-224",
+				"SHA3-256",
+				"SHA3-384",
+				"SHA3-512"
+			]
+		}]
+	}, {
+		"algorithm": "EDDSA",
+		"mode": "keyVer",
+		"revision": "1.0",
+		"curve": ["ED-25519"]
+	}, {
+		"algorithm": "EDDSA",
+		"mode": "sigVer",
+		"revision": "1.0",
+		"pure": true,
+		"preHash": true,
+		"curve": ["ED-25519"]
+	}, {
+		"algorithm": "SHAKE-128",
+		"inBit": false,
+		"outBit": false,
+		"inEmpty": false,
+		"outputLen": [{
+			"min": 128,
+			"max": 4096,
+			"increment": 8
+		}],
+		"revision": "1.0"
+	}, {
+		"algorithm": "SHAKE-256",
+		"inBit": false,
+		"outBit": false,
+		"inEmpty": false,
+		"outputLen": [{
+			"min": 128,
+			"max": 4096,
+			"increment": 8
+		}],
+		"revision": "1.0"
+	}, {
+		"algorithm": "cSHAKE-128",
+		"hexCustomization": false,
+		"outputLen": [{
+			"min": 16,
+			"max": 65536,
+			"increment": 8
+		}],
+		"msgLen": [{
+			"min": 0,
+			"max": 65536,
+			"increment": 8
+		}],
+		"revision": "1.0"
+	}, {
+		"algorithm": "cSHAKE-256",
+		"hexCustomization": false,
+		"outputLen": [{
+			"min": 16,
+			"max": 65536,
+			"increment": 8
+		}],
+		"msgLen": [{
+			"min": 0,
+			"max": 65536,
+			"increment": 8
+		}],
+		"revision": "1.0"
 	}
-]`))
+]`)); err != nil {
+		return err
+	}
+
+	return flush(nil)
 }
 
 func kdfCounter(args [][]byte) error {
@@ -207,12 +355,12 @@ func reply(responses ...[]byte) error {
 	}
 
 	lengthsLength := (1 + len(responses)) * 4
-	if n, err := os.Stdout.Write(lengths[:lengthsLength]); n != lengthsLength || err != nil {
+	if n, err := output.Write(lengths[:lengthsLength]); n != lengthsLength || err != nil {
 		return fmt.Errorf("write failed: %s", err)
 	}
 
 	for _, response := range responses {
-		if n, err := os.Stdout.Write(response); n != len(response) || err != nil {
+		if n, err := output.Write(response); n != len(response) || err != nil {
 			return fmt.Errorf("write failed: %s", err)
 		}
 	}
@@ -280,9 +428,10 @@ func hkdfMAC(args [][]byte) error {
 
 	length := binary.LittleEndian.Uint32(lengthBytes)
 
-	mac := hkdf.New(sha256.New, key, salt, info)
-	ret := make([]byte, length)
-	mac.Read(ret)
+	ret, err := hkdf.Key(sha256.New, key, salt, string(info), int(length))
+	if err != nil {
+		return err
+	}
 
 	return reply(ret)
 }
@@ -446,6 +595,297 @@ func ctsDecrypt(args [][]byte) error {
 	return reply(doCTSDecrypt(key, ciphertext, iv))
 }
 
+func pbkdf(args [][]byte) error {
+	if len(args) != 5 {
+		return fmt.Errorf("pbkdf received %d args, wanted 5", len(args))
+	}
+
+	hmacName := args[0]
+	var h func() hash.Hash
+	switch string(hmacName) {
+	case "SHA2-224":
+		h = sha256.New224
+	case "SHA2-256":
+		h = sha256.New
+	case "SHA2-384":
+		h = sha512.New384
+	case "SHA2-512":
+		h = sha512.New
+	case "SHA2-512/224":
+		h = sha512.New512_224
+	case "SHA2-512/256":
+		h = sha512.New512_256
+	case "SHA3-224":
+		h = func() hash.Hash { return sha3.New224() }
+	case "SHA3-256":
+		h = func() hash.Hash { return sha3.New256() }
+	case "SHA3-384":
+		h = func() hash.Hash { return sha3.New384() }
+	case "SHA3-512":
+		h = func() hash.Hash { return sha3.New512() }
+	default:
+		return fmt.Errorf("pbkdf unknown HMAC algorithm: %q", hmacName)
+	}
+	keyLen := binary.LittleEndian.Uint32(args[1]) / 8
+	salt, password := args[2], args[3]
+	iterationCount := binary.LittleEndian.Uint32(args[4])
+
+	derivedKey, err := pbkdf2.Key(h, string(password), salt, int(iterationCount), int(keyLen))
+	if err != nil {
+		return err
+	}
+
+	return reply(derivedKey)
+}
+
+func eddsaKeyGen(args [][]byte) error {
+	if string(args[0]) != "ED-25519" {
+		return fmt.Errorf("unsupported EDDSA curve: %q", args[0])
+	}
+
+	pk, sk, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		return fmt.Errorf("generating EDDSA keypair: %w", err)
+	}
+
+	// EDDSA/keyGen/AFT responses are d & q, described[0] as:
+	//   d	The encoded private key point
+	//   q	The encoded public key point
+	//
+	// Contrary to the description of a "point", d is the private key
+	// seed bytes per FIPS.186-5[1] A.2.3.
+	//
+	// [0]: https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-9.1
+	// [1]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf
+	return reply(sk.Seed(), pk)
+}
+
+func eddsaKeyVer(args [][]byte) error {
+	if string(args[0]) != "ED-25519" {
+		return fmt.Errorf("unsupported EDDSA curve: %q", args[0])
+	}
+
+	if len(args[1]) != ed25519.PublicKeySize {
+		return reply([]byte{0})
+	}
+
+	// Verify the point is on the curve. The higher-level ed25519 API does
+	// this at signature verification time so we have to use the lower-level
+	// edwards25519 package to do it here in absence of a signature to verify.
+	if _, err := new(edwards25519.Point).SetBytes(args[1]); err != nil {
+		return reply([]byte{0})
+	}
+
+	return reply([]byte{1})
+}
+
+func eddsaSigGen(args [][]byte) error {
+	if string(args[0]) != "ED-25519" {
+		return fmt.Errorf("unsupported EDDSA curve: %q", args[0])
+	}
+
+	sk := ed25519.NewKeyFromSeed(args[1])
+	msg := args[2]
+	prehash := args[3]
+	context := string(args[4])
+
+	var opts ed25519.Options
+	if prehash[0] == 1 {
+		opts.Hash = crypto.SHA512
+		h := sha512.New()
+		h.Write(msg)
+		msg = h.Sum(nil)
+		// With ed25519 the context is only specified for sigGen tests when using prehashing.
+		// See https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-8.6
+		opts.Context = context
+	}
+
+	sig, err := sk.Sign(nil, msg, &opts)
+	if err != nil {
+		return fmt.Errorf("error signing message: %w", err)
+	}
+
+	return reply(sig)
+}
+
+func eddsaSigVer(args [][]byte) error {
+	if string(args[0]) != "ED-25519" {
+		return fmt.Errorf("unsupported EDDSA curve: %q", args[0])
+	}
+
+	msg := args[1]
+	pk := ed25519.PublicKey(args[2])
+	sig := args[3]
+	prehash := args[4]
+
+	var opts ed25519.Options
+	if prehash[0] == 1 {
+		opts.Hash = crypto.SHA512
+		h := sha512.New()
+		h.Write(msg)
+		msg = h.Sum(nil)
+		// Context is only specified for sigGen, not sigVer.
+		// See https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-8.6
+	}
+
+	if err := ed25519.VerifyWithOptions(pk, msg, sig, &opts); err != nil {
+		return reply([]byte{0})
+	}
+
+	return reply([]byte{1})
+}
+
+func shakeAftVot(digestFn func() *sha3.SHAKE) func([][]byte) error {
+	return func(args [][]byte) error {
+		if len(args) != 2 {
+			return fmt.Errorf("shakeAftVot received %d args, wanted 2", len(args))
+		}
+
+		msg := args[0]
+		outLenBytes := binary.LittleEndian.Uint32(args[1])
+
+		h := digestFn()
+		h.Write(msg)
+		digest := make([]byte, outLenBytes)
+		h.Read(digest)
+
+		return reply(digest)
+	}
+}
+
+func shakeMct(digestFn func() *sha3.SHAKE) func([][]byte) error {
+	return func(args [][]byte) error {
+		if len(args) != 4 {
+			return fmt.Errorf("shakeMct received %d args, wanted 4", len(args))
+		}
+
+		md := args[0]
+		minOutBytes := binary.LittleEndian.Uint32(args[1])
+		maxOutBytes := binary.LittleEndian.Uint32(args[2])
+
+		outputLenBytes := binary.LittleEndian.Uint32(args[3])
+		if outputLenBytes < 2 {
+			return fmt.Errorf("invalid output length: %d", outputLenBytes)
+		}
+
+		if maxOutBytes < minOutBytes {
+			return fmt.Errorf("invalid maxOutBytes and minOutBytes: %d, %d", maxOutBytes, minOutBytes)
+		}
+
+		rangeBytes := maxOutBytes - minOutBytes + 1
+
+		for i := 0; i < 1000; i++ {
+			// "The MSG[i] input to SHAKE MUST always contain at least 128 bits. If this is not the case
+			// as the previous digest was too short, append empty bits to the rightmost side of the digest."
+			boundary := min(len(md), 16)
+			msg := make([]byte, 16)
+			copy(msg, md[:boundary])
+
+			//  MD[i] = SHAKE(MSG[i], OutputLen * 8)
+			h := digestFn()
+			h.Write(msg)
+			digest := make([]byte, outputLenBytes)
+			h.Read(digest)
+			md = digest
+
+			// RightmostOutputBits = 16 rightmost bits of MD[i] as an integer
+			// OutputLen = minOutBytes + (RightmostOutputBits % Range)
+			rightmostOutput := uint32(md[outputLenBytes-2])<<8 | uint32(md[outputLenBytes-1])
+			outputLenBytes = minOutBytes + (rightmostOutput % rangeBytes)
+		}
+
+		encodedOutputLenBytes := make([]byte, 4)
+		binary.LittleEndian.PutUint32(encodedOutputLenBytes, outputLenBytes)
+
+		return reply(md, encodedOutputLenBytes)
+	}
+}
+
+func cShakeAft(hFn func(N, S []byte) *sha3.SHAKE) func([][]byte) error {
+	return func(args [][]byte) error {
+		if len(args) != 4 {
+			return fmt.Errorf("cShakeAft received %d args, wanted 4", len(args))
+		}
+
+		msg := args[0]
+		outLenBytes := binary.LittleEndian.Uint32(args[1])
+		functionName := args[2]
+		customization := args[3]
+
+		h := hFn(functionName, customization)
+		h.Write(msg)
+		digest := make([]byte, outLenBytes)
+		h.Read(digest)
+
+		return reply(digest)
+	}
+}
+
+func cShakeMct(hFn func(N, S []byte) *sha3.SHAKE) func([][]byte) error {
+	return func(args [][]byte) error {
+		if len(args) != 6 {
+			return fmt.Errorf("cShakeMct received %d args, wanted 6", len(args))
+		}
+
+		message := args[0]
+		minOutLenBytes := binary.LittleEndian.Uint32(args[1])
+		maxOutLenBytes := binary.LittleEndian.Uint32(args[2])
+		outputLenBytes := binary.LittleEndian.Uint32(args[3])
+		incrementBytes := binary.LittleEndian.Uint32(args[4])
+		customization := args[5]
+
+		if outputLenBytes < 2 {
+			return fmt.Errorf("invalid output length: %d", outputLenBytes)
+		}
+
+		rangeBits := (maxOutLenBytes*8 - minOutLenBytes*8) + 1
+		if rangeBits == 0 {
+			return fmt.Errorf("invalid maxOutLenBytes and minOutLenBytes: %d, %d", maxOutLenBytes, minOutLenBytes)
+		}
+
+		// cSHAKE Monte Carlo test inner loop:
+		//   https://pages.nist.gov/ACVP/draft-celi-acvp-xof.html#section-6.2.1
+		for i := 0; i < 1000; i++ {
+			// InnerMsg = Left(Output[i-1] || ZeroBits(128), 128);
+			boundary := min(len(message), 16)
+			innerMsg := make([]byte, 16)
+			copy(innerMsg, message[:boundary])
+
+			// Output[i] = CSHAKE(InnerMsg, OutputLen, FunctionName, Customization);
+			h := hFn(nil, customization) // Note: function name fixed to "" for MCT.
+			h.Write(innerMsg)
+			digest := make([]byte, outputLenBytes)
+			h.Read(digest)
+			message = digest
+
+			// Rightmost_Output_bits = Right(Output[i], 16);
+			rightmostOutput := digest[outputLenBytes-2:]
+			// IMPORTANT: the specification says:
+			//   NOTE: For the "Rightmost_Output_bits % Range" operation, the Rightmost_Output_bits bit string
+			//   should be interpreted as a little endian-encoded number.
+			// This is **a lie**! It has to be interpreted as a big-endian number.
+			rightmostOutputBE := binary.BigEndian.Uint16(rightmostOutput)
+
+			// OutputLen = MinOutLen + (floor((Rightmost_Output_bits % Range) / OutLenIncrement) * OutLenIncrement);
+			incrementBits := incrementBytes * 8
+			outputLenBits := (minOutLenBytes * 8) + (((uint32)(rightmostOutputBE)%rangeBits)/incrementBits)*incrementBits
+			outputLenBytes = outputLenBits / 8
+
+			// Customization = BitsToString(InnerMsg || Rightmost_Output_bits);
+			msgWithBits := append(innerMsg, rightmostOutput...)
+			customization = make([]byte, len(msgWithBits))
+			for i, b := range msgWithBits {
+				customization[i] = (b % 26) + 65
+			}
+		}
+
+		encodedOutputLenBytes := make([]byte, 4)
+		binary.LittleEndian.PutUint32(encodedOutputLenBytes, outputLenBytes)
+
+		return reply(message, encodedOutputLenBytes, customization)
+	}
+}
+
 const (
 	maxArgs       = 9
 	maxArgLength  = 1 << 20
@@ -460,6 +900,10 @@ func main() {
 }
 
 func do() error {
+	// In order to exercise pipelining, all output is buffered until a "flush".
+	outputBuffer = new(bytes.Buffer)
+	output = outputBuffer
+
 	var nums [4 * (1 + maxArgs)]byte
 	var argLengths [maxArgs]uint32
 	var args [maxArgs][]byte

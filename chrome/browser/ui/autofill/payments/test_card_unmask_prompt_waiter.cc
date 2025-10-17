@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ui/autofill/payments/test_card_unmask_prompt_waiter.h"
+
 #include "base/test/scoped_run_loop_timeout.h"
 #include "chrome/browser/ui/autofill/payments/card_unmask_prompt_view_tester.h"
 
@@ -11,19 +12,22 @@ namespace autofill {
 class TestCardUnmaskPromptControllerImpl
     : public CardUnmaskPromptControllerImpl {
  public:
-  explicit TestCardUnmaskPromptControllerImpl(PrefService* pref_service)
-      : CardUnmaskPromptControllerImpl(pref_service) {}
+  TestCardUnmaskPromptControllerImpl(
+      PrefService* pref_service,
+      const CreditCard& card,
+      const CardUnmaskPromptOptions& card_unmask_prompt_options,
+      base::WeakPtr<CardUnmaskDelegate> delegate)
+      : CardUnmaskPromptControllerImpl(pref_service,
+                                       card,
+                                       card_unmask_prompt_options,
+                                       delegate) {}
   TestCardUnmaskPromptControllerImpl(
       const TestCardUnmaskPromptControllerImpl&) = delete;
   TestCardUnmaskPromptControllerImpl& operator=(
       const TestCardUnmaskPromptControllerImpl&) = delete;
 
-  void ShowPrompt(CardUnmaskPromptViewFactory view_factory,
-                  const CreditCard& card,
-                  const CardUnmaskPromptOptions& card_unmask_prompt_options,
-                  base::WeakPtr<CardUnmaskDelegate> delegate) override {
-    CardUnmaskPromptControllerImpl::ShowPrompt(
-        std::move(view_factory), card, card_unmask_prompt_options, delegate);
+  void ShowPrompt(CardUnmaskPromptViewFactory view_factory) override {
+    CardUnmaskPromptControllerImpl::ShowPrompt(std::move(view_factory));
     run_loop_.Quit();
   }
 
@@ -49,18 +53,23 @@ class TestCardUnmaskPromptControllerImpl
 };
 
 TestCardUnmaskPromptWaiter::TestCardUnmaskPromptWaiter(
-    content::WebContents* web_contents,
-    PrefService* pref_service)
-    : client_(ChromeAutofillClient::FromWebContentsForTesting(web_contents)) {
-  auto controller =
-      std::make_unique<TestCardUnmaskPromptControllerImpl>(pref_service);
-  injected_controller_ = controller.get();
-  old_controller_ =
-      client_->SetCardUnmaskControllerForTesting(std::move(controller));
+    content::WebContents* web_contents)
+    : client_(ChromeAutofillClient::FromWebContentsForTesting(web_contents)
+                  ->GetPaymentsAutofillClient()) {
+  old_controller_ = client_->ExtractCardUnmaskControllerForTesting();
+  auto injected_controller =
+      std::make_unique<TestCardUnmaskPromptControllerImpl>(
+          old_controller_->pref_service_for_testing(),
+          old_controller_->card_for_testing(),
+          old_controller_->card_unmask_prompt_options_for_testing(),
+          old_controller_->delegate_for_testing());
+  injected_controller_ = injected_controller.get();
+  client_->SetCardUnmaskControllerForTesting(std::move(injected_controller));
 }
 
 TestCardUnmaskPromptWaiter::~TestCardUnmaskPromptWaiter() {
   if (injected_controller_) {
+    injected_controller_ = nullptr;
     client_->SetCardUnmaskControllerForTesting(std::move(old_controller_));
   }
 }

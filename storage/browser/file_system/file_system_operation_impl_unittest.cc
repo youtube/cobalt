@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "storage/browser/file_system/file_system_operation_impl.h"
 
 #include <stddef.h>
@@ -264,8 +269,7 @@ class FileSystemOperationImplTest : public testing::Test {
   void GrantQuotaForCurrentUsage() {
     int64_t usage;
     GetUsageAndQuota(&usage, nullptr);
-    quota_manager()->SetQuota(sandbox_file_system_.storage_key(),
-                              sandbox_file_system_.storage_type(), usage);
+    quota_manager()->SetQuota(sandbox_file_system_.storage_key(), usage);
   }
 
   int64_t GetUsage() {
@@ -278,7 +282,6 @@ class FileSystemOperationImplTest : public testing::Test {
     int64_t quota;
     GetUsageAndQuota(nullptr, &quota);
     quota_manager()->SetQuota(sandbox_file_system_.storage_key(),
-                              sandbox_file_system_.storage_type(),
                               quota + quota_delta);
   }
 
@@ -371,7 +374,9 @@ class FileSystemOperationImplTest : public testing::Test {
     return status;
   }
 
-  base::File::Error GetMetadata(const FileSystemURL& url, int fields) {
+  base::File::Error GetMetadata(
+      const FileSystemURL& url,
+      FileSystemOperation::GetMetadataFieldSet fields) {
     base::File::Error status;
     base::RunLoop run_loop;
     update_observer_.Enable();
@@ -541,7 +546,7 @@ TEST_F(FileSystemOperationImplTest, TestMoveSuccessSrcFileAndOverwrite) {
       Move(src_file, dest_file, FileSystemOperation::CopyOrMoveOptionSet()));
   EXPECT_TRUE(FileExists("dest"));
 
-  EXPECT_EQ(1, change_observer()->get_and_reset_modify_file_count());
+  EXPECT_EQ(1, change_observer()->get_and_reset_create_file_from_count());
   EXPECT_EQ(1, change_observer()->get_and_reset_remove_file_count());
   EXPECT_TRUE(change_observer()->HasNoChange());
 
@@ -817,7 +822,7 @@ TEST_F(FileSystemOperationImplTest, TestCopySuccessSamePath) {
 TEST_F(FileSystemOperationImplTest, TestCopyInForeignFileSuccess) {
   base::FilePath src_local_disk_file_path;
   base::CreateTemporaryFile(&src_local_disk_file_path);
-  constexpr base::StringPiece test_data = "foo";
+  constexpr std::string_view test_data = "foo";
   constexpr int data_size = test_data.size();
   base::WriteFile(src_local_disk_file_path, test_data);
 
@@ -847,7 +852,7 @@ TEST_F(FileSystemOperationImplTest, TestCopyInForeignFileSuccess) {
 TEST_F(FileSystemOperationImplTest, TestCopyInForeignFileFailureByQuota) {
   base::FilePath src_local_disk_file_path;
   base::CreateTemporaryFile(&src_local_disk_file_path);
-  constexpr base::StringPiece test_data = "foo";
+  constexpr std::string_view test_data = "foo";
   base::WriteFile(src_local_disk_file_path, test_data);
 
   FileSystemURL dest_dir(CreateDirectory("dest"));
@@ -936,8 +941,7 @@ TEST_F(FileSystemOperationImplTest, TestCreateDirSuccessExclusive) {
 
 TEST_F(FileSystemOperationImplTest, TestExistsAndMetadataFailure) {
   EXPECT_EQ(base::File::FILE_ERROR_NOT_FOUND,
-            GetMetadata(URLForPath("nonexistent"),
-                        FileSystemOperation::GET_METADATA_FIELD_NONE));
+            GetMetadata(URLForPath("nonexistent"), {}));
 
   EXPECT_EQ(base::File::FILE_ERROR_NOT_FOUND,
             FileExists(URLForPath("nonexistent")));
@@ -957,7 +961,7 @@ TEST_F(FileSystemOperationImplTest, TestExistsAndMetadataSuccess) {
 
   EXPECT_EQ(
       base::File::FILE_OK,
-      GetMetadata(dir, FileSystemOperation::GET_METADATA_FIELD_IS_DIRECTORY));
+      GetMetadata(dir, {FileSystemOperation::GetMetadataField::kIsDirectory}));
   EXPECT_TRUE(info().is_directory);
   ++read_access;
 
@@ -966,7 +970,7 @@ TEST_F(FileSystemOperationImplTest, TestExistsAndMetadataSuccess) {
 
   EXPECT_EQ(
       base::File::FILE_OK,
-      GetMetadata(file, FileSystemOperation::GET_METADATA_FIELD_IS_DIRECTORY));
+      GetMetadata(file, {FileSystemOperation::GetMetadataField::kIsDirectory}));
   EXPECT_FALSE(info().is_directory);
   ++read_access;
 
@@ -1074,15 +1078,16 @@ TEST_F(FileSystemOperationImplTest, TestTruncate) {
   FileSystemURL file(CreateFile("file"));
   base::FilePath platform_path = PlatformPath("file");
 
-  constexpr base::StringPiece test_data = "test data";
+  constexpr std::string_view test_data = "test data";
   constexpr int data_size = test_data.size();
   EXPECT_TRUE(base::WriteFile(platform_path, test_data));
 
   // Check that its length is the size of the data written.
   EXPECT_EQ(
       base::File::FILE_OK,
-      GetMetadata(file, FileSystemOperation::GET_METADATA_FIELD_IS_DIRECTORY |
-                            FileSystemOperation::GET_METADATA_FIELD_SIZE));
+      GetMetadata(file,
+                  {storage::FileSystemOperation::GetMetadataField::kIsDirectory,
+                   storage::FileSystemOperation::GetMetadataField::kSize}));
   EXPECT_FALSE(info().is_directory);
   EXPECT_EQ(data_size, info().size);
 
@@ -1143,7 +1148,7 @@ TEST_F(FileSystemOperationImplTest, TestTruncateFailureByQuota) {
   EXPECT_EQ(10, GetFileSize("dir/file"));
 }
 
-// TODO(https://crbug.com/702990): Remove this test once last_access_time has
+// TODO(crbug.com/40511450): Remove this test once last_access_time has
 // been removed after PPAPI has been deprecated. Fuchsia does not support touch,
 // which breaks this test that relies on it. Since PPAPI is being deprecated,
 // this test is excluded from the Fuchsia build.

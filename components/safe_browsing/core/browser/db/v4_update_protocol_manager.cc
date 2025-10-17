@@ -27,6 +27,7 @@
 #include "services/network/public/mojom/url_response_head.mojom.h"
 
 using base::Time;
+using enum safe_browsing::ExtendedReportingLevel;
 
 namespace {
 
@@ -87,54 +88,14 @@ ChromeClientInfo::SafeBrowsingReportingPopulation GetReportingLevelProtoValue(
       return ChromeClientInfo::EXTENDED;
     case SBER_LEVEL_SCOUT:
       return ChromeClientInfo::SCOUT;
+    case SBER_LEVEL_ENHANCED_PROTECTION:
+      return ChromeClientInfo::ENHANCED_PROTECTION;
     default:
       NOTREACHED() << "Unexpected reporting_level!";
-      return ChromeClientInfo::UNSPECIFIED;
   }
 }
-
-// The default V4UpdateProtocolManagerFactory.
-class V4UpdateProtocolManagerFactoryImpl
-    : public V4UpdateProtocolManagerFactory {
- public:
-  V4UpdateProtocolManagerFactoryImpl() {}
-
-  V4UpdateProtocolManagerFactoryImpl(
-      const V4UpdateProtocolManagerFactoryImpl&) = delete;
-  V4UpdateProtocolManagerFactoryImpl& operator=(
-      const V4UpdateProtocolManagerFactoryImpl&) = delete;
-
-  ~V4UpdateProtocolManagerFactoryImpl() override {}
-  std::unique_ptr<V4UpdateProtocolManager> CreateProtocolManager(
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      const V4ProtocolConfig& config,
-      V4UpdateCallback update_callback,
-      ExtendedReportingLevelCallback extended_reporting_level_callback)
-      override {
-    return base::WrapUnique(
-        new V4UpdateProtocolManager(url_loader_factory, config, update_callback,
-                                    extended_reporting_level_callback));
-  }
-};
 
 // V4UpdateProtocolManager implementation --------------------------------
-
-// static
-V4UpdateProtocolManagerFactory* V4UpdateProtocolManager::factory_ = nullptr;
-
-// static
-std::unique_ptr<V4UpdateProtocolManager> V4UpdateProtocolManager::Create(
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-    const V4ProtocolConfig& config,
-    V4UpdateCallback update_callback,
-    ExtendedReportingLevelCallback extended_reporting_level_callback) {
-  if (!factory_) {
-    factory_ = new V4UpdateProtocolManagerFactoryImpl();
-  }
-  return factory_->CreateProtocolManager(url_loader_factory, config,
-                                         update_callback,
-                                         extended_reporting_level_callback);
-}
 
 void V4UpdateProtocolManager::ResetUpdateErrors() {
   update_error_count_ = 0;
@@ -445,13 +406,14 @@ void V4UpdateProtocolManager::CollectUpdateInfo(
   if (last_response_code_)
     update_info->set_network_status_code(last_response_code_);
 
-  if (last_response_time_.ToJavaTime()) {
-    update_info->set_last_update_time_millis(last_response_time_.ToJavaTime());
+  if (last_response_time_.InMillisecondsSinceUnixEpoch()) {
+    update_info->set_last_update_time_millis(
+        last_response_time_.InMillisecondsSinceUnixEpoch());
   }
 
   if (next_update_time_) {
     update_info->set_next_update_time_millis(
-        next_update_time_.value().ToJavaTime());
+        next_update_time_.value().InMillisecondsSinceUnixEpoch());
   }
 }
 

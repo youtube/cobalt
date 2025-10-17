@@ -13,6 +13,7 @@
 #include "base/command_line.h"
 #include "base/files/file.h"
 #include "base/i18n/icu_util.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
@@ -20,12 +21,10 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
+#include "mojo/core/embedder/embedder.h"
 #include "remoting/base/auto_thread_task_runner.h"
-#include "remoting/base/breakpad.h"
 #include "remoting/base/gaia_oauth_client.h"
 #include "remoting/base/logging.h"
-#include "remoting/base/mojo_util.h"
 #include "remoting/base/url_request_context_getter.h"
 #include "remoting/host/base/host_exit_codes.h"
 #include "remoting/host/base/switches.h"
@@ -39,20 +38,29 @@
 #include "services/network/transitional_url_loader_factory_owner.h"
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #endif  // BUILDFLAG(IS_APPLE)
 
+#if BUILDFLAG(IS_LINUX)
+#include "remoting/base/crash/crash_reporting_crashpad.h"
+#endif  // BUILDFLAG(IS_LINUX)
+
 #if BUILDFLAG(IS_WIN)
+#include <windows.h>
+
 #include "base/process/process_info.h"
 #include "base/win/registry.h"
+#include "remoting/base/crash/crash_reporting_breakpad.h"
 #include "remoting/host/pairing_registry_delegate_win.h"
-
-#include <windows.h>
 #endif  // BUILDFLAG(IS_WIN)
 
-#if defined(USE_GLIB) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if defined(USE_GLIB) && !BUILDFLAG(IS_CHROMEOS)
 #include <glib-object.h>
-#endif  // defined(USE_GLIB) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // defined(USE_GLIB) && !BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "remoting/host/chromeos/browser_interop.h"
+#endif
 
 using remoting::protocol::PairingRegistry;
 
@@ -71,33 +79,37 @@ int Me2MeNativeMessagingHostMain(int argc, char** argv) {
 
 #if BUILDFLAG(IS_APPLE)
   // Needed so we don't leak objects when threads are created.
-  base::mac::ScopedNSAutoreleasePool pool;
+  base::apple::ScopedNSAutoreleasePool pool;
 #endif  // BUILDFLAG(IS_APPLE)
 
-#if defined(USE_GLIB) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if defined(USE_GLIB) && !BUILDFLAG(IS_CHROMEOS)
 // g_type_init will be deprecated in 2.36. 2.35 is the development
 // version for 2.36, hence do not call g_type_init starting 2.35.
 // http://developer.gnome.org/gobject/unstable/gobject-Type-Information.html#g-type-init
 #if !GLIB_CHECK_VERSION(2, 35, 0)
   g_type_init();
 #endif
-#endif  // defined(USE_GLIB) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // defined(USE_GLIB) && !BUILDFLAG(IS_CHROMEOS)
 
   // Required to find the ICU data file, used by some file_util routines.
   base::i18n::InitializeICU();
 
-#if defined(REMOTING_ENABLE_BREAKPAD)
-  // Initialize Breakpad as early as possible. On Mac the command-line needs to
-  // be initialized first, so that the preference for crash-reporting can be
-  // looked up in the config file.
+#if defined(REMOTING_ENABLE_CRASH_REPORTING)
+  // Initialize crash reporting as early as possible. On Mac the command-line
+  // needs to be initialized first, so that the preference for crash-reporting
+  // can be looked up in the config file.
   if (IsUsageStatsAllowed()) {
-    InitializeCrashReporting();
+#if BUILDFLAG(IS_LINUX)
+    InitializeCrashpadReporting();
+#elif BUILDFLAG(IS_WIN)
+    InitializeBreakpadReporting();
+#endif  // BUILDFLAG(IS_LINUX)
   }
-#endif  // defined(REMOTING_ENABLE_BREAKPAD)
+#endif  // defined(REMOTING_ENABLE_CRASH_REPORTING)
 
   base::ThreadPoolInstance::CreateAndStartWithDefaultParams("Me2Me");
 
-  InitializeMojo();
+  mojo::core::Init();
 
   // An IO thread is needed for the pairing registry and URL context getter.
   base::Thread io_thread("io_thread");
@@ -200,9 +212,7 @@ int Me2MeNativeMessagingHostMain(int argc, char** argv) {
     SetStdHandle(STD_OUTPUT_HANDLE, nullptr);
   }
 #elif BUILDFLAG(IS_POSIX)
-  // The files will be automatically closed.
-  read_file = base::File(STDIN_FILENO);
-  write_file = base::File(STDOUT_FILENO);
+  PipeMessagingChannel::OpenAndBlockStdio(read_file, write_file);
 #else
 #error Not implemented.
 #endif
@@ -271,13 +281,14 @@ int Me2MeNativeMessagingHostMain(int argc, char** argv) {
   std::unique_ptr<extensions::NativeMessagingChannel> channel(
       new PipeMessagingChannel(std::move(read_file), std::move(write_file)));
 
-#if BUILDFLAG(IS_POSIX)
-  PipeMessagingChannel::ReopenStdinStdout();
-#endif  // BUILDFLAG(IS_POSIX)
-
   std::unique_ptr<ChromotingHostContext> context =
+#if !BUILDFLAG(IS_CHROMEOS)
       ChromotingHostContext::Create(new remoting::AutoThreadTaskRunner(
           main_task_executor.task_runner(), run_loop.QuitClosure()));
+#else   // !BUILDFLAG(IS_CHROMEOS)
+      base::MakeRefCounted<BrowserInterop>()->CreateChromotingHostContext(
+          nullptr);
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
   // Create the native messaging host.
   std::unique_ptr<extensions::NativeMessageHost> host(

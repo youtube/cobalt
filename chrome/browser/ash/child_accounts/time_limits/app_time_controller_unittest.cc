@@ -4,8 +4,8 @@
 
 #include "chrome/browser/ash/child_accounts/time_limits/app_time_controller.h"
 
-#include "ash/components/arc/mojom/app.mojom.h"
-#include "ash/components/arc/test/fake_app_instance.h"
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/strcat.h"
@@ -19,10 +19,10 @@
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/app_service_test.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_test.h"
+#include "chrome/browser/ash/child_accounts/apps/app_test_utils.h"
 #include "chrome/browser/ash/child_accounts/time_limits/app_activity_registry.h"
 #include "chrome/browser/ash/child_accounts/time_limits/app_time_limit_utils.h"
 #include "chrome/browser/ash/child_accounts/time_limits/app_time_limits_policy_builder.h"
-#include "chrome/browser/ash/child_accounts/time_limits/app_time_test_utils.h"
 #include "chrome/browser/ash/child_accounts/time_limits/app_types.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
 #include "chrome/common/chrome_features.h"
@@ -30,13 +30,14 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/system_clock/system_clock_client.h"
 #include "chromeos/ash/components/settings/timezone_settings.h"
+#include "chromeos/ash/experiences/arc/mojom/app.mojom.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_instance.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/icon_loader.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/message_center/public/cpp/notification.h"
@@ -85,8 +86,7 @@ class AppTimeControllerTest : public testing::Test {
     ~FakeIconLoader() override = default;
 
     std::unique_ptr<apps::IconLoader::Releaser> LoadIconFromIconKey(
-        apps::AppType app_type,
-        const std::string& app_id,
+        const std::string& id,
         const apps::IconKey& icon_key,
         apps::IconType icon_type,
         int32_t size_hint_in_dip,
@@ -235,12 +235,11 @@ bool AppTimeControllerTest::HasNotificationFor(
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   notification_id = base::StrCat({notification_id, app_name});
 
-  absl::optional<message_center::Notification> message_center_notification =
+  std::optional<message_center::Notification> message_center_notification =
       notification_tester_.GetNotification(notification_id);
   return message_center_notification.has_value();
 }
@@ -525,7 +524,7 @@ TEST_F(AppTimeControllerTest, MetricsTest) {
     AppTimeLimitsPolicyBuilder builder;
     AppId absent_app(apps::AppType::kArc, "absent_app");
     AppLimit app_limit(AppRestriction::kTimeLimit, kOneHour, base::Time::Now());
-    AppLimit blocked_app(AppRestriction::kBlocked, absl::nullopt,
+    AppLimit blocked_app(AppRestriction::kBlocked, std::nullopt,
                          base::Time::Now());
     builder.AddAppLimit(kApp1, app_limit);
     builder.AddAppLimit(absent_app, app_limit);

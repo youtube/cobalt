@@ -3,15 +3,18 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/extensions/api/tabs/app_base_window.h"
+
 #include "extensions/browser/app_window/app_window.h"
 #include "extensions/browser/app_window/native_app_window.h"
 #include "extensions/browser/app_window/size_constraints.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 
 namespace extensions {
 
 AppBaseWindow::AppBaseWindow(AppWindow* app_window) : app_window_(app_window) {}
 
-AppBaseWindow::~AppBaseWindow() {}
+AppBaseWindow::~AppBaseWindow() = default;
 
 bool AppBaseWindow::IsActive() const {
   return GetBaseWindow()->IsActive();
@@ -37,7 +40,7 @@ gfx::Rect AppBaseWindow::GetRestoredBounds() const {
   return GetBaseWindow()->GetRestoredBounds();
 }
 
-ui::WindowShowState AppBaseWindow::GetRestoredState() const {
+ui::mojom::WindowShowState AppBaseWindow::GetRestoredState() const {
   return GetBaseWindow()->GetRestoredState();
 }
 
@@ -89,11 +92,13 @@ void AppBaseWindow::SetBounds(const gfx::Rect& bounds) {
   // We constrain the given size to the min/max sizes of the
   // application window.
   gfx::Insets frame_insets = GetBaseWindow()->GetFrameInsets();
+  gfx::RoundedCornersF window_radii = GetBaseWindow()->GetWindowRadii();
   SizeConstraints constraints(
-      SizeConstraints::AddFrameToConstraints(
-          GetBaseWindow()->GetContentMinimumSize(), frame_insets),
-      SizeConstraints::AddFrameToConstraints(
-          GetBaseWindow()->GetContentMaximumSize(), frame_insets));
+      SizeConstraints::AddWindowToConstraints(
+          GetBaseWindow()->GetContentMinimumSize(), frame_insets, window_radii),
+      SizeConstraints::AddWindowToConstraints(
+          GetBaseWindow()->GetContentMaximumSize(), frame_insets,
+          window_radii));
 
   gfx::Rect new_bounds = bounds;
   new_bounds.set_size(constraints.ClampSize(bounds.size()));

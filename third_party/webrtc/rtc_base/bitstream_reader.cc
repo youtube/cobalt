@@ -26,7 +26,7 @@ uint64_t BitstreamReader::ReadBits(int bits) {
   set_last_read_is_verified(false);
 
   if (remaining_bits_ < bits) {
-    remaining_bits_ -= bits;
+    Invalidate();
     return 0;
   }
 
@@ -64,10 +64,11 @@ uint64_t BitstreamReader::ReadBits(int bits) {
 
 int BitstreamReader::ReadBit() {
   set_last_read_is_verified(false);
-  --remaining_bits_;
-  if (remaining_bits_ < 0) {
+  if (remaining_bits_ <= 0) {
+    Invalidate();
     return 0;
   }
+  --remaining_bits_;
 
   int bit_position = remaining_bits_ % 8;
   if (bit_position == 0) {
@@ -120,7 +121,7 @@ uint32_t BitstreamReader::ReadExponentialGolomb() {
   // The bit count of the value is the number of zeros + 1.
   // However the first '1' was already read above.
   return (uint32_t{1} << zero_bit_count) +
-         rtc::dchecked_cast<uint32_t>(ReadBits(zero_bit_count)) - 1;
+         dchecked_cast<uint32_t>(ReadBits(zero_bit_count)) - 1;
 }
 
 int BitstreamReader::ReadSignedExponentialGolomb() {

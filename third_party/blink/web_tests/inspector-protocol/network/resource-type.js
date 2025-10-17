@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   var {page, session, dp} = await testRunner.startBlank(`Tests that responseReceived contains the documented resource types.`);
 
   var resources = [
@@ -26,6 +26,8 @@
     var url = event.params.request.url;
     if (url.startsWith('blob'))
       return;
+    if (url.startsWith('data'))
+      return;
 
     var type = event.params.type;
     for (var resource of resources) {
@@ -42,6 +44,8 @@
   dp.Network.onResponseReceived(event => {
     var url = event.params.response.url;
     if (url.indexOf('blob') === 0)
+      return;
+    if (url.indexOf('data') === 0)
       return;
 
     var type = event.params.type;

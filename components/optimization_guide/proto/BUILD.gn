@@ -12,19 +12,74 @@ proto_library("optimization_guide_proto") {
   proto_in_dir = "//"
   sources = [
     "autocomplete_scoring_model_metadata.proto",
+    "autofill_field_classification_model_metadata.proto",
+    "client_side_phishing_model_metadata.proto",
     "common_types.proto",
+    "contextual_cueing_metadata.proto",
+    "descriptors.proto",
+    "features/actions_data.proto",
+    "features/bling_prototyping.proto",
+    "features/common_quality_data.proto",
+    "features/compose.proto",
+    "features/default.proto",
+    "features/enhanced_calendar.proto",
+    "features/example_for_testing.proto",
+    "features/forms_classifications.proto",
+    "features/history_answer.proto",
+    "features/history_query.proto",
+    "features/history_query_intent.proto",
+    "features/history_search_strings.proto",
+    "features/media.proto",
+    "features/model_prototyping.proto",
+    "features/notification_content_detection.proto",
+    "features/password_change_submission.proto",
+    "features/permissions_ai.proto",
+    "features/product_specifications.proto",
+    "features/prompt_api.proto",
+    "features/proofreader_api.proto",
+    "features/scam_detection.proto",
+    "features/summarize.proto",
+    "features/tab_organization.proto",
+    "features/text_safety.proto",
+    "features/wallpaper_search.proto",
+    "features/writing_assistance_api.proto",
+    "features/zero_state_suggestions.proto",
+    "fieldwise_parser_config.proto",
+    "glic_page_context_eligibility_metadata.proto",
     "hint_cache.proto",
     "hints.proto",
+    "history_query_intent_model_metadata.proto",
+    "icon_view_metadata.proto",
     "loading_predictor_metadata.proto",
+    "model_execution.proto",
+    "model_quality_metadata.proto",
+    "model_quality_service.proto",
+    "model_validation.proto",
     "models.proto",
+    "on_device_base_model_metadata.proto",
+    "on_device_model_execution_config.proto",
     "on_device_tail_suggest_model_metadata.proto",
     "page_entities_metadata.proto",
-    "page_entities_model_metadata.proto",
     "page_topics_model_metadata.proto",
     "page_topics_override_list.proto",
+    "parser_kind.proto",
+    "passage_embeddings_model_metadata.proto",
     "push_notification.proto",
+    "redaction.proto",
     "salient_image_metadata.proto",
+    "string_value.proto",
+    "substitution.proto",
+    "text_safety_model_metadata.proto",
+    "visual_search_model_metadata.proto",
   ]
+
+  # Python stubs are needed at runtime for model validation tests.
+  generate_py_runtime = true
+
+  # These are required to import system_profile.proto in
+  # model_quality_metadata.proto.
+  deps = [ "//third_party/metrics_proto:metrics_proto" ]
+  import_dirs = [ "//third_party/metrics_proto/" ]
 }
 
 if (is_android) {
@@ -38,4 +93,18 @@ if (is_android) {
       "push_notification.proto",
     ]
   }
+}
+
+proto_library("optimization_guide_proto_descriptors") {
+  proto_in_dir = "//"
+  proto_out_dir = "components/optimization_guide/proto"
+  sources = [ "features/feature_proto_registry.proto" ]
+  deps = [
+    ":optimization_guide_proto",
+    "//third_party/metrics_proto:metrics_proto",
+  ]
+  generate_cc = false
+  generate_python = false
+  generate_descriptor = "optimization_guide_proto.descriptor"
+  import_dirs = [ "//third_party/metrics_proto/" ]
 }

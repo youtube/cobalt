@@ -6,7 +6,7 @@ found in the LICENSE file.
 -->
 
 <!--
-TODO(crbug.com/1406154) - The layout may be simplified using
+TODO(crbug.com/40252583) - The layout may be simplified using
 TextViewWithCompoundDrawables.
 -->
 
@@ -16,6 +16,7 @@ TextViewWithCompoundDrawables.
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:id="@+id/clear_reset_dialog"
     style="@style/AlertDialogContent">
 
     <TextView

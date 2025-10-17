@@ -12,8 +12,8 @@
 #include "base/time/time.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
-#include "third_party/blink/public/web/blink.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 
 namespace chromecast {
@@ -46,12 +46,12 @@ void AssistantBindings::OnMessage(base::Value message) {
     return;
   }
 
-  v8::Isolate* isolate = blink::MainThreadIsolate();
-  v8::MicrotasksScope microtasks_scope(
-      isolate, v8::MicrotasksScope::kDoNotRunMicrotasks);
-  v8::HandleScope handle_scope(isolate);
   blink::WebLocalFrame* web_frame = render_frame()->GetWebFrame();
+  v8::Isolate* isolate = web_frame->GetAgentGroupScheduler()->Isolate();
+  v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context = web_frame->MainWorldScriptContext();
+  v8::MicrotasksScope microtasks_scope(
+      context, v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Context::Scope context_scope(context);
 
   v8::Local<v8::Function> handler = v8::Local<v8::Function>::New(
@@ -84,7 +84,8 @@ void AssistantBindings::Install(v8::Local<v8::Object> cast_platform,
 
 void AssistantBindings::SetAssistantMessageHandler(
     v8::Local<v8::Function> assistant_message_handler) {
-  v8::Isolate* isolate = blink::MainThreadIsolate();
+  v8::Isolate* isolate =
+      render_frame()->GetWebFrame()->GetAgentGroupScheduler()->Isolate();
   assistant_message_handler_ =
       v8::UniquePersistent<v8::Function>(isolate, assistant_message_handler);
   ReconnectMessagePipe();
@@ -92,7 +93,8 @@ void AssistantBindings::SetAssistantMessageHandler(
 
 void AssistantBindings::SendAssistantRequest(const std::string& request) {
   if (assistant_message_handler_.IsEmpty()) {
-    v8::Isolate* isolate = blink::MainThreadIsolate();
+    v8::Isolate* isolate =
+        render_frame()->GetWebFrame()->GetAgentGroupScheduler()->Isolate();
     isolate->ThrowException(
         v8::String::NewFromUtf8(isolate,
                                 "Error: assistant message handler is not set.",
@@ -155,7 +157,7 @@ void AssistantBindings::FlushV8ToAssistantQueue() {
 const mojo::Remote<chromecast::mojom::AssistantMessageService>&
 AssistantBindings::GetMojoInterface() {
   if (!assistant_.is_bound()) {
-    render_frame()->GetBrowserInterfaceBroker()->GetInterface(
+    render_frame()->GetBrowserInterfaceBroker().GetInterface(
         assistant_.BindNewPipeAndPassReceiver());
     assistant_.set_disconnect_handler(base::BindOnce(
         &AssistantBindings::OnAssistantConnectionError, weak_this_));

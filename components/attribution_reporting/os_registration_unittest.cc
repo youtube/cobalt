@@ -4,52 +4,125 @@
 
 #include "components/attribution_reporting/os_registration.h"
 
-#include "base/strings/string_piece.h"
+#include <string_view>
+#include <tuple>
+#include <vector>
+
+#include "base/test/gmock_expected_support.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/types/expected.h"
+#include "components/attribution_reporting/os_registration_error.mojom-shared.h"
+#include "components/attribution_reporting/test_utils.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/fuzztest/src/fuzztest/fuzztest.h"
 #include "url/gurl.h"
 
 namespace attribution_reporting {
 namespace {
 
-TEST(OsRegistration, ParseOsSourceOrTriggerHeader) {
+using ::attribution_reporting::mojom::OsRegistrationError;
+using ::base::test::ErrorIs;
+using ::base::test::ValueIs;
+using ::testing::ElementsAre;
+
+TEST(OsRegistrationTest, ParseOsSourceOrTriggerHeader) {
   const struct {
     const char* description;
-    base::StringPiece header;
-    GURL expected;
+    std::string_view header;
+    ::testing::Matcher<
+        base::expected<std::vector<OsRegistrationItem>, OsRegistrationError>>
+        matches;
   } kTestCases[] = {
       {
           "empty",
           "",
-          GURL(),
+          ErrorIs(OsRegistrationError::kInvalidList),
       },
       {
           "invalid_url",
           R"("foo")",
-          GURL(),
+          ErrorIs(OsRegistrationError::kInvalidList),
       },
       {
-          "not_string",
+          "integer",
           "123",
-          GURL(),
+          ErrorIs(OsRegistrationError::kInvalidList),
+      },
+      {
+          "token",
+          "d",
+          ErrorIs(OsRegistrationError::kInvalidList),
+      },
+      {
+          "byte_sequence",
+          ":YWJj:",
+          ErrorIs(OsRegistrationError::kInvalidList),
       },
       {
           "valid_url_no_params",
           R"("https://d.test")",
-          GURL("https://d.test"),
+          ValueIs(
+              ElementsAre(OsRegistrationItem{.url = GURL("https://d.test")})),
       },
       {
           "extra_params_ignored",
           R"("https://d.test"; y=1)",
-          GURL("https://d.test"),
+          ValueIs(
+              ElementsAre(OsRegistrationItem{.url = GURL("https://d.test")})),
+      },
+      {
+          "inner_list",
+          R"(("https://d.test"))",
+          ErrorIs(OsRegistrationError::kInvalidList),
+      },
+      {
+          "multiple",
+          R"(123, "https://d.test", "", "https://e.test")",
+          ValueIs(
+              ElementsAre(OsRegistrationItem{.url = GURL("https://d.test")},
+                          OsRegistrationItem{.url = GURL("https://e.test")})),
+      },
+      {
+          "debug_reporting_param",
+          R"("https://d.test", "https://e.test";debug-reporting, "https://f.test";debug-reporting=?0)",
+          ValueIs(
+              ElementsAre(OsRegistrationItem{.url = GURL("https://d.test")},
+                          OsRegistrationItem{.url = GURL("https://e.test"),
+                                             .debug_reporting = true},
+                          OsRegistrationItem{.url = GURL("https://f.test")})),
+      },
+      {
+          "debug_reporting_param_wrong_type",
+          R"("https://d.test"; debug-reporting=1)",
+          ValueIs(
+              ElementsAre(OsRegistrationItem{.url = GURL("https://d.test")})),
       },
   };
 
   for (const auto& test_case : kTestCases) {
-    EXPECT_EQ(ParseOsSourceOrTriggerHeader(test_case.header),
-              test_case.expected)
-        << test_case.description;
+    SCOPED_TRACE(test_case.description);
+    EXPECT_THAT(ParseOsSourceOrTriggerHeader(test_case.header),
+                test_case.matches);
   }
 }
+
+TEST(OsRegistrationTest, EmitItemsPerHeaderHistogram) {
+  base::HistogramTester histogram;
+
+  std::ignore = ParseOsSourceOrTriggerHeader(
+      R"(123, "https://d.test", "", "https://e.test")");
+
+  histogram.ExpectUniqueSample("Conversions.OsRegistrationItemsPerHeader", 2,
+                               1);
+}
+
+void Parses(std::string_view input) {
+  std::ignore = ParseOsSourceOrTriggerHeader(input);
+}
+
+FUZZ_TEST(OsRegistrationTest, Parses)
+    .WithDomains(fuzztest::Arbitrary<std::string>());
 
 }  // namespace
 }  // namespace attribution_reporting

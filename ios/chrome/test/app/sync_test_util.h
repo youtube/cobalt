@@ -6,19 +6,25 @@
 #define IOS_CHROME_TEST_APP_SYNC_TEST_UTIL_H_
 
 #import <Foundation/Foundation.h>
+
+#include <set>
 #include <string>
 
-#include "components/sync/base/model_type.h"
+#include "base/time/time.h"
+#include "components/sync/base/data_type.h"
 #include "third_party/metrics_proto/user_demographics.pb.h"
 #include "url/gurl.h"
 
 namespace base {
-class Time;
+class Uuid;
 }  // namespace base
-
 namespace synced_sessions {
 struct DistantSession;
 }  // namespace synced_sessions
+namespace tab_groups {
+class SavedTabGroup;
+class SavedTabGroupTab;
+}  // namespace tab_groups
 
 namespace chrome_test_util {
 
@@ -34,15 +40,24 @@ void SetUpFakeSyncServer();
 // real one. Must only be called if `IsFakeSyncServerSetUp()` is true.
 void TearDownFakeSyncServer();
 
+// Clears fake sync server data if the server is running, otherwise does
+// nothing.
+void ClearFakeSyncServerData();
+
+// Ensures that all of the FakeServer's data is persisted to disk. This is
+// useful before app restarts, where otherwise the FakeServer may not get to do
+// its usual on-destruction flush.
+void FlushFakeSyncServerToDisk();
+
 // Triggers a sync cycle for a `type`.
-void TriggerSyncCycle(syncer::ModelType type);
+void TriggerSyncCycle(syncer::DataType type);
 
 // Gets the number of entities of the given `type`.
-int GetNumberOfSyncEntities(syncer::ModelType type);
+int GetNumberOfSyncEntities(syncer::DataType type);
 
 // Verifies that `count` entities of the given `type` and `name` exist on the
 // sync FakeServer. Folders are not included in this count.
-BOOL VerifyNumberOfSyncEntitiesWithName(syncer::ModelType type,
+BOOL VerifyNumberOfSyncEntitiesWithName(syncer::DataType type,
                                         std::string name,
                                         size_t count,
                                         NSError** error);
@@ -59,7 +74,7 @@ void AddLegacyBookmarkToFakeSyncServer(std::string url,
 
 // Injects a distant session into the fake sync server. Tabs in this session
 // will also be injected.
-// TODO(crbug.com/1434678): don't take a DistantSession; rewrite using entity
+// TODO(crbug.com/40904349): don't take a DistantSession; rewrite using entity
 // builder pattern.
 void AddSessionToFakeSyncServer(const synced_sessions::DistantSession& session);
 
@@ -79,10 +94,6 @@ void DeleteAutofillProfileFromFakeSyncServer(std::string guid);
 
 // Clears the autofill profile for the given `guid`.
 void ClearAutofillProfile(std::string guid);
-
-// Clears fake sync server data if the server is running, otherwise does
-// nothing.
-void ClearSyncServerData();
 
 // See SyncService::IsEngineInitialized().
 bool IsSyncEngineInitialized();
@@ -112,11 +123,12 @@ BOOL VerifySessionsOnSyncServer(const std::multiset<std::string>& expected_urls,
 BOOL VerifyHistoryOnSyncServer(const std::multiset<GURL>& expected_urls,
                                NSError** error);
 
-// Adds typed URL to HistoryService.
-void AddTypedURLToClient(const GURL& url);
+// Adds typed URL to HistoryService at timestamp `visitTimestamp`.
+void AddTypedURLToClient(const GURL& url,
+                         base::Time visitTimestamp = base::Time::Now());
 
-// Injects a typed URL into the fake sync server.
-void AddTypedURLToFakeSyncServer(const std::string& url);
+// Sets a page title for an item in the history.
+void SetPageTitle(const GURL& url, const std::u16string& title);
 
 // Injects a HISTORY visit into the fake sync server.
 void AddHistoryVisitToFakeSyncServer(const GURL& url);
@@ -134,12 +146,43 @@ BOOL IsUrlPresentOnClient(const GURL& url,
 // Deletes typed URL from HistoryService.
 void DeleteTypedUrlFromClient(const GURL& url);
 
-// Deletes typed URL on FakeServer by injecting a tombstone.
-void DeleteTypedUrlFromFakeSyncServer(std::string url);
-
 // Adds a bookmark with a sync passphrase. The sync server will need the sync
 // passphrase to start.
 void AddBookmarkWithSyncPassphrase(const std::string& sync_passphrase);
+
+// Adds a sync passphrase. The sync server will need the sync
+// passphrase to start. In order to work, this need to be called before the
+// primary user is signed-in.
+void AddSyncPassphrase(const std::string& sync_passphrase);
+
+// Adds the user to the collaboration for `collaboration_id`. No-op if the
+// user is already in this collaboration.
+void AddCollaboration(const std::string& collaboration_id);
+
+// Adds a group to the list of sync tabs on the server.
+void AddGroupToFakeServer(const tab_groups::SavedTabGroup& group);
+
+// Adds a tab to the list of sync tabs on the server.
+void AddTabToFakeServer(const tab_groups::SavedTabGroupTab& tab);
+
+// Adds a tab to the list of sync tabs on the server. The group where a `tab`
+// belongs to should be shared. The tab is always added by a member
+// (fakeIdentity3).
+void AddSharedTabToFakeServer(const tab_groups::SavedTabGroupTab& tab,
+                              const std::string& collaboration_id);
+
+// Deletes a tab or a group with `uuid` on the server.
+void DeleteTabOrGroupFromFakeServer(const base::Uuid& uuid);
+
+// Adds the `collaboration_id` on the server.
+void AddCollaborationGroupToFakeServer(const std::string& collaboration_id);
+
+// Deletes the shared group with `uuid` on the server.
+void DeleteSharedGroupFromFakeServer(const base::Uuid& uuid);
+
+// Deletes all `data_type` entities from the server without creating
+// tombstones.
+void DeleteAllEntitiesForDataType(syncer::DataType data_type);
 
 }  // namespace chrome_test_util
 

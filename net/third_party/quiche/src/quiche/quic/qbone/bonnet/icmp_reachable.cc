@@ -6,11 +6,12 @@
 
 #include <netinet/ip6.h>
 
+#include <string>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/platform/api/quic_logging.h"
-#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
@@ -64,26 +65,26 @@ IcmpReachable::~IcmpReachable() {
 bool IcmpReachable::Init() {
   send_fd_ = kernel_->socket(PF_INET6, SOCK_RAW | SOCK_NONBLOCK, IPPROTO_RAW);
   if (send_fd_ < 0) {
-    QUIC_LOG(ERROR) << "Unable to open socket: " << errno;
+    QUIC_PLOG(ERROR) << "Unable to open socket.";
     return false;
   }
 
   if (kernel_->bind(send_fd_, reinterpret_cast<struct sockaddr*>(&src_),
                     sizeof(sockaddr_in6)) < 0) {
-    QUIC_LOG(ERROR) << "Unable to bind socket: " << errno;
+    QUIC_PLOG(ERROR) << "Unable to bind socket.";
     return false;
   }
 
   recv_fd_ =
       kernel_->socket(PF_INET6, SOCK_RAW | SOCK_NONBLOCK, IPPROTO_ICMPV6);
   if (recv_fd_ < 0) {
-    QUIC_LOG(ERROR) << "Unable to open socket: " << errno;
+    QUIC_PLOG(ERROR) << "Unable to open socket.";
     return false;
   }
 
   if (kernel_->bind(recv_fd_, reinterpret_cast<struct sockaddr*>(&src_),
                     sizeof(sockaddr_in6)) < 0) {
-    QUIC_LOG(ERROR) << "Unable to bind socket: " << errno;
+    QUIC_PLOG(ERROR) << "Unable to bind socket.";
     return false;
   }
 
@@ -102,7 +103,7 @@ bool IcmpReachable::Init() {
   }
   alarm_->Set(clock_->Now());
 
-  QuicWriterMutexLock mu(&header_lock_);
+  absl::WriterMutexLock mu(&header_lock_);
   icmp_header_.icmp6_type = ICMP6_ECHO_REQUEST;
   icmp_header_.icmp6_code = 0;
 
@@ -133,7 +134,7 @@ bool IcmpReachable::OnEvent(int fd) {
       absl::string_view(buffer, size));
 
   auto* header = reinterpret_cast<const icmp6_hdr*>(&buffer);
-  QuicWriterMutexLock mu(&header_lock_);
+  absl::WriterMutexLock mu(&header_lock_);
   if (header->icmp6_data32[0] != icmp_header_.icmp6_data32[0]) {
     QUIC_VLOG(2) << "Unexpected response. id: " << header->icmp6_id
                  << " seq: " << header->icmp6_seq
@@ -158,7 +159,7 @@ bool IcmpReachable::OnEvent(int fd) {
 }
 
 void IcmpReachable::OnAlarm() {
-  QuicWriterMutexLock mu(&header_lock_);
+  absl::WriterMutexLock mu(&header_lock_);
 
   if (end_ < start_) {
     QUIC_VLOG(1) << "Timed out on sequence: " << icmp_header_.icmp6_seq;
@@ -196,7 +197,7 @@ absl::string_view IcmpReachable::StatusName(IcmpReachable::Status status) {
 }
 
 void IcmpReachable::EpollCallback::OnSocketEvent(QuicEventLoop* event_loop,
-                                                 QuicUdpSocketFd fd,
+                                                 SocketFd fd,
                                                  QuicSocketEventMask events) {
   bool can_read_more = reachable_->OnEvent(fd);
   if (can_read_more) {

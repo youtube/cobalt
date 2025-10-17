@@ -5,6 +5,10 @@
 #ifndef COMPONENTS_COOKIE_CONFIG_COOKIE_STORE_UTIL_H_
 #define COMPONENTS_COOKIE_CONFIG_COOKIE_STORE_UTIL_H_
 
+#include <memory>
+
+#include "base/component_export.h"
+
 namespace net {
 class CookieCryptoDelegate;
 }  // namespace net
@@ -12,9 +16,9 @@ class CookieCryptoDelegate;
 namespace cookie_config {
 
 // Factory method for returning a CookieCryptoDelegate if one is appropriate for
-// this platform. The object returned is a LazyInstance. Ownership is not
-// transferred.
-net::CookieCryptoDelegate* GetCookieCryptoDelegate();
+// this platform.
+COMPONENT_EXPORT(COMPONENTS_COOKIE_CONFIG)
+std::unique_ptr<net::CookieCryptoDelegate> GetCookieCryptoDelegate();
 
 }  // namespace cookie_config
 

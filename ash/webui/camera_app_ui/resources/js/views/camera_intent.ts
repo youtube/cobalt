@@ -10,7 +10,6 @@ import * as metrics from '../metrics.js';
 import {FileAccessEntry} from '../models/file_system_access_entry.js';
 import {VideoSaver} from '../models/video_saver.js';
 import {ChromeHelper} from '../mojo/chrome_helper.js';
-import {PerfLogger} from '../perf.js';
 import {scaleImage} from '../thumbnailer.js';
 import {Resolution} from '../type.js';
 import * as util from '../util.js';
@@ -26,6 +25,7 @@ const DOWNSCALE_INTENT_MAX_PIXEL_NUM = 50 * 1024;
 
 interface MetricArgs {
   resolution: Resolution;
+  recordType: metrics.RecordType;
   duration?: number;
 }
 
@@ -38,7 +38,6 @@ export class CameraIntent extends Camera {
   constructor(
       private readonly intent: Intent,
       cameraManager: CameraManager,
-      perfLogger: PerfLogger,
   ) {
     super(
         {
@@ -55,18 +54,18 @@ export class CameraIntent extends Camera {
             const buf = await blob.arrayBuffer();
             await this.intent.appendData(new Uint8Array(buf));
           },
-          startSaveVideo: async (outputVideoRotation) => {
-            return VideoSaver.createForIntent(intent, outputVideoRotation);
-          },
-          finishSaveVideo: async (video) => {
-            assert(video instanceof VideoSaver);
-            this.videoResultFile = await video.endWrite();
+          saveVideo: (file) => {
+            this.videoResultFile = file;
           },
           saveGif: () => {
             assertNotReached();
           },
         },
-        cameraManager, perfLogger);
+        cameraManager);
+  }
+
+  override createVideoSaver(): Promise<VideoSaver> {
+    return VideoSaver.createForIntent(this.intent, this.outputVideoRotation);
   }
 
   private reviewIntentResult(metricArgs: MetricArgs): Promise<void> {
@@ -77,6 +76,7 @@ export class CameraIntent extends Camera {
           new review.Option(
               {
                 label: I18nString.CONFIRM_REVIEW_BUTTON,
+                icon: 'camera_intent_result_confirm.svg',
                 templateId: 'review-intent-button-template',
                 primary: true,
               },
@@ -84,11 +84,13 @@ export class CameraIntent extends Camera {
           new review.Option(
               {
                 label: I18nString.CANCEL_REVIEW_BUTTON,
+                icon: 'camera_intent_result_cancel.svg',
                 templateId: 'review-intent-button-template',
               },
               {exitValue: false}),
         ],
-      }));
+      })) ??
+          false;
       metrics.sendCaptureEvent({
         facing: this.getFacing(),
         ...metricArgs,
@@ -121,16 +123,23 @@ export class CameraIntent extends Camera {
     await super.onPhotoCaptureDone(pendingPhotoResult);
     const {blob, resolution} = await pendingPhotoResult;
     await this.review.setReviewPhoto(blob);
-    await this.reviewIntentResult({resolution});
+    await this.reviewIntentResult({
+      resolution,
+      recordType: metrics.RecordType.NOT_RECORDING,
+    });
     ChromeHelper.getInstance().maybeTriggerSurvey();
   }
 
   override async onVideoCaptureDone(videoResult: VideoResult): Promise<void> {
     await super.onVideoCaptureDone(videoResult);
     assert(this.videoResultFile !== null);
-    await this.review.setReviewVideo(this.videoResultFile);
-    await this.reviewIntentResult(
-        {resolution: videoResult.resolution, duration: videoResult.duration});
+    const cleanup = await this.review.setReviewVideo(this.videoResultFile);
+    await this.reviewIntentResult({
+      resolution: videoResult.resolution,
+      recordType: metrics.RecordType.NORMAL_VIDEO,
+      duration: videoResult.duration,
+    });
+    cleanup();
     ChromeHelper.getInstance().maybeTriggerSurvey();
   }
 }

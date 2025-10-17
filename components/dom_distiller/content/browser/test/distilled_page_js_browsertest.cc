@@ -5,7 +5,6 @@
 #include <memory>
 #include <string>
 
-#include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "build/build_config.h"
 #include "components/dom_distiller/content/browser/distiller_javascript_utils.h"
@@ -16,8 +15,6 @@
 #include "content/shell/browser/shell.h"
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/base/resource/resource_bundle.h"
-#include "ui/base/resource/resource_scale_factor.h"
 
 namespace dom_distiller {
 namespace {
@@ -40,10 +37,8 @@ class DistilledPageJsTest : public content::ContentBrowserTest {
   void LoadAndExecuteTestScript(const std::string& file) {
     distilled_page_->AppendScriptFile(file);
     distilled_page_->Load(embedded_test_server(), shell()->web_contents());
-    bool allTestsPassed;
-    ASSERT_TRUE(content::ExecuteScriptAndExtractBool(
-        shell()->web_contents(), "mocha.run()", &allTestsPassed));
-    EXPECT_TRUE(allTestsPassed);
+    EXPECT_TRUE(content::ExecJs(shell()->web_contents(),
+                                "mocha.run(); window.completePromise"));
   }
 
   std::unique_ptr<FakeDistilledPage> distilled_page_;
@@ -60,7 +55,7 @@ IN_PROC_BROWSER_TEST_F(DistilledPageJsTest, MAYBE_Pinch) {
 }
 
 // FontSizeSlider is only used on Desktop.
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 #define MAYBE_FontSizeSlider DISABLED_FontSizeSlider
 #else
 #define MAYBE_FontSizeSlider FontSizeSlider

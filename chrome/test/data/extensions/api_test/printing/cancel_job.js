@@ -17,15 +17,17 @@ chrome.test.getConfig(function(config) {
     // passed.
     if (eventCounter == statuses.length)
       chrome.test.notifyPass();
+
+    if (status == chrome.printing.JobStatus.IN_PROGRESS) {
+      chrome.printing.cancelJob(jobId, () => {});
+    }
   });
 
   const url = 'http://localhost:' + config.testServer.port + '/pdf/test.pdf';
-  submitJob('id', 'test job', url, response => {
+  submitJob('id', 'test job', url, minimal_ticket, response => {
     chrome.test.assertNe(undefined, response);
     chrome.test.assertNe(undefined, response.status);
     chrome.test.assertEq(chrome.printing.SubmitJobStatus.OK, response.status);
     chrome.test.assertNe(undefined, response.jobId);
-
-    chrome.printing.cancelJob(response.jobId, () => {});
   });
 });

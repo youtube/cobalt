@@ -3,22 +3,18 @@
 # found in the LICENSE file.
 """Functions used in both v1 and v2 scripts."""
 
+import json
 import os
 import platform
-import re
 import stat
-import subprocess
 
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Tuple
 
-
-# File indicating version of an image downloaded to the host
-_BUILD_ARGS = "buildargs.gn"
-_ARGS_FILE = 'args.gn'
 
 _FILTER_DIR = 'testing/buildbot/filters'
 _SSH_KEYS = os.path.expanduser('~/.ssh/fuchsia_authorized_keys')
-
+_CHROME_HEADLESS = 'CHROME_HEADLESS'
+_SWARMING_SERVER = 'SWARMING_SERVER'
 
 class VersionNotFoundError(Exception):
     """Thrown when version info cannot be retrieved from device."""
@@ -36,8 +32,25 @@ def running_unattended() -> bool:
     When running unattended, confirmation prompts and the like are suppressed.
     """
 
-    # TODO(crbug/1401387): Change to mixin based approach.
-    return 'SWARMING_SERVER' in os.environ
+    # TODO(crbug.com/40884247): Change to mixin based approach.
+    # And remove SWARMING_SERVER check when it's no longer needed by dart,
+    # eureka and flutter to partially revert https://crrev.com/c/4112522.
+    return _CHROME_HEADLESS in os.environ or _SWARMING_SERVER in os.environ
+
+
+def force_running_unattended() -> None:
+    """Treats everything as running non-interactively."""
+    if not running_unattended():
+        os.environ[_CHROME_HEADLESS] = '1'
+        assert running_unattended()
+
+
+def force_running_attended() -> None:
+    """Treats everything as running interactively."""
+    if running_unattended():
+        os.environ.pop(_CHROME_HEADLESS, None)
+        os.environ.pop(_SWARMING_SERVER, None)
+        assert not running_unattended()
 
 
 def get_host_arch() -> str:
@@ -61,71 +74,13 @@ def add_exec_to_file(file: str) -> None:
     os.chmod(file, file_stat.st_mode | stat.S_IXUSR)
 
 
-def _add_exec_to_pave_binaries(system_image_dir: str):
-    """Add exec to required pave files.
-
-    The pave files may vary depending if a product-bundle or a prebuilt images
-    directory is being used.
-    Args:
-      system_image_dir: string path to the directory containing the pave files.
-    """
-    pb_files = [
-        'pave.sh',
-        os.path.join(f'host_{get_host_arch()}', 'bootserver')
-    ]
-    image_files = [
-        'pave.sh',
-        os.path.join(f'bootserver.exe.linux-{get_host_arch()}')
-    ]
-    use_pb_files = os.path.exists(os.path.join(system_image_dir, pb_files[1]))
-    for f in pb_files if use_pb_files else image_files:
-        add_exec_to_file(os.path.join(system_image_dir, f))
-
-
-def pave(image_dir: str, target_id: Optional[str])\
-        -> subprocess.CompletedProcess:
-    """"Pave a device using the pave script inside |image_dir|."""
-    _add_exec_to_pave_binaries(image_dir)
-    pave_command = [
-        os.path.join(image_dir, 'pave.sh'), '--authorized-keys',
-        get_ssh_keys(), '-1'
-    ]
-    if target_id:
-        pave_command.extend(['-n', target_id])
-    return subprocess.run(pave_command, check=True, text=True, timeout=300)
-
-
-def parse_host_port(host_port_pair: str) -> Tuple[str, int]:
-    """Parses a host name or IP address and a port number from a string of
-    any of the following forms:
-    - hostname:port
-    - IPv4addy:port
-    - [IPv6addy]:port
-
-    Returns:
-        A tuple of the string host name/address and integer port number.
-
-    Raises:
-        ValueError if `host_port_pair` does not contain a colon or if the
-        substring following the last colon cannot be converted to an int.
-    """
-
-    host, port = host_port_pair.rsplit(':', 1)
-
-    # Strip the brackets if the host looks like an IPv6 address.
-    if len(host) >= 4 and host[0] == '[' and host[-1] == ']':
-        host = host[1:-1]
-    return (host, int(port))
-
-
-def get_ssh_prefix(host_port_pair: str) -> List[str]:
+def get_ssh_prefix(host_port_pair: Tuple[str, int]) -> List[str]:
     """Get the prefix of a barebone ssh command."""
-
-    ssh_addr, ssh_port = parse_host_port(host_port_pair)
     return [
         'ssh', '-F',
-        os.path.expanduser('~/.fuchsia/sshconfig'), ssh_addr, '-p',
-        str(ssh_port)
+        os.path.join(os.path.dirname(__file__), 'sshconfig'),
+        host_port_pair[0], '-p',
+        str(host_port_pair[1])
     ]
 
 
@@ -156,7 +111,7 @@ def install_symbols(package_paths: Iterable[str],
                            symbol_file)
 
 
-# TODO(crbug.com/1279803): Until one can send files to the device when running
+# TODO(crbug.com/42050403): Until one can send files to the device when running
 # a test, filter files must be read from the test package.
 def map_filter_file_to_package_file(filter_file: str) -> str:
     """Returns the path to |filter_file| within the test component's package."""
@@ -167,41 +122,16 @@ def map_filter_file_to_package_file(filter_file: str) -> str:
     return '/pkg/' + filter_file[filter_file.index(_FILTER_DIR):]
 
 
+# TODO(crbug.com/40938340): Rename to get_product_version.
 def get_sdk_hash(system_image_dir: str) -> Tuple[str, str]:
     """Read version of hash in pre-installed package directory.
     Returns:
         Tuple of (product, version) of image to be installed.
-    Raises:
-        VersionNotFoundError: if contents of buildargs.gn cannot be found or the
-        version number cannot be extracted.
     """
 
-    # TODO(crbug.com/1261961): Stop processing buildargs.gn directly.
-    args_file = os.path.join(system_image_dir, _BUILD_ARGS)
-    if not os.path.exists(args_file):
-        args_file = os.path.join(system_image_dir, _ARGS_FILE)
-
-    if not os.path.exists(args_file):
-        raise VersionNotFoundError(
-            f'Dir {system_image_dir} did not contain {_BUILD_ARGS} or '
-            f'{_ARGS_FILE}')
-
-    with open(args_file) as f:
-        contents = f.readlines()
-    if not contents:
-        raise VersionNotFoundError('Could not retrieve %s' % args_file)
-    version_key = 'build_info_version'
-    product_key = 'build_info_product'
-    info_keys = [product_key, version_key]
-    version_info = {}
-    for line in contents:
-        for key in info_keys:
-            match = re.match(r'%s = "(.*)"' % key, line)
-            if match:
-                version_info[key] = match.group(1)
-    if not (version_key in version_info and product_key in version_info):
-        raise VersionNotFoundError(
-            'Could not extract version info from %s. Contents: %s' %
-            (args_file, contents))
-
-    return (version_info[product_key], version_info[version_key])
+    with open(os.path.join(system_image_dir,
+                           'product_bundle.json')) as product:
+        # The product_name in the json file does not match the name of the image
+        # flashed to the device.
+        return (os.path.basename(os.path.normpath(system_image_dir)),
+                json.load(product)['product_version'])

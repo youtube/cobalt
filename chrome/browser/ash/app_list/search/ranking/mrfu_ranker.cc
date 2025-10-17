@@ -51,15 +51,15 @@ void MrfuResultRanker::Train(const LaunchData& launch) {
 
 // MrfuCategoryRanker ----------------------------------------------------------
 
-MrfuCategoryRanker::MrfuCategoryRanker(MrfuCache::Params params,
-                                       PersistentProto<MrfuCacheProto> proto)
+MrfuCategoryRanker::MrfuCategoryRanker(
+    MrfuCache::Params params,
+    ash::PersistentProto<MrfuCacheProto> proto)
     : mrfu_(std::make_unique<MrfuCache>(std::move(proto), params)) {}
 
 MrfuCategoryRanker::~MrfuCategoryRanker() = default;
 
 void MrfuCategoryRanker::Start(const std::u16string& query,
-                               ResultsMap& results,
-                               CategoriesList& categories) {
+                               const CategoriesList& categories) {
   if (mrfu_->initialized() && mrfu_->empty())
     SetDefaultCategoryScores();
 }

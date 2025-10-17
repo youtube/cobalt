@@ -36,7 +36,7 @@ AX_BASE_EXPORT bool IsNodeIdIntListAttribute(ax::mojom::IntListAttribute attr);
 // A compact representation of the accessibility information for a
 // single accessible object, in a form that can be serialized and sent from
 // one process to another.
-struct AX_BASE_EXPORT AXNodeData {
+struct AX_BASE_EXPORT AXNodeData final {
   // Defines the type used for AXNode IDs.
   using AXID = AXNodeID;
 
@@ -44,8 +44,12 @@ struct AX_BASE_EXPORT AXNodeData {
   // kInvalidAXID.
   static constexpr AXID kInvalidAXID = kInvalidAXNodeID;
 
+  static constexpr bool kDefaultBoolValue = false;
+  static constexpr int kDefaultIntValue = 0;
+  static constexpr int kDefaultFloatValue = 0;
+
   AXNodeData();
-  virtual ~AXNodeData();
+  ~AXNodeData();
 
   AXNodeData(const AXNodeData& other);
   AXNodeData(AXNodeData&& other);
@@ -68,44 +72,32 @@ struct AX_BASE_EXPORT AXNodeData {
 
   bool HasBoolAttribute(ax::mojom::BoolAttribute attribute) const;
   bool GetBoolAttribute(ax::mojom::BoolAttribute attribute) const;
-  bool GetBoolAttribute(ax::mojom::BoolAttribute attribute, bool* value) const;
 
   bool HasFloatAttribute(ax::mojom::FloatAttribute attribute) const;
   float GetFloatAttribute(ax::mojom::FloatAttribute attribute) const;
-  bool GetFloatAttribute(ax::mojom::FloatAttribute attribute,
-                         float* value) const;
 
   bool HasIntAttribute(ax::mojom::IntAttribute attribute) const;
   int GetIntAttribute(ax::mojom::IntAttribute attribute) const;
-  bool GetIntAttribute(ax::mojom::IntAttribute attribute, int* value) const;
 
   bool HasStringAttribute(ax::mojom::StringAttribute attribute) const;
   const std::string& GetStringAttribute(
       ax::mojom::StringAttribute attribute) const;
-  bool GetStringAttribute(ax::mojom::StringAttribute attribute,
-                          std::string* value) const;
 
   std::u16string GetString16Attribute(
       ax::mojom::StringAttribute attribute) const;
-  bool GetString16Attribute(ax::mojom::StringAttribute attribute,
-                            std::u16string* value) const;
 
   bool HasIntListAttribute(ax::mojom::IntListAttribute attribute) const;
   const std::vector<int32_t>& GetIntListAttribute(
       ax::mojom::IntListAttribute attribute) const;
-  bool GetIntListAttribute(ax::mojom::IntListAttribute attribute,
-                           std::vector<int32_t>* value) const;
 
   bool HasStringListAttribute(ax::mojom::StringListAttribute attribute) const;
   const std::vector<std::string>& GetStringListAttribute(
       ax::mojom::StringListAttribute attribute) const;
-  bool GetStringListAttribute(ax::mojom::StringListAttribute attribute,
-                              std::vector<std::string>* value) const;
 
   bool HasHtmlAttribute(const char* attribute) const;
-  bool GetHtmlAttribute(const char* attribute, std::string* value) const;
-  std::u16string GetHtmlAttribute(const char* attribute) const;
-  bool GetHtmlAttribute(const char* attribute, std::u16string* value) const;
+  const std::string& GetHtmlAttribute(const char* attribute) const;
+  std::u16string GetHtmlAttributeUTF16(const char* attribute) const;
+  const std::string* FindHtmlAttribute(const char* attribute) const;
 
   //
   // Setting accessibility attributes.
@@ -116,7 +108,7 @@ struct AX_BASE_EXPORT AXNodeData {
   //
 
   void AddBoolAttribute(ax::mojom::BoolAttribute attribute, bool value);
-  void AddChildTreeId(const ui::AXTreeID& tree_id);
+  void AddChildTreeId(const AXTreeID& tree_id);
   void AddIntAttribute(ax::mojom::IntAttribute attribute, int32_t value);
   void AddFloatAttribute(ax::mojom::FloatAttribute attribute, float value);
   // This method cannot be used to set kChildTreeId due to a common
@@ -148,6 +140,10 @@ struct AX_BASE_EXPORT AXNodeData {
   //
   // Convenience functions.
   //
+
+  // Return the DOMNodeID, if this object was associated with a DOM Node in
+  // an HTML renderer, otherwise return 0.
+  int GetDOMNodeId() const;
 
   // Adds the name attribute or replaces it if already present. Also sets the
   // NameFrom attribute if not already set.
@@ -214,16 +210,13 @@ struct AX_BASE_EXPORT AXNodeData {
   bool HasState(ax::mojom::State state) const;
   bool HasAction(ax::mojom::Action action) const;
   bool HasTextStyle(ax::mojom::TextStyle text_style) const;
-  // aria-dropeffect is deprecated in WAI-ARIA 1.1.
-  bool HasDropeffect(ax::mojom::Dropeffect dropeffect) const;
 
   // Set or remove bits in the given enum's corresponding bitfield.
   void AddState(ax::mojom::State state);
   void RemoveState(ax::mojom::State state);
   void AddAction(ax::mojom::Action action);
+  void RemoveAction(ax::mojom::Action action);
   void AddTextStyle(ax::mojom::TextStyle text_style);
-  // aria-dropeffect is deprecated in WAI-ARIA 1.1.
-  void AddDropeffect(ax::mojom::Dropeffect dropeffect);
 
   // Helper functions to get or set some common int attributes with some
   // specific enum types. To remove an attribute, set it to None.
@@ -244,6 +237,8 @@ struct AX_BASE_EXPORT AXNodeData {
   void SetNameFrom(ax::mojom::NameFrom name_from);
   ax::mojom::DescriptionFrom GetDescriptionFrom() const;
   void SetDescriptionFrom(ax::mojom::DescriptionFrom description_from);
+  ax::mojom::DetailsFrom GetDetailsFrom() const;
+  void SetDetailsFrom(ax::mojom::DetailsFrom details_from);
   ax::mojom::TextPosition GetTextPosition() const;
   void SetTextPosition(ax::mojom::TextPosition text_position);
   ax::mojom::Restriction GetRestriction() const;
@@ -342,11 +337,28 @@ struct AX_BASE_EXPORT AXNodeData {
   // expand/collapse.
   bool SupportsExpandCollapse() const;
 
+  bool HasChildTreeID() const;
+  std::optional<AXTreeID> GetChildTreeID() const;
+
   // Return a string representation of this data, for debugging.
-  virtual std::string ToString(bool verbose = true) const;
+  std::string ToString(bool verbose = true) const;
 
   // Returns the approximate size in bytes.
   size_t ByteSize() const;
+
+  struct AX_BASE_EXPORT AXNodeDataSize {
+    size_t int_attribute_size = 0;
+    size_t float_attribute_size = 0;
+    size_t bool_attribute_size = 0;
+    size_t string_attribute_size = 0;
+    size_t int_list_attribhute_size = 0;
+    size_t string_list_attribute_size = 0;
+    size_t html_attribute_size = 0;
+    size_t child_ids_size = 0;
+
+    size_t ByteSize() const;
+  };
+  void AccumulateSize(AXNodeDataSize& node_data_size) const;
 
   // Return a string representation of |aria-dropeffect| values, for testing
   // and debugging.

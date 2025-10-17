@@ -2,16 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/events/ozone/layout/xkb/xkb_keyboard_layout_engine.h"
 
 #include <stddef.h>
 #include <xkbcommon/xkbcommon-names.h>
 
 #include <algorithm>
+#include <string_view>
 #include <utility>
 
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -22,7 +29,6 @@
 #include "base/task/task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
@@ -496,8 +502,9 @@ const PrintableSubEntry kU017E[] = {
 // Table mapping unshifted characters to PrintableSubEntry tables.
 struct PrintableMultiEntry {
   char16_t plain_character;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #global-scope
+  // This field is not a raw_ptr<> because its only instantiation is `kMultiMap`
+  // below, which only ever points at statically-allocated memory which is never
+  // freed.
   RAW_PTR_EXCLUSION const PrintableSubEntry* subtable;
   size_t subtable_size;
 };
@@ -625,7 +632,7 @@ const PrintableSimpleEntry kSimpleMap[] = {
     {0x0259, VKEY_OEM_3},      // schwa
 };
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 void LoadKeymap(const std::string& layout_name,
                 scoped_refptr<base::SingleThreadTaskRunner> reply_runner,
                 LoadKeymapCallback reply_callback) {
@@ -683,29 +690,28 @@ XkbKeyboardLayoutEngine::~XkbKeyboardLayoutEngine() {
   }
 }
 
+std::string_view XkbKeyboardLayoutEngine::GetLayoutName() const {
+  return current_layout_name_;
+}
+
 bool XkbKeyboardLayoutEngine::CanSetCurrentLayout() const {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   return true;
 #else
   return false;
 #endif
 }
 
-bool XkbKeyboardLayoutEngine::SetCurrentLayoutByName(
-    const std::string& layout_name) {
-  return SetCurrentLayoutByNameWithCallback(layout_name, base::DoNothing());
-}
-
-bool XkbKeyboardLayoutEngine::SetCurrentLayoutByNameWithCallback(
+void XkbKeyboardLayoutEngine::SetCurrentLayoutByName(
     const std::string& layout_name,
-    base::OnceClosure callback) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+    base::OnceCallback<void(bool)> callback) {
+#if BUILDFLAG(IS_CHROMEOS)
   current_layout_name_ = layout_name;
   for (const auto& entry : xkb_keymaps_) {
     if (entry.layout_name == layout_name) {
       SetKeymap(entry.keymap);
-      std::move(callback).Run();
-      return true;
+      std::move(callback).Run(true);
+      return;
     }
   }
   LoadKeymapCallback reply_callback =
@@ -719,12 +725,11 @@ bool XkbKeyboardLayoutEngine::SetCurrentLayoutByNameWithCallback(
                      std::move(reply_callback)));
 #else
   NOTIMPLEMENTED();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-  return true;
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 void XkbKeyboardLayoutEngine::OnKeymapLoaded(
-    base::OnceClosure callback,
+    base::OnceCallback<void(bool)> callback,
     const std::string& layout_name,
     std::unique_ptr<char, base::FreeDeleter> keymap_str) {
   if (keymap_str) {
@@ -735,7 +740,9 @@ void XkbKeyboardLayoutEngine::OnKeymapLoaded(
     xkb_keymaps_.push_back(entry);
     if (layout_name == current_layout_name_) {
       SetKeymap(keymap);
-      std::move(callback).Run();
+      std::move(callback).Run(true);
+    } else {
+      std::move(callback).Run(false);
     }
   } else {
     LOG(FATAL) << "Keymap file failed to load: " << layout_name;
@@ -812,8 +819,8 @@ bool XkbKeyboardLayoutEngine::Lookup(DomCode dom_code,
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Classify the keysym and convert to DOM and VKEY representations.
-  if (xkb_keysym != XKB_KEY_at || (flags & EF_CONTROL_DOWN) == 0) {
-    // Non-character key. (We only support NUL as ^@.)
+  if (dom_code != DomCode::DIGIT2 || (flags & EF_CONTROL_DOWN) == 0) {
+    // Non-character key. (We only support NUL as ^@ and ^2.)
     *dom_key = NonPrintableXKeySymToDomKey(xkb_keysym);
     if (*dom_key != DomKey::NONE) {
       *key_code = NonPrintableDomKeyToKeyboardCode(*dom_key);
@@ -943,7 +950,7 @@ void XkbKeyboardLayoutEngine::SetKeymap(xkb_keymap* keymap) {
 
 xkb_mod_mask_t XkbKeyboardLayoutEngine::EventFlagsToXkbFlags(
     int ui_flags) const {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // In ChromeOS NumLock is always on.
   ui_flags |= ui::EF_NUM_LOCK_ON;
 #endif
@@ -972,7 +979,7 @@ int XkbKeyboardLayoutEngine::UpdateModifiers(uint32_t depressed,
 
 DomCode XkbKeyboardLayoutEngine::GetDomCodeByKeysym(
     uint32_t keysym,
-    const absl::optional<std::vector<base::StringPiece>>& modifiers) const {
+    const std::optional<std::vector<std::string_view>>& modifiers) const {
   // Look up all candidates.
   auto range = std::equal_range(
       xkb_keysym_map_.begin(), xkb_keysym_map_.end(), XkbKeysymMapEntry{keysym},
@@ -986,11 +993,6 @@ DomCode XkbKeyboardLayoutEngine::GetDomCodeByKeysym(
       return KeycodeConverter::NativeKeycodeToDomCode(range.first->xkb_keycode);
     xkb_mod_mask_t xkb_modifiers =
         xkb_modifier_converter_.MaskFromNames(*modifiers);
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    // In ChromeOS NumLock is always on.
-    xkb_modifiers |=
-        xkb_modifier_converter_.MaskFromUiFlags(ui::EF_NUM_LOCK_ON);
-#endif
     // Note: value is already in the lexicographical order, so smaller keycode
     // comes first.
     for (std::unique_ptr<xkb_state, XkbStateDeleter> xkb_state(
@@ -1064,13 +1066,13 @@ KeyboardCode XkbKeyboardLayoutEngine::DifficultKeyboardCode(
     return key_code;
 
   // Check the multi-character tables.
-  const PrintableMultiEntry* multi_end = kMultiMap + std::size(kMultiMap);
-  const PrintableMultiEntry* multi =
-      std::lower_bound(kMultiMap, multi_end, plain_character,
-                       [](const PrintableMultiEntry& e, char16_t c) {
-                         return e.plain_character < c;
-                       });
-  if ((multi != multi_end) && (multi->plain_character == plain_character)) {
+  const PrintableMultiEntry* multi = std::lower_bound(
+      std::begin(kMultiMap), std::end(kMultiMap), plain_character,
+      [](const PrintableMultiEntry& e, char16_t c) {
+        return e.plain_character < c;
+      });
+  if ((multi != std::end(kMultiMap)) &&
+      (multi->plain_character == plain_character)) {
     const char16_t kNonCharacter = kAny;
     char16_t shift_character = kNonCharacter;
     char16_t altgr_character = kNonCharacter;
@@ -1098,14 +1100,15 @@ KeyboardCode XkbKeyboardLayoutEngine::DifficultKeyboardCode(
   }
 
   // Check the simple character table.
-  const PrintableSimpleEntry* simple_end = kSimpleMap + std::size(kSimpleMap);
-  const PrintableSimpleEntry* simple =
-      std::lower_bound(kSimpleMap, simple_end, plain_character,
-                       [](const PrintableSimpleEntry& e, char16_t c) {
-                         return e.plain_character < c;
-                       });
-  if ((simple != simple_end) && (simple->plain_character == plain_character))
+  const PrintableSimpleEntry* simple = std::lower_bound(
+      std::begin(kSimpleMap), std::end(kSimpleMap), plain_character,
+      [](const PrintableSimpleEntry& e, char16_t c) {
+        return e.plain_character < c;
+      });
+  if ((simple != std::end(kSimpleMap)) &&
+      (simple->plain_character == plain_character)) {
     return simple->key_code;
+  }
 
   return VKEY_UNKNOWN;
 }

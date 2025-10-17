@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "storage/browser/blob/blob_storage_context.h"
 
 #include <stdint.h>
 
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -34,7 +40,6 @@
 #include "storage/browser/test/fake_blob_data_handle.h"
 #include "storage/browser/test/test_file_system_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace storage {
 namespace {
@@ -140,7 +145,7 @@ class BlobStorageContextTest : public testing::Test {
 
   std::vector<FileCreationInfo> files_;
   base::ScopedTempDir temp_dir_;
-  absl::optional<base::ScopedDisallowBlocking> disallow_blocking_;
+  std::optional<base::ScopedDisallowBlocking> disallow_blocking_;
   scoped_refptr<TestSimpleTaskRunner> file_runner_ = new TestSimpleTaskRunner();
   scoped_refptr<FileSystemContext> file_system_context_;
 
@@ -173,7 +178,8 @@ TEST_F(BlobStorageContextTest, BuildBlobAsync) {
 
   EXPECT_EQ(10u, context_->memory_controller().memory_usage());
 
-  future_data.Populate(base::as_bytes(base::make_span("abcdefghij", 10u)), 0u);
+  future_data.Populate(base::as_bytes(base::span_from_cstring("abcdefghij")),
+                       0u);
   context_->NotifyTransportComplete(kId);
 
   // Check we're done.
@@ -732,10 +738,11 @@ void PopulateDataInBuilder(
     size_t index,
     base::TaskRunner* file_runner) {
   if (index % 2 != 0) {
-    (*future_datas)[0].Populate(base::as_bytes(base::make_span("abcde", 5u)),
-                                0);
+    (*future_datas)[0].Populate(
+        base::as_bytes(base::span_from_cstring("abcde")), 0);
     if (index % 3 == 0) {
-      (*future_datas)[1].Populate(base::as_bytes(base::make_span("1", 1u)), 0);
+      (*future_datas)[1].Populate(base::as_bytes(base::span_from_cstring("1")),
+                                  0);
     }
   } else if (index % 3 == 0) {
     scoped_refptr<ShareableFileReference> file_ref =

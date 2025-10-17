@@ -12,8 +12,9 @@ import android.view.ViewGroup;
 
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.home.list.ListItem;
-import org.chromium.chrome.browser.download.home.metrics.UmaUtils;
 import org.chromium.chrome.browser.download.internal.R;
 import org.chromium.components.browser_ui.widget.FadingShadow;
 import org.chromium.components.browser_ui.widget.FadingShadowView;
@@ -25,13 +26,10 @@ import org.chromium.components.feature_engagement.Tracker;
 
 import java.util.List;
 
-/**
- * A top level class to handle various toolbar related functionalities in download home.
- */
+/** A top level class to handle various toolbar related functionalities in download home. */
+@NullMarked
 public class ToolbarCoordinator implements SelectionObserver<ListItem>, BackPressHandler {
-    /**
-     * A delegate to handle various actions taken by user that relate to list items.
-     */
+    /** A delegate to handle various actions taken by user that relate to list items. */
     public interface ToolbarListActionDelegate {
         /**
          * Invoked when user taps on the delete button to delete the currently selected items.
@@ -49,7 +47,7 @@ public class ToolbarCoordinator implements SelectionObserver<ListItem>, BackPres
          * Invoked when user starts a search on download home.
          * @param query The search text on which downloads will be filtered.
          */
-        void setSearchQuery(String query);
+        void setSearchQuery(@Nullable String query);
     }
 
     /**
@@ -57,9 +55,7 @@ public class ToolbarCoordinator implements SelectionObserver<ListItem>, BackPres
      * toolbar.
      */
     public interface ToolbarActionDelegate {
-        /**
-         * Invoked when user taps on close button to close download home.
-         */
+        /** Invoked when user taps on close button to close download home. */
         void close();
 
         /**
@@ -79,7 +75,7 @@ public class ToolbarCoordinator implements SelectionObserver<ListItem>, BackPres
 
     private boolean mShowToolbarShadow;
 
-    private SelectableListToolbar.SearchDelegate mSearchDelegate =
+    private final SelectableListToolbar.SearchDelegate mSearchDelegate =
             new SelectableListToolbar.SearchDelegate() {
                 @Override
                 public void onSearchTextChanged(String query) {
@@ -93,27 +89,38 @@ public class ToolbarCoordinator implements SelectionObserver<ListItem>, BackPres
                 }
             };
 
-    public ToolbarCoordinator(Context context, ToolbarActionDelegate delegate,
+    public ToolbarCoordinator(
+            Context context,
+            ToolbarActionDelegate delegate,
             ToolbarListActionDelegate listActionDelegate,
-            SelectionDelegate<ListItem> selectionDelegate, boolean hasCloseButton,
+            View listContentView,
+            SelectionDelegate<ListItem> selectionDelegate,
+            boolean hasCloseButton,
             Tracker tracker) {
         mDelegate = delegate;
         mListActionDelegate = listActionDelegate;
 
-        mView = (ViewGroup) LayoutInflater.from(context).inflate(
-                R.layout.download_home_toolbar, null);
+        mView =
+                (ViewGroup)
+                        LayoutInflater.from(context).inflate(R.layout.download_home_toolbar, null);
         mToolbar = mView.findViewById(R.id.download_toolbar);
         mShadow = mView.findViewById(R.id.shadow);
 
-        mToolbar.initialize(selectionDelegate, R.string.menu_downloads, R.id.normal_menu_group,
-                R.id.selection_mode_menu_group, hasCloseButton);
+        mToolbar.initialize(
+                selectionDelegate,
+                R.string.menu_downloads,
+                R.id.normal_menu_group,
+                R.id.selection_mode_menu_group,
+                hasCloseButton);
         mToolbar.setOnMenuItemClickListener(this::onMenuItemClick);
+        mToolbar.setFocusable(true);
+        mToolbar.setListContentView(listContentView);
 
-        // TODO(crbug.com/881037): Pass the visible group to the toolbar during initialization.
+        // TODO(crbug.com/41412009): Pass the visible group to the toolbar during initialization.
         mToolbar.initializeSearchView(
                 mSearchDelegate, R.string.download_manager_search, R.id.search_menu_id);
 
-        ToolbarUtils.setupTrackerForDownloadSettingsIPH(tracker, mToolbar);
+        ToolbarUtils.setupTrackerForDownloadSettingsIph(tracker, mToolbar);
 
         mShadow.init(context.getColor(R.color.toolbar_shadow_color), FadingShadow.POSITION_TOP);
 
@@ -122,9 +129,7 @@ public class ToolbarCoordinator implements SelectionObserver<ListItem>, BackPres
         mToolbar.isSearchingSupplier().addObserver(mBackPressStateSupplier::set);
     }
 
-    /**
-     * Called when the activity/native page is destroyed.
-     */
+    /** Called when the activity/native page is destroyed. */
     public void destroy() {
         mToolbar.destroy();
     }
@@ -186,8 +191,6 @@ public class ToolbarCoordinator implements SelectionObserver<ListItem>, BackPres
     }
 
     private boolean onMenuItemClick(MenuItem item) {
-        UmaUtils.recordTopMenuAction(item.getItemId());
-
         if (item.getItemId() == R.id.close_menu_id) {
             mDelegate.close();
             return true;

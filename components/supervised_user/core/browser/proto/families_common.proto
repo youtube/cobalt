@@ -2,7 +2,7 @@ syntax = "proto2";
 
 option optimize_for = LITE_RUNTIME;
 
-package kids_chrome_management;
+package kidsmanagement;
 
 // Basic user profile information.
 message FamilyMemberProfile {
@@ -21,7 +21,7 @@ message FamilyMemberProfile {
 
 // The role a user has within a family.
 // Details on which actions are tied to those roles.
-// LINT.IfChange
+// LINT.IfChange(family_role)
 enum FamilyRole {
   UNKNOWN_FAMILY_ROLE = 0;
   // The (only) head of household of the family.
@@ -36,12 +36,9 @@ enum FamilyRole {
   // An unconfirmed member of the family who has been directly added to the
   // family.
   UNCONFIRMED_MEMBER = 5;
-
-  // next ID: 6
 }
-// LINT.ThenChange(
-//     //chrome/browser/supervised_user/child_accounts/child_account_service.cc
-// )
+// LINT.ThenChange(//components/supervised_user/core/browser/child_account_service.cc,
+// //components/supervised_user/test_support/account_repository.cc:family_role_parser)
 
 // Data about a family member.
 message FamilyMember {

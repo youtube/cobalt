@@ -8,7 +8,7 @@ import org.chromium.chrome.browser.download.DownloadInfo;
 import org.chromium.chrome.browser.download.DownloadItem;
 import org.chromium.chrome.browser.download.DownloadNotifier;
 import org.chromium.chrome.browser.download.DownloadServiceDelegate;
-import org.chromium.chrome.browser.profiles.OTRProfileID;
+import org.chromium.chrome.browser.profiles.OtrProfileId;
 import org.chromium.components.offline_items_collection.ContentId;
 import org.chromium.components.offline_items_collection.LegacyHelpers;
 import org.chromium.components.offline_items_collection.OfflineContentProvider;
@@ -49,9 +49,7 @@ public class OfflineContentAggregatorNotificationBridgeUi
      */
     private final HashMap<ContentId, OfflineItemVisuals> mVisualsCache = new HashMap<>();
 
-    /**
-     * Creates a new OfflineContentAggregatorNotificationBridgeUi based on {@code provider}.
-     */
+    /** Creates a new OfflineContentAggregatorNotificationBridgeUi based on {@code provider}. */
     public OfflineContentAggregatorNotificationBridgeUi(
             OfflineContentProvider provider, DownloadNotifier notifier) {
         mProvider = provider;
@@ -60,9 +58,7 @@ public class OfflineContentAggregatorNotificationBridgeUi
         mProvider.addObserver(this);
     }
 
-    /**
-     * Destroys this class and detaches it from associated objects.
-     */
+    /** Destroys this class and detaches it from associated objects. */
     public void destroy() {
         mProvider.removeObserver(this);
         destroyServiceDelegate();
@@ -107,18 +103,18 @@ public class OfflineContentAggregatorNotificationBridgeUi
 
     // DownloadServiceDelegate implementation.
     @Override
-    public void cancelDownload(ContentId id, OTRProfileID otrProfileID) {
+    public void cancelDownload(ContentId id, OtrProfileId otrProfileId) {
         mProvider.cancelDownload(id);
     }
 
     @Override
-    public void pauseDownload(ContentId id, OTRProfileID otrProfileID) {
+    public void pauseDownload(ContentId id, OtrProfileId otrProfileId) {
         mProvider.pauseDownload(id);
     }
 
     @Override
-    public void resumeDownload(ContentId id, DownloadItem item, boolean hasUserGesture) {
-        mProvider.resumeDownload(id, hasUserGesture);
+    public void resumeDownload(ContentId id, DownloadItem item) {
+        mProvider.resumeDownload(id);
     }
 
     @Override
@@ -165,29 +161,33 @@ public class OfflineContentAggregatorNotificationBridgeUi
         // Request notification permission if needed.
         ContextualNotificationPermissionRequester.getInstance().requestPermissionIfNeeded();
 
-        DownloadInfo info = DownloadInfo.fromOfflineItem(item, visuals);
-        switch (item.state) {
-            case OfflineItemState.IN_PROGRESS:
-                mUi.notifyDownloadProgress(info, item.creationTimeMs, item.allowMetered);
-                break;
-            case OfflineItemState.COMPLETE:
-                mUi.notifyDownloadSuccessful(info, -1L, false, item.isOpenable);
-                break;
-            case OfflineItemState.INTERRUPTED:
-                mUi.notifyDownloadInterrupted(info,
-                        LegacyHelpers.isLegacyDownload(item.id) ? false : true, item.pendingState);
-                break;
-            case OfflineItemState.PAUSED:
-                mUi.notifyDownloadPaused(info);
-                break;
-            case OfflineItemState.FAILED:
-                mUi.notifyDownloadFailed(info);
-                break;
-            case OfflineItemState.PENDING:
-                mUi.notifyDownloadPaused(info);
-                break;
-            default:
-                assert false : "Unexpected OfflineItem state.";
+        try {
+            DownloadInfo info = DownloadInfo.fromOfflineItem(item, visuals);
+            switch (item.state) {
+                case OfflineItemState.IN_PROGRESS:
+                    mUi.notifyDownloadProgress(info, item.creationTimeMs, item.allowMetered);
+                    break;
+                case OfflineItemState.COMPLETE:
+                    mUi.notifyDownloadSuccessful(info, -1L, false, item.isOpenable);
+                    break;
+                case OfflineItemState.INTERRUPTED:
+                    mUi.notifyDownloadInterrupted(
+                            info, !LegacyHelpers.isLegacyDownload(item.id), item.pendingState);
+                    break;
+                case OfflineItemState.PAUSED:
+                    mUi.notifyDownloadPaused(info);
+                    break;
+                case OfflineItemState.FAILED:
+                    mUi.notifyDownloadFailed(info);
+                    break;
+                case OfflineItemState.PENDING:
+                    mUi.notifyDownloadPaused(info);
+                    break;
+                default:
+                    assert false : "Unexpected OfflineItem state.";
+            }
+        } catch (IllegalStateException e) {
+            mUi.notifyDownloadCanceled(item.id);
         }
     }
 
@@ -201,7 +201,7 @@ public class OfflineContentAggregatorNotificationBridgeUi
             case OfflineItemState.FAILED:
             case OfflineItemState.PAUSED:
                 return true;
-            // OfflineItemState.CANCELLED
+                // OfflineItemState.CANCELLED
             default:
                 return false;
         }
@@ -216,8 +216,8 @@ public class OfflineContentAggregatorNotificationBridgeUi
             case OfflineItemState.PAUSED:
             case OfflineItemState.COMPLETE:
                 return true;
-            // OfflineItemState.FAILED,
-            // OfflineItemState.CANCELLED
+                // OfflineItemState.FAILED,
+                // OfflineItemState.CANCELLED
             default:
                 return false;
         }

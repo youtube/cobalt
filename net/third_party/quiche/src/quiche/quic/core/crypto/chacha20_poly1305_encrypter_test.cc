@@ -92,7 +92,8 @@ TEST_F(ChaCha20Poly1305EncrypterTest, EncryptThenDecrypt) {
   ChaCha20Poly1305Encrypter encrypter;
   ChaCha20Poly1305Decrypter decrypter;
 
-  std::string key = absl::HexStringToBytes(test_vectors[0].key);
+  std::string key;
+  ASSERT_TRUE(absl::HexStringToBytes(test_vectors[0].key, &key));
   ASSERT_TRUE(encrypter.SetKey(key));
   ASSERT_TRUE(decrypter.SetKey(key));
   ASSERT_TRUE(encrypter.SetNoncePrefix("abcd"));
@@ -116,12 +117,18 @@ TEST_F(ChaCha20Poly1305EncrypterTest, EncryptThenDecrypt) {
 TEST_F(ChaCha20Poly1305EncrypterTest, Encrypt) {
   for (size_t i = 0; test_vectors[i].key != nullptr; i++) {
     // Decode the test vector.
-    std::string key = absl::HexStringToBytes(test_vectors[i].key);
-    std::string pt = absl::HexStringToBytes(test_vectors[i].pt);
-    std::string iv = absl::HexStringToBytes(test_vectors[i].iv);
-    std::string fixed = absl::HexStringToBytes(test_vectors[i].fixed);
-    std::string aad = absl::HexStringToBytes(test_vectors[i].aad);
-    std::string ct = absl::HexStringToBytes(test_vectors[i].ct);
+    std::string key;
+    std::string pt;
+    std::string iv;
+    std::string fixed;
+    std::string aad;
+    std::string ct;
+    ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].key, &key));
+    ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].pt, &pt));
+    ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].iv, &iv));
+    ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].fixed, &fixed));
+    ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].aad, &aad));
+    ASSERT_TRUE(absl::HexStringToBytes(test_vectors[i].ct, &ct));
 
     ChaCha20Poly1305Encrypter encrypter;
     ASSERT_TRUE(encrypter.SetKey(key));
@@ -129,7 +136,7 @@ TEST_F(ChaCha20Poly1305EncrypterTest, Encrypt) {
         &encrypter, fixed + iv,
         // This deliberately tests that the encrypter can handle an AAD that
         // is set to nullptr, as opposed to a zero-length, non-nullptr pointer.
-        absl::string_view(aad.length() ? aad.data() : nullptr, aad.length()),
+        absl::string_view(!aad.empty() ? aad.data() : nullptr, aad.length()),
         pt));
     ASSERT_TRUE(encrypted.get());
     EXPECT_EQ(12u, ct.size() - pt.size());

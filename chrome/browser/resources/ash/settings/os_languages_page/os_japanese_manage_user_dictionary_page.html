@@ -1,0 +1,28 @@
+<style include="settings-shared md-select">
+  :host {
+    display: flex;
+    flex-direction: column;
+  }
+  .add-dict-row {
+    margin: 16px 0;
+  }
+</style>
+<h2 class="cr-row subsection-header">$i18n{japaneseDictionary}</h2>
+<template is="dom-repeat" items="[[dictionaries_]]">
+  <os-japanese-dictionary-expand
+    dict="[[item]]"
+    synced-entries-count="[[getLastIndex_(item.entries)]]"
+    dict-index="[[index]]">
+  </os-japanese-dictionary-expand>
+</template>
+<div class="cr-row">
+  <cr-button
+    id="addDictionaryButton" on-click="addDictionary_"
+    class="add-button add-dict-row">
+      <iron-icon icon="cr:add" slot="prefix-icon"></iron-icon>
+      <span>
+        $i18n{japaneseDictionaryAddDictionary}
+      </span>
+  </cr-button>
+</div>
+

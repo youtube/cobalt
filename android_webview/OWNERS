@@ -1,9 +1,10 @@
 set noparent
+bewise@chromium.org
 boliu@chromium.org
 ntfschr@chromium.org
-torne@chromium.org
-nator@chromium.org
+peconn@chromium.org
 peter@chromium.org
+torne@chromium.org
 
 # Documentation changes:
 per-file *.md=file://android_webview/docs/OWNERS

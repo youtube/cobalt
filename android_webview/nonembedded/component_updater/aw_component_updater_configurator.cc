@@ -5,21 +5,25 @@
 #include "android_webview/nonembedded/component_updater/aw_component_updater_configurator.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "android_webview/nonembedded/net/network_impl.h"
+#include "base/android/path_utils.h"
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/version.h"
 #include "components/component_updater/component_updater_command_line_config_policy.h"
 #include "components/component_updater/configurator_impl.h"
 #include "components/prefs/pref_service.h"
-#include "components/update_client/activity_data_service.h"
+#include "components/update_client/crx_cache.h"
 #include "components/update_client/crx_downloader_factory.h"
 #include "components/update_client/network.h"
 #include "components/update_client/patch/in_process_patcher.h"
 #include "components/update_client/patcher.h"
+#include "components/update_client/persisted_data.h"
 #include "components/update_client/protocol_handler.h"
 #include "components/update_client/unzip/in_process_unzipper.h"
 #include "components/update_client/unzipper.h"
@@ -27,7 +31,6 @@
 #include "components/version_info/android/channel_getter.h"
 #include "components/version_info/version_info.h"
 #include "components/version_info/version_info_values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace android_webview {
 
@@ -37,7 +40,18 @@ AwComponentUpdaterConfigurator::AwComponentUpdaterConfigurator(
     : configurator_impl_(
           component_updater::ComponentUpdaterCommandLineConfigPolicy(cmdline),
           false),
-      pref_service_(pref_service) {}
+      pref_service_(pref_service),
+      persisted_data_(update_client::CreatePersistedData(
+          base::BindRepeating(
+              [](PrefService* pref_service) { return pref_service; },
+              pref_service),
+          nullptr)) {
+  base::FilePath path;
+  crx_cache_ = base::MakeRefCounted<update_client::CrxCache>(
+      base::android::GetCacheDirectory(&path)
+          ? std::optional<base::FilePath>(path.AppendASCII("webview_crx_cache"))
+          : std::nullopt);
+}
 
 AwComponentUpdaterConfigurator::~AwComponentUpdaterConfigurator() = default;
 
@@ -48,7 +62,7 @@ base::TimeDelta AwComponentUpdaterConfigurator::InitialDelay() const {
   // WebView has a short list of components and components registration happens
   // in an android background service so we want to start the update as soon as
   // possible.
-  // TODO(crbug.com/1181094): get rid of dependency in initial delay for
+  // TODO(crbug.com/40750670): get rid of dependency in initial delay for
   // WebView.
   return base::Seconds(10);
 }
@@ -89,7 +103,8 @@ base::Version AwComponentUpdaterConfigurator::GetBrowserVersion() const {
 }
 
 std::string AwComponentUpdaterConfigurator::GetChannel() const {
-  return version_info::GetChannelString(version_info::android::GetChannel());
+  return std::string(
+      version_info::GetChannelString(version_info::android::GetChannel()));
 }
 
 std::string AwComponentUpdaterConfigurator::GetLang() const {
@@ -134,8 +149,9 @@ AwComponentUpdaterConfigurator::GetCrxDownloaderFactory() {
 scoped_refptr<update_client::UnzipperFactory>
 AwComponentUpdaterConfigurator::GetUnzipperFactory() {
   if (!unzip_factory_) {
-    unzip_factory_ =
-        base::MakeRefCounted<update_client::InProcessUnzipperFactory>();
+    unzip_factory_ = base::MakeRefCounted<
+        update_client::InProcessUnzipperFactory>(
+        update_client::InProcessUnzipperFactory::SymlinkOption::DONT_PRESERVE);
   }
   return unzip_factory_;
 }
@@ -147,10 +163,6 @@ AwComponentUpdaterConfigurator::GetPatcherFactory() {
         base::MakeRefCounted<update_client::InProcessPatcherFactory>();
   }
   return patch_factory_;
-}
-
-bool AwComponentUpdaterConfigurator::EnabledDeltas() const {
-  return configurator_impl_.EnabledDeltas();
 }
 
 bool AwComponentUpdaterConfigurator::EnabledBackgroundDownloader() const {
@@ -165,11 +177,9 @@ PrefService* AwComponentUpdaterConfigurator::GetPrefService() const {
   return pref_service_;
 }
 
-update_client::ActivityDataService*
-AwComponentUpdaterConfigurator::GetActivityDataService() const {
-  // This tracks user's activity using the component, doesn't apply to
-  // components and safe to be null.
-  return nullptr;
+update_client::PersistedData* AwComponentUpdaterConfigurator::GetPersistedData()
+    const {
+  return persisted_data_.get();
 }
 
 bool AwComponentUpdaterConfigurator::IsPerUserInstall() const {
@@ -181,9 +191,9 @@ AwComponentUpdaterConfigurator::GetProtocolHandlerFactory() const {
   return configurator_impl_.GetProtocolHandlerFactory();
 }
 
-absl::optional<bool>
-AwComponentUpdaterConfigurator::IsMachineExternallyManaged() const {
-  return absl::nullopt;
+std::optional<bool> AwComponentUpdaterConfigurator::IsMachineExternallyManaged()
+    const {
+  return std::nullopt;
 }
 
 update_client::UpdaterStateProvider
@@ -196,6 +206,15 @@ scoped_refptr<update_client::Configurator> MakeAwComponentUpdaterConfigurator(
     PrefService* pref_service) {
   return base::MakeRefCounted<AwComponentUpdaterConfigurator>(cmdline,
                                                               pref_service);
+}
+
+scoped_refptr<update_client::CrxCache>
+AwComponentUpdaterConfigurator::GetCrxCache() const {
+  return crx_cache_;
+}
+
+bool AwComponentUpdaterConfigurator::IsConnectionMetered() const {
+  return configurator_impl_.IsConnectionMetered();
 }
 
 }  // namespace android_webview

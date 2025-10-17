@@ -14,22 +14,20 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.SnackbarActivity;
 import org.chromium.chrome.browser.feed.followmanagement.FollowManagementCoordinator;
 
-/**
- * Activity for managing feed and webfeed settings on the new tab page.
- */
+/** Activity for managing feed and webfeed settings on the new tab page. */
 public class FollowManagementActivity extends SnackbarActivity {
     private static final String TAG = "FollowMActivity";
 
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    protected void onCreateInternal(Bundle savedInstanceState) {
+        super.onCreateInternal(savedInstanceState);
         Log.d(TAG, "FollowManagementActivity.onCreate");
 
         FollowManagementCoordinator coordinator = new FollowManagementCoordinator(this);
         setContentView(coordinator.getView());
 
         // Set up the toolbar and back button.
-        Toolbar toolbar = (Toolbar) findViewById(R.id.action_bar);
+        Toolbar toolbar = findViewById(R.id.action_bar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
     }

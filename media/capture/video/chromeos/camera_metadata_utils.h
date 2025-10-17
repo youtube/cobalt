@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef MEDIA_CAPTURE_VIDEO_CHROMEOS_CAMERA_METADATA_UTILS_H_
 #define MEDIA_CAPTURE_VIDEO_CHROMEOS_CAMERA_METADATA_UTILS_H_
 
@@ -17,13 +22,14 @@ struct Rational {
 };
 
 // Helper traits for converting native types to cros::mojom::EntryType.
-template <typename T, typename Enable = void>
+template <typename T>
 struct entry_type_of {
   static const cros::mojom::EntryType value;
 };
 
 template <typename T>
-struct entry_type_of<T, typename std::enable_if<std::is_enum<T>::value>::type> {
+  requires(std::is_enum_v<T>)
+struct entry_type_of<T> {
   static const cros::mojom::EntryType value = cros::mojom::EntryType::TYPE_BYTE;
 };
 

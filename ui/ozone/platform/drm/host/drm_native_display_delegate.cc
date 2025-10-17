@@ -22,13 +22,12 @@ DrmNativeDisplayDelegate::~DrmNativeDisplayDelegate() {
 }
 
 void DrmNativeDisplayDelegate::OnConfigurationChanged() {
-  for (display::NativeDisplayObserver& observer : observers_)
-    observer.OnConfigurationChanged();
+  observers_.Notify(&display::NativeDisplayObserver::OnConfigurationChanged);
 }
 
 void DrmNativeDisplayDelegate::OnDisplaySnapshotsInvalidated() {
-  for (display::NativeDisplayObserver& observer : observers_)
-    observer.OnDisplaySnapshotsInvalidated();
+  observers_.Notify(
+      &display::NativeDisplayObserver::OnDisplaySnapshotsInvalidated);
 }
 
 void DrmNativeDisplayDelegate::Initialize() {
@@ -53,9 +52,9 @@ void DrmNativeDisplayDelegate::GetDisplays(
 void DrmNativeDisplayDelegate::Configure(
     const std::vector<display::DisplayConfigurationParams>& config_requests,
     display::ConfigureCallback callback,
-    uint32_t modeset_flag) {
+    display::ModesetFlags modeset_flags) {
   display_manager_->ConfigureDisplays(config_requests, std::move(callback),
-                                      modeset_flag);
+                                      modeset_flags);
 }
 
 void DrmNativeDisplayDelegate::SetHdcpKeyProp(
@@ -82,21 +81,25 @@ void DrmNativeDisplayDelegate::SetHDCPState(
   display->SetHDCPState(state, protection_method, std::move(callback));
 }
 
-bool DrmNativeDisplayDelegate::SetColorMatrix(
+void DrmNativeDisplayDelegate::SetColorTemperatureAdjustment(
     int64_t display_id,
-    const std::vector<float>& color_matrix) {
+    const display::ColorTemperatureAdjustment& cta) {
   DrmDisplayHost* display = display_manager_->GetDisplay(display_id);
-  display->SetColorMatrix(color_matrix);
-  return true;
+  display->SetColorTemperatureAdjustment(cta);
 }
 
-bool DrmNativeDisplayDelegate::SetGammaCorrection(
+void DrmNativeDisplayDelegate::SetColorCalibration(
     int64_t display_id,
-    const std::vector<display::GammaRampRGBEntry>& degamma_lut,
-    const std::vector<display::GammaRampRGBEntry>& gamma_lut) {
+    const display::ColorCalibration& calibration) {
   DrmDisplayHost* display = display_manager_->GetDisplay(display_id);
-  display->SetGammaCorrection(degamma_lut, gamma_lut);
-  return true;
+  display->SetColorCalibration(calibration);
+}
+
+void DrmNativeDisplayDelegate::SetGammaAdjustment(
+    int64_t display_id,
+    const display::GammaAdjustment& adjustment) {
+  DrmDisplayHost* display = display_manager_->GetDisplay(display_id);
+  display->SetGammaAdjustment(adjustment);
 }
 
 void DrmNativeDisplayDelegate::SetPrivacyScreen(
@@ -105,6 +108,13 @@ void DrmNativeDisplayDelegate::SetPrivacyScreen(
     display::SetPrivacyScreenCallback callback) {
   DrmDisplayHost* display = display_manager_->GetDisplay(display_id);
   display->SetPrivacyScreen(enabled, std::move(callback));
+}
+
+void DrmNativeDisplayDelegate::GetSeamlessRefreshRates(
+    int64_t display_id,
+    display::GetSeamlessRefreshRatesCallback callback) const {
+  DrmDisplayHost* display = display_manager_->GetDisplay(display_id);
+  display->GetSeamlessRefreshRates(std::move(callback));
 }
 
 void DrmNativeDisplayDelegate::AddObserver(

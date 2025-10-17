@@ -6,6 +6,7 @@
 #define DEVICE_BLUETOOTH_TEST_TEST_BLUETOOTH_LOCAL_GATT_SERVICE_DELEGATE_H_
 
 #include <cstdint>
+#include <map>
 #include <vector>
 
 #include "base/functional/callback_forward.h"
@@ -91,8 +92,9 @@ class TestBluetoothLocalGattServiceDelegate
 
  private:
   raw_ptr<BluetoothLocalGattService> expected_service_;
-  raw_ptr<BluetoothLocalGattCharacteristic> expected_characteristic_;
-  raw_ptr<BluetoothLocalGattDescriptor> expected_descriptor_;
+  raw_ptr<BluetoothLocalGattCharacteristic, DanglingUntriaged>
+      expected_characteristic_;
+  raw_ptr<BluetoothLocalGattDescriptor, DanglingUntriaged> expected_descriptor_;
 
   std::map<std::string, bool> notifications_started_for_characteristic_;
 };

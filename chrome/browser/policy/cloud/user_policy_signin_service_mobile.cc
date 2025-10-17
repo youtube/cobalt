@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -15,6 +16,8 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/enterprise/remote_commands/user_remote_commands_service.h"
+#include "chrome/browser/enterprise/remote_commands/user_remote_commands_service_factory.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/policy/cloud/user_policy_signin_service_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -32,6 +35,7 @@
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/consent_level.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_change_event.h"
 #include "content/public/browser/storage_partition.h"
@@ -60,10 +64,16 @@ UserPolicySigninService::UserPolicySigninService(
     profile_manager_observation_.Observe(profile_manager);
 }
 
-UserPolicySigninService::~UserPolicySigninService() {}
+UserPolicySigninService::~UserPolicySigninService() = default;
 
 void UserPolicySigninService::ShutdownCloudPolicyManager() {
   CancelPendingRegistration();
+  auto* remote_command_service =
+      enterprise_commands::UserRemoteCommandsServiceFactory::GetForProfile(
+          profile_);
+  if (remote_command_service) {
+    remote_command_service->Shutdown();
+  }
   UserPolicySigninServiceBase::ShutdownCloudPolicyManager();
 }
 
@@ -129,7 +139,33 @@ bool UserPolicySigninService::CanApplyPolicies(bool check_for_refresh_token) {
   }
 
   return (profile_can_be_managed_for_testing_ ||
-          chrome::enterprise_util::ProfileCanBeManaged(profile_));
+          enterprise_util::ProfileCanBeManaged(profile_));
+}
+
+void UserPolicySigninService::InitializeCloudPolicyManager(
+    const AccountId& account_id,
+    std::unique_ptr<CloudPolicyClient> client) {
+  UserPolicySigninServiceBase::InitializeCloudPolicyManager(account_id,
+                                                            std::move(client));
+  // Triggers the initialization of user remote commands service.
+  auto* remote_command_service =
+      enterprise_commands::UserRemoteCommandsServiceFactory::GetForProfile(
+          profile_);
+  if (remote_command_service) {
+    remote_command_service->Init();
+  }
+}
+
+CloudPolicyClient::DeviceDMTokenCallback
+UserPolicySigninService::GetDeviceDMTokenIfAffiliatedCallback() {
+  if (device_dm_token_callback_for_testing_) {
+    return device_dm_token_callback_for_testing_;
+  }
+  return base::BindRepeating(&GetDeviceDMTokenIfAffiliated);
+}
+
+std::string UserPolicySigninService::GetProfileId() {
+  return ::policy::GetProfileId(profile_);
 }
 
 base::TimeDelta UserPolicySigninService::GetTryRegistrationDelay() {
@@ -160,10 +196,6 @@ void UserPolicySigninService::UpdateLastPolicyCheckTime() {
   // Persist the current time as the last policy registration attempt time.
   profile_->GetPrefs()->SetInt64(policy_prefs::kLastPolicyCheckTime,
                                  base::Time::Now().ToInternalValue());
-}
-
-signin::ConsentLevel UserPolicySigninService::GetConsentLevelForRegistration() {
-  return signin::ConsentLevel::kSync;
 }
 
 }  // namespace policy

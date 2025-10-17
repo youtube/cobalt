@@ -4,42 +4,53 @@
 
 #include "media/gpu/chromeos/platform_video_frame_pool.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/logging.h"
+#include "base/not_fatal_until.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_util.h"
 #include "media/gpu/chromeos/gpu_buffer_layout.h"
+#include "media/gpu/chromeos/native_pixmap_frame_resource.h"
 #include "media/gpu/chromeos/platform_video_frame_utils.h"
 #include "media/gpu/macros.h"
 #include "media/media_buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
 namespace {
 
+// This needs to be synchronized with the frame type from DefaultCreateFrame().
+// There is a runtime CHECK() to validate this.
+constexpr VideoFrame::StorageType kDefaultFrameStorageType =
+    VideoFrame::STORAGE_DMABUFS;
+
 // The default method to create frames.
-CroStatus::Or<scoped_refptr<VideoFrame>> DefaultCreateFrame(
+CroStatus::Or<scoped_refptr<FrameResource>> DefaultCreateFrame(
     VideoPixelFormat format,
     const gfx::Size& coded_size,
     const gfx::Rect& visible_rect,
     const gfx::Size& natural_size,
     bool use_protected,
     bool use_linear_buffers,
+    bool needs_detiling,
     base::TimeDelta timestamp) {
   if (use_protected && use_linear_buffers) {
     VLOGF(1) << "Linear buffers are unsupported when |use_protected| is true.";
     return CroStatus::Codes::kFailedToCreateVideoFrame;
   }
 
-  scoped_refptr<VideoFrame> frame = CreateGpuMemoryBufferVideoFrame(
+  scoped_refptr<FrameResource> frame = NativePixmapFrameResource::Create(
       format, coded_size, visible_rect, natural_size, timestamp,
       use_protected
           ? gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE
           : (use_linear_buffers ? gfx::BufferUsage::SCANOUT_CPU_READ_WRITE
                                 : gfx::BufferUsage::SCANOUT_VDA_WRITE));
+
   if (!frame)
     return CroStatus::Codes::kFailedToCreateVideoFrame;
 
@@ -48,13 +59,21 @@ CroStatus::Or<scoped_refptr<VideoFrame>> DefaultCreateFrame(
   frame->metadata().allow_overlay = true;
   frame->metadata().protected_video = use_protected;
   frame->metadata().hw_protected = use_protected;
+
+#if defined(ARCH_CPU_ARM_FAMILY)
+  if (base::FeatureList::IsEnabled(media::kEnableProtectedVulkanDetiling)) {
+    frame->metadata().needs_detiling = needs_detiling;
+  }
+#endif
+
   return frame;
 }
 
 }  // namespace
 
 PlatformVideoFramePool::PlatformVideoFramePool()
-    : create_frame_cb_(base::BindRepeating(&DefaultCreateFrame)) {
+    : create_frame_cb_(base::BindRepeating(&DefaultCreateFrame)),
+      frame_storage_type_(kDefaultFrameStorageType) {
   DVLOGF(4);
   weak_this_ = weak_this_factory_.GetWeakPtr();
 }
@@ -70,16 +89,7 @@ PlatformVideoFramePool::~PlatformVideoFramePool() {
   weak_this_factory_.InvalidateWeakPtrs();
 }
 
-// static
-gfx::GpuMemoryBufferId PlatformVideoFramePool::GetGpuMemoryBufferId(
-    const VideoFrame& frame) {
-  DCHECK_EQ(frame.storage_type(),
-            VideoFrame::StorageType::STORAGE_GPU_MEMORY_BUFFER);
-  DCHECK(frame.GetGpuMemoryBuffer());
-  return frame.GetGpuMemoryBuffer()->GetId();
-}
-
-scoped_refptr<VideoFrame> PlatformVideoFramePool::GetFrame() {
+scoped_refptr<FrameResource> PlatformVideoFramePool::GetFrame() {
   DCHECK(parent_task_runner_->RunsTasksInCurrentSequence());
   DVLOGF(4);
   base::AutoLock auto_lock(lock_);
@@ -114,28 +124,44 @@ scoped_refptr<VideoFrame> PlatformVideoFramePool::GetFrame() {
     // implies that we can create |new_frame| using gfx::Rect(coded_size) as
     // the visible rectangle.
     CHECK(use_linear_buffers_.has_value());
-    CroStatus::Or<scoped_refptr<VideoFrame>> new_frame = create_frame_cb_.Run(
-        format, coded_size, gfx::Rect(GetRectSizeFromOrigin(visible_rect_)),
-        coded_size, use_protected_, *use_linear_buffers_, base::TimeDelta());
+    CroStatus::Or<scoped_refptr<FrameResource>> new_frame =
+        create_frame_cb_.Run(
+            format, coded_size, gfx::Rect(GetRectSizeFromOrigin(visible_rect_)),
+            coded_size, use_protected_, *use_linear_buffers_,
+            frame_layout_->fourcc() == Fourcc(Fourcc::MM21) ||
+                frame_layout_->fourcc() == Fourcc(Fourcc::MT2T),
+            base::TimeDelta());
     if (!new_frame.has_value()) {
       // TODO(crbug.com/c/1103510) Push the error up instead of dropping it.
       return nullptr;
     }
 
+    CHECK(*new_frame);
+    // This passes because |frame_storage_type_| is set to match the StorageType
+    // of frames produced by |create_frame_cb_|. When |create_frame_cb_| is set
+    // to DefaultCreateFrame(), then |frame_storage_type_| is set to
+    // |kDefaultFrameStorageType|, which is hardcoded to match the storage type
+    // used by DefaultCreateFrame(). When |create_frame_cb_| has been set by
+    // SetCustomAllocator(), then |frame_storage_type_| is expected to be
+    // correctly // set by the caller.
+    CHECK_EQ((*new_frame)->storage_type(), frame_storage_type_);
+
+    // Sets and/or registers the frame's |tracking_token|.
+    frame_tracking_token_helper_.SetUniqueTrackingToken(new_frame->metadata());
+
     InsertFreeFrame_Locked(std::move(new_frame).value());
   }
 
   DCHECK(!free_frames_.empty());
-  scoped_refptr<VideoFrame> origin_frame = std::move(free_frames_.back());
+  scoped_refptr<FrameResource> origin_frame = std::move(free_frames_.back());
   free_frames_.pop_back();
   DCHECK_EQ(origin_frame->format(), format);
   DCHECK_EQ(origin_frame->coded_size(), coded_size);
 
-  scoped_refptr<VideoFrame> wrapped_frame = VideoFrame::WrapVideoFrame(
-      origin_frame, format, visible_rect_, natural_size_);
+  scoped_refptr<FrameResource> wrapped_frame =
+      origin_frame->CreateWrappingFrame(visible_rect_, natural_size_);
   DCHECK(wrapped_frame);
-  frames_in_use_.emplace(GetGpuMemoryBufferId(*wrapped_frame),
-                         origin_frame.get());
+  frames_in_use_.emplace(wrapped_frame->tracking_token(), origin_frame.get());
   wrapped_frame->AddDestructionObserver(
       base::BindOnce(&PlatformVideoFramePool::OnFrameReleasedThunk, weak_this_,
                      parent_task_runner_, std::move(origin_frame)));
@@ -144,6 +170,11 @@ scoped_refptr<VideoFrame> PlatformVideoFramePool::GetFrame() {
   DCHECK_EQ(wrapped_frame->metadata().hw_protected, use_protected_);
 
   return wrapped_frame;
+}
+
+VideoFrame::StorageType PlatformVideoFramePool::GetFrameStorageType() const {
+  base::AutoLock auto_lock(lock_);
+  return frame_storage_type_;
 }
 
 PlatformVideoFramePool* PlatformVideoFramePool::AsPlatformVideoFramePool() {
@@ -161,9 +192,6 @@ CroStatus::Or<GpuBufferLayout> PlatformVideoFramePool::Initialize(
   DVLOGF(4);
   base::AutoLock auto_lock(lock_);
 
-  CHECK(!use_linear_buffers_ || *use_linear_buffers_ == use_linear_buffers);
-  use_linear_buffers_ = use_linear_buffers;
-
   // Only support the Fourcc that could map to VideoPixelFormat.
   VideoPixelFormat format = fourcc.ToVideoPixelFormat();
   if (format == PIXEL_FORMAT_UNKNOWN) {
@@ -177,6 +205,11 @@ CroStatus::Or<GpuBufferLayout> PlatformVideoFramePool::Initialize(
     return CroStatus::Codes::kProtectedContentUnsupported;
   }
 #endif
+
+  // |use_linear_buffers| does not change unless we are switching in or out of
+  // using protected content.
+  CHECK(use_protected != use_protected_ || !use_linear_buffers_ ||
+        *use_linear_buffers_ == use_linear_buffers);
 
   // If the frame layout changed we need to allocate new frames so we will clear
   // the pool here. If only the visible rect or natural size changed, we don't
@@ -199,10 +232,18 @@ CroStatus::Or<GpuBufferLayout> PlatformVideoFramePool::Initialize(
   // |visible_rect| into account for IsSameFormat_Locked() any more.
   if (!IsSameFormat_Locked(format, coded_size, visible_rect, use_protected)) {
     DVLOGF(4) << "The video frame format is changed. Clearing the pool.";
+    // This loop clears the free frames' tokens from
+    // |frame_tracking_token_helper_|. The in-use frames' tokens will be cleared
+    // as the frames are released.
+    for (const auto& frame : free_frames_) {
+      frame_tracking_token_helper_.ClearToken(frame->tracking_token());
+    }
     free_frames_.clear();
     auto maybe_frame = create_frame_cb_.Run(
         format, coded_size, visible_rect, natural_size, use_protected,
-        *use_linear_buffers_, base::TimeDelta());
+        use_linear_buffers,
+        fourcc == Fourcc(Fourcc::MM21) || fourcc == Fourcc(Fourcc::MT2T),
+        base::TimeDelta());
     if (!maybe_frame.has_value())
       return std::move(maybe_frame).error();
     auto frame = std::move(maybe_frame).value();
@@ -219,6 +260,7 @@ CroStatus::Or<GpuBufferLayout> PlatformVideoFramePool::Initialize(
   natural_size_ = natural_size;
   max_num_frames_ = max_num_frames;
   use_protected_ = use_protected;
+  use_linear_buffers_ = use_linear_buffers;
 
   // The pool might become available because of |max_num_frames_| increased.
   // Notify the client if so.
@@ -229,9 +271,11 @@ CroStatus::Or<GpuBufferLayout> PlatformVideoFramePool::Initialize(
 }
 
 void PlatformVideoFramePool::SetCustomFrameAllocator(
-    DmabufVideoFramePool::CreateFrameCB allocator) {
+    DmabufVideoFramePool::CreateFrameCB allocator,
+    VideoFrame::StorageType frame_storage_type) {
   base::AutoLock auto_lock(lock_);
   create_frame_cb_ = allocator;
+  frame_storage_type_ = frame_storage_type;
 }
 
 bool PlatformVideoFramePool::IsExhausted() {
@@ -248,12 +292,12 @@ bool PlatformVideoFramePool::IsExhausted_Locked() {
   return free_frames_.empty() && GetTotalNumFrames_Locked() >= max_num_frames_;
 }
 
-VideoFrame* PlatformVideoFramePool::UnwrapFrame(
-    const VideoFrame& wrapped_frame) {
+FrameResource* PlatformVideoFramePool::GetOriginalFrame(
+    const base::UnguessableToken& tracking_token) {
   DVLOGF(4);
   base::AutoLock auto_lock(lock_);
 
-  auto it = frames_in_use_.find(GetGpuMemoryBufferId(wrapped_frame));
+  auto it = frames_in_use_.find(tracking_token);
   return (it == frames_in_use_.end()) ? nullptr : it->second;
 }
 
@@ -275,11 +319,12 @@ void PlatformVideoFramePool::ReleaseAllFrames() {
   base::AutoLock auto_lock(lock_);
   free_frames_.clear();
   frames_in_use_.clear();
+  frame_tracking_token_helper_.ClearTokens();
   weak_this_factory_.InvalidateWeakPtrs();
   weak_this_ = weak_this_factory_.GetWeakPtr();
 }
 
-absl::optional<GpuBufferLayout> PlatformVideoFramePool::GetGpuBufferLayout() {
+std::optional<GpuBufferLayout> PlatformVideoFramePool::GetGpuBufferLayout() {
   DCHECK(parent_task_runner_->RunsTasksInCurrentSequence());
   base::AutoLock auto_lock(lock_);
   return frame_layout_;
@@ -287,9 +332,9 @@ absl::optional<GpuBufferLayout> PlatformVideoFramePool::GetGpuBufferLayout() {
 
 // static
 void PlatformVideoFramePool::OnFrameReleasedThunk(
-    absl::optional<base::WeakPtr<PlatformVideoFramePool>> pool,
+    std::optional<base::WeakPtr<PlatformVideoFramePool>> pool,
     scoped_refptr<base::SequencedTaskRunner> task_runner,
-    scoped_refptr<VideoFrame> origin_frame) {
+    scoped_refptr<FrameResource> origin_frame) {
   TRACE_EVENT2("media", "PlatformVideoFramePool::OnFrameReleasedThunk",
                "frame_id", origin_frame->unique_id(), "frame",
                origin_frame->AsHumanReadableString());
@@ -302,7 +347,7 @@ void PlatformVideoFramePool::OnFrameReleasedThunk(
 }
 
 void PlatformVideoFramePool::OnFrameReleased(
-    scoped_refptr<VideoFrame> origin_frame) {
+    scoped_refptr<FrameResource> origin_frame) {
   TRACE_EVENT2("media", "PlatformVideoFramePool::OnFrameReleased", "frame_id",
                origin_frame->unique_id(), "frame",
                origin_frame->AsHumanReadableString());
@@ -310,15 +355,16 @@ void PlatformVideoFramePool::OnFrameReleased(
   DVLOGF(4);
   base::AutoLock auto_lock(lock_);
 
-  gfx::GpuMemoryBufferId frame_id = GetGpuMemoryBufferId(*origin_frame);
-  auto it = frames_in_use_.find(frame_id);
-  DCHECK(it != frames_in_use_.end());
+  auto it = frames_in_use_.find(origin_frame->tracking_token());
+  CHECK(it != frames_in_use_.end());
   frames_in_use_.erase(it);
 
   if (IsSameFormat_Locked(origin_frame->format(), origin_frame->coded_size(),
                           origin_frame->visible_rect(),
                           origin_frame->metadata().hw_protected)) {
     InsertFreeFrame_Locked(std::move(origin_frame));
+  } else {
+    frame_tracking_token_helper_.ClearToken(origin_frame->tracking_token());
   }
 
   if (frame_available_cb_ && !IsExhausted_Locked())
@@ -326,7 +372,7 @@ void PlatformVideoFramePool::OnFrameReleased(
 }
 
 void PlatformVideoFramePool::InsertFreeFrame_Locked(
-    scoped_refptr<VideoFrame> frame) {
+    scoped_refptr<FrameResource> frame) {
   DCHECK(frame);
   DVLOGF(4);
   lock_.AssertAcquired();

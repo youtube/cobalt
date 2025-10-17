@@ -6,13 +6,17 @@
 #define CONTENT_BROWSER_SERVICE_WORKER_SERVICE_WORKER_REGISTRY_H_
 
 #include <memory>
+#include <optional>
+#include <tuple>
 
 #include "base/containers/flat_set.h"
+#include "base/containers/lru_cache.h"
 #include "base/containers/unique_ptr_adapters.h"
 #include "base/feature_list.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/threading/sequence_bound.h"
 #include "components/services/storage/public/cpp/buckets/bucket_info.h"
 #include "components/services/storage/public/cpp/quota_error_or.h"
@@ -21,7 +25,6 @@
 #include "content/common/content_export.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "storage/browser/quota/storage_policy_observer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_ancestor_frame_type.mojom.h"
 
 namespace blink {
@@ -40,9 +43,6 @@ class ServiceWorkerVersion;
 
 class ServiceWorkerRegistryTest;
 FORWARD_DECLARE_TEST(ServiceWorkerRegistryTest, StoragePolicyChange);
-
-CONTENT_EXPORT BASE_DECLARE_FEATURE(
-    kServiceWorkerMergeFindRegistrationForClientUrl);
 
 // Manages in-memory representation of service worker registrations
 // (i.e., ServiceWorkerRegistration) including installing and uninstalling
@@ -300,7 +300,7 @@ class CONTENT_EXPORT ServiceWorkerRegistry {
   void Start();
   void FindRegistrationForIdInternal(
       int64_t registration_id,
-      const absl::optional<blink::StorageKey>& key,
+      const std::optional<blink::StorageKey>& key,
       FindRegistrationCallback callback);
   ServiceWorkerRegistration* FindInstallingRegistrationForClientUrl(
       const GURL& client_url,
@@ -327,7 +327,7 @@ class CONTENT_EXPORT ServiceWorkerRegistry {
   // Looks up live registrations and returns an optional value which may contain
   // a "findable" registration. See the implementation of this method for
   // what "findable" means and when a registration is returned.
-  absl::optional<scoped_refptr<ServiceWorkerRegistration>>
+  std::optional<scoped_refptr<ServiceWorkerRegistration>>
   FindFromLiveRegistrationsForId(int64_t registration_id);
 
   void DoomUncommittedResources(const std::vector<int64_t>& resource_ids);
@@ -338,7 +338,7 @@ class CONTENT_EXPORT ServiceWorkerRegistry {
       FindRegistrationCallback callback,
       storage::mojom::ServiceWorkerDatabaseStatus database_status,
       storage::mojom::ServiceWorkerFindRegistrationResultPtr result,
-      const absl::optional<std::vector<GURL>>& scopes);
+      const std::optional<std::vector<GURL>>& scopes);
   void RunFindRegistrationCallbacks(
       const GURL& client_url,
       const blink::StorageKey& key,
@@ -375,6 +375,11 @@ class CONTENT_EXPORT ServiceWorkerRegistry {
       StatusCallback callback,
       storage::mojom::ServiceWorkerDatabaseStatus database_status,
       uint64_t deleted_resources_size);
+  void NotifyRegistrationStored(int64_t stored_registration_id,
+                                uint64_t stored_resources_total_size_bytes,
+                                const GURL& stored_scope,
+                                const blink::StorageKey& key,
+                                StatusCallback callback);
   void DidDeleteRegistration(
       int64_t registration_id,
       const GURL& stored_scope,
@@ -383,6 +388,12 @@ class CONTENT_EXPORT ServiceWorkerRegistry {
       storage::mojom::ServiceWorkerDatabaseStatus database_status,
       uint64_t deleted_resources_size,
       storage::mojom::ServiceWorkerStorageStorageKeyState storage_key_state);
+  void NotifyRegistrationDeletedForStorageKey(
+      int64_t registration_id,
+      const GURL& stored_scope,
+      const blink::StorageKey& key,
+      storage::mojom::ServiceWorkerStorageStorageKeyState storage_key_state,
+      StatusCallback callback);
   void DidUpdateRegistration(
       StatusCallback callback,
       storage::mojom::ServiceWorkerDatabaseStatus status);
@@ -501,11 +512,11 @@ class CONTENT_EXPORT ServiceWorkerRegistry {
 
   bool is_storage_disabled_ = false;
 
-  // TODO(crbug.com/1016065): Consider moving QuotaManagerProxy to
+  // TODO(crbug.com/40103974): Consider moving QuotaManagerProxy to
   // ServiceWorkerStorage once QuotaManager gets mojofied.
   const scoped_refptr<storage::QuotaManagerProxy> quota_manager_proxy_;
   const scoped_refptr<storage::SpecialStoragePolicy> special_storage_policy_;
-  absl::optional<storage::StoragePolicyObserver> storage_policy_observer_;
+  std::optional<storage::StoragePolicyObserver> storage_policy_observer_;
 
   // For finding registrations being installed or uninstalled.
   using RegistrationRefsById =
@@ -524,7 +535,12 @@ class CONTENT_EXPORT ServiceWorkerRegistry {
 
   // ServiceWorker registration scope cache to skip calling
   // FindRegistrationForClientUrl mojo function (https://crbug.com/1411197).
-  std::map<blink::StorageKey, std::set<GURL>> registration_scope_cache_;
+  base::LRUCache<blink::StorageKey, std::set<GURL>> registration_scope_cache_;
+
+  // Live registration's `registration_id` cache to skip calling
+  // FindRegistrationForClientUrl mojo function (https://crbug.com/1446216).
+  base::LRUCache<std::tuple<GURL, blink::StorageKey>, int64_t>
+      registration_id_cache_;
 
   enum class ConnectionState {
     kNormal,

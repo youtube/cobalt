@@ -7,10 +7,12 @@
 #include "base/android/jni_array.h"
 #include "base/task/thread_pool.h"
 #include "components/embedder_support/android/metrics/features.h"
-#include "components/embedder_support/android/metrics/jni/AndroidMetricsLogUploader_jni.h"
 #include "components/metrics/log_decoder.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/embedder_support/android/metrics/jni/AndroidMetricsLogUploader_jni.h"
 
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
@@ -25,9 +27,8 @@ AndroidMetricsLogUploader::~AndroidMetricsLogUploader() = default;
 
 int32_t UploadLogWithUploader(const std::string& log_data,
                               const bool async_metric_logging_feature) {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jbyteArray> java_data = ToJavaByteArray(
-      env, reinterpret_cast<const uint8_t*>(log_data.data()), log_data.size());
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  ScopedJavaLocalRef<jbyteArray> java_data = ToJavaByteArray(env, log_data);
 
   return Java_AndroidMetricsLogUploader_uploadLog(env, java_data,
                                                   async_metric_logging_feature);
@@ -35,6 +36,7 @@ int32_t UploadLogWithUploader(const std::string& log_data,
 
 void AndroidMetricsLogUploader::UploadLog(
     const std::string& compressed_log_data,
+    const LogMetadata& /*log_metadata*/,
     const std::string& /*log_hash*/,
     const std::string& /*log_signature*/,
     const ReportingInfo& reporting_info) {

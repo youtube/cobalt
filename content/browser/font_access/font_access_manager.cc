@@ -23,6 +23,8 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/permission_controller.h"
+#include "content/public/browser/permission_descriptor_util.h"
+#include "content/public/browser/permission_request_description.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/content_client.h"
 #include "third_party/blink/public/common/features.h"
@@ -50,7 +52,7 @@ FontAccessManager::FontAccessManager(
     base::SequenceBound<FontEnumerationCache> font_enumeration_cache,
     base::PassKey<FontAccessManager>)
     : font_enumeration_cache_(std::move(font_enumeration_cache)),
-      results_task_runner_(content::GetUIThreadTaskRunner({})) {}
+      results_task_runner_(GetUIThreadTaskRunner({})) {}
 
 FontAccessManager::~FontAccessManager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -102,7 +104,10 @@ void FontAccessManager::EnumerateLocalFonts(
   DCHECK(permission_controller);
 
   auto status = permission_controller->GetPermissionStatusForCurrentDocument(
-      blink::PermissionType::LOCAL_FONTS, rfh);
+      content::PermissionDescriptorUtil::
+          CreatePermissionDescriptorForPermissionType(
+              blink::PermissionType::LOCAL_FONTS),
+      rfh);
 
   if (status != blink::mojom::PermissionStatus::ASK) {
     // Permission has been requested before.
@@ -123,8 +128,12 @@ void FontAccessManager::EnumerateLocalFonts(
       blink::mojom::UserActivationNotificationType::kNone);
 
   permission_controller->RequestPermissionFromCurrentDocument(
-      blink::PermissionType::LOCAL_FONTS, rfh,
-      /*user_gesture=*/true,
+      rfh,
+      PermissionRequestDescription(
+          content::PermissionDescriptorUtil::
+              CreatePermissionDescriptorForPermissionType(
+                  blink::PermissionType::LOCAL_FONTS),
+          /*user_gesture=*/true),
       base::BindOnce(&FontAccessManager::DidRequestPermission,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }

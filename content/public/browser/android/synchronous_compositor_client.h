@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/functional/callback_forward.h"
+#include "components/viz/common/performance_hint_utils.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
@@ -68,6 +69,8 @@ class SynchronousCompositorClient {
       std::unique_ptr<viz::CopyOutputRequest> copy_request) = 0;
 
   virtual void AddBeginFrameCompletionCallback(base::OnceClosure callback) = 0;
+
+  virtual void SetThreads(const std::vector<viz::Thread>& threads) = 0;
 
  protected:
   SynchronousCompositorClient() {}

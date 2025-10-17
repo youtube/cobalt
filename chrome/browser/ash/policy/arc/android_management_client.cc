@@ -132,7 +132,6 @@ std::ostream& operator<<(std::ostream& os,
       return os << "ERROR";
   }
   NOTREACHED();
-  return os;
 }
 
 }  // namespace policy

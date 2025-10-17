@@ -5,13 +5,12 @@
 package org.chromium.chrome.browser.customtabs;
 
 import androidx.annotation.IntDef;
-import androidx.browser.customtabs.CustomTabsSessionToken;
 
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
+import org.chromium.chrome.browser.browserservices.intents.SessionHolder;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityTabProvider;
-import org.chromium.chrome.browser.dependency_injection.ActivityScope;
-import org.chromium.chrome.browser.gsa.GSAState;
+import org.chromium.chrome.browser.gsa.GSAUtils;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.StartStopWithNativeObserver;
 import org.chromium.chrome.browser.tab.Tab;
@@ -20,17 +19,17 @@ import org.chromium.chrome.browser.tab.TabAssociatedApp;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-import javax.inject.Inject;
-
 /**
- * Keeps the client app alive, when possible, while CustomTabActivity is in foreground (see
- * {@link CustomTabsConnection#keepAliveForSession}).
+ * Keeps the client app alive, when possible, while CustomTabActivity is in foreground (see {@link
+ * CustomTabsConnection#keepAliveForSession}).
  */
-@ActivityScope
 public class CustomTabActivityClientConnectionKeeper implements StartStopWithNativeObserver {
-
-    @IntDef({ConnectionStatus.DISCONNECTED, ConnectionStatus.DISCONNECTED_KEEP_ALIVE,
-            ConnectionStatus.CONNECTED, ConnectionStatus.CONNECTED_KEEP_ALIVE})
+    @IntDef({
+        ConnectionStatus.DISCONNECTED,
+        ConnectionStatus.DISCONNECTED_KEEP_ALIVE,
+        ConnectionStatus.CONNECTED,
+        ConnectionStatus.CONNECTED_KEEP_ALIVE
+    })
     @Retention(RetentionPolicy.SOURCE)
     private @interface ConnectionStatus {
         int DISCONNECTED = 0;
@@ -40,18 +39,15 @@ public class CustomTabActivityClientConnectionKeeper implements StartStopWithNat
         int NUM_ENTRIES = 4;
     }
 
-    private final CustomTabsConnection mConnection;
     private final BrowserServicesIntentDataProvider mIntentDataProvider;
     private final CustomTabActivityTabProvider mTabProvider;
 
     private boolean mIsKeepingAlive;
 
-    @Inject
-    public CustomTabActivityClientConnectionKeeper(CustomTabsConnection connection,
+    public CustomTabActivityClientConnectionKeeper(
             BrowserServicesIntentDataProvider intentDataProvider,
-            ActivityLifecycleDispatcher lifecycleDispatcher,
-            CustomTabActivityTabProvider tabProvider) {
-        mConnection = connection;
+            CustomTabActivityTabProvider tabProvider,
+            ActivityLifecycleDispatcher lifecycleDispatcher) {
         mIntentDataProvider = intentDataProvider;
         mTabProvider = tabProvider;
         lifecycleDispatcher.register(this);
@@ -59,27 +55,30 @@ public class CustomTabActivityClientConnectionKeeper implements StartStopWithNat
 
     @Override
     public void onStartWithNative() {
-        mIsKeepingAlive = mConnection.keepAliveForSession(
-                mIntentDataProvider.getSession(), mIntentDataProvider.getKeepAliveServiceIntent());
+        mIsKeepingAlive =
+                CustomTabsConnection.getInstance()
+                        .keepAliveForSession(
+                                mIntentDataProvider.getSession(),
+                                mIntentDataProvider.getKeepAliveServiceIntent());
     }
 
     @Override
     public void onStopWithNative() {
-        mConnection.dontKeepAliveForSession(mIntentDataProvider.getSession());
+        CustomTabsConnection.getInstance()
+                .dontKeepAliveForSession(mIntentDataProvider.getSession());
         mIsKeepingAlive = false;
     }
 
-    /**
-     * Records current client connection status.
-     */
+    /** Records current client connection status. */
     public void recordClientConnectionStatus() {
         Tab tab = mTabProvider.getTab();
         String packageName = tab == null ? null : TabAssociatedApp.getAppId(tab);
         if (packageName == null) return; // No associated package
 
-        CustomTabsSessionToken session = mIntentDataProvider.getSession();
+        SessionHolder<?> session = mIntentDataProvider.getSession();
         boolean isConnected =
-                packageName.equals(mConnection.getClientPackageNameForSession(session));
+                packageName.equals(
+                        CustomTabsConnection.getInstance().getClientPackageNameForSession(session));
         int status = -1;
         if (isConnected) {
             if (mIsKeepingAlive) {
@@ -96,12 +95,16 @@ public class CustomTabActivityClientConnectionKeeper implements StartStopWithNat
         }
         assert status >= 0;
 
-        if (GSAState.isGsaPackageName(packageName)) {
-            RecordHistogram.recordEnumeratedHistogram("CustomTabs.ConnectionStatusOnReturn.GSA",
-                    status, ConnectionStatus.NUM_ENTRIES);
+        if (GSAUtils.isGsaPackageName(packageName)) {
+            RecordHistogram.recordEnumeratedHistogram(
+                    "CustomTabs.ConnectionStatusOnReturn.GSA",
+                    status,
+                    ConnectionStatus.NUM_ENTRIES);
         } else {
-            RecordHistogram.recordEnumeratedHistogram("CustomTabs.ConnectionStatusOnReturn.NonGSA",
-                    status, ConnectionStatus.NUM_ENTRIES);
+            RecordHistogram.recordEnumeratedHistogram(
+                    "CustomTabs.ConnectionStatusOnReturn.NonGSA",
+                    status,
+                    ConnectionStatus.NUM_ENTRIES);
         }
     }
 }

@@ -9,11 +9,12 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/test/scoped_feature_list.h"
-#include "chrome/browser/extensions/extension_service.h"
-#include "chrome/browser/extensions/permissions_test_util.h"
+#include "base/values.h"
+#include "chrome/browser/extensions/permissions/permissions_test_util.h"
 #include "chrome/browser/extensions/test_extension_environment.h"
 #include "chrome/common/extensions/permissions/chrome_permission_message_provider.h"
 #include "chrome/test/base/testing_profile.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_features.h"
@@ -22,7 +23,6 @@
 #include "extensions/common/permissions/permission_set.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "extensions/common/permissions/permissions_info.h"
-#include "extensions/common/value_builder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace chromeos {
@@ -40,13 +40,19 @@ const std::u16string kDiagnosticsPermissionMessage =
 const std::u16string kTelemetryEventsPermissionMessage =
     u"Subscribe to ChromeOS system events";
 const std::u16string kTelemetryPermissionMessage =
-    u"Read ChromeOS device information and device data";
+    u"Read ChromeOS device information and data";
 const std::u16string kTelemetrySerialNumberPermissionMessage =
     u"Read ChromeOS device and component serial numbers";
 const std::u16string kTelemetryNetworkInformationPermissionMessage =
     u"Read ChromeOS network information";
 const std::u16string kAttachedDeviceInfo =
     u"Read attached devices information and data";
+const std::u16string kBluetoothPeripheralsInfo =
+    u"Read Bluetooth peripherals information and data";
+const std::u16string kManagementAudio = u"Manage ChromeOS audio settings";
+const std::u16string kDiagnosticsNetworkInfoForMlab =
+    u"Collect IP address and network measurement results for Measurement Lab, "
+    u"according to their privacy policy (measurementlab.net/privacy)";
 }  // namespace
 
 // Tests that ChromePermissionMessageProvider provides not only correct, but
@@ -61,7 +67,7 @@ class ChromeOSPermissionMessageUnittest : public testing::Test {
       delete;
   ChromeOSPermissionMessageUnittest& operator=(
       const ChromeOSPermissionMessageUnittest&) = delete;
-  ~ChromeOSPermissionMessageUnittest() override {}
+  ~ChromeOSPermissionMessageUnittest() override = default;
 
  protected:
   void CreateAndInstallExtensionWithPermissions(
@@ -75,17 +81,16 @@ class ChromeOSPermissionMessageUnittest : public testing::Test {
                                std::move(optional_permissions))
                .SetManifestKey(
                    "externally_connectable",
-                   extensions::DictionaryBuilder()
-                       .Set("matches",
-                            extensions::ListBuilder()
-                                .Append("*://googlechromelabs.github.io/*")
-                                .Build())
-                       .Build())
+                   base::Value::Dict().Set(
+                       "matches",
+                       base::Value::List().Append(
+                           "*://googlechromelabs.github.io/"
+                           "cros-sample-telemetry-extension/test-page/*")))
                .SetID(kChromeOSSystemExtensionId)  // only allowlisted id
                .SetLocation(ManifestLocation::kInternal)
                .Build();
 
-    env_.GetExtensionService()->AddExtension(app_.get());
+    env_.GetExtensionRegistrar()->AddExtension(app_.get());
   }
 
   // Returns the permission messages that would display in the prompt that
@@ -141,7 +146,7 @@ class ChromeOSPermissionMessageUnittest : public testing::Test {
 TEST_F(ChromeOSPermissionMessageUnittest, OsAttachedDeviceInfo) {
   CreateAndInstallExtensionWithPermissions(
       base::Value::List(),
-      extensions::ListBuilder().Append("os.attached_device_info").Build());
+      base::Value::List().Append("os.attached_device_info"));
 
   ASSERT_EQ(1U, optional_permissions().size());
   EXPECT_EQ(kAttachedDeviceInfo, optional_permissions()[0]);
@@ -157,10 +162,29 @@ TEST_F(ChromeOSPermissionMessageUnittest, OsAttachedDeviceInfo) {
   EXPECT_EQ(kAttachedDeviceInfo, active_permissions()[0]);
 }
 
+TEST_F(ChromeOSPermissionMessageUnittest, OsBluetoothPeripheralsInfo) {
+  CreateAndInstallExtensionWithPermissions(
+      base::Value::List(),
+      base::Value::List().Append("os.bluetooth_peripherals_info"));
+
+  ASSERT_EQ(1U, optional_permissions().size());
+  EXPECT_EQ(kBluetoothPeripheralsInfo, optional_permissions()[0]);
+  ASSERT_EQ(1U, GetInactiveOptionalPermissionMessages().size());
+  EXPECT_EQ(kBluetoothPeripheralsInfo,
+            GetInactiveOptionalPermissionMessages()[0]);
+  EXPECT_EQ(0U, required_permissions().size());
+  EXPECT_EQ(0U, active_permissions().size());
+
+  GrantOptionalPermissions();
+
+  EXPECT_EQ(0U, GetInactiveOptionalPermissionMessages().size());
+  ASSERT_EQ(1U, active_permissions().size());
+  EXPECT_EQ(kBluetoothPeripheralsInfo, active_permissions()[0]);
+}
+
 TEST_F(ChromeOSPermissionMessageUnittest, OsDiagnosticsMessage) {
   CreateAndInstallExtensionWithPermissions(
-      extensions::ListBuilder().Append("os.diagnostics").Build(),
-      base::Value::List());
+      base::Value::List().Append("os.diagnostics"), base::Value::List());
 
   ASSERT_EQ(0U, optional_permissions().size());
   ASSERT_EQ(1U, required_permissions().size());
@@ -169,10 +193,29 @@ TEST_F(ChromeOSPermissionMessageUnittest, OsDiagnosticsMessage) {
   EXPECT_EQ(kDiagnosticsPermissionMessage, active_permissions()[0]);
 }
 
+TEST_F(ChromeOSPermissionMessageUnittest, OsDiagnosticsNetworkInfoForMlab) {
+  CreateAndInstallExtensionWithPermissions(
+      base::Value::List(),
+      base::Value::List().Append("os.diagnostics.network_info_mlab"));
+
+  ASSERT_EQ(1U, optional_permissions().size());
+  EXPECT_EQ(kDiagnosticsNetworkInfoForMlab, optional_permissions()[0]);
+  ASSERT_EQ(1U, GetInactiveOptionalPermissionMessages().size());
+  EXPECT_EQ(kDiagnosticsNetworkInfoForMlab,
+            GetInactiveOptionalPermissionMessages()[0]);
+  EXPECT_EQ(0U, required_permissions().size());
+  EXPECT_EQ(0U, active_permissions().size());
+
+  GrantOptionalPermissions();
+
+  EXPECT_EQ(0U, GetInactiveOptionalPermissionMessages().size());
+  ASSERT_EQ(1U, active_permissions().size());
+  EXPECT_EQ(kDiagnosticsNetworkInfoForMlab, active_permissions()[0]);
+}
+
 TEST_F(ChromeOSPermissionMessageUnittest, OsTelemetryMessage) {
   CreateAndInstallExtensionWithPermissions(
-      extensions::ListBuilder().Append("os.telemetry").Build(),
-      base::Value::List());
+      base::Value::List().Append("os.telemetry"), base::Value::List());
 
   ASSERT_EQ(0U, optional_permissions().size());
   ASSERT_EQ(1U, required_permissions().size());
@@ -184,7 +227,7 @@ TEST_F(ChromeOSPermissionMessageUnittest, OsTelemetryMessage) {
 TEST_F(ChromeOSPermissionMessageUnittest, OsTelemetrySerialNumber) {
   CreateAndInstallExtensionWithPermissions(
       base::Value::List(),
-      extensions::ListBuilder().Append("os.telemetry.serial_number").Build());
+      base::Value::List().Append("os.telemetry.serial_number"));
 
   ASSERT_EQ(1U, optional_permissions().size());
   EXPECT_EQ(kTelemetrySerialNumberPermissionMessage, optional_permissions()[0]);
@@ -204,7 +247,7 @@ TEST_F(ChromeOSPermissionMessageUnittest, OsTelemetrySerialNumber) {
 TEST_F(ChromeOSPermissionMessageUnittest, OsTelemetryNetworkInformation) {
   CreateAndInstallExtensionWithPermissions(
       base::Value::List(),
-      extensions::ListBuilder().Append("os.telemetry.network_info").Build());
+      base::Value::List().Append("os.telemetry.network_info"));
 
   ASSERT_EQ(1U, optional_permissions().size());
   EXPECT_EQ(kTelemetryNetworkInformationPermissionMessage,
@@ -223,35 +266,9 @@ TEST_F(ChromeOSPermissionMessageUnittest, OsTelemetryNetworkInformation) {
             active_permissions()[0]);
 }
 
-TEST_F(ChromeOSPermissionMessageUnittest, OsTelemetryEvents_ErrorFeatureFlag) {
+TEST_F(ChromeOSPermissionMessageUnittest, OsTelemetryEventsMessage) {
   CreateAndInstallExtensionWithPermissions(
-      base::Value::List(),
-      extensions::ListBuilder().Append("os.events").Build());
-
-  EXPECT_EQ(0U, optional_permissions().size());
-  EXPECT_EQ(0U, GetInactiveOptionalPermissionMessages().size());
-
-  EXPECT_EQ(0U, required_permissions().size());
-  EXPECT_EQ(0U, active_permissions().size());
-}
-
-class ChromeOSPermissionMessageUnittestWithPendingApprovalPermission
-    : public ChromeOSPermissionMessageUnittest {
- public:
-  ChromeOSPermissionMessageUnittestWithPendingApprovalPermission() {
-    feature_list_.InitAndEnableFeature(
-        extensions_features::kTelemetryExtensionPendingApprovalApi);
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-TEST_F(ChromeOSPermissionMessageUnittestWithPendingApprovalPermission,
-       OsTelemetryEventsMessage) {
-  CreateAndInstallExtensionWithPermissions(
-      base::Value::List(),
-      extensions::ListBuilder().Append("os.events").Build());
+      base::Value::List(), base::Value::List().Append("os.events"));
 
   ASSERT_EQ(1U, optional_permissions().size());
   EXPECT_EQ(kTelemetryEventsPermissionMessage, optional_permissions()[0]);
@@ -266,6 +283,24 @@ TEST_F(ChromeOSPermissionMessageUnittestWithPendingApprovalPermission,
   EXPECT_EQ(0U, GetInactiveOptionalPermissionMessages().size());
   ASSERT_EQ(1U, active_permissions().size());
   EXPECT_EQ(kTelemetryEventsPermissionMessage, active_permissions()[0]);
+}
+
+TEST_F(ChromeOSPermissionMessageUnittest, OsManagementAudio) {
+  CreateAndInstallExtensionWithPermissions(
+      base::Value::List(), base::Value::List().Append("os.management.audio"));
+
+  ASSERT_EQ(1U, optional_permissions().size());
+  EXPECT_EQ(kManagementAudio, optional_permissions()[0]);
+  ASSERT_EQ(1U, GetInactiveOptionalPermissionMessages().size());
+  EXPECT_EQ(kManagementAudio, GetInactiveOptionalPermissionMessages()[0]);
+  EXPECT_EQ(0U, required_permissions().size());
+  EXPECT_EQ(0U, active_permissions().size());
+
+  GrantOptionalPermissions();
+
+  EXPECT_EQ(0U, GetInactiveOptionalPermissionMessages().size());
+  ASSERT_EQ(1U, active_permissions().size());
+  EXPECT_EQ(kManagementAudio, active_permissions()[0]);
 }
 
 }  // namespace chromeos

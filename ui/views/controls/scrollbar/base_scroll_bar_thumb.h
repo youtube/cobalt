@@ -28,9 +28,9 @@ class ScrollBar;
 //
 ///////////////////////////////////////////////////////////////////////////////
 class VIEWS_EXPORT BaseScrollBarThumb : public View {
- public:
-  METADATA_HEADER(BaseScrollBarThumb);
+  METADATA_HEADER(BaseScrollBarThumb, View)
 
+ public:
   explicit BaseScrollBarThumb(ScrollBar* scroll_bar);
 
   BaseScrollBarThumb(const BaseScrollBarThumb&) = delete;
@@ -55,11 +55,12 @@ class VIEWS_EXPORT BaseScrollBarThumb : public View {
   void SetSnapBackOnDragOutside(bool value);
   bool GetSnapBackOnDragOutside() const;
 
-  // View overrides:
-  gfx::Size CalculatePreferredSize() const override = 0;
+  // View:
+  gfx::Size CalculatePreferredSize(
+      const SizeBounds& available_size) const override = 0;
 
  protected:
-  // View overrides:
+  // View:
   void OnPaint(gfx::Canvas* canvas) override = 0;
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;

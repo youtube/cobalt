@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "base/android/jni_android.h"
-#include "base/android/jni_int_wrapper.h"
 #include "base/memory/raw_ref.h"
 #include "starboard/drm.h"
 

@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -67,7 +68,7 @@ void AdsBlockedMessageDelegate::ShowMessage() {
       &AdsBlockedMessageDelegate::HandleMessageManageClicked,
       base::Unretained(this)));
 
-  // TODO(crbug.com/1223078): On rare occasions, such as the moment when
+  // TODO(crbug.com/40774444): On rare occasions, such as the moment when
   // activity is being recreated or destroyed, ads blocked message will not be
   // displayed.
   message_dispatcher_bridge->EnqueueMessage(
@@ -114,7 +115,7 @@ void AdsBlockedMessageDelegate::HandleMessageManageClicked() {
 
 void AdsBlockedMessageDelegate::HandleMessageDismissed(
     messages::DismissReason dismiss_reason) {
-  DCHECK(message_);
+  CHECK(message_);
   message_.reset();
 }
 
@@ -128,10 +129,12 @@ void AdsBlockedMessageDelegate::HandleDialogLearnMoreClicked() {
   reprompt_required_ = true;
   subresource_filter::ContentSubresourceFilterThrottleManager::LogAction(
       subresource_filter::SubresourceFilterAction::kClickedLearnMore);
-  web_contents()->OpenURL(content::OpenURLParams(
-      GURL(subresource_filter::kLearnMoreLink), content::Referrer(),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB, ui::PAGE_TRANSITION_LINK,
-      false));
+  web_contents()->OpenURL(
+      content::OpenURLParams(GURL(subresource_filter::kLearnMoreLink),
+                             content::Referrer(),
+                             WindowOpenDisposition::NEW_FOREGROUND_TAB,
+                             ui::PAGE_TRANSITION_LINK, false),
+      /*navigation_handle_callback=*/{});
 }
 
 void AdsBlockedMessageDelegate::HandleDialogDismissed() {
@@ -141,12 +144,12 @@ void AdsBlockedMessageDelegate::HandleDialogDismissed() {
     // will be restored when the user navigates back to the original tab.
     return;
   }
-  DCHECK(ads_blocked_dialog_);
+  CHECK(ads_blocked_dialog_);
   ads_blocked_dialog_.reset();
 }
 
 void AdsBlockedMessageDelegate::ShowDialog(bool should_post_dialog) {
-  DCHECK(!reprompt_required_);
+  CHECK(!reprompt_required_);
   // Binding with base::Unretained(this) is safe here because
   // AdsBlockedMessageDelegate owns ads_blocked_dialog_. Callbacks won't be
   // called after the AdsBlockedMessageDelegate object is destroyed.
@@ -161,8 +164,9 @@ void AdsBlockedMessageDelegate::ShowDialog(bool should_post_dialog) {
 
   // Ads blocked dialog factory method can return nullptr when web_contents()
   // is not attached to a window. See crbug.com/1049090 for details.
-  if (!ads_blocked_dialog_)
+  if (!ads_blocked_dialog_) {
     return;
+  }
   ads_blocked_dialog_->Show(should_post_dialog);
 }
 

@@ -9,7 +9,12 @@
 
 #include "modules/audio_coding/neteq/expand_uma_logger.h"
 
+#include <cstdint>
+#include <memory>
+#include <optional>
+
 #include "absl/strings/string_view.h"
+#include "api/neteq/tick_timer.h"
 #include "rtc_base/checks.h"
 #include "system_wrappers/include/metrics.h"
 
@@ -47,7 +52,7 @@ void ExpandUmaLogger::UpdateSampleCounter(uint64_t samples,
   last_value_ = samples;
   sample_rate_hz_ = sample_rate_hz;
   if (!last_logged_value_) {
-    last_logged_value_ = absl::optional<uint64_t>(samples);
+    last_logged_value_ = std::optional<uint64_t>(samples);
   }
 
   if (!timer_->Finished()) {
@@ -58,7 +63,7 @@ void ExpandUmaLogger::UpdateSampleCounter(uint64_t samples,
   RTC_DCHECK(last_logged_value_);
   RTC_DCHECK_GE(last_value_, *last_logged_value_);
   const uint64_t diff = last_value_ - *last_logged_value_;
-  last_logged_value_ = absl::optional<uint64_t>(last_value_);
+  last_logged_value_ = std::optional<uint64_t>(last_value_);
   // Calculate rate in percent.
   RTC_DCHECK_GT(sample_rate_hz, 0);
   const int rate = (100 * diff) / (sample_rate_hz * logging_period_s_);

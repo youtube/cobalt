@@ -5,6 +5,7 @@
 #ifndef ASH_TEST_TOPLEVEL_WINDOW_H_
 #define ASH_TEST_TOPLEVEL_WINDOW_H_
 
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/views/widget/widget_delegate.h"
 
 namespace ash {
@@ -17,6 +18,7 @@ class ToplevelWindow : public views::WidgetDelegateView {
 
     bool can_resize;
     bool can_maximize;
+    bool can_fullscreen;
     bool use_saved_placement;
   };
 
@@ -39,10 +41,11 @@ class ToplevelWindow : public views::WidgetDelegateView {
   // views::WidgetDelegate:
   bool ShouldSaveWindowPlacement() const override;
   void SaveWindowPlacement(const gfx::Rect& bounds,
-                           ui::WindowShowState show_state) override;
-  bool GetSavedWindowPlacement(const views::Widget* widget,
-                               gfx::Rect* bounds,
-                               ui::WindowShowState* show_state) const override;
+                           ui::mojom::WindowShowState show_state) override;
+  bool GetSavedWindowPlacement(
+      const views::Widget* widget,
+      gfx::Rect* bounds,
+      ui::mojom::WindowShowState* show_state) const override;
 
   bool use_saved_placement_ = true;
 };

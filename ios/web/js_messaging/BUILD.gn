@@ -3,10 +3,10 @@
 # found in the LICENSE file.
 
 import("//ios/build/config.gni")
-import("//ios/web/public/js_messaging/optimize_js.gni")
+import("//ios/web/javascript_flags.gni")
+import("//ios/web/public/js_messaging/optimize_ts.gni")
 
 source_set("js_messaging") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   deps = [
     ":frame_listeners_js",
     ":java_script_content_world_header",
@@ -14,15 +14,16 @@ source_set("js_messaging") {
     ":java_script_feature_manager_header",
     ":scoped_wk_script_message_handler",
     ":setup_frame_js",
+    ":web_view_js_utils",
     "//base",
     "//ios/web/common:features",
     "//ios/web/navigation:wk_navigation_util",
     "//ios/web/public",
-    "//ios/web/public/deprecated",
     "//ios/web/public/js_messaging",
+    "//ios/web/public/js_messaging:web_view_js_utils",
+    "//ios/web/util",
     "//ios/web/web_state:web_state_impl_header",
     "//ios/web/web_state/ui:web_controller_header",
-    "//ios/web/web_view:util",
     "//url",
   ]
 
@@ -32,21 +33,17 @@ source_set("js_messaging") {
     "web_frame_impl.h",
     "web_frame_impl.mm",
     "web_frame_internal.h",
-    "web_frame_util.mm",
     "web_frames_manager_impl.h",
     "web_frames_manager_impl.mm",
     "web_frames_manager_java_script_feature.h",
     "web_frames_manager_java_script_feature.mm",
     "web_frames_manager_observer_bridge.mm",
-    "web_view_js_utils.h",
-    "web_view_js_utils.mm",
     "web_view_web_state_map.h",
     "web_view_web_state_map.mm",
   ]
 }
 
 source_set("java_script_feature") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   public_deps = [
     ":java_script_content_world_header",
     ":java_script_feature_manager_header",
@@ -54,13 +51,21 @@ source_set("java_script_feature") {
   deps = [
     ":js_messaging",
     ":scoped_wk_script_message_handler",
+    ":web_view_js_utils",
     "//base",
+    "//build:blink_buildflags",
+    "//ios/web:features",
     "//ios/web/public",
     "//ios/web/public/js_messaging",
+    "//ios/web/public/js_messaging:web_view_js_utils",
     "//ios/web/web_state:web_state_impl_header",
     "//ios/web/web_state/ui:web_controller_header",
     "//ios/web/web_state/ui:wk_web_view_configuration_provider_header",
   ]
+
+  if (ios_enable_javascript_flags) {
+    deps += [ "//ios/web:flags" ]
+  }
 
   sources = [
     "java_script_content_world.mm",
@@ -71,8 +76,6 @@ source_set("java_script_feature") {
 }
 
 source_set("java_script_content_world_header") {
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   deps = [
     ":scoped_wk_script_message_handler",
     "//base",
@@ -83,8 +86,6 @@ source_set("java_script_content_world_header") {
 }
 
 source_set("java_script_content_world_util") {
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   deps = [
     "//base",
     "//ios/web/public/js_messaging:content_world_header",
@@ -97,36 +98,31 @@ source_set("java_script_content_world_util") {
 }
 
 source_set("java_script_feature_manager_header") {
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   deps = [
     ":java_script_content_world_header",
     "//base",
+    "//ios/web/public/js_messaging:content_world_header",
   ]
 
   sources = [ "java_script_feature_manager.h" ]
 }
 
 source_set("java_script_feature_util") {
-  configs += [ "//build/config/compiler:enable_arc" ]
-
   deps = [
     ":js_messaging",
     "//base",
     "//ios/web/annotations",
     "//ios/web/common",
-    "//ios/web/common:features",
     "//ios/web/favicon",
     "//ios/web/find_in_page",
     "//ios/web/js_features/context_menu",
     "//ios/web/js_features/error_page",
+    "//ios/web/js_features/fullscreen",
     "//ios/web/js_features/scroll_helper",
     "//ios/web/js_features/window_error",
     "//ios/web/navigation:navigation_feature",
-    "//ios/web/navigation:session_restore_feature",
     "//ios/web/public",
     "//ios/web/public/js_messaging",
-    "//ios/web/text_fragments",
     "//ios/web/webui",
   ]
 
@@ -137,9 +133,10 @@ source_set("java_script_feature_util") {
 }
 
 source_set("scoped_wk_script_message_handler") {
-  configs += [ "//build/config/compiler:enable_arc" ]
-
-  deps = [ "//base" ]
+  deps = [
+    ":web_view_js_utils",
+    "//base",
+  ]
 
   sources = [
     "scoped_wk_script_message_handler.h",
@@ -147,22 +144,38 @@ source_set("scoped_wk_script_message_handler") {
   ]
 }
 
-optimize_js("setup_frame_js") {
-  visibility = [ ":js_messaging" ]
+source_set("web_view_js_utils") {
+  deps = [
+    "//base",
+    "//ios/web/public/js_messaging:web_view_js_utils",
+  ]
 
-  primary_script = "resources/setup_frame.js"
-  sources = [ "resources/setup_frame.js" ]
+  sources = [
+    "web_view_js_utils.h",
+    "web_view_js_utils.mm",
+  ]
 }
 
-optimize_js("frame_listeners_js") {
+optimize_ts("setup_frame_js") {
   visibility = [ ":js_messaging" ]
 
-  primary_script = "resources/frame_listeners.js"
-  sources = [ "resources/frame_listeners.js" ]
+  sources = [ "resources/setup_frame.ts" ]
+
+  deps = [ "//ios/web/public/js_messaging:gcrweb" ]
+}
+
+optimize_ts("frame_listeners_js") {
+  visibility = [ ":js_messaging" ]
+
+  sources = [ "resources/frame_listeners.ts" ]
+
+  deps = [
+    "//ios/web/public/js_messaging:gcrweb",
+    "//ios/web/public/js_messaging:util_scripts",
+  ]
 }
 
 source_set("unittests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   deps = [
     ":java_script_content_world_util",
@@ -170,6 +183,7 @@ source_set("unittests") {
     ":java_script_feature_util",
     ":js_messaging",
     ":scoped_wk_script_message_handler",
+    ":web_view_js_utils",
     "//base",
     "//base/test:test_support",
     "//ios/web/common:web_view_creation_util",
@@ -194,7 +208,6 @@ source_set("unittests") {
     "page_script_util_unittest.mm",
     "scoped_wk_script_message_handler_unittest.mm",
     "web_frame_impl_unittest.mm",
-    "web_frame_util_unittest.mm",
     "web_frames_manager_impl_unittest.mm",
     "web_frames_manager_java_script_feature_unittest.mm",
     "web_frames_manager_observer_bridge_unittest.mm",
@@ -204,7 +217,6 @@ source_set("unittests") {
 }
 
 source_set("inttests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   deps = [
     ":java_script_content_world_header",
@@ -235,7 +247,6 @@ source_set("inttests") {
     "java_script_feature_inttest.mm",
     "java_script_feature_manager_inttest.mm",
     "web_frame_impl_inttest.mm",
-    "web_frame_web_state_observer_inttest.mm",
     "web_frames_manager_inttest.mm",
   ]
 }

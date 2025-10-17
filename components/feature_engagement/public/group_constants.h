@@ -10,15 +10,19 @@
 
 namespace feature_engagement {
 
-// Overall feature controlling whether Groups are enabled.
-BASE_DECLARE_FEATURE(kIPHGroups);
-
 // A feature to ensure all arrays can contain at least one group.
 BASE_DECLARE_FEATURE(kIPHDummyGroup);
 
 #if BUILDFLAG(IS_IOS)
 BASE_DECLARE_FEATURE(kiOSFullscreenPromosGroup);
+BASE_DECLARE_FEATURE(kiOSDefaultBrowserPromosGroup);
+BASE_DECLARE_FEATURE(kiOSTailoredDefaultBrowserPromosGroup);
+BASE_DECLARE_FEATURE(kiOSTailoredNonModalDefaultBrowserPromosGroup);
+BASE_DECLARE_FEATURE(kiOSNonModalSigninPromosGroup);
 #endif  // BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_ANDROID)
+BASE_DECLARE_FEATURE(kClankDefaultBrowserPromosGroup);
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace feature_engagement
 

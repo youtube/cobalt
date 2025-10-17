@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ash/net/system_proxy_manager.h"
 
-#include "ash/components/arc/arc_prefs.h"
 #include "ash/constants/ash_features.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
@@ -18,8 +17,10 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/system_proxy/system_proxy_client.h"
 #include "chromeos/ash/components/dbus/system_proxy/system_proxy_service.pb.h"
+#include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/network/network_handler_test_helper.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "components/prefs/pref_service.h"
 #include "components/proxy_config/proxy_config_pref_names.h"
 #include "components/proxy_config/proxy_prefs.h"
@@ -85,9 +86,9 @@ network::NetworkService* GetNetworkService() {
 
 void SetManagedProxy(Profile* profile) {
   // Configure a proxy via user policy.
-  base::Value::Dict proxy_config;
-  proxy_config.Set("mode", ProxyPrefs::kFixedServersProxyModeName);
-  proxy_config.Set("server", kProxyAuthUrl);
+  auto proxy_config = base::Value::Dict()
+                          .Set("mode", ProxyPrefs::kFixedServersProxyModeName)
+                          .Set("server", kProxyAuthUrl);
   profile->GetPrefs()->SetDict(proxy_config::prefs::kProxy,
                                std::move(proxy_config));
   base::RunLoop().RunUntilIdle();

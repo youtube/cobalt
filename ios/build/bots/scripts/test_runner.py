@@ -9,6 +9,7 @@ import signal
 import sys
 
 import collections
+import json
 import logging
 import os
 import psutil
@@ -16,15 +17,18 @@ import shutil
 import subprocess
 import threading
 import time
+from typing import List, Optional
 
 import constants
 import file_util
 import gtest_utils
+import mac_util
 import iossim_util
+import shard_util
 import test_apps
 from test_result_util import ResultCollection, TestResult, TestStatus
 import test_runner_errors
-import xcode_log_parser
+from xcode_log_parser import XcodeLogParser, Xcode16LogParser
 import xcode_util
 import xctest_utils
 
@@ -32,9 +36,10 @@ LOGGER = logging.getLogger(__name__)
 DERIVED_DATA = os.path.expanduser('~/Library/Developer/Xcode/DerivedData')
 DEFAULT_TEST_REPO = 'https://chromium.googlesource.com/chromium/src'
 HOST_IS_DOWN_ERROR = 'Domain=NSPOSIXErrorDomain Code=64 "Host is down"'
+MIG_SERVER_DIED_ERROR = '(ipc/mig) server died'
 
 
-# TODO(crbug.com/1077277): Move commonly used error classes to
+# TODO(crbug.com/40129082): Move commonly used error classes to
 # test_runner_errors module.
 class TestRunnerError(test_runner_errors.Error):
   """Base class for TestRunner-related errors."""
@@ -120,32 +125,13 @@ class XCTestPlugInNotFoundError(TestRunnerError):
         'XCTest not found: %s' % xctest_path)
 
 
-class MacToolchainNotFoundError(TestRunnerError):
-  """The mac_toolchain is not specified."""
-  def __init__(self, mac_toolchain):
-    super(MacToolchainNotFoundError, self).__init__(
-        'mac_toolchain is not specified or not found: "%s"' % mac_toolchain)
-
-
-class XcodePathNotFoundError(TestRunnerError):
-  """The path to Xcode.app is not specified."""
-  def __init__(self, xcode_path):
-    super(XcodePathNotFoundError, self).__init__(
-        'xcode_path is not specified or does not exist: "%s"' % xcode_path)
-
-
-class ShardingDisabledError(TestRunnerError):
-  """Temporary error indicating that sharding is not yet implemented."""
-  def __init__(self):
-    super(ShardingDisabledError, self).__init__(
-      'Sharding has not been implemented!')
-
-
-class HostIsDownError(TestRunnerError):
-  """Simulator host is down, usually due to a corrupted runtime."""
+class ParallelSimDisabledError(TestRunnerError):
+  """Temporary error indicating that running tests in parallel on
+   simulator clones is not yet implemented."""
 
   def __init__(self):
-    super(HostIsDownError, self).__init__('Simulator host is down!')
+    super(ParallelSimDisabledError, self).__init__(
+        'Running in parallel on simulator clones has not been implemented!')
 
 
 def get_device_ios_version(udid):
@@ -225,7 +211,7 @@ def terminate_process(proc, proc_name):
     LOGGER.info('Error while killing a process: %s' % ex)
 
 
-# TODO(crbug.com/1044812): Moved print_process_output to utils class.
+# TODO(crbug.com/40115765): Moved print_process_output to utils class.
 def print_process_output(proc,
                          proc_name=None,
                          parser=None,
@@ -274,13 +260,6 @@ def print_process_output(proc,
     LOGGER.info(line)
     sys.stdout.flush()
 
-    # This is a temporary mitigation to surface this issue so that
-    # test runner can clear runtime cache for the next run.
-    # TODO(crbug.com/1370522): remove this workaround once the issue
-    # is resolved.
-    if HOST_IS_DOWN_ERROR in line:
-      raise HostIsDownError()
-
   if parser:
     parser.Finalize()
   LOGGER.debug('Finished print_process_output.')
@@ -312,10 +291,10 @@ def get_current_xcode_info():
   }
 
 
-def init_test_result_defaults():
+def init_test_result_defaults(is_eg_test=False):
   return {
       'version': 3,
-      'path_delimiter': '.',
+      'path_delimiter': '/' if is_eg_test else '.',
       'seconds_since_epoch': int(time.time()),
       # This will be overwritten when the tests complete successfully.
       'interrupted': True,
@@ -372,7 +351,7 @@ class TestRunner(object):
     self.out_dir = out_dir
     self.repeat_count = kwargs.get('repeat_count') or 1
     self.retries = kwargs.get('retries') or 0
-    self.shards = kwargs.get('shards') or 1
+    self.clones = kwargs.get('clones') or 1
     self.test_args = kwargs.get('test_args') or []
     self.test_cases = kwargs.get('test_cases') or []
     self.xctest_path = ''
@@ -393,7 +372,7 @@ class TestRunner(object):
       if not os.path.exists(self.xctest_path):
         raise XCTestPlugInNotFoundError(self.xctest_path)
 
-  # TODO(crbug.com/1185295): Move this method to a utils class.
+  # TODO(crbug.com/40172018): Move this method to a utils class.
   @staticmethod
   def remove_proxy_settings():
     """removes any proxy settings which may remain from a previous run."""
@@ -412,14 +391,14 @@ class TestRunner(object):
         subprocess.check_call(
             ['networksetup', '-setsocksfirewallproxystate', service, 'off'])
 
-  def get_launch_command(self, test_app, out_dir, destination, shards=1):
+  def get_launch_command(self, test_app, out_dir, destination, clones=1):
     """Returns the command that can be used to launch the test app.
 
     Args:
       test_app: An app that stores data about test required to run.
       out_dir: (str) A path for results.
       destination: (str) A destination of device/simulator.
-      shards: (int) How many shards the tests should be divided into.
+      clones: (int) How many simulator clones the tests should be divided over.
 
     Returns:
       A list of strings forming the command to launch the test.
@@ -484,7 +463,7 @@ class TestRunner(object):
 
   def wipe_derived_data(self):
     """Removes the contents of Xcode's DerivedData directory."""
-    if os.path.exists(DERIVED_DATA):
+    if os.path.exists(DERIVED_DATA) and not xcode_util.is_local_run():
       shutil.rmtree(DERIVED_DATA)
       os.mkdir(DERIVED_DATA)
 
@@ -504,12 +483,15 @@ class TestRunner(object):
       if full_path.endswith('.xcresult') and os.path.isdir(full_path):
         xcresult_paths.append(full_path)
 
-    log_parser = xcode_log_parser.get_parser()
     for xcresult in xcresult_paths:
       # This is what was passed in -resultBundlePath to xcodebuild command.
       result_bundle_path = os.path.splitext(xcresult)[0]
-      log_parser.copy_artifacts(result_bundle_path)
-      log_parser.export_diagnostic_data(result_bundle_path)
+      if xcode_util.using_xcode_16_or_higher():
+        Xcode16LogParser.copy_artifacts(result_bundle_path)
+        Xcode16LogParser.export_diagnostic_data(result_bundle_path)
+      else:
+        XcodeLogParser.copy_artifacts(result_bundle_path)
+        XcodeLogParser.export_diagnostic_data(result_bundle_path)
       # result_bundle_path is a symlink to xcresult directory.
       if os.path.islink(result_bundle_path):
         os.unlink(result_bundle_path)
@@ -553,7 +535,7 @@ class TestRunner(object):
     LOGGER.warning('Sigterm caught during test run. Killing test process.')
     proc.kill()
 
-  def _run(self, cmd, shards=1):
+  def _run(self, cmd, clones=1):
     """Runs the specified command, parsing GTest output.
 
     Args:
@@ -564,8 +546,8 @@ class TestRunner(object):
     """
     parser = gtest_utils.GTestLogParser()
 
-    # TODO(crbug.com/812705): Implement test sharding for unit tests.
-    # TODO(crbug.com/812712): Use thread pool for DeviceTestRunner as well.
+    # TODO(crbug.com/41370857): Implement test sharding for unit tests.
+    # TODO(crbug.com/41370858): Use thread pool for DeviceTestRunner as well.
     proc = self.start_proc(cmd)
     old_handler = self.set_sigterm_handler(
         lambda _signum, _frame: self.handle_sigterm(proc))
@@ -583,7 +565,7 @@ class TestRunner(object):
 
     LOGGER.info('Populating test location info for test results...')
     if isinstance(self, SimulatorTestRunner):
-      # TODO(crbug.com/1091345): currently we have some tests suites that are
+      # TODO(crbug.com/40134137): currently we have some tests suites that are
       # written in ios_internal, so not all test repos are public. We should
       # figure out a way to identify test repo info depending on the test suite.
       parser.ParseAndPopulateTestResultLocations(DEFAULT_TEST_REPO,
@@ -620,9 +602,9 @@ class TestRunner(object):
     destination = 'id=%s' % self.udid
     test_app = self.get_launch_test_app()
     out_dir = os.path.join(self.out_dir, 'TestResults')
-    cmd = self.get_launch_command(test_app, out_dir, destination, self.shards)
+    cmd = self.get_launch_command(test_app, out_dir, destination, self.clones)
     try:
-      result = self._run(cmd=cmd, shards=self.shards or 1)
+      result = self._run(cmd=cmd, clones=self.clones or 1)
       if (result.crashed and not result.spawning_test_launcher and
           not result.crashed_tests()):
         # If the app crashed but not during any particular test case, assume
@@ -631,7 +613,7 @@ class TestRunner(object):
         LOGGER.warning('Crashed on startup, retrying...\n')
         out_dir = os.path.join(self.out_dir, 'retry_after_crash_on_startup')
         cmd = self.get_launch_command(test_app, out_dir, destination,
-                                      self.shards)
+                                      self.clones)
         result = self._run(cmd)
 
       result.report_to_result_sink()
@@ -651,6 +633,7 @@ class TestRunner(object):
           LOGGER.warning('Crashed during %s, resuming...\n',
                          list(result.crashed_tests()))
           test_app.excluded_tests = list(overall_result.all_test_names())
+          test_app.crashed_tests = list(result.crashed_tests())
           # Changing test filter will change selected gtests in this shard.
           # Thus, sharding env vars have to be cleared to ensure needed tests
           # are run. This means there might be duplicate same tests across
@@ -764,7 +747,7 @@ class SimulatorTestRunner(TestRunner):
     self.platform = platform
     self.start_time = None
     self.version = version
-    self.shards = kwargs.get('shards') or 1
+    self.clones = kwargs.get('clones') or 1
     self.udid = iossim_util.get_simulator(self.platform, self.version)
     self.use_clang_coverage = kwargs.get('use_clang_coverage') or False
 
@@ -796,6 +779,10 @@ class SimulatorTestRunner(TestRunner):
     """Wipes the simulator."""
     iossim_util.wipe_simulator_by_udid(self.udid)
 
+  def disable_hw_keyboard(self):
+    """Disables hardware keyboard input."""
+    iossim_util.disable_hardware_keyboard(self.udid)
+
   def get_home_directory(self):
     """Returns the simulator's home directory."""
     return iossim_util.get_home_directory(self.platform, self.version)
@@ -806,6 +793,7 @@ class SimulatorTestRunner(TestRunner):
     self.kill_simulators()
     self.wipe_simulator()
     self.wipe_derived_data()
+    self.disable_hw_keyboard()
     self.homedir = self.get_home_directory()
     # Crash reports have a timestamp in their file name, formatted as
     # YYYY-MM-DD-HHMMSS. Save the current time in the same format so
@@ -917,19 +905,19 @@ class SimulatorTestRunner(TestRunner):
     if udid:
       iossim_util.delete_simulator_by_udid(udid)
 
-  def get_launch_command(self, test_app, out_dir, destination, shards=1):
+  def get_launch_command(self, test_app, out_dir, destination, clones=1):
     """Returns the command that can be used to launch the test app.
 
     Args:
       test_app: An app that stores data about test required to run.
       out_dir: (str) A path for results.
       destination: (str) A destination of device/simulator.
-      shards: (int) How many shards the tests should be divided into.
+      clones: (int) How many simulator clones the tests should be divided over.
 
     Returns:
       A list of strings forming the command to launch the test.
     """
-    return test_app.command(out_dir, destination, shards)
+    return test_app.command(out_dir, destination, clones)
 
   def get_launch_env(self):
     """Returns a dict of environment variables to use to launch the test app.
@@ -1001,7 +989,9 @@ class DeviceTestRunner(TestRunner):
     self.restart = kwargs.get('restart') or False
 
   def uninstall_apps(self):
-    """Uninstalls all apps found on the device."""
+    """Uninstalls all apps found on the device unless a local run is detected"""
+    if xcode_util.is_local_run():
+      return
     for app in self.get_installed_packages():
       cmd = ['ideviceinstaller', '--udid', self.udid, '--uninstall', app]
       print_process_output(self.start_proc(cmd))
@@ -1022,6 +1012,7 @@ class DeviceTestRunner(TestRunner):
 
   def set_up(self):
     """Performs setup actions which must occur prior to every test launch."""
+    self.restart_usbmuxd()
     self.uninstall_apps()
     self.wipe_derived_data()
     self.install_app()
@@ -1042,9 +1033,9 @@ class DeviceTestRunner(TestRunner):
 
   def shutdown_and_restart(self):
     """Restart the device, wait for two minutes."""
-    # TODO(crbug.com/760399): swarming bot ios 11 devices turn to be unavailable
-    # in a few hours unexpectedly, which is assumed as an ios beta issue. Should
-    # remove this method once the bug is fixed.
+    # TODO(crbug.com/41341969): swarming bot ios 11 devices turn to be
+    # unavailable in a few hours unexpectedly, which is assumed as an ios beta
+    # issue. Should remove this method once the bug is fixed.
     if self.restart:
       LOGGER.info('Restarting device, wait for two minutes.')
       try:
@@ -1067,7 +1058,7 @@ class DeviceTestRunner(TestRunner):
     try:
       print_process_output(self.start_proc(cmd))
     except subprocess.CalledProcessError:
-      # TODO(crbug.com/828951): Raise the exception when the bug is fixed.
+      # TODO(crbug.com/41380784): Raise the exception when the bug is fixed.
       LOGGER.warning('Failed to retrieve crash reports from device.')
 
   def tear_down(self):
@@ -1078,20 +1069,20 @@ class DeviceTestRunner(TestRunner):
     self.retrieve_crash_reports()
     self.uninstall_apps()
 
-  def get_launch_command(self, test_app, out_dir, destination, shards=1):
+  def get_launch_command(self, test_app, out_dir, destination, clones=1):
     """Returns the command that can be used to launch the test app.
 
     Args:
       test_app: An app that stores data about test required to run.
       out_dir: (str) A path for results.
       destination: (str) A destination of device/simulator.
-      shards: (int) How many shards the tests should be divided into.
+      clones: (int) How many simulator clones the tests should be divided over.
 
     Returns:
       A list of strings forming the command to launch the test.
     """
     if self.xctest:
-      return test_app.command(out_dir, destination, shards)
+      return test_app.command(out_dir, destination, clones)
 
     cmd = [
       'idevice-app-runner',
@@ -1152,3 +1143,21 @@ class DeviceTestRunner(TestRunner):
         env_vars=self.env_vars,
         repeat_count=self.repeat_count,
         test_args=self.test_args)
+
+  # TODO(crbug.com/40277601): there's a bug in Xcode 15 such that the devices
+  # will get disconnected from Xcode after a reboot. We should revisit this
+  # later to see if Apple will resolve this issue. Moreover, if the issue is
+  # not resolved, we should aim to add some restrictions to this call such
+  # that stop_usbmuxd is not called every single time.
+  def restart_usbmuxd(self):
+    if xcode_util.using_xcode_15_or_higher():
+      LOGGER.warning(
+          "Restarting usbmuxd to ensure device is re-paired to Xcode...")
+      try:
+        mac_util.kill_usbmuxd()
+        # Sleep for 10 seconds to give time for usbmuxd to restart
+        # and device to be recognized by the OS
+        time.sleep(10)
+      except subprocess.CalledProcessError as e:
+        logging.exception('Unable to restart usbmuxd:')
+        logging.error(e)

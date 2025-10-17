@@ -5,11 +5,11 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_NEARBY_COMMON_SCHEDULING_NEARBY_ON_DEMAND_SCHEDULER_H_
 #define CHROMEOS_ASH_COMPONENTS_NEARBY_COMMON_SCHEDULING_NEARBY_ON_DEMAND_SCHEDULER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/time/time.h"
 #include "chromeos/ash/components/nearby/common/scheduling/nearby_scheduler_base.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash::nearby {
 
@@ -22,13 +22,14 @@ class NearbyOnDemandScheduler : public NearbySchedulerBase {
                           const std::string& pref_name,
                           PrefService* pref_service,
                           OnRequestCallback callback,
+                          Feature logging_feature,
                           const base::Clock* clock);
 
   ~NearbyOnDemandScheduler() override;
 
  private:
-  // Return absl::nullopt so as not to schedule recurring requests.
-  absl::optional<base::TimeDelta> TimeUntilRecurringRequest(
+  // Return std::nullopt so as not to schedule recurring requests.
+  std::optional<base::TimeDelta> TimeUntilRecurringRequest(
       base::Time now) const override;
 };
 

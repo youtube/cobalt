@@ -2,15 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/credential_provider/gaiacp/win_http_url_fetcher.h"
 
 #include <Windows.h>
-#include <winhttp.h>
 
 #include <atlconv.h>
 #include <process.h>
+#include <winhttp.h>
 
 #include <string>
+#include <string_view>
 
 #include "base/base64.h"
 #include "base/containers/contains.h"
@@ -18,8 +24,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/memory/ptr_util.h"
-#include "base/strings/strcat.h"
-#include "base/strings/stringprintf.h"
+#include "base/strings/strcat_win.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
@@ -70,9 +75,9 @@ class HttpServiceRequest {
   // within the given |request_timeout|. If the background thread returns before
   // the timeout expires, it is guaranteed that a result can be returned and the
   // requester will delete itself.
-  absl::optional<base::Value> WaitForResponseFromHttpService(
+  std::optional<base::Value::Dict> WaitForResponseFromHttpService(
       const base::TimeDelta& request_timeout) {
-    absl::optional<base::Value> result;
+    std::optional<base::Value::Dict> result;
 
     // Start the thread and wait on its handle until |request_timeout| expires
     // or the thread finishes.
@@ -108,12 +113,12 @@ class HttpServiceRequest {
       return result;
     }
 
-    result = base::JSONReader::Read(
-        base::StringPiece(response_.data(), response_.size()),
+    result = base::JSONReader::ReadDict(
+        std::string_view(response_.data(), response_.size()),
         base::JSON_PARSE_CHROMIUM_EXTENSIONS |
             base::JSON_ALLOW_TRAILING_COMMAS);
-    if (!result || !result->is_dict()) {
-      LOGFN(ERROR) << "Failed to read json result from server response";
+    if (!result) {
+      LOGFN(ERROR) << "base::JSONReader::ReadDict failed";
       result.reset();
     }
 
@@ -304,8 +309,9 @@ HRESULT WinHttpUrlFetcher::Fetch(std::vector<char>* response) {
   // Open a connection to the server.
   ScopedWinHttpHandle connect;
   {
+    std::string host = url_.host();
     ScopedWinHttpHandle::Handle connect_tmp = ::WinHttpConnect(
-        session_.Get(), A2CW(url_.host().c_str()), INTERNET_DEFAULT_PORT, 0);
+        session_.Get(), A2CW(host.c_str()), INTERNET_DEFAULT_PORT, 0);
     if (!connect_tmp) {
       HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());
       LOGFN(ERROR) << "WinHttpConnect hr=" << putHR(hr);
@@ -329,11 +335,12 @@ HRESULT WinHttpUrlFetcher::Fetch(std::vector<char>* response) {
 
   {
     bool use_post = !body_.empty();
+    std::string path = url_.path();
+    std::string path_for_request = url_.PathForRequest();
     ScopedWinHttpHandle::Handle request = ::WinHttpOpenRequest(
         connect.Get(), use_post ? L"POST" : L"GET",
-        use_post ? A2CW(url_.path().c_str())
-                 : A2CW(url_.PathForRequest().c_str()),
-        nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES,
+        use_post ? A2CW(path.c_str()) : A2CW(path_for_request.c_str()), nullptr,
+        WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES,
         WINHTTP_FLAG_REFRESH | WINHTTP_FLAG_SECURE);
     if (!request) {
       HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());
@@ -348,7 +355,7 @@ HRESULT WinHttpUrlFetcher::Fetch(std::vector<char>* response) {
   for (const auto& kv : request_headers_) {
     const wchar_t* key = A2CW(kv.first.c_str());
     const wchar_t* value = A2CW(kv.second.c_str());
-    std::wstring header = base::StringPrintf(L"%ls: %ls", key, value);
+    std::wstring header = base::StrCat({key, L": ", value});
     if (!::WinHttpAddRequestHeaders(
             request_.Get(), header.c_str(), header.length(),
             WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE)) {
@@ -424,20 +431,30 @@ HRESULT WinHttpUrlFetcher::BuildRequestAndFetchResultFromHttpService(
     const base::Value::Dict& request_dict,
     const base::TimeDelta& request_timeout,
     unsigned int request_retries,
-    absl::optional<base::Value>* request_result) {
+    std::optional<base::Value::Dict>* request_result) {
   DCHECK(request_result);
 
   std::string request_body;
-  if (!base::JSONWriter::Write(request_dict, &request_body)) {
+  if (!request_dict.empty() &&
+      !base::JSONWriter::Write(request_dict, &request_body)) {
     LOGFN(ERROR) << "base::JSONWriter::Write failed";
+    return E_FAIL;
+  }
+  if ((request_dict.empty() && !request_body.empty()) ||
+      (!request_dict.empty() && request_body.empty())) {
+    LOGFN(ERROR) << "Mismatch between request dict and body";
     return E_FAIL;
   }
 
   for (unsigned int try_count = 0; try_count <= request_retries; ++try_count) {
     HttpServiceRequest* request = HttpServiceRequest::Create(
         request_url, access_token, headers, request_body, request_timeout);
-    if (!request)
+    if (!request) {
+      LOGFN(ERROR)
+          << "Could not create an HttpServiceRequest object. request url: "
+          << request_url.spec() << " request body: " << request_body;
       return E_FAIL;
+    }
 
     auto extracted_param =
         request->WaitForResponseFromHttpService(request_timeout);
@@ -445,15 +462,16 @@ HRESULT WinHttpUrlFetcher::BuildRequestAndFetchResultFromHttpService(
       continue;
 
     *request_result = std::move(extracted_param);
+
     const base::Value::Dict* error_detail =
-        (*request_result)->GetDict().FindDict(kErrorKeyInRequestResult);
+        (*request_result)->FindDict(kErrorKeyInRequestResult);
     if (!error_detail)
       return S_OK;
 
     LOGFN(ERROR) << "error: " << *error_detail;
 
     // If error code is known, retry only on retryable server errors.
-    absl::optional<int> error_code =
+    std::optional<int> error_code =
         error_detail->FindInt(kHttpErrorCodeKeyNameInResponse);
     if (error_code.has_value() &&
         !base::Contains(kRetryableHttpErrorCodes, error_code.value())) {
@@ -461,6 +479,7 @@ HRESULT WinHttpUrlFetcher::BuildRequestAndFetchResultFromHttpService(
     }
   }
 
+  LOGFN(ERROR) << "Unable to serve http service request";
   return E_FAIL;
 }
 

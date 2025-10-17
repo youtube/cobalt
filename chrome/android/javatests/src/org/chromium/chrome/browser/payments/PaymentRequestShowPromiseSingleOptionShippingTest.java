@@ -15,13 +15,13 @@ import org.junit.runner.RunWith;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.AutofillProfile;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.payments.PaymentRequestTestRule.AppPresence;
 import org.chromium.chrome.browser.payments.PaymentRequestTestRule.AppSpeed;
 import org.chromium.chrome.browser.payments.PaymentRequestTestRule.FactorySpeed;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
+import org.chromium.components.autofill.AutofillProfile;
 
 import java.util.concurrent.TimeoutException;
 
@@ -39,12 +39,30 @@ public class PaymentRequestShowPromiseSingleOptionShippingTest {
     @Before
     public void setUp() throws TimeoutException {
         AutofillTestHelper autofillTestHelper = new AutofillTestHelper();
-        autofillTestHelper.setProfile(new AutofillProfile("", "https://example.test", true,
-                "" /* honorific prefix */, "Jon Doe", "Google", "340 Main St", "California",
-                "Los Angeles", "", "90291", "", "US", "555-222-2222", "", "en-US"));
-        autofillTestHelper.setProfile(new AutofillProfile("", "https://example.test", true,
-                "" /* honorific prefix */, "Jane Smith", "Google", "340 Main St", "California",
-                "Los Angeles", "", "90291", "", "US", "555-111-1111", "", "en-US"));
+        autofillTestHelper.setProfile(
+                AutofillProfile.builder()
+                        .setFullName("Jon Doe")
+                        .setCompanyName("Google")
+                        .setStreetAddress("340 Main St")
+                        .setRegion("California")
+                        .setLocality("Los Angeles")
+                        .setPostalCode("90291")
+                        .setCountryCode("US")
+                        .setPhoneNumber("555-222-2222")
+                        .setLanguageCode("en-US")
+                        .build());
+        autofillTestHelper.setProfile(
+                AutofillProfile.builder()
+                        .setFullName("Jane Smith")
+                        .setCompanyName("Google")
+                        .setStreetAddress("340 Main St")
+                        .setRegion("California")
+                        .setLocality("Los Angeles")
+                        .setPostalCode("90291")
+                        .setCountryCode("US")
+                        .setPhoneNumber("555-111-1111")
+                        .setLanguageCode("en-US")
+                        .build());
     }
 
     @Test
@@ -53,7 +71,7 @@ public class PaymentRequestShowPromiseSingleOptionShippingTest {
     public void testFastApp() throws TimeoutException {
         mRule.addPaymentAppFactory(
                 "https://example.test", AppPresence.HAVE_APPS, FactorySpeed.FAST_FACTORY);
-        mRule.triggerUIAndWait("buy", mRule.getReadyToPay());
+        mRule.triggerUiAndWait("buy", mRule.getReadyToPay());
         Assert.assertEquals("USD $1.00", mRule.getOrderSummaryTotal());
         Assert.assertEquals("$0.00", mRule.getShippingOptionCostSummaryOnBottomSheet());
         mRule.clickInShippingAddressAndWait(R.id.payments_section, mRule.getReadyForInput());
@@ -66,9 +84,12 @@ public class PaymentRequestShowPromiseSingleOptionShippingTest {
     @MediumTest
     @Feature({"Payments"})
     public void testSlowApp() throws TimeoutException {
-        mRule.addPaymentAppFactory("https://example.test", AppPresence.HAVE_APPS,
-                FactorySpeed.SLOW_FACTORY, AppSpeed.SLOW_APP);
-        mRule.triggerUIAndWait("buy", mRule.getReadyToPay());
+        mRule.addPaymentAppFactory(
+                "https://example.test",
+                AppPresence.HAVE_APPS,
+                FactorySpeed.SLOW_FACTORY,
+                AppSpeed.SLOW_APP);
+        mRule.triggerUiAndWait("buy", mRule.getReadyToPay());
         Assert.assertEquals("USD $1.00", mRule.getOrderSummaryTotal());
         Assert.assertEquals("$0.00", mRule.getShippingOptionCostSummaryOnBottomSheet());
         mRule.clickInShippingAddressAndWait(R.id.payments_section, mRule.getReadyForInput());

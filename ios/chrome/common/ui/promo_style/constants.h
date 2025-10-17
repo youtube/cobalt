@@ -7,6 +7,9 @@
 
 #import <Foundation/Foundation.h>
 
+// A11y Identifier for header view background image.
+extern NSString* const kPromoStyleHeaderViewBackgroundAccessibilityIdentifier;
+
 // A11y Identifier for title label.
 extern NSString* const kPromoStyleTitleAccessibilityIdentifier;
 
@@ -33,5 +36,12 @@ extern NSString* const kPromoStyleDisclaimerViewAccessibilityIdentifier;
 
 // A11y Identifier for the scroll view that contains all the labels and buttons.
 extern NSString* const kPromoStyleScrollViewAccessibilityIdentifier;
+
+// Default margin for the promo view controller.
+extern const CGFloat kPromoStyleDefaultMargin;
+// Margin below action buttons in the FRE, when the screen has a safe area.
+extern const CGFloat kActionsBottomMarginWithSafeArea;
+// Margin below action buttons in the FRE, when the screen has no a safe area.
+extern const CGFloat kActionsBottomMarginWithoutSafeArea;
 
 #endif  // IOS_CHROME_COMMON_UI_PROMO_STYLE_CONSTANTS_H_

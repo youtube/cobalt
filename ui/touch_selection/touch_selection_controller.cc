@@ -8,9 +8,10 @@
 
 #include "base/auto_reset.h"
 #include "base/check_op.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/notreached.h"
+#include "build/build_config.h"
+#include "ui/touch_selection/touch_selection_metrics.h"
 
 namespace ui {
 namespace {
@@ -36,11 +37,12 @@ TouchHandleOrientation ToTouchHandleOrientation(
       return TouchHandleOrientation::RIGHT;
     case gfx::SelectionBound::CENTER:
       return TouchHandleOrientation::CENTER;
+    case gfx::SelectionBound::HIDDEN:
+      return TouchHandleOrientation::UNDEFINED;
     case gfx::SelectionBound::EMPTY:
       return TouchHandleOrientation::UNDEFINED;
   }
   NOTREACHED() << "Invalid selection bound type: " << type;
-  return TouchHandleOrientation::UNDEFINED;
 }
 
 }  // namespace
@@ -72,9 +74,7 @@ void TouchSelectionController::OnSelectionBoundsChanged(
   if (start == start_ && end_ == end)
     return;
 
-  if (start.type() == gfx::SelectionBound::EMPTY ||
-      end.type() == gfx::SelectionBound::EMPTY ||
-      !show_touch_handles_) {
+  if (!start.HasHandle() || !end.HasHandle() || !show_touch_handles_) {
     HideHandles();
     return;
   }
@@ -179,8 +179,9 @@ bool TouchSelectionController::WillHandleTouchEvent(const MotionEvent& event) {
   // Ideally we should consume until the final Action::UP/Action::CANCEL.
   // But, apparently, we can't reliably determine the final Action::CANCEL in a
   // multi-touch scenario. See https://crbug.com/653212.
-  if (event.GetAction() == MotionEvent::Action::DOWN)
+  if (event.GetAction() == MotionEvent::Action::DOWN) {
     consume_touch_sequence_ = handled;
+  }
   return handled || consume_touch_sequence_;
 }
 
@@ -198,6 +199,16 @@ void TouchSelectionController::HandleLongPressEvent(
     const gfx::PointF& location) {
   longpress_drag_selector_.OnLongPressEvent(event_time, location);
   response_pending_input_event_ = LONG_PRESS;
+  drag_selector_initiating_gesture_ = DragSelectorInitiatingGesture::kLongPress;
+}
+
+void TouchSelectionController::HandleDoublePressEvent(
+    base::TimeTicks event_time,
+    const gfx::PointF& location) {
+  longpress_drag_selector_.OnDoublePressEvent(event_time, location);
+  response_pending_input_event_ = LONG_PRESS;
+  drag_selector_initiating_gesture_ =
+      DragSelectorInitiatingGesture::kDoublePress;
 }
 
 void TouchSelectionController::OnScrollBeginEvent() {
@@ -213,6 +224,24 @@ void TouchSelectionController::OnScrollBeginEvent() {
   longpress_drag_selector_.OnScrollBeginEvent();
   response_pending_input_event_ = INPUT_EVENT_TYPE_NONE;
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void TouchSelectionController::OnUpdateNativeViewTree(
+    gfx::NativeView parent_native_view,
+    cc::slim::Layer* parent_layer) {
+  if (insertion_handle_) {
+    insertion_handle_->OnUpdateNativeViewTree(parent_native_view, parent_layer);
+  }
+  if (start_selection_handle_) {
+    start_selection_handle_->OnUpdateNativeViewTree(parent_native_view,
+                                                    parent_layer);
+  }
+  if (end_selection_handle_) {
+    end_selection_handle_->OnUpdateNativeViewTree(parent_native_view,
+                                                  parent_layer);
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 void TouchSelectionController::HideHandles() {
   response_pending_input_event_ = INPUT_EVENT_TYPE_NONE;
@@ -247,6 +276,11 @@ bool TouchSelectionController::Animate(base::TimeTicks frame_time) {
   }
 
   return false;
+}
+
+const gfx::SelectionBound& TouchSelectionController::GetFocusBound() const {
+  DCHECK_NE(active_status_, INACTIVE);
+  return anchor_drag_to_selection_start_ ? start_ : end_;
 }
 
 gfx::RectF TouchSelectionController::GetRectBetweenBounds() const {
@@ -368,7 +402,6 @@ bool TouchSelectionController::WillHandleTouchEventImpl(
 
 void TouchSelectionController::OnSwipeToMoveCursorBegin() {
   if (config_.hide_active_handle) {
-    // Hide the handle when magnifier is showing since it can confuse the user.
     SetTemporarilyHidden(true);
 
     // If the user has typed something, the insertion handle might be hidden.
@@ -378,9 +411,10 @@ void TouchSelectionController::OnSwipeToMoveCursorBegin() {
 }
 
 void TouchSelectionController::OnSwipeToMoveCursorEnd() {
-  // Show the handle at the end if magnifier was showing.
-  if (config_.hide_active_handle)
+  if (config_.hide_active_handle) {
     SetTemporarilyHidden(false);
+  }
+  RecordTouchSelectionDrag(TouchSelectionDragType::kCursorDrag);
 }
 
 void TouchSelectionController::OnDragBegin(
@@ -465,10 +499,13 @@ void TouchSelectionController::OnDragUpdate(
 
 void TouchSelectionController::OnDragEnd(
     const TouchSelectionDraggable& draggable) {
-  if (&draggable == insertion_handle_.get())
+  if (&draggable == insertion_handle_.get()) {
     client_->OnSelectionEvent(INSERTION_HANDLE_DRAG_STOPPED);
-  else
+  } else {
     client_->OnSelectionEvent(SELECTION_HANDLE_DRAG_STOPPED);
+  }
+  LogDragType(draggable);
+  drag_selector_initiating_gesture_ = DragSelectorInitiatingGesture::kNone;
 }
 
 bool TouchSelectionController::IsWithinTapSlop(
@@ -512,6 +549,54 @@ gfx::PointF TouchSelectionController::GetSelectionStart() const {
 gfx::PointF TouchSelectionController::GetSelectionEnd() const {
   return GetEndPosition();
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void TouchSelectionController::HandleSwipeToMoveCursorGestureAck(
+    ui::EventType type,
+    const gfx::PointF& point,
+    const std::optional<bool>& cursor_control,
+    bool is_in_root_view) {
+  switch (type) {
+    case ui::EventType::kGestureScrollBegin: {
+      DCHECK(cursor_control.has_value());
+      if (!*cursor_control) {
+        break;
+      }
+      swipe_to_move_cursor_activated_ = true;
+      OnSwipeToMoveCursorBegin();
+      client_->OnSelectionEvent(ui::INSERTION_HANDLE_DRAG_STARTED);
+      break;
+    }
+    case ui::EventType::kGestureScrollUpdate: {
+      if (!is_in_root_view) {
+        break;
+      }
+      if (!swipe_to_move_cursor_activated_) {
+        break;
+      }
+      gfx::RectF rect = GetRectBetweenBounds();
+      // Suppress this when the input is not focused, in which case rect will be
+      // 0x0.
+      if (rect.width() != 0.f || rect.height() != 0.f) {
+        client_->OnDragUpdate(ui::TouchSelectionDraggable::Type::kNone,
+                              gfx::PointF(point.x(), rect.right_center().y()));
+      }
+      break;
+    }
+    case ui::EventType::kGestureScrollEnd: {
+      if (!swipe_to_move_cursor_activated_) {
+        break;
+      }
+      swipe_to_move_cursor_activated_ = false;
+      OnSwipeToMoveCursorEnd();
+      client_->OnSelectionEvent(ui::INSERTION_HANDLE_DRAG_STOPPED);
+      break;
+    }
+    default:
+      break;
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 void TouchSelectionController::OnInsertionChanged() {
   DeactivateSelection();
@@ -604,13 +689,8 @@ bool TouchSelectionController::ActivateSelectionIfNecessary() {
   if (active_status_ == INACTIVE ||
       response_pending_input_event_ == LONG_PRESS ||
       response_pending_input_event_ == REPEATED_TAP) {
-    if (active_status_ == SELECTION_ACTIVE) {
-      // The active selection session finishes with the start of the new one.
-      LogSelectionEnd();
-    }
     active_status_ = SELECTION_ACTIVE;
     selection_handle_dragged_ = false;
-    selection_start_time_ = base::TimeTicks::Now();
     response_pending_input_event_ = INPUT_EVENT_TYPE_NONE;
     longpress_drag_selector_.OnSelectionActivated();
     return true;
@@ -623,7 +703,6 @@ void TouchSelectionController::DeactivateSelection() {
     return;
   DCHECK(start_selection_handle_);
   DCHECK(end_selection_handle_);
-  LogSelectionEnd();
   longpress_drag_selector_.OnSelectionDeactivated();
   start_selection_handle_->SetEnabled(false);
   end_selection_handle_->SetEnabled(false);
@@ -685,16 +764,19 @@ TouchHandle::AnimationStyle TouchSelectionController::GetAnimationStyle(
              : TouchHandle::ANIMATION_NONE;
 }
 
-void TouchSelectionController::LogSelectionEnd() {
-  // TODO(mfomitchev): Once we are able to tell the difference between
-  // 'successful' and 'unsuccessful' selections - log
-  // Event.TouchSelection.Duration instead and get rid of
-  // Event.TouchSelectionD.WasDraggeduration.
-  if (selection_handle_dragged_) {
-    base::TimeDelta duration = base::TimeTicks::Now() - selection_start_time_;
-    UMA_HISTOGRAM_CUSTOM_TIMES("Event.TouchSelection.WasDraggedDuration",
-                               duration, base::Milliseconds(500),
-                               base::Seconds(60), 60);
+void TouchSelectionController::LogDragType(
+    const TouchSelectionDraggable& draggable) {
+  if (&draggable == insertion_handle_.get()) {
+    RecordTouchSelectionDrag(TouchSelectionDragType::kCursorHandleDrag);
+  } else if (&draggable == start_selection_handle_.get() ||
+             &draggable == end_selection_handle_.get()) {
+    RecordTouchSelectionDrag(TouchSelectionDragType::kSelectionHandleDrag);
+  } else if (drag_selector_initiating_gesture_ ==
+             DragSelectorInitiatingGesture::kLongPress) {
+    RecordTouchSelectionDrag(TouchSelectionDragType::kLongPressDrag);
+  } else if (drag_selector_initiating_gesture_ ==
+             DragSelectorInitiatingGesture::kDoublePress) {
+    RecordTouchSelectionDrag(TouchSelectionDragType::kDoublePressDrag);
   }
 }
 

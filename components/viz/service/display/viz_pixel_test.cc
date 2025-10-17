@@ -5,7 +5,6 @@
 #include "components/viz/service/display/viz_pixel_test.h"
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/base/ui_base_features.h"
 
 namespace viz {
@@ -15,8 +14,10 @@ cc::PixelTest::GraphicsBackend VizPixelTest::RenderTypeToBackend(
     RendererType renderer_type) {
   if (renderer_type == RendererType::kSkiaVk) {
     return GraphicsBackend::kSkiaVulkan;
-  } else if (renderer_type == RendererType::kSkiaGraphite) {
-    return GraphicsBackend::kSkiaGraphite;
+  } else if (renderer_type == RendererType::kSkiaGraphiteDawn) {
+    return GraphicsBackend::kSkiaGraphiteDawn;
+  } else if (renderer_type == RendererType::kSkiaGraphiteMetal) {
+    return GraphicsBackend::kSkiaGraphiteMetal;
   }
 
   return GraphicsBackend::kDefault;
@@ -32,7 +33,8 @@ void VizPixelTest::SetUp() {
       break;
     case RendererType::kSkiaGL:
     case RendererType::kSkiaVk:
-    case RendererType::kSkiaGraphite:
+    case RendererType::kSkiaGraphiteDawn:
+    case RendererType::kSkiaGraphiteMetal:
       SetUpSkiaRenderer(GetSurfaceOrigin());
       break;
   }

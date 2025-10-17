@@ -5,12 +5,16 @@
 #ifndef CONTENT_BROWSER_LOADER_NAVIGATION_EARLY_HINTS_MANAGER_H_
 #define CONTENT_BROWSER_LOADER_NAVIGATION_EARLY_HINTS_MANAGER_H_
 
+#include <optional>
+
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/callback_forward.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "content/common/content_export.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/isolation_info.h"
 #include "net/base/request_priority.h"
@@ -18,7 +22,6 @@
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/mojom/early_hints.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace blink {
@@ -78,9 +81,9 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
     PreloadedResource& operator=(const PreloadedResource&);
 
     // Completion error code. Set only when network request is completed.
-    absl::optional<int> error_code;
+    std::optional<int> error_code;
     // Optional CORS error details.
-    absl::optional<network::CorsErrorStatus> cors_error_status;
+    std::optional<network::CorsErrorStatus> cors_error_status;
     // True when the preload was canceled. When true, the response was already
     // in the disk cache.
     bool was_canceled = false;
@@ -89,7 +92,7 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
 
   NavigationEarlyHintsManager(BrowserContext& browser_context,
                               StoragePartition& storage_partition,
-                              int frame_tree_node_id,
+                              FrameTreeNodeId frame_tree_node_id,
                               NavigationEarlyHintsManagerParams params);
 
   ~NavigationEarlyHintsManager();
@@ -115,6 +118,10 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
 
   // True when there are at least one inflight preloads.
   bool HasInflightPreloads() const;
+
+  std::optional<base::TimeTicks> first_early_hints_receive_time() const {
+    return first_early_hints_receive_time_;
+  }
 
   void WaitForPreloadsFinishedForTesting(
       base::OnceCallback<void(PreloadedResources)> callback);
@@ -150,7 +157,7 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
 
   const raw_ref<BrowserContext> browser_context_;
   const raw_ref<StoragePartition> storage_partition_;
-  const int frame_tree_node_id_;
+  const FrameTreeNodeId frame_tree_node_id_;
   mojo::Remote<network::mojom::URLLoaderFactory> loader_factory_;
   // This needs to be declared last because it holds a pointer on
   // `loader_factory`, and thus needs to be destroyed before factory gets
@@ -186,7 +193,7 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
 
   // Set to true when HandleEarlyHints() is called for the first time. Used to
   // ignore following responses.
-  bool was_first_early_hints_received_ = false;
+  std::optional<base::TimeTicks> first_early_hints_receive_time_;
   // Set to true when preload or preconnect Link headers are received. Used for
   // metrics recording.
   bool was_resource_hints_received_ = false;
@@ -194,8 +201,8 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
   base::OnceCallback<void(PreloadedResources)>
       preloads_completion_callback_for_testing_;
 
-  raw_ptr<network::mojom::NetworkContext> network_context_for_testing_ =
-      nullptr;
+  raw_ptr<network::mojom::NetworkContext, DanglingUntriaged>
+      network_context_for_testing_ = nullptr;
 };
 
 }  // namespace content

@@ -4,12 +4,13 @@
 
 package org.chromium.components.browser_ui.widget.dragreorder;
 
-import androidx.annotation.VisibleForTesting;
+import org.chromium.build.annotations.NullMarked;
 
 /**
  * Responsible for keeping track of the drag state (whether drag is enabled, and if so, whether drag
  * is active).
  */
+@NullMarked
 public interface DragStateDelegate {
     /**
      * Gets whether drag is enabled. If true, the UI may enter a state where items can be dragged,
@@ -23,7 +24,4 @@ public interface DragStateDelegate {
      * dragged). Activating drag is only valid if drag is currently enabled.
      */
     boolean getDragActive();
-
-    @VisibleForTesting
-    void setA11yStateForTesting(boolean a11yEnabled);
 }

@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/fido/win/logging.h"
 
 #include <string>
+#include <string_view>
 
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/strings/string_util.h"
 #include "components/device_event_log/device_event_log.h"
 
@@ -17,14 +22,14 @@ constexpr char kSep[] = ", ";
 
 // Quoted wraps |in| in double quotes and backslash-escapes all other double
 // quote characters.
-std::string Quoted(base::StringPiece in) {
+std::string Quoted(std::string_view in) {
   std::string result;
   base::ReplaceChars(in, "\\", "\\\\", &result);
   base::ReplaceChars(result, "\"", "\\\"", &result);
   return "\"" + result + "\"";
 }
 
-std::wstring Quoted(base::WStringPiece in) {
+std::wstring Quoted(std::wstring_view in) {
   std::wstring result;
   base::ReplaceChars(in, L"\\", L"\\\\", &result);
   base::ReplaceChars(result, L"\"", L"\\\"", &result);
@@ -32,7 +37,7 @@ std::wstring Quoted(base::WStringPiece in) {
 }
 
 std::wstring Quoted(const wchar_t* in) {
-  return Quoted(base::WStringPiece(in ? in : L""));
+  return Quoted(std::wstring_view(in ? in : L""));
 }
 
 }  // namespace
@@ -259,4 +264,15 @@ std::ostream& operator<<(std::ostream& out, const WEBAUTHN_ASSERTION& in) {
     out << ", (null)";
   }
   return out << "}";
+}
+
+std::ostream& operator<<(std::ostream& out,
+                         const WEBAUTHN_GET_CREDENTIALS_OPTIONS& in) {
+  out << "{" << in.dwVersion << kSep;
+  if (in.pwszRpId) {
+    out << in.pwszRpId;
+  } else {
+    out << "(null)";
+  }
+  return out << kSep << in.bBrowserInPrivateMode << "}";
 }

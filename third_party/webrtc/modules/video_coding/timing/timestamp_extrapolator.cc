@@ -11,16 +11,23 @@
 #include "modules/video_coding/timing/timestamp_extrapolator.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <cstdlib>
+#include <optional>
 
-#include "absl/types/optional.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "rtc_base/numerics/sequence_number_unwrapper.h"
+#include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
 
 namespace {
 
+constexpr int kMinimumSamplesToLogEstimatedClockDrift =
+    3000;  // 100 seconds at 30 fps.
 constexpr double kLambda = 1;
-constexpr uint32_t kStartUpFilterDelayInPackets = 2;
+constexpr int kStartUpFilterDelayInPackets = 2;
 constexpr double kAlarmThreshold = 60e3;
 // in timestamp ticks, i.e. 15 ms
 constexpr double kAccDrift = 6600;
@@ -38,10 +45,20 @@ TimestampExtrapolator::TimestampExtrapolator(Timestamp start)
   Reset(start);
 }
 
+TimestampExtrapolator::~TimestampExtrapolator() {
+  if (packet_count_ >= kMinimumSamplesToLogEstimatedClockDrift) {
+    // Relative clock drift per million (ppm).
+    double clock_drift_ppm = 1e6 * (w_[0] - 90.0) / 90.0;
+    RTC_HISTOGRAM_COUNTS_100000("WebRTC.Video.EstimatedClockDrift_ppm",
+                                static_cast<int>(std::abs(clock_drift_ppm)));
+  }
+}
+
 void TimestampExtrapolator::Reset(Timestamp start) {
   start_ = start;
   prev_ = start_;
-  first_unwrapped_timestamp_ = absl::nullopt;
+  first_unwrapped_timestamp_ = std::nullopt;
+  prev_unwrapped_timestamp_ = std::nullopt;
   w_[0] = 90.0;
   w_[1] = 0;
   p_[0][0] = 1;
@@ -116,41 +133,45 @@ void TimestampExtrapolator::Update(Timestamp now, uint32_t ts90khz) {
       1 / kLambda * (p_[1][1] - (K[1] * t_ms * p_[0][1] + K[1] * p_[1][1]));
   p_[0][0] = p00;
   p_[0][1] = p01;
+
   prev_unwrapped_timestamp_ = unwrapped_ts90khz;
-  if (packet_count_ < kStartUpFilterDelayInPackets) {
+  if (packet_count_ < kStartUpFilterDelayInPackets ||
+      packet_count_ < kMinimumSamplesToLogEstimatedClockDrift) {
     packet_count_++;
   }
 }
 
-absl::optional<Timestamp> TimestampExtrapolator::ExtrapolateLocalTime(
+std::optional<Timestamp> TimestampExtrapolator::ExtrapolateLocalTime(
     uint32_t timestamp90khz) const {
   int64_t unwrapped_ts90khz = unwrapper_.PeekUnwrap(timestamp90khz);
 
   if (!first_unwrapped_timestamp_) {
-    return absl::nullopt;
-  } else if (packet_count_ < kStartUpFilterDelayInPackets) {
+    return std::nullopt;
+  }
+  if (packet_count_ < kStartUpFilterDelayInPackets) {
     constexpr double kRtpTicksPerMs = 90;
     TimeDelta diff = TimeDelta::Millis(
         (unwrapped_ts90khz - *prev_unwrapped_timestamp_) / kRtpTicksPerMs);
     if (prev_.us() + diff.us() < 0) {
       // Prevent the construction of a negative Timestamp.
       // This scenario can occur when the RTP timestamp wraps around.
-      return absl::nullopt;
+      return std::nullopt;
     }
     return prev_ + diff;
-  } else if (w_[0] < 1e-3) {
-    return start_;
-  } else {
-    double timestampDiff = unwrapped_ts90khz - *first_unwrapped_timestamp_;
-    TimeDelta diff = TimeDelta::Millis(
-        static_cast<int64_t>((timestampDiff - w_[1]) / w_[0] + 0.5));
-    if (start_.us() + diff.us() < 0) {
-      // Prevent the construction of a negative Timestamp.
-      // This scenario can occur when the RTP timestamp wraps around.
-      return absl::nullopt;
-    }
-    return start_ + diff;
   }
+  if (w_[0] < 1e-3) {
+    return start_;
+  }
+  double timestamp_diff =
+      static_cast<double>(unwrapped_ts90khz - *first_unwrapped_timestamp_);
+  TimeDelta diff = TimeDelta::Millis(
+      static_cast<int64_t>((timestamp_diff - w_[1]) / w_[0] + 0.5));
+  if (start_.us() + diff.us() < 0) {
+    // Prevent the construction of a negative Timestamp.
+    // This scenario can occur when the RTP timestamp wraps around.
+    return std::nullopt;
+  }
+  return start_ + diff;
 }
 
 bool TimestampExtrapolator::DelayChangeDetection(double error) {

@@ -13,7 +13,8 @@
 #include "base/sequence_checker.h"
 #include "base/time/clock.h"
 #include "base/time/default_clock.h"
-#include "chrome/browser/ash/login/app_mode/kiosk_launch_controller.h"
+#include "chrome/browser/ash/app_mode/kiosk_profile_load_failed_observer.h"
+#include "chrome/browser/ash/login/session/user_session_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_observer.h"
 #include "chromeos/ash/components/login/auth/auth_status_consumer.h"
@@ -21,7 +22,8 @@
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "components/account_id/account_id.h"
 #include "components/session_manager/core/session_manager_observer.h"
-#include "components/user_manager/user_manager_base.h"
+#include "components/user_manager/user_manager.h"
+#include "components/user_manager/user_manager_impl.h"
 
 namespace ash {
 class UserSessionManager;
@@ -33,15 +35,14 @@ class SessionManager;
 
 namespace policy {
 
-class ManagedSessionService
-    : public ash::AuthStatusConsumer,
-      public ash::KioskLaunchController::KioskProfileLoadFailedObserver,
-      public ash::SessionTerminationManager::Observer,
-      public ash::UserAuthenticatorObserver,
-      public chromeos::PowerManagerClient::Observer,
-      public ProfileObserver,
-      public session_manager::SessionManagerObserver,
-      public user_manager::UserManager::Observer {
+class ManagedSessionService : public ash::AuthStatusConsumer,
+                              public ash::KioskProfileLoadFailedObserver,
+                              public ash::SessionTerminationManager::Observer,
+                              public ash::UserAuthenticatorObserver,
+                              public chromeos::PowerManagerClient::Observer,
+                              public ProfileObserver,
+                              public session_manager::SessionManagerObserver,
+                              public user_manager::UserManager::Observer {
  public:
   class Observer : public base::CheckedObserver {
    public:
@@ -114,10 +115,8 @@ class ManagedSessionService
   // chromeos::PowerManagerClient::Observer
   void SuspendDone(base::TimeDelta sleep_duration) override;
 
-  void OnPasswordChangeDetectedLegacy(
-      const ash::UserContext& user_context) override {}
-  void OnPasswordChangeDetected(
-      std::unique_ptr<ash::UserContext> user_context) override {}
+  void OnOnlinePasswordUnusable(std::unique_ptr<ash::UserContext> user_context,
+                                bool) override {}
   void OnPasswordChangeDetectedFor(const AccountId& account) override {}
   void OnOldEncryptionDetected(std::unique_ptr<ash::UserContext> user_context,
                                bool has_incomplete_migration) override {}
@@ -138,12 +137,11 @@ class ManagedSessionService
 
   bool is_logged_in_observed_ = false;
 
-  raw_ptr<base::Clock, ExperimentalAsh> clock_;
+  raw_ptr<base::Clock> clock_;
 
   base::ObserverList<Observer> observers_;
 
-  const raw_ptr<session_manager::SessionManager, ExperimentalAsh>
-      session_manager_;
+  const raw_ptr<session_manager::SessionManager> session_manager_;
 
   base::ScopedMultiSourceObservation<Profile, ProfileObserver>
       profile_observations_{this};

@@ -2,6 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
+#include <array>
+
 // This is a copy of url/url_canon_ip.cc circa 2023. It should be used only by
 // components/feedback/redaction_tool/.
 // We need a copy because the components/feedback/redaction_tool source code is
@@ -153,7 +160,7 @@ CanonHostInfo::Family DoIPv4AddressToNumber(const CHAR* spec,
   // populated front to back, with the first one corresponding to the last
   // component, which allows for early exit if the last component isn't a
   // number.
-  uint32_t component_values[4];
+  std::array<uint32_t, 4> component_values;
   int existing_components = 0;
 
   int current_component_end = host.end();
@@ -274,7 +281,7 @@ struct IPv6Parsed {
   }
 
   // There can be up to 8 hex components (colon separated) in the literal.
-  Component hex_components[8];
+  std::array<Component, 8> hex_components;
 
   // The count of hex components present. Ranges from [0,8].
   int num_hex_components;

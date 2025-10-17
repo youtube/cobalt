@@ -51,16 +51,16 @@ char kLSanDefaultSuppressions[] =
 
     // rtc_unittest
     // https://code.google.com/p/webrtc/issues/detail?id=3827 for details.
-    "leak:rtc::unstarted_task_test_DoNotDeleteTask2_Test::TestBody\n"
-    "leak:rtc::HttpServer::HandleConnection\n"
-    "leak:rtc::HttpServer::Connection::onHttpHeaderComplete\n"
-    "leak:rtc::HttpResponseData::set_success\n"
-    "leak:rtc::HttpData::changeHeader\n"
+    "leak:webrtc::unstarted_task_test_DoNotDeleteTask2_Test::TestBody\n"
+    "leak:webrtc::HttpServer::HandleConnection\n"
+    "leak:webrtc::HttpServer::Connection::onHttpHeaderComplete\n"
+    "leak:webrtc::HttpResponseData::set_success\n"
+    "leak:webrtc::HttpData::changeHeader\n"
     // https://code.google.com/p/webrtc/issues/detail?id=4149 for details.
     "leak:StartDNSLookup\n"
 
     // rtc_media_unittests
-    "leak:cricket::FakeNetworkInterface::SetOption\n"
+    "leak:webrtc::FakeNetworkInterface::SetOption\n"
     "leak:CodecTest_TestCodecOperators_Test::TestBody\n"
     "leak:VideoEngineTest*::ConstrainNewCodecBody\n"
     "leak:VideoMediaChannelTest*::AddRemoveRecvStreams\n"
@@ -73,9 +73,7 @@ char kLSanDefaultSuppressions[] =
 
     // peerconnection_unittests
     // https://code.google.com/p/webrtc/issues/detail?id=2528
-    "leak:cricket::FakeVideoMediaChannel::~FakeVideoMediaChannel\n"
-    "leak:cricket::MediaSessionDescriptionFactory::CreateAnswer\n"
-    "leak:cricket::MediaSessionDescriptionFactory::CreateOffer\n"
+    "leak:webrtc::FakeVideoMediaChannel::~FakeVideoMediaChannel\n"
     "leak:DtmfSenderTest_InsertEmptyTonesToCancelPreviousTask_Test::TestBody\n"
     "leak:sigslot::_signal_base2*::~_signal_base2\n"
     "leak:testing::internal::CmpHelperEQ\n"
@@ -83,8 +81,6 @@ char kLSanDefaultSuppressions[] =
     "leak:webrtc::AudioDeviceLinuxALSA::InitSpeaker\n"
     "leak:webrtc::CreateIceCandidate\n"
     "leak:webrtc::WebRtcIdentityRequestObserver::OnSuccess\n"
-    "leak:webrtc::WebRtcSessionDescriptionFactory::InternalCreateAnswer\n"
-    "leak:webrtc::WebRtcSessionDescriptionFactory::InternalCreateOffer\n"
     "leak:PeerConnectionInterfaceTest_SsrcInOfferAnswer_Test::TestBody\n"
     "leak:PeerConnectionInterfaceTest_CloseAndTestMethods_Test::TestBody\n"
     "leak:WebRtcSdpTest::TestDeserializeRtcpFb\n"

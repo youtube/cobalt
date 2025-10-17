@@ -10,20 +10,18 @@ OverlayAgent::OverlayAgent(DOMAgent* dom_agent) : dom_agent_(dom_agent) {
   DCHECK(dom_agent_);
 }
 
-OverlayAgent::~OverlayAgent() {}
+OverlayAgent::~OverlayAgent() = default;
 
 protocol::Response OverlayAgent::setInspectMode(
     const protocol::String& in_mode,
-    protocol::Maybe<protocol::Overlay::HighlightConfig> in_highlightConfig) {
+    std::unique_ptr<protocol::Overlay::HighlightConfig> in_highlightConfig) {
   NOTREACHED();
-  return protocol::Response::Success();
 }
 
 protocol::Response OverlayAgent::highlightNode(
     std::unique_ptr<protocol::Overlay::HighlightConfig> highlight_config,
-    protocol::Maybe<int> node_id) {
+    std::optional<int> node_id) {
   NOTREACHED();
-  return protocol::Response::Success();
 }
 
 protocol::Response OverlayAgent::hideHighlight() {

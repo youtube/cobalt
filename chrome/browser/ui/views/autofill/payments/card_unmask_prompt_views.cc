@@ -23,11 +23,13 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
-#include "ui/base/resource/resource_bundle.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/vector_icon_utils.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/bubble/bubble_frame_view.h"
@@ -51,14 +53,15 @@ CardUnmaskPromptViews::CardUnmaskPromptViews(
     : controller_(controller), web_contents_(web_contents->GetWeakPtr()) {
   UpdateButtons();
 
-  SetModalType(ui::MODAL_TYPE_CHILD);
+  SetModalType(ui::mojom::ModalType::kChild);
   set_fixed_width(views::LayoutProvider::Get()->GetDistanceMetric(
       views::DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH));
 }
 
 CardUnmaskPromptViews::~CardUnmaskPromptViews() {
-  if (controller_)
+  if (controller_) {
     controller_->OnUnmaskDialogClosed();
+  }
 }
 
 void CardUnmaskPromptViews::Show() {
@@ -84,7 +87,7 @@ void CardUnmaskPromptViews::DisableAndWaitForVerification() {
   progress_throbber_->Start();
   UpdateButtons();
   DialogModelChanged();
-  Layout();
+  DeprecatedLayoutImmediately();
 }
 
 void CardUnmaskPromptViews::GotVerificationResult(
@@ -114,8 +117,9 @@ void CardUnmaskPromptViews::GotVerificationResult(
         // For non-virtual cards, show a "Update card" link that triggers the UI
         // to update the expiration date. This isn't relevant for virtual cards
         // since they never expire.
-        if (!controller_->IsVirtualCard())
+        if (!controller_->IsVirtualCard()) {
           ShowNewCardLink();
+        }
       }
 
       // TODO(estade): When do we hide |error_label_|?
@@ -125,6 +129,11 @@ void CardUnmaskPromptViews::GotVerificationResult(
 
       // Remove all child views. Since this is a permanent error we do not
       // intend to return to a previous state.
+      // `RemoveAllChildViews()` destroys the views owned by the `overlay_`.
+      // Prevent dangling pointers by setting pointers to the overlay's children
+      // to null.
+      overlay_label_ = nullptr;
+      progress_throbber_ = nullptr;
       overlay_->RemoveAllChildViews();
 
       // Create and add the error icon.
@@ -140,7 +149,7 @@ void CardUnmaskPromptViews::GotVerificationResult(
       error_label->SetMultiLine(true);
 
       // Re-layout to correctly format the views on the overlay.
-      overlay_->Layout();
+      overlay_->DeprecatedLayoutImmediately();
 
       // If it is a virtual card retrieval failure, we will need to update the
       // window title.
@@ -153,7 +162,7 @@ void CardUnmaskPromptViews::GotVerificationResult(
   // Since we may have affected the layout of the button row, we retrigger a
   // layout of the whole dialog (contents and button row).
   InvalidateLayout();
-  parent()->Layout();
+  parent()->DeprecatedLayoutImmediately();
 }
 
 void CardUnmaskPromptViews::SetRetriableErrorMessage(
@@ -171,7 +180,7 @@ void CardUnmaskPromptViews::SetRetriableErrorMessage(
                          ->GetWebContentsModalDialogHost());
   }
 
-  Layout();
+  DeprecatedLayoutImmediately();
 }
 
 void CardUnmaskPromptViews::SetInputsEnabled(bool enabled) {
@@ -181,8 +190,9 @@ void CardUnmaskPromptViews::SetInputsEnabled(bool enabled) {
 }
 
 void CardUnmaskPromptViews::ShowNewCardLink() {
-  if (new_card_link_)
+  if (new_card_link_) {
     return;
+  }
 
   auto new_card_link = std::make_unique<views::Link>(
       l10n_util::GetStringUTF16(IDS_AUTOFILL_CARD_UNMASK_NEW_CARD_LINK));
@@ -198,8 +208,8 @@ views::View* CardUnmaskPromptViews::GetContentsView() {
 
 void CardUnmaskPromptViews::AddedToWidget() {
   GetBubbleFrameView()->SetTitleView(
-      std::make_unique<TitleWithIconAndSeparatorView>(
-          GetWindowTitle(), TitleWithIconAndSeparatorView::Icon::GOOGLE_PAY));
+      std::make_unique<TitleWithIconAfterLabelView>(
+          GetWindowTitle(), TitleWithIconAfterLabelView::Icon::GOOGLE_PAY));
 }
 
 std::u16string CardUnmaskPromptViews::GetWindowTitle() const {
@@ -207,11 +217,12 @@ std::u16string CardUnmaskPromptViews::GetWindowTitle() const {
 }
 
 bool CardUnmaskPromptViews::IsDialogButtonEnabled(
-    ui::DialogButton button) const {
-  if (button == ui::DIALOG_BUTTON_CANCEL)
+    ui::mojom::DialogButton button) const {
+  if (button == ui::mojom::DialogButton::kCancel) {
     return true;
+  }
 
-  DCHECK_EQ(ui::DIALOG_BUTTON_OK, button);
+  DCHECK_EQ(ui::mojom::DialogButton::kOk, button);
 
   return cvc_input_->GetEnabled() &&
          controller_->InputCvcIsValid(cvc_input_->GetText()) &&
@@ -231,8 +242,9 @@ bool CardUnmaskPromptViews::Cancel() {
 }
 
 bool CardUnmaskPromptViews::Accept() {
-  if (!controller_)
+  if (!controller_) {
     return true;
+  }
 
   controller_->OnUnmaskPromptAccepted(
       cvc_input_->GetText(),
@@ -242,15 +254,17 @@ bool CardUnmaskPromptViews::Accept() {
       year_input_->GetVisible()
           ? year_input_->GetTextForRow(year_input_->GetSelectedIndex().value())
           : std::u16string(),
-      /*enable_fido_auth=*/false);
+      /*enable_fido_auth=*/false,
+      /*was_checkbox_visible=*/false);
   return false;
 }
 
 void CardUnmaskPromptViews::ContentsChanged(
     views::Textfield* sender,
     const std::u16string& new_contents) {
-  if (controller_->InputCvcIsValid(new_contents))
+  if (controller_->InputCvcIsValid(new_contents)) {
     cvc_input_->SetInvalid(false);
+  }
 
   UpdateButtons();
   DialogModelChanged();
@@ -278,10 +292,10 @@ void CardUnmaskPromptViews::DateChanged() {
 }
 
 void CardUnmaskPromptViews::InitIfNecessary() {
-  if (!children().empty())
+  if (!children().empty()) {
     return;
+  }
   ChromeLayoutProvider* provider = ChromeLayoutProvider::Get();
-  ui::ResourceBundle& rb = ui::ResourceBundle::GetSharedInstance();
 
   // The layout is a FillLayout that will contain the progress or error overlay
   // on top of the actual contents in |controls_container| (instructions, input
@@ -322,13 +336,13 @@ void CardUnmaskPromptViews::InitIfNecessary() {
   auto month_input = std::make_unique<views::Combobox>(&month_combobox_model_);
   month_input->SetCallback(base::BindRepeating(
       &CardUnmaskPromptViews::DateChanged, base::Unretained(this)));
-  month_input->SetAccessibleName(
+  month_input->GetViewAccessibility().SetName(
       l10n_util::GetStringUTF16(IDS_AUTOFILL_CARD_UNMASK_EXPIRATION_MONTH));
   month_input_ = input_row->AddChildView(std::move(month_input));
   auto year_input = std::make_unique<views::Combobox>(&year_combobox_model_);
   year_input->SetCallback(base::BindRepeating(
       &CardUnmaskPromptViews::DateChanged, base::Unretained(this)));
-  year_input->SetAccessibleName(
+  year_input->GetViewAccessibility().SetName(
       l10n_util::GetStringUTF16(IDS_AUTOFILL_CARD_UNMASK_EXPIRATION_YEAR));
   year_input_ = input_row->AddChildView(std::move(year_input));
   if (!controller_->ShouldRequestExpirationDate()) {
@@ -345,7 +359,7 @@ void CardUnmaskPromptViews::InitIfNecessary() {
     cvc_input->SetPlaceholderText(
         l10n_util::GetStringUTF16(IDS_AUTOFILL_DIALOG_PLACEHOLDER_CVC));
   }
-  cvc_input->SetAccessibleName(l10n_util::GetStringUTF16(
+  cvc_input->GetViewAccessibility().SetName(l10n_util::GetStringUTF16(
       IDS_AUTOFILL_DIALOG_ACCESSIBLE_NAME_SECURITY_CODE));
   cvc_input->SetDefaultWidthInChars(8);
   cvc_input->SetTextInputType(ui::TextInputType::TEXT_INPUT_TYPE_NUMBER);
@@ -353,7 +367,8 @@ void CardUnmaskPromptViews::InitIfNecessary() {
   cvc_input_ = input_row->AddChildView(std::move(cvc_input));
 
   auto cvc_image = std::make_unique<views::ImageView>();
-  cvc_image->SetImage(rb.GetImageSkiaNamed(controller_->GetCvcImageRid()));
+  cvc_image->SetImage(
+      ui::ImageModel::FromResourceId(controller_->GetCvcImageRid()));
   cvc_image->SetTooltipText(
       l10n_util::GetStringUTF16(controller_->GetCvcTooltipResourceId()));
   input_row->AddChildView(std::move(cvc_image));
@@ -396,22 +411,23 @@ void CardUnmaskPromptViews::InitIfNecessary() {
           .SetCrossAxisAlignment(views::BoxLayout::CrossAxisAlignment::kCenter)
           .SetVisible(false)
           .SetBackground(
-              views::CreateThemedSolidBackground(ui::kColorDialogBackground))
+              views::CreateSolidBackground(ui::kColorDialogBackground))
           .AddChildren(
               views::Builder<views::Throbber>().CopyAddressTo(
                   &progress_throbber_),
               views::Builder<views::Label>()
                   .CopyAddressTo(&overlay_label_)
-                  .SetBackgroundColorId(ui::kColorDialogBackground)
-                  .SetEnabledColorId(ui::kColorThrobber)
+                  .SetBackgroundColor(ui::kColorDialogBackground)
+                  .SetEnabledColor(ui::kColorThrobber)
                   .SetText(l10n_util::GetStringUTF16(
                       IDS_AUTOFILL_CARD_UNMASK_VERIFICATION_IN_PROGRESS)))
           .Build());
 }
 
 bool CardUnmaskPromptViews::ExpirationDateIsValid() const {
-  if (!controller_->ShouldRequestExpirationDate())
+  if (!controller_->ShouldRequestExpirationDate()) {
     return true;
+  }
 
   return controller_->InputExpirationIsValid(
       month_input_->GetTextForRow(month_input_->GetSelectedIndex().value()),
@@ -424,24 +440,24 @@ void CardUnmaskPromptViews::ClosePrompt() {
 
 void CardUnmaskPromptViews::UpdateButtons() {
   // In permanent error state, only the "close" button is shown.
-  AutofillClient::PaymentsRpcResult result =
-      controller_->GetVerificationResult();
-  bool has_ok =
-      result != AutofillClient::PaymentsRpcResult::kPermanentFailure &&
-      result != AutofillClient::PaymentsRpcResult::kNetworkError &&
-      result !=
-          AutofillClient::PaymentsRpcResult::kVcnRetrievalPermanentFailure &&
-      result != AutofillClient::PaymentsRpcResult::kVcnRetrievalTryAgainFailure;
+  using PaymentsRpcResult = payments::PaymentsAutofillClient::PaymentsRpcResult;
+  PaymentsRpcResult result = controller_->GetVerificationResult();
+  bool has_ok = result != PaymentsRpcResult::kPermanentFailure &&
+                result != PaymentsRpcResult::kNetworkError &&
+                result != PaymentsRpcResult::kVcnRetrievalPermanentFailure &&
+                result != PaymentsRpcResult::kVcnRetrievalTryAgainFailure;
 
-  SetButtons(has_ok ? ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL
-                    : ui::DIALOG_BUTTON_CANCEL);
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, controller_->GetOkButtonLabel());
+  SetButtons(has_ok ? static_cast<int>(ui::mojom::DialogButton::kOk) |
+                          static_cast<int>(ui::mojom::DialogButton::kCancel)
+                    : static_cast<int>(ui::mojom::DialogButton::kCancel));
+  SetButtonLabel(ui::mojom::DialogButton::kOk, controller_->GetOkButtonLabel());
 }
 
 void CardUnmaskPromptViews::LinkClicked() {
   controller_->NewCardLinkClicked();
-  for (views::View* child : input_row_->children())
+  for (views::View* child : input_row_->children()) {
     child->SetVisible(true);
+  }
 
   new_card_link_->SetVisible(false);
   input_row_->InvalidateLayout();
@@ -460,7 +476,7 @@ CardUnmaskPromptView* CreateCardUnmaskPromptView(
   return new CardUnmaskPromptViews(controller, web_contents);
 }
 
-BEGIN_METADATA(CardUnmaskPromptViews, views::BubbleDialogDelegateView)
+BEGIN_METADATA(CardUnmaskPromptViews)
 END_METADATA
 
 }  // namespace autofill

@@ -14,13 +14,13 @@
 #include "chrome/browser/ui/views/extensions/extensions_menu_view.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_button.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/hover_button_controller.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "extensions/common/extension_features.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/gfx/geometry/insets.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
-#include "ui/views/style/typography.h"
 
 ExtensionsMenuButton::ExtensionsMenuButton(
     Browser* browser,
@@ -36,15 +36,19 @@ ExtensionsMenuButton::ExtensionsMenuButton(
 ExtensionsMenuButton::~ExtensionsMenuButton() = default;
 
 void ExtensionsMenuButton::AddedToWidget() {
-  ConfigureBubbleMenuItem(this, 0);
+  if (base::FeatureList::IsEnabled(
+          extensions_features::kExtensionsMenuAccessControl)) {
+    SetFocusRingCornerRadius(
+        views::LayoutProvider::Get()->GetCornerRadiusMetric(
+            views::ShapeContextTokens::kExtensionsMenuButtonRadius));
+    SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
+  } else {
+    ConfigureBubbleMenuItem(this, 0);
+  }
   UpdateState();
 }
 
 // ToolbarActionViewDelegateViews:
-views::View* ExtensionsMenuButton::GetAsView() {
-  return this;
-}
-
 views::FocusManager* ExtensionsMenuButton::GetFocusManagerForAccelerator() {
   return GetFocusManager();
 }
@@ -71,24 +75,27 @@ void ExtensionsMenuButton::UpdateState() {
   SetTooltipText(controller_->GetTooltip(GetCurrentWebContents()));
   SetEnabled(controller_->IsEnabled(GetCurrentWebContents()));
 
-  // The vertical insets need to take into account the icon spacing, since this
-  // button's icon is larger, to align with others buttons heights.
-  const int vertical_inset =
-      provider->GetDistanceMetric(DISTANCE_EXTENSIONS_MENU_BUTTON_MARGIN) -
-      provider->GetDistanceMetric(DISTANCE_EXTENSIONS_MENU_ICON_SPACING);
-  // The horizontal insets reasonably align the extension icons with text inside
-  // the dialog with the default button margin.
-  const int horizontal_inset =
-      provider->GetDistanceMetric(DISTANCE_EXTENSIONS_MENU_BUTTON_MARGIN);
-  SetBorder(views::CreateEmptyBorder(
-      gfx::Insets::VH(vertical_inset, horizontal_inset)));
+  if (base::FeatureList::IsEnabled(
+          extensions_features::kExtensionsMenuAccessControl)) {
+    // Remove the button's border since we are adding margins in between menu
+    // items.
+    SetBorder(views::CreateEmptyBorder(gfx::Insets(0)));
+  } else {
+    // The vertical insets need to take into account the icon spacing, since
+    // this button's icon is larger, to align with others buttons heights. The
+    // horizontal insets was previously added to the parent view.
+    const int vertical_inset =
+        provider->GetDistanceMetric(DISTANCE_EXTENSIONS_MENU_BUTTON_MARGIN) -
+        provider->GetDistanceMetric(DISTANCE_EXTENSIONS_MENU_ICON_SPACING);
+    SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(vertical_inset, 0)));
+  }
 }
 
 void ExtensionsMenuButton::ShowContextMenuAsFallback() {
   // The items in the extensions menu are disabled and unclickable if the
   // primary action cannot be taken; ShowContextMenuAsFallback() should never
   // be called directly.
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
 void ExtensionsMenuButton::ButtonPressed() {
@@ -98,5 +105,5 @@ void ExtensionsMenuButton::ButtonPressed() {
       ToolbarActionViewController::InvocationSource::kMenuEntry);
 }
 
-BEGIN_METADATA(ExtensionsMenuButton, views::LabelButton)
+BEGIN_METADATA(ExtensionsMenuButton)
 END_METADATA

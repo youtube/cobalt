@@ -17,8 +17,8 @@ import java.util.List;
  * represents the parameters for this test method
  */
 public class ParameterizedFrameworkMethod extends FrameworkMethod {
-    private ParameterSet mParameterSet;
-    private String mName;
+    private final ParameterSet mParameterSet;
+    private final String mName;
 
     public ParameterizedFrameworkMethod(
             Method method, ParameterSet parameterSet, String classParameterSetName) {
@@ -51,8 +51,9 @@ public class ParameterizedFrameworkMethod extends FrameworkMethod {
             Collection<FrameworkMethod> frameworkMethods, String classParameterSetName) {
         List<FrameworkMethod> results = new ArrayList<>();
         for (FrameworkMethod frameworkMethod : frameworkMethods) {
-            results.add(new ParameterizedFrameworkMethod(
-                    frameworkMethod.getMethod(), null, classParameterSetName));
+            results.add(
+                    new ParameterizedFrameworkMethod(
+                            frameworkMethod.getMethod(), null, classParameterSetName));
         }
         return results;
     }
@@ -61,7 +62,8 @@ public class ParameterizedFrameworkMethod extends FrameworkMethod {
     public boolean equals(Object obj) {
         if (obj instanceof ParameterizedFrameworkMethod) {
             ParameterizedFrameworkMethod method = (ParameterizedFrameworkMethod) obj;
-            return super.equals(obj) && method.getParameterSet().equals(getParameterSet())
+            return super.equals(obj)
+                    && method.getParameterSet().equals(getParameterSet())
                     && method.getName().equals(getName());
         }
         return false;

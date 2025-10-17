@@ -40,9 +40,12 @@ namespace blink {
 
 static constexpr base::TimeDelta kAnimationFrameDelay = base::Hertz(60);
 
+bool IsolatedSVGChromeClient::IsIsolatedSVGChromeClient() const {
+  return true;
+}
+
 SVGImageChromeClient::SVGImageChromeClient(SVGImage* image)
-    : image_(image),
-      timeline_state_(kRunning) {}
+    : image_(image), timeline_state_(kRunning) {}
 
 void SVGImageChromeClient::InitAnimationTimer(
     scoped_refptr<base::SingleThreadTaskRunner> compositor_task_runner) {
@@ -52,19 +55,16 @@ void SVGImageChromeClient::InitAnimationTimer(
       &SVGImageChromeClient::AnimationTimerFired);
 }
 
-bool SVGImageChromeClient::IsSVGImageChromeClient() const {
-  return true;
-}
-
 void SVGImageChromeClient::ChromeDestroyed() {
   image_ = nullptr;
 }
 
 void SVGImageChromeClient::InvalidateContainer() {
-  // If image_->page_ is null, we're being destructed, so don't fire
+  // If image_->document_host_ is null, we're being destructed, so don't fire
   // |Changed()| in that case.
-  if (image_ && image_->GetImageObserver() && image_->page_)
+  if (image_ && image_->GetImageObserver() && image_->document_host_) {
     image_->GetImageObserver()->Changed(image_);
+  }
 }
 
 void SVGImageChromeClient::SuspendAnimation() {
@@ -85,7 +85,7 @@ void SVGImageChromeClient::ResumeAnimation() {
   // suspended, schedule a new animation frame.
   if (!have_pending_animation)
     return;
-  ScheduleAnimation(nullptr);
+  ChromeClient::ScheduleAnimation(nullptr);
 }
 
 void SVGImageChromeClient::RestoreAnimationIfNeeded() {
@@ -96,7 +96,8 @@ void SVGImageChromeClient::RestoreAnimationIfNeeded() {
 }
 
 void SVGImageChromeClient::ScheduleAnimation(const LocalFrameView*,
-                                             base::TimeDelta fire_time) {
+                                             base::TimeDelta fire_time,
+                                             bool urgent) {
   DCHECK(animation_timer_);
   // Because a single SVGImage can be shared by multiple pages, we can't key
   // our svg image layout on the page's real animation frame. Therefore, we

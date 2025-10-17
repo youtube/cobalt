@@ -10,19 +10,20 @@
 
 #include "common/WorkerThread.h"
 
+#include "common/angleutils.h"
+#include "common/system_utils.h"
+
 // Controls if our threading code uses std::async or falls back to single-threaded operations.
 // Note that we can't easily use std::async in UWPs due to UWP threading restrictions.
 #if !defined(ANGLE_STD_ASYNC_WORKERS) && !defined(ANGLE_ENABLE_WINDOWS_UWP)
-#    define ANGLE_STD_ASYNC_WORKERS ANGLE_ENABLED
+#    define ANGLE_STD_ASYNC_WORKERS 1
 #endif  // !defined(ANGLE_STD_ASYNC_WORKERS) && & !defined(ANGLE_ENABLE_WINDOWS_UWP)
 
-#if (ANGLE_DELEGATE_WORKERS == ANGLE_ENABLED) || (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
-#    include <condition_variable>
+#if ANGLE_DELEGATE_WORKERS || ANGLE_STD_ASYNC_WORKERS
 #    include <future>
-#    include <mutex>
 #    include <queue>
 #    include <thread>
-#endif  // (ANGLE_DELEGATE_WORKERS == ANGLE_ENABLED) || (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
+#endif  // ANGLE_DELEGATE_WORKERS || ANGLE_STD_ASYNC_WORKERS
 
 namespace angle
 {
@@ -36,27 +37,6 @@ bool WaitableEventDone::isReady()
 {
     return true;
 }
-
-// A waitable event that can be completed asynchronously
-class AsyncWaitableEvent final : public WaitableEvent
-{
-  public:
-    AsyncWaitableEvent()           = default;
-    ~AsyncWaitableEvent() override = default;
-
-    void wait() override;
-    bool isReady() override;
-
-    void markAsReady();
-
-  private:
-    // To protect the concurrent accesses from both main thread and background
-    // threads to the member fields.
-    std::mutex mMutex;
-
-    bool mIsReady = false;
-    std::condition_variable mCondition;
-};
 
 void AsyncWaitableEvent::markAsReady()
 {
@@ -83,13 +63,13 @@ WorkerThreadPool::~WorkerThreadPool() = default;
 class SingleThreadedWorkerPool final : public WorkerThreadPool
 {
   public:
-    std::shared_ptr<WaitableEvent> postWorkerTask(std::shared_ptr<Closure> task) override;
+    std::shared_ptr<WaitableEvent> postWorkerTask(const std::shared_ptr<Closure> &task) override;
     bool isAsync() override;
 };
 
 // SingleThreadedWorkerPool implementation.
 std::shared_ptr<WaitableEvent> SingleThreadedWorkerPool::postWorkerTask(
-    std::shared_ptr<Closure> task)
+    const std::shared_ptr<Closure> &task)
 {
     // Thread safety: This function is thread-safe because the task is run on the calling thread
     // itself.
@@ -102,7 +82,7 @@ bool SingleThreadedWorkerPool::isAsync()
     return false;
 }
 
-#if (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
+#if ANGLE_STD_ASYNC_WORKERS
 
 class AsyncWorkerPool final : public WorkerThreadPool
 {
@@ -111,7 +91,7 @@ class AsyncWorkerPool final : public WorkerThreadPool
 
     ~AsyncWorkerPool() override;
 
-    std::shared_ptr<WaitableEvent> postWorkerTask(std::shared_ptr<Closure> task) override;
+    std::shared_ptr<WaitableEvent> postWorkerTask(const std::shared_ptr<Closure> &task) override;
 
     bool isAsync() override;
 
@@ -166,7 +146,7 @@ void AsyncWorkerPool::createThreads()
     }
 }
 
-std::shared_ptr<WaitableEvent> AsyncWorkerPool::postWorkerTask(std::shared_ptr<Closure> task)
+std::shared_ptr<WaitableEvent> AsyncWorkerPool::postWorkerTask(const std::shared_ptr<Closure> &task)
 {
     // Thread safety: This function is thread-safe because access to |mTaskQueue| is protected by
     // |mMutex|.
@@ -185,6 +165,8 @@ std::shared_ptr<WaitableEvent> AsyncWorkerPool::postWorkerTask(std::shared_ptr<C
 
 void AsyncWorkerPool::threadLoop()
 {
+    angle::SetCurrentThreadName("ANGLE-Worker");
+
     while (true)
     {
         Task task;
@@ -205,6 +187,9 @@ void AsyncWorkerPool::threadLoop()
         // Note: always add an ANGLE_TRACE_EVENT* macro in the closure.  Then the job will show up
         // in traces.
         (*closure)();
+        // Release shared_ptr<Closure> before notifying the event to allow for destructor based
+        // dependencies (example: anglebug.com/42267099)
+        task.second.reset();
         waitable->markAsReady();
     }
 }
@@ -214,9 +199,9 @@ bool AsyncWorkerPool::isAsync()
     return true;
 }
 
-#endif  // (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
+#endif  // ANGLE_STD_ASYNC_WORKERS
 
-#if (ANGLE_DELEGATE_WORKERS == ANGLE_ENABLED)
+#if ANGLE_DELEGATE_WORKERS
 
 class DelegateWorkerPool final : public WorkerThreadPool
 {
@@ -224,7 +209,7 @@ class DelegateWorkerPool final : public WorkerThreadPool
     DelegateWorkerPool(PlatformMethods *platform) : mPlatform(platform) {}
     ~DelegateWorkerPool() override = default;
 
-    std::shared_ptr<WaitableEvent> postWorkerTask(std::shared_ptr<Closure> task) override;
+    std::shared_ptr<WaitableEvent> postWorkerTask(const std::shared_ptr<Closure> &task) override;
 
     bool isAsync() override;
 
@@ -237,7 +222,8 @@ class DelegateWorkerPool final : public WorkerThreadPool
 class DelegateWorkerTask
 {
   public:
-    DelegateWorkerTask(std::shared_ptr<Closure> task, std::shared_ptr<AsyncWaitableEvent> waitable)
+    DelegateWorkerTask(const std::shared_ptr<Closure> &task,
+                       std::shared_ptr<AsyncWaitableEvent> waitable)
         : mTask(task), mWaitable(waitable)
     {}
     DelegateWorkerTask()                     = delete;
@@ -260,8 +246,18 @@ class DelegateWorkerTask
     std::shared_ptr<AsyncWaitableEvent> mWaitable;
 };
 
-std::shared_ptr<WaitableEvent> DelegateWorkerPool::postWorkerTask(std::shared_ptr<Closure> task)
+ANGLE_NO_SANITIZE_CFI_ICALL
+std::shared_ptr<WaitableEvent> DelegateWorkerPool::postWorkerTask(
+    const std::shared_ptr<Closure> &task)
 {
+    if (mPlatform->postWorkerTask == nullptr)
+    {
+        // In the unexpected case where the platform methods have been changed during execution and
+        // postWorkerTask is no longer usable, simply run the task on the calling thread.
+        (*task)();
+        return std::make_shared<WaitableEventDone>();
+    }
+
     // Thread safety: This function is thread-safe because the |postWorkerTask| platform method is
     // expected to be thread safe.  For Chromium, that forwards the call to the |TaskTracker| class
     // in base/task/thread_pool/task_tracker.h which is thread-safe.
@@ -276,7 +272,7 @@ std::shared_ptr<WaitableEvent> DelegateWorkerPool::postWorkerTask(std::shared_pt
 
 bool DelegateWorkerPool::isAsync()
 {
-    return true;
+    return mPlatform->postWorkerTask != nullptr;
 }
 #endif
 
@@ -287,14 +283,14 @@ std::shared_ptr<WorkerThreadPool> WorkerThreadPool::Create(size_t numThreads,
     const bool multithreaded = numThreads != 1;
     std::shared_ptr<WorkerThreadPool> pool(nullptr);
 
-#if (ANGLE_DELEGATE_WORKERS == ANGLE_ENABLED)
+#if ANGLE_DELEGATE_WORKERS
     const bool hasPostWorkerTaskImpl = platform->postWorkerTask != nullptr;
     if (hasPostWorkerTaskImpl && multithreaded)
     {
         pool = std::shared_ptr<WorkerThreadPool>(new DelegateWorkerPool(platform));
     }
 #endif
-#if (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED)
+#if ANGLE_STD_ASYNC_WORKERS
     if (!pool && multithreaded)
     {
         pool = std::shared_ptr<WorkerThreadPool>(new AsyncWorkerPool(

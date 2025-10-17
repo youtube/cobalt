@@ -33,17 +33,19 @@ class CodeReference {
   Address instruction_start() const;
   Address instruction_end() const;
   int instruction_size() const;
-  const byte* relocation_start() const;
-  const byte* relocation_end() const;
+  const uint8_t* relocation_start() const;
+  const uint8_t* relocation_end() const;
   int relocation_size() const;
   Address code_comments() const;
   int code_comments_size() const;
+  Address jump_table_info() const;
+  int jump_table_info_size() const;
 
   bool is_null() const { return kind_ == Kind::NONE; }
   bool is_code() const { return kind_ == Kind::CODE; }
   bool is_wasm_code() const { return kind_ == Kind::WASM_CODE; }
 
-  Handle<Code> as_code() const {
+  DirectHandle<Code> as_code() const {
     DCHECK_EQ(Kind::CODE, kind_);
     return code_;
   }

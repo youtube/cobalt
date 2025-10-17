@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "ash/system/phonehub/phone_hub_ui_controller.h"
+
 #include <memory>
+#include <optional>
 
 #include "ash/constants/ash_features.h"
 #include "ash/shell.h"
@@ -21,7 +23,6 @@
 #include "chromeos/ash/components/phonehub/fake_tether_controller.h"
 #include "chromeos/ash/components/phonehub/phone_model_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/views/view.h"
 
 namespace ash {
@@ -35,31 +36,28 @@ constexpr char kScreenOnOpenedMetric[] =
     "PhoneHub.BubbleOpened.Connectable.Page";
 constexpr base::TimeDelta kConnectingViewGracePeriod = base::Seconds(40);
 
-class PhoneHubUiControllerTest : public AshTestBase,
+class PhoneHubUiControllerTest : public NoSessionAshTestBase,
                                  public PhoneHubUiController::Observer {
  public:
   PhoneHubUiControllerTest()
-      : AshTestBase(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
-    set_start_session(false);
-  }
+      : NoSessionAshTestBase(
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   ~PhoneHubUiControllerTest() override { controller_->RemoveObserver(this); }
 
-  // AshTestBase:
+  // NoSessionAshTestBase:
   void SetUp() override {
     feature_list_.InitWithFeatures(
         {features::kEcheSWA, features::kEcheNetworkConnectionState}, {});
 
-    AshTestBase::SetUp();
+    NoSessionAshTestBase::SetUp();
 
     handler_ = std::make_unique<eche_app::EcheConnectionStatusHandler>();
-    phone_hub_manager_.set_host_last_seen_timestamp(absl::nullopt);
+    phone_hub_manager_.set_host_last_seen_timestamp(std::nullopt);
     phone_hub_manager_.set_eche_connection_handler(handler_.get());
 
-    // Create user 1 session and simulate its login.
-    SimulateUserLogin(kUser1Email);
-    // Create user 2 session.
-    GetSessionControllerClient()->AddUserSession(kUser2Email);
+    // Log into usr1.
+    SimulateUserLogin({kUser1Email});
 
     controller_ = std::make_unique<PhoneHubUiController>();
     controller_->AddObserver(this);
@@ -70,12 +68,6 @@ class PhoneHubUiControllerTest : public AshTestBase,
 
     CHECK(ui_state_changed_);
     ui_state_changed_ = false;
-  }
-
-  void SetLoggedInUser(bool is_primary) {
-    const std::string& email = is_primary ? kUser1Email : kUser2Email;
-    GetSessionControllerClient()->SwitchActiveUser(
-        AccountId::FromUserEmail(email));
   }
 
   phonehub::FakeFeatureStatusProvider* GetFeatureStatusProvider() {
@@ -91,7 +83,7 @@ class PhoneHubUiControllerTest : public AshTestBase,
   }
 
   void SetPhoneStatusModel(
-      const absl::optional<phonehub::PhoneStatusModel>& phone_status_model) {
+      const std::optional<phonehub::PhoneStatusModel>& phone_status_model) {
     phone_hub_manager_.mutable_phone_model()->SetPhoneStatusModel(
         phone_status_model);
   }
@@ -118,8 +110,8 @@ class PhoneHubUiControllerTest : public AshTestBase,
   }
 
   std::unique_ptr<eche_app::EcheConnectionStatusHandler> handler_;
-  std::unique_ptr<PhoneHubUiController> controller_;
   phonehub::FakePhoneHubManager phone_hub_manager_;
+  std::unique_ptr<PhoneHubUiController> controller_;
   bool ui_state_changed_ = false;
 
  private:
@@ -263,7 +255,7 @@ TEST_F(PhoneHubUiControllerTest, TetherConnectionPending) {
   // Tether status is connected, the feature status is |kEnabledAndConnected|,
   // but there is no phone model. The UiState should still be
   // kTetherConnectionPending.
-  SetPhoneStatusModel(absl::nullopt);
+  SetPhoneStatusModel(std::nullopt);
   GetFeatureStatusProvider()->SetStatus(FeatureStatus::kEnabledAndConnected);
   EXPECT_EQ(PhoneHubUiController::UiState::kTetherConnectionPending,
             controller_->ui_state());
@@ -298,14 +290,14 @@ TEST_F(PhoneHubUiControllerTest, UnavailableScreenLocked) {
 TEST_F(PhoneHubUiControllerTest, UnavailableSecondaryUser) {
   base::HistogramTester histograms;
   // Simulate log in to secondary user.
-  SetLoggedInUser(false /* is_primary */);
+  SimulateUserLogin({kUser2Email});
   EXPECT_TRUE(ui_state_changed_);
   ui_state_changed_ = false;
   EXPECT_EQ(PhoneHubUiController::UiState::kHidden, controller_->ui_state());
   EXPECT_FALSE(OpenBubbleAndCreateView().get());
 
   // Switch back to primary user.
-  SetLoggedInUser(true /* is_primary */);
+  SwitchActiveUser(AccountId::FromUserEmail(kUser1Email));
   EXPECT_TRUE(ui_state_changed_);
   ui_state_changed_ = false;
   EXPECT_EQ(PhoneHubUiController::UiState::kPhoneConnecting,
@@ -317,7 +309,7 @@ TEST_F(PhoneHubUiControllerTest, ConnectedViewDelayed) {
   base::HistogramTester histograms;
   // Since there is no phone model, expect that we stay at the connecting screen
   // even though the feature status is kEnabledAndConnected.
-  SetPhoneStatusModel(absl::nullopt);
+  SetPhoneStatusModel(std::nullopt);
   GetFeatureStatusProvider()->SetStatus(FeatureStatus::kEnabledAndConnected);
   EXPECT_EQ(PhoneHubUiController::UiState::kPhoneConnecting,
             controller_->ui_state());

@@ -27,11 +27,13 @@ class AURA_EXPORT WindowObserver : public base::CheckedObserver {
       HIERARCHY_CHANGED
     };
 
-    raw_ptr<Window> target;  // The window that was added or removed.
-    raw_ptr<Window> new_parent;
-    raw_ptr<Window> old_parent;
+    raw_ptr<Window, DanglingUntriaged>
+        target;  // The window that was added or removed.
+    raw_ptr<Window, DanglingUntriaged> new_parent;
+    raw_ptr<Window, DanglingUntriaged> old_parent;
     HierarchyChangePhase phase;
-    raw_ptr<Window> receiver;  // The window receiving the notification.
+    raw_ptr<Window, DanglingUntriaged>
+        receiver;  // The window receiving the notification.
   };
 
   WindowObserver();
@@ -185,6 +187,13 @@ class AURA_EXPORT WindowObserver : public base::CheckedObserver {
   // Called when the window manager ends an interactive resize loop. This is not
   // called if the window is destroyed during the loop.
   virtual void OnResizeLoopEnded(Window* window) {}
+
+  // Called when the window manager starts an interactive window drag move.
+  virtual void OnMoveLoopStarted(Window* window) {}
+
+  // Called when the window manager ends an interactive window drag move. This
+  // is not called if the window is destroyed during the drag.
+  virtual void OnMoveLoopEnded(Window* window) {}
 
   // Called when the opaque regions for occlusion of |window| is changed.
   virtual void OnWindowOpaqueRegionsForOcclusionChanged(Window* window) {}

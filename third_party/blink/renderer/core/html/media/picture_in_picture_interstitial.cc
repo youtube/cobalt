@@ -133,20 +133,23 @@ Node::InsertionNotificationRequest PictureInPictureInterstitial::InsertedInto(
   return HTMLDivElement::InsertedInto(root);
 }
 
-void PictureInPictureInterstitial::RemovedFrom(ContainerNode&) {
+void PictureInPictureInterstitial::RemovedFrom(ContainerNode& insertion_point) {
   DCHECK(!GetVideoElement().isConnected());
 
   if (resize_observer_) {
     resize_observer_->disconnect();
     resize_observer_.Clear();
   }
+
+  HTMLDivElement::RemovedFrom(insertion_point);
 }
 
 void PictureInPictureInterstitial::NotifyElementSizeChanged(
     const DOMRectReadOnly& new_size) {
   message_element_->setAttribute(
-      "class", MediaControls::GetSizingCSSClass(
-                   MediaControls::GetSizingClass(new_size.width())));
+      html_names::kClassAttr,
+      MediaControls::GetSizingCSSClass(
+          MediaControls::GetSizingClass(new_size.width())));
 
   // Force a layout since |LayoutMedia::UpdateLayout()| will sometimes miss a
   // layout otherwise.

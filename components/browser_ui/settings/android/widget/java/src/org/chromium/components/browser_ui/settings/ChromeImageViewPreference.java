@@ -4,6 +4,8 @@
 
 package org.chromium.components.browser_ui.settings;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -13,11 +15,14 @@ import android.widget.ImageView;
 
 import androidx.annotation.ColorRes;
 import androidx.annotation.DrawableRes;
-import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
+import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * A preference that supports some Chrome-specific customizations:
@@ -32,43 +37,53 @@ import androidx.preference.PreferenceViewHolder;
  * customizations, however a custom widget may also be included as long as there is an ImageView
  * with the image_view_widget ID.
  */
+@NullMarked
 public class ChromeImageViewPreference extends Preference {
-    @Nullable
-    private ManagedPreferenceDelegate mManagedPrefDelegate;
+    private @Nullable ManagedPreferenceDelegate mManagedPrefDelegate;
 
     /** The onClick listener to handle click events for the ImageView widget. */
-    @Nullable
-    private View.OnClickListener mListener;
+    private View.@Nullable OnClickListener mListener;
+
     /** The image resource ID to use for the ImageView widget source. */
-    @DrawableRes
-    private int mImageRes;
+    @DrawableRes private int mImageRes;
+
     /** The color resource ID for tinting of ImageView widget. */
-    @ColorRes
-    private int mColorRes;
+    @ColorRes private int mColorRes;
+
     /** The color resource ID for tinting of the view's background. */
-    @ColorRes
-    private Integer mBackgroundColorRes;
-    /** The string resource ID to use for the ImageView widget content description. */
-    @StringRes
-    private int mContentDescriptionRes;
+    @ColorRes private @Nullable Integer mBackgroundColorRes;
+
+    /** The string to use for the ImageView widget content description. */
+    private @Nullable CharSequence mContentDescription;
+
     /** Whether the ImageView should be enabled. */
     private boolean mImageViewEnabled = true;
-    /** The ImageView Button. */
-    private ImageView mButton;
-    /** The View for this preference. */
-    private View mView;
 
-    /**
-     * Constructor for use in Java.
-     */
+    /** The ImageView Button. */
+    private @Nullable ImageView mButton;
+
+    /** The View for this preference. */
+    private @Nullable View mView;
+
+    /** The ints to set the ImageView padding. */
+    private int mImageViewLeftPadding;
+
+    private int mImageViewTopPadding;
+    private int mImageViewBottomPadding;
+    private int mImageViewRightPadding;
+
+    /** Whether the ImageView has any custom padding set. False by default. */
+    private boolean mImageViewCustomPadding;
+
+    /** Constructor for use in Java. */
     public ChromeImageViewPreference(Context context) {
         this(context, null);
+        // Set custom padding to false until user calls setImagePadding().
+        mImageViewCustomPadding = false;
     }
 
-    /**
-     * Constructor for inflating from XML.
-     */
-    public ChromeImageViewPreference(Context context, AttributeSet attrs) {
+    /** Constructor for inflating from XML. */
+    public ChromeImageViewPreference(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
 
         setWidgetLayoutResource(R.layout.preference_chrome_image_view);
@@ -76,13 +91,14 @@ public class ChromeImageViewPreference extends Preference {
         setImageColor(R.color.default_icon_color_tint_list);
     }
 
-    /**
-     * Sets the ManagedPreferenceDelegate which will determine whether this preference is managed.
-     */
+    /** Sets the ManagedPreferenceDelegate which will determine whether this preference is managed. */
     public void setManagedPreferenceDelegate(@Nullable ManagedPreferenceDelegate delegate) {
         mManagedPrefDelegate = delegate;
         ManagedPreferencesUtils.initPreference(
-                mManagedPrefDelegate, this, /*allowManagedIcon=*/false, /*hasCustomLayout=*/true);
+                mManagedPrefDelegate,
+                this,
+                /* allowManagedIcon= */ false,
+                /* hasCustomLayout= */ true);
     }
 
     @Override
@@ -106,22 +122,37 @@ public class ChromeImageViewPreference extends Preference {
     }
 
     /**
-     * Sets the Drawable resource ID, the String resource ID, and the OnClickListener for the
-     * ImageView widget's source, content description, and onClick, respectively.
+     * Sets the Drawable resource ID, the String, and the OnClickListener for the ImageView widget's
+     * source, content description, and onClick, respectively. Passing 0 as the Drawable resource ID
+     * will reset the image and related attributes to their default value.
      */
-    public void setImageView(@DrawableRes int imageRes, @StringRes int contentDescriptionRes,
-            @Nullable View.OnClickListener listener) {
+    public void setImageView(
+            @DrawableRes int imageRes,
+            @Nullable CharSequence contentDescription,
+            View.@Nullable OnClickListener listener) {
         mImageRes = imageRes;
-        mContentDescriptionRes = contentDescriptionRes;
+        mContentDescription = contentDescription;
         mListener = listener;
         configureImageView();
         notifyChanged();
     }
 
     /**
-     * Sets the Color resource ID which will be used to set the color of the image.
-     * @param colorRes
+     * Sets the Drawable resource ID, the String resource ID, and the OnClickListener for the
+     * ImageView widget's source, content description, and onClick, respectively. Passing 0 as the
+     * Drawable resource ID will reset the image and related attributes to their default value.
      */
+    public void setImageView(
+            @DrawableRes int imageRes,
+            @StringRes int contentDescriptionRes,
+            View.@Nullable OnClickListener listener) {
+        setImageView(
+                imageRes,
+                (contentDescriptionRes != 0) ? getContext().getString(contentDescriptionRes) : null,
+                listener);
+    }
+
+    /** Sets the Color resource ID which will be used to set the color of the image. */
     public void setImageColor(@ColorRes int colorRes) {
         if (mColorRes == colorRes) return;
 
@@ -129,24 +160,36 @@ public class ChromeImageViewPreference extends Preference {
         configureImageView();
     }
 
-    /**
-     * Sets the Color resource ID which will be used to set the color of the view.
-     * @param colorRes
-     */
+    /** Sets the the padding of the ImageView. */
+    public void setImagePadding(int left, int top, int right, int bottom) {
+        mImageViewLeftPadding = left;
+        mImageViewTopPadding = top;
+        mImageViewRightPadding = right;
+        mImageViewBottomPadding = bottom;
+        mImageViewCustomPadding = true;
+    }
+
+    /** Sets the Color resource ID which will be used to set the color of the view. */
     public void setBackgroundColor(@ColorRes int colorRes) {
         if (mBackgroundColorRes != null && mBackgroundColorRes == colorRes) return;
         mBackgroundColorRes = colorRes;
         updateBackground();
     }
 
-    /**
-     * Enables/Disables the ImageView, allowing for clicks to pass through (when disabled).
-     */
+    /** Enables/Disables the ImageView, allowing for clicks to pass through (when disabled). */
     public void setImageViewEnabled(boolean enabled) {
         if (mImageViewEnabled == enabled) return;
 
         mImageViewEnabled = enabled;
         configureImageView();
+    }
+
+    /**
+     * Enables/Disables whether the preference (row) view is clickable or not. Currently used for
+     * Zoom site setting.
+     */
+    public void setViewClickable(boolean enabled) {
+        assumeNonNull(mView).setClickable(enabled);
     }
 
     /**
@@ -161,16 +204,35 @@ public class ChromeImageViewPreference extends Preference {
     }
 
     private void configureImageView() {
-        if (mImageRes == 0 || mButton == null) return;
+        if (mButton == null) {
+            return;
+        }
+
+        if (mImageRes == 0) {
+            // Reset to default behavior. Especially useful for |onBindViewHolder|, so the |holder|
+            // doesn't inherit wrong recycled buttons.
+            mButton.setImageDrawable(null);
+            mButton.setPadding(0, 0, 0, 0);
+            mButton.setOnClickListener(null);
+            mButton.setContentDescription(null);
+            mButton.setClickable(false);
+            return;
+        }
 
         Drawable buttonImg = SettingsUtils.getTintedIcon(getContext(), mImageRes, mColorRes);
         mButton.setImageDrawable(buttonImg);
         mButton.setEnabled(mImageViewEnabled);
-
+        if (mImageViewCustomPadding) {
+            mButton.setPadding(
+                    mImageViewLeftPadding,
+                    mImageViewTopPadding,
+                    mImageViewRightPadding,
+                    mImageViewBottomPadding);
+        }
         if (mImageViewEnabled) mButton.setOnClickListener(mListener);
 
-        if (mContentDescriptionRes != 0) {
-            mButton.setContentDescription(mButton.getResources().getString(mContentDescriptionRes));
+        if (mContentDescription != null) {
+            mButton.setContentDescription(mContentDescription);
         }
     }
 
@@ -179,5 +241,10 @@ public class ChromeImageViewPreference extends Preference {
         mView.setBackgroundColor(
                 AppCompatResources.getColorStateList(getContext(), mBackgroundColorRes)
                         .getDefaultColor());
+    }
+
+    @VisibleForTesting
+    public @Nullable ImageView getButton() {
+        return mButton;
     }
 }

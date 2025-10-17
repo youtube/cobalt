@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <memory>
-
-#include "base/types/pass_key.h"
-#include "third_party/blink/renderer/modules/peerconnection/mock_rtc_peer_connection_handler_platform.h"
 #include "third_party/blink/renderer/modules/peerconnection/peer_connection_tracker.h"
 
+#include <memory>
+
 #include "base/run_loop.h"
+#include "base/types/pass_key.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/peerconnection/peer_connection_tracker.mojom-blink.h"
@@ -17,14 +16,20 @@
 #include "third_party/blink/renderer/modules/peerconnection/fake_rtc_rtp_transceiver_impl.h"
 #include "third_party/blink/renderer/modules/peerconnection/mock_peer_connection_dependency_factory.h"
 #include "third_party/blink/renderer/modules/peerconnection/mock_rtc_peer_connection_handler_client.h"
+#include "third_party/blink/renderer/modules/peerconnection/mock_rtc_peer_connection_handler_platform.h"
 #include "third_party/blink/renderer/modules/peerconnection/rtc_peer_connection_handler.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_offer_options_platform.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_rtp_receiver_platform.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_rtp_sender_platform.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_rtp_transceiver_platform.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 using ::testing::_;
+using ::testing::ElementsAre;
+using ::testing::Invoke;
+
+using PeerConnectionInfoPtr = ::blink::mojom::blink::PeerConnectionInfoPtr;
 
 namespace blink {
 
@@ -64,15 +69,14 @@ class MockPeerConnectionTrackerHost
                void(int, const String&, const String&, const String&));
   MOCK_METHOD3(GetDisplayMediaFailure, void(int, const String&, const String&));
   MOCK_METHOD2(WebRtcEventLogWrite, void(int, const Vector<uint8_t>&));
+  MOCK_METHOD2(WebRtcDataChannelLogWrite, void(int, const Vector<uint8_t>&));
   MOCK_METHOD2(AddStandardStats, void(int, base::Value::List));
-  MOCK_METHOD2(AddLegacyStats, void(int, base::Value::List));
 
-  mojo::Remote<blink::mojom::blink::PeerConnectionTrackerHost>
+  mojo::PendingRemote<blink::mojom::blink::PeerConnectionTrackerHost>
   CreatePendingRemoteAndBind() {
     receiver_.reset();
-    return mojo::Remote<blink::mojom::blink::PeerConnectionTrackerHost>(
-        receiver_.BindNewPipeAndPassRemote(
-            blink::scheduler::GetSingleThreadTaskRunnerForTesting()));
+    return receiver_.BindNewPipeAndPassRemote(
+        blink::scheduler::GetSingleThreadTaskRunnerForTesting());
   }
 
   mojo::Receiver<blink::mojom::blink::PeerConnectionTrackerHost> receiver_{
@@ -95,7 +99,7 @@ std::unique_ptr<RTCRtpTransceiverPlatform> CreateDefaultTransceiver() {
   transceiver = std::make_unique<blink::FakeRTCRtpTransceiverImpl>(
       String(), std::move(sender), std::move(receiver),
       webrtc::RtpTransceiverDirection::kSendOnly /* direction */,
-      absl::nullopt /* current_direction */);
+      std::nullopt /* current_direction */);
   return transceiver;
 }
 
@@ -110,7 +114,10 @@ class MockPeerConnectionHandler : public RTCPeerConnectionHandler {
             MakeGarbageCollected<MockRTCPeerConnectionHandlerClient>()) {}
   MOCK_METHOD0(CloseClientPeerConnection, void());
   MOCK_METHOD1(OnThermalStateChange, void(mojom::blink::DeviceThermalState));
-  MOCK_METHOD1(OnSpeedLimitChange, void(int));
+  MOCK_METHOD0(StartDataChannelLog, void());
+  MOCK_METHOD0(StopDataChannelLog, void());
+  MOCK_METHOD1(StartEventLog, void(int));
+  MOCK_METHOD0(StopEventLog, void());
 
  private:
   explicit MockPeerConnectionHandler(
@@ -146,15 +153,23 @@ class PeerConnectionTrackerTest : public ::testing::Test {
         base::PassKey<PeerConnectionTrackerTest>());
   }
 
-  void CreateAndRegisterPeerConnectionHandler() {
+  PeerConnectionInfoPtr CreateAndRegisterPeerConnectionHandler() {
     mock_handler_ = std::make_unique<MockPeerConnectionHandler>();
-    EXPECT_CALL(*mock_host_, AddPeerConnection(_));
+    PeerConnectionInfoPtr res;
+    base::RunLoop run_loop;
+    EXPECT_CALL(*mock_host_, AddPeerConnection)
+        .WillOnce(Invoke([&res, &run_loop](PeerConnectionInfoPtr info) {
+          res = std::move(info);
+          run_loop.Quit();
+        }));
     tracker_->RegisterPeerConnection(mock_handler_.get(), DefaultConfig(),
                                      nullptr);
-    base::RunLoop().RunUntilIdle();
+    run_loop.Run();
+    return res;
   }
 
  protected:
+  test::TaskEnvironment task_environment_;
   std::unique_ptr<MockPeerConnectionTrackerHost> mock_host_;
   Persistent<PeerConnectionTracker> tracker_;
   std::unique_ptr<MockPeerConnectionHandler> mock_handler_;
@@ -214,14 +229,100 @@ TEST_F(PeerConnectionTrackerTest, OnThermalStateChange) {
   tracker_->OnThermalStateChange(mojom::blink::DeviceThermalState::kCritical);
 }
 
-TEST_F(PeerConnectionTrackerTest, OnSpeedLimitChange) {
+TEST_F(PeerConnectionTrackerTest, StartDataChannelLogCalled) {
   CreateTrackerWithMocks();
-  CreateAndRegisterPeerConnectionHandler();
+  PeerConnectionInfoPtr info = CreateAndRegisterPeerConnectionHandler();
 
-  EXPECT_CALL(*mock_handler_, OnSpeedLimitChange(22));
-  tracker_->OnSpeedLimitChange(22);
-  EXPECT_CALL(*mock_handler_, OnSpeedLimitChange(33));
-  tracker_->OnSpeedLimitChange(33);
+  EXPECT_CALL(*mock_handler_, StartDataChannelLog);
+  tracker_->StartDataChannelLog(info->lid);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(PeerConnectionTrackerTest,
+       StartDataChannelLogNotCalledIfMismatchBetweenLidAndPeerConnection) {
+  CreateTrackerWithMocks();
+  PeerConnectionInfoPtr info = CreateAndRegisterPeerConnectionHandler();
+
+  EXPECT_CALL(*mock_handler_, StartDataChannelLog).Times(0);
+  tracker_->StartDataChannelLog(info->lid + 1);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(PeerConnectionTrackerTest, StopDataChannelLogCalled) {
+  CreateTrackerWithMocks();
+  PeerConnectionInfoPtr info = CreateAndRegisterPeerConnectionHandler();
+
+  EXPECT_CALL(*mock_handler_, StopDataChannelLog);
+  tracker_->StopDataChannelLog(info->lid);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(PeerConnectionTrackerTest,
+       StopDataChannelLogNotCalledIfMismatchBetweenLidAndPeerConnection) {
+  CreateTrackerWithMocks();
+  PeerConnectionInfoPtr info = CreateAndRegisterPeerConnectionHandler();
+
+  EXPECT_CALL(*mock_handler_, StopDataChannelLog).Times(0);
+  tracker_->StopDataChannelLog(info->lid + 1);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(PeerConnectionTrackerTest, DataChannelLoggingWrite) {
+  CreateTrackerWithMocks();
+  PeerConnectionInfoPtr info = CreateAndRegisterPeerConnectionHandler();
+
+  EXPECT_CALL(*mock_host_,
+              WebRtcDataChannelLogWrite(info->lid, ElementsAre(1, 2, 3)));
+  tracker_->TrackRtcDataChannelLogWrite(mock_handler_.get(), {1, 2, 3});
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(PeerConnectionTrackerTest, StartEventLogCalled) {
+  CreateTrackerWithMocks();
+  PeerConnectionInfoPtr info = CreateAndRegisterPeerConnectionHandler();
+
+  EXPECT_CALL(*mock_handler_, StartEventLog(123));
+  tracker_->StartEventLog(info->lid, 123);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(PeerConnectionTrackerTest,
+       StartEventLogNotCalledIfMismatchBetweenLidAndPeerConnection) {
+  CreateTrackerWithMocks();
+  PeerConnectionInfoPtr info = CreateAndRegisterPeerConnectionHandler();
+
+  EXPECT_CALL(*mock_handler_, StartEventLog).Times(0);
+  tracker_->StartEventLog(info->lid + 1, 321);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(PeerConnectionTrackerTest, StopEventLogCalled) {
+  CreateTrackerWithMocks();
+  PeerConnectionInfoPtr info = CreateAndRegisterPeerConnectionHandler();
+
+  EXPECT_CALL(*mock_handler_, StopEventLog);
+  tracker_->StopEventLog(info->lid);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(PeerConnectionTrackerTest,
+       StopEventLogNotCalledIfMismatchBetweenLidAndPeerConnection) {
+  CreateTrackerWithMocks();
+  PeerConnectionInfoPtr info = CreateAndRegisterPeerConnectionHandler();
+
+  EXPECT_CALL(*mock_handler_, StopEventLog).Times(0);
+  tracker_->StopEventLog(info->lid + 1);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(PeerConnectionTrackerTest, EventLoggingWrite) {
+  CreateTrackerWithMocks();
+  PeerConnectionInfoPtr info = CreateAndRegisterPeerConnectionHandler();
+
+  EXPECT_CALL(*mock_host_,
+              WebRtcEventLogWrite(info->lid, ElementsAre(1, 2, 3)));
+  tracker_->TrackRtcEventLogWrite(mock_handler_.get(), {1, 2, 3});
+  base::RunLoop().RunUntilIdle();
 }
 
 TEST_F(PeerConnectionTrackerTest, ReportInitialThermalState) {
@@ -314,13 +415,13 @@ TEST_F(PeerConnectionTrackerTest, AddTransceiverWithOptionalValuesNull) {
   blink::FakeRTCRtpTransceiverImpl transceiver(
       String(),
       blink::FakeRTCRtpSenderImpl(
-          absl::nullopt, {},
+          String(), {},
           blink::scheduler::GetSingleThreadTaskRunnerForTesting()),
       blink::FakeRTCRtpReceiverImpl(
           "receiverTrackId", {},
           blink::scheduler::GetSingleThreadTaskRunnerForTesting()),
       webrtc::RtpTransceiverDirection::kInactive /* direction */,
-      absl::nullopt /* current_direction */);
+      std::nullopt /* current_direction */);
   String update_value;
   EXPECT_CALL(*mock_host_,
               UpdatePeerConnection(_, String("transceiverAdded"), _))

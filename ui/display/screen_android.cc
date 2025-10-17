@@ -16,7 +16,6 @@ gfx::NativeWindow Screen::GetWindowForView(gfx::NativeView view) {
   NOTREACHED() << "Wrong screen instance is used. Make sure to use the correct "
                   "Screen instance that has proper implementation of "
                   "|GetDisplayNearestView| for Android.";
-  return nullptr;
 }
 
 }  // namespace display

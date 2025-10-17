@@ -16,22 +16,21 @@
 #include "media/base/media_constants.h"
 #include "rtc_base/checks.h"
 
-const NSString * const kRTCRtxCodecName = @(cricket::kRtxCodecName);
-const NSString * const kRTCRedCodecName = @(cricket::kRedCodecName);
-const NSString * const kRTCUlpfecCodecName = @(cricket::kUlpfecCodecName);
-const NSString * const kRTCFlexfecCodecName = @(cricket::kFlexfecCodecName);
-const NSString * const kRTCOpusCodecName = @(cricket::kOpusCodecName);
-const NSString * const kRTCL16CodecName  = @(cricket::kL16CodecName);
-const NSString * const kRTCG722CodecName = @(cricket::kG722CodecName);
-const NSString * const kRTCIlbcCodecName = @(cricket::kIlbcCodecName);
-const NSString * const kRTCPcmuCodecName = @(cricket::kPcmuCodecName);
-const NSString * const kRTCPcmaCodecName = @(cricket::kPcmaCodecName);
-const NSString * const kRTCDtmfCodecName = @(cricket::kDtmfCodecName);
-const NSString * const kRTCComfortNoiseCodecName =
-    @(cricket::kComfortNoiseCodecName);
-const NSString * const kRTCVp8CodecName = @(cricket::kVp8CodecName);
-const NSString * const kRTCVp9CodecName = @(cricket::kVp9CodecName);
-const NSString * const kRTCH264CodecName = @(cricket::kH264CodecName);
+const NSString *const kRTCRtxCodecName = @(webrtc::kRtxCodecName);
+const NSString *const kRTCRedCodecName = @(webrtc::kRedCodecName);
+const NSString *const kRTCUlpfecCodecName = @(webrtc::kUlpfecCodecName);
+const NSString *const kRTCFlexfecCodecName = @(webrtc::kFlexfecCodecName);
+const NSString *const kRTCOpusCodecName = @(webrtc::kOpusCodecName);
+const NSString *const kRTCL16CodecName = @(webrtc::kL16CodecName);
+const NSString *const kRTCG722CodecName = @(webrtc::kG722CodecName);
+const NSString *const kRTCPcmuCodecName = @(webrtc::kPcmuCodecName);
+const NSString *const kRTCPcmaCodecName = @(webrtc::kPcmaCodecName);
+const NSString *const kRTCDtmfCodecName = @(webrtc::kDtmfCodecName);
+const NSString *const kRTCComfortNoiseCodecName =
+    @(webrtc::kComfortNoiseCodecName);
+const NSString *const kRTCVp8CodecName = @(webrtc::kVp8CodecName);
+const NSString *const kRTCVp9CodecName = @(webrtc::kVp9CodecName);
+const NSString *const kRTCH264CodecName = @(webrtc::kH264CodecName);
 
 @implementation RTC_OBJC_TYPE (RTCRtpCodecParameters)
 
@@ -49,20 +48,18 @@ const NSString * const kRTCH264CodecName = @(cricket::kH264CodecName);
 
 - (instancetype)initWithNativeParameters:
     (const webrtc::RtpCodecParameters &)nativeParameters {
-  if (self = [super init]) {
+  self = [super init];
+  if (self) {
     _payloadType = nativeParameters.payload_type;
     _name = [NSString stringForStdString:nativeParameters.name];
     switch (nativeParameters.kind) {
-      case cricket::MEDIA_TYPE_AUDIO:
+      case webrtc::MediaType::AUDIO:
         _kind = kRTCMediaStreamTrackKindAudio;
         break;
-      case cricket::MEDIA_TYPE_VIDEO:
+      case webrtc::MediaType::VIDEO:
         _kind = kRTCMediaStreamTrackKindVideo;
         break;
-      case cricket::MEDIA_TYPE_DATA:
-        RTC_DCHECK_NOTREACHED();
-        break;
-      case cricket::MEDIA_TYPE_UNSUPPORTED:
+      default:
         RTC_DCHECK_NOTREACHED();
         break;
     }
@@ -89,17 +86,17 @@ const NSString * const kRTCH264CodecName = @(cricket::kH264CodecName);
   // NSString pointer comparison is safe here since "kind" is readonly and only
   // populated above.
   if (_kind == kRTCMediaStreamTrackKindAudio) {
-    parameters.kind = cricket::MEDIA_TYPE_AUDIO;
+    parameters.kind = webrtc::MediaType::AUDIO;
   } else if (_kind == kRTCMediaStreamTrackKindVideo) {
-    parameters.kind = cricket::MEDIA_TYPE_VIDEO;
+    parameters.kind = webrtc::MediaType::VIDEO;
   } else {
     RTC_DCHECK_NOTREACHED();
   }
   if (_clockRate != nil) {
-    parameters.clock_rate = absl::optional<int>(_clockRate.intValue);
+    parameters.clock_rate = std::optional<int>(_clockRate.intValue);
   }
   if (_numChannels != nil) {
-    parameters.num_channels = absl::optional<int>(_numChannels.intValue);
+    parameters.num_channels = std::optional<int>(_numChannels.intValue);
   }
   for (NSString *paramKey in _parameters.allKeys) {
     std::string key = [NSString stdStringForString:paramKey];

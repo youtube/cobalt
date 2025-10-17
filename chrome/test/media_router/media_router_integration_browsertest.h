@@ -13,6 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/scoped_feature_list.h"
+#include "build/build_config.h"
 #include "chrome/browser/media/router/providers/test/test_media_route_provider.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/media_router/media_cast_mode.h"
@@ -40,34 +41,10 @@ inline std::string PrintToString(UiForBrowserTest val) {
   }
 }
 
-#if BUILDFLAG(IS_CHROMEOS)
-// Global media controls aren't supported in lacros.
-#define INSTANTIATE_MEDIA_ROUTER_INTEGRATION_BROWER_TEST_SUITE(name) \
-  INSTANTIATE_TEST_SUITE_P(/* no prefix */, name,                    \
-                           testing::Values(UiForBrowserTest::kCast), \
-                           testing::PrintToStringParamName())
-#else
-#define INSTANTIATE_MEDIA_ROUTER_INTEGRATION_BROWER_TEST_SUITE(name)    \
-  INSTANTIATE_TEST_SUITE_P(                                             \
-      /* no prefix */, name,                                            \
-      testing::Values(UiForBrowserTest::kCast, UiForBrowserTest::kGmc), \
-      testing::PrintToStringParamName())
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
-// Macro used to skip tests that are only supported with the Cast dialog.
-//
-// TODO(crbug.com/1229305): Eliminate as many uses of this macro as possible.
-#define MEDIA_ROUTER_INTEGRATION_BROWER_TEST_CAST_ONLY() \
-  if (GetParam() != UiForBrowserTest::kCast) {           \
-    GTEST_SKIP() << "Skipping Cast-only test.";          \
-    return;                                              \
-  }
-
-class MediaRouterIntegrationBrowserTest
-    : public InProcessBrowserTest,
-      public testing::WithParamInterface<UiForBrowserTest> {
+class MediaRouterIntegrationBrowserTest : public InProcessBrowserTest {
  public:
-  MediaRouterIntegrationBrowserTest();
+  explicit MediaRouterIntegrationBrowserTest(
+      UiForBrowserTest test_ui_type = UiForBrowserTest::kGmc);
   ~MediaRouterIntegrationBrowserTest() override;
 
   // InProcessBrowserTest Overrides
@@ -112,16 +89,13 @@ class MediaRouterIntegrationBrowserTest
   // |should_succeed| is true.
   virtual content::WebContents* StartSessionWithTestPageAndChooseSink();
 
-  void OpenTestPage(base::FilePath::StringPieceType file);
-  void OpenTestPageInNewTab(base::FilePath::StringPieceType file);
+  void OpenTestPage(base::FilePath::StringViewType file);
+  void OpenTestPageInNewTab(base::FilePath::StringViewType file);
   virtual GURL GetTestPageUrl(const base::FilePath& full_path);
 
-  void SetTestData(base::FilePath::StringPieceType test_data_file);
+  void SetTestData(base::FilePath::StringViewType test_data_file);
 
   bool IsRouteCreatedOnUI();
-
-  // Returns true if there is an issue showing in the UI.
-  bool IsUIShowingIssue();
 
   // Returns the route ID for the specific sink.
   std::string GetRouteId(const std::string& sink_id);
@@ -171,9 +145,19 @@ class MediaRouterIntegrationBrowserTest
 
   void WaitUntilNoRoutes(content::WebContents* web_contents);
 
+  // Get the full path of the resource file.
+  // |relative_path|: The relative path to
+  //                  <chromium src>/out/<build config>/media_router/
+  //                  browser_test_resources/
+  base::FilePath GetResourceFile(
+      base::FilePath::StringViewType relative_path) const;
+
   // Returns whether actual media route providers (as opposed to
   // TestMediaRouteProvider) should be loaded.
   virtual bool RequiresMediaRouteProviders() const;
+
+  // Type of UI used by this test.
+  const UiForBrowserTest test_ui_type_;
 
   // Test API for manipulating the UI.
   std::unique_ptr<MediaRouterUiForTestBase> test_ui_;
@@ -186,32 +170,14 @@ class MediaRouterIntegrationBrowserTest
 
   std::unique_ptr<TestMediaRouteProvider> test_provider_;
 
-  bool is_incognito() { return browser()->profile()->IsOffTheRecord(); }
-
   // Returns the superclass' browser(). Marked virtual so that it can
   // be overridden by MediaRouterIntegrationIncognitoBrowserTest.
   virtual Browser* browser();
 
  private:
-  // Get the full path of the resource file.
-  // |relative_path|: The relative path to
-  //                  <chromium src>/out/<build config>/media_router/
-  //                  browser_test_resources/
-  base::FilePath GetResourceFile(
-      base::FilePath::StringPieceType relative_path) const;
-
   std::unique_ptr<content::TestNavigationObserver> test_navigation_observer_;
   policy::MockConfigurationPolicyProvider provider_;
   base::test::ScopedFeatureList feature_list_;
-};
-
-class MediaRouterIntegrationIncognitoBrowserTest
-    : public MediaRouterIntegrationBrowserTest {
- protected:
-  Browser* browser() override;
-
- private:
-  raw_ptr<Browser, DanglingUntriaged> incognito_browser_ = nullptr;
 };
 
 }  // namespace media_router

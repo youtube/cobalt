@@ -5,22 +5,11 @@
 /** @fileoverview Suite of tests for extensions-code-section. */
 import 'chrome://extensions/extensions.js';
 
-import {ExtensionsCodeSectionElement} from 'chrome://extensions/extensions.js';
+import type {ExtensionsCodeSectionElement} from 'chrome://extensions/extensions.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {isChildVisible} from 'chrome://webui-test/test_util.js';
+import {isChildVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-const extension_code_section_tests = {
-  suiteName: 'ExtensionCodeSectionTest',
-  TestNames: {
-    Layout: 'layout',
-    LongSource: 'long source',
-  },
-};
-
-Object.assign(
-    window, {extension_code_section_tests: extension_code_section_tests});
-
-suite(extension_code_section_tests.suiteName, function() {
+suite('ExtensionCodeSectionTest', function() {
   let codeSection: ExtensionsCodeSectionElement;
 
   const couldNotDisplayCode: string = 'No code here';
@@ -33,7 +22,7 @@ suite(extension_code_section_tests.suiteName, function() {
     document.body.appendChild(codeSection);
   });
 
-  test(extension_code_section_tests.TestNames.Layout, function() {
+  test('Layout', async () => {
     const code: chrome.developerPrivate.RequestFileSourceResponse = {
       beforeHighlight: 'this part before the highlight\nAnd this too\n',
       highlight: 'highlight this part\n',
@@ -45,18 +34,20 @@ suite(extension_code_section_tests.suiteName, function() {
     const testIsVisible = isChildVisible.bind(null, codeSection);
     assertFalse(!!codeSection.code);
     assertTrue(
-        codeSection.shadowRoot!.querySelector<HTMLElement>(
-                                   '#scroll-container')!.hidden);
+        codeSection.shadowRoot.querySelector<HTMLElement>(
+                                  '#scroll-container')!.hidden);
     assertFalse(testIsVisible('#main'));
     assertTrue(testIsVisible('#no-code'));
 
     codeSection.code = code;
     codeSection.isActive = true;
+    await microtasksFinished();
+
     assertTrue(testIsVisible('#main'));
     assertFalse(testIsVisible('#no-code'));
 
     const codeSections =
-        codeSection.shadowRoot!.querySelectorAll('#source span span');
+        codeSection.shadowRoot.querySelectorAll('#source > span > *');
 
     assertEquals(code.beforeHighlight, codeSections[0]!.textContent);
     assertEquals(code.highlight, codeSections[1]!.textContent);
@@ -64,12 +55,11 @@ suite(extension_code_section_tests.suiteName, function() {
 
     assertEquals(
         '1\n2\n3\n4',
-        codeSection.shadowRoot!
-            .querySelector<HTMLElement>(
-                '#line-numbers span')!.textContent!.trim());
+        codeSection.shadowRoot.querySelector<HTMLElement>(
+                                  '#line-numbers span')!.textContent!.trim());
   });
 
-  test(extension_code_section_tests.TestNames.LongSource, function() {
+  test('LongSource', async () => {
     let lineNums;
 
     function setCodeContent(beforeLineCount: number, afterLineCount: number):
@@ -91,53 +81,59 @@ suite(extension_code_section_tests.suiteName, function() {
     }
 
     codeSection.code = setCodeContent(0, 2000);
+    await microtasksFinished();
+
     lineNums =
-        codeSection.shadowRoot!
-            .querySelector<HTMLElement>('#line-numbers span')!.textContent!;
+        codeSection.shadowRoot.querySelector<HTMLElement>(
+                                  '#line-numbers span')!.textContent!;
     // Length should be 1000 +- 1.
     assertTrue(lineNums.split('\n').length >= 999);
     assertTrue(lineNums.split('\n').length <= 1001);
     assertTrue(!!lineNums.match(/^1\n/));
     assertTrue(!!lineNums.match(/1000/));
     assertFalse(!!lineNums.match(/1001/));
-    assertTrue(codeSection.shadowRoot!
+    assertTrue(codeSection.shadowRoot
                    .querySelector<HTMLElement>(
                        '#line-numbers .more-code.before')!.hidden);
-    assertFalse(codeSection.shadowRoot!
+    assertFalse(codeSection.shadowRoot
                     .querySelector<HTMLElement>(
                         '#line-numbers .more-code.after')!.hidden);
 
     codeSection.code = setCodeContent(1000, 1000);
+    await microtasksFinished();
+
     lineNums =
-        codeSection.shadowRoot!
-            .querySelector<HTMLElement>('#line-numbers span')!.textContent!;
+        codeSection.shadowRoot.querySelector<HTMLElement>(
+                                  '#line-numbers span')!.textContent!;
     // Length should be 1000 +- 1.
     assertTrue(lineNums.split('\n').length >= 999);
     assertTrue(lineNums.split('\n').length <= 1001);
     assertFalse(!!lineNums.match(/^1\n/));
     assertTrue(!!lineNums.match(/1000/));
     assertFalse(!!lineNums.match(/1999/));
-    assertFalse(codeSection.shadowRoot!
+    assertFalse(codeSection.shadowRoot
                     .querySelector<HTMLElement>(
                         '#line-numbers .more-code.before')!.hidden);
-    assertFalse(codeSection.shadowRoot!
+    assertFalse(codeSection.shadowRoot
                     .querySelector<HTMLElement>(
                         '#line-numbers .more-code.after')!.hidden);
 
     codeSection.code = setCodeContent(2000, 0);
+    await microtasksFinished();
+
     lineNums =
-        codeSection.shadowRoot!
-            .querySelector<HTMLElement>('#line-numbers span')!.textContent!;
+        codeSection.shadowRoot.querySelector<HTMLElement>(
+                                  '#line-numbers span')!.textContent!;
     // Length should be 1000 +- 1.
     assertTrue(lineNums.split('\n').length >= 999);
     assertTrue(lineNums.split('\n').length <= 1001);
     assertFalse(!!lineNums.match(/^1\n/));
     assertTrue(!!lineNums.match(/1002/));
     assertTrue(!!lineNums.match(/2000/));
-    assertFalse(codeSection.shadowRoot!
+    assertFalse(codeSection.shadowRoot
                     .querySelector<HTMLElement>(
                         '#line-numbers .more-code.before')!.hidden);
-    assertTrue(codeSection.shadowRoot!
+    assertTrue(codeSection.shadowRoot
                    .querySelector<HTMLElement>(
                        '#line-numbers .more-code.after')!.hidden);
   });

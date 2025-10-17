@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <utility>
 
 #include "base/memory/scoped_refptr.h"
@@ -32,7 +33,7 @@ using extensions::Manifest;
 using extensions::mojom::ManifestLocation;
 using storage::SpecialStoragePolicy;
 
-typedef SpecialStoragePolicy::StoragePolicy StoragePolicy;
+using StoragePolicy = SpecialStoragePolicy::StoragePolicy;
 
 namespace keys = extensions::manifest_keys;
 
@@ -100,7 +101,7 @@ class ExtensionSpecialStoragePolicyTest : public testing::Test {
   scoped_refptr<Extension> CreateProtectedApp() {
 #if BUILDFLAG(IS_WIN)
     base::FilePath path(FILE_PATH_LITERAL("c:\\foo"));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX)
     base::FilePath path(FILE_PATH_LITERAL("/foo"));
 #endif
     base::Value::Dict manifest;
@@ -123,7 +124,7 @@ class ExtensionSpecialStoragePolicyTest : public testing::Test {
   scoped_refptr<Extension> CreateUnlimitedApp() {
 #if BUILDFLAG(IS_WIN)
     base::FilePath path(FILE_PATH_LITERAL("c:\\bar"));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX)
     base::FilePath path(FILE_PATH_LITERAL("/bar"));
 #endif
     base::Value::Dict manifest;
@@ -149,7 +150,7 @@ class ExtensionSpecialStoragePolicyTest : public testing::Test {
   scoped_refptr<Extension> CreateRegularApp() {
 #if BUILDFLAG(IS_WIN)
     base::FilePath path(FILE_PATH_LITERAL("c:\\app"));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX)
     base::FilePath path(FILE_PATH_LITERAL("/app"));
 #endif
     base::Value::Dict manifest;
@@ -379,17 +380,17 @@ TEST_F(ExtensionSpecialStoragePolicyTest, NotificationTest) {
   PolicyChangeObserver observer;
   policy_->AddObserver(&observer);
 
-  scoped_refptr<Extension> apps[] = {
+  auto apps = std::to_array<scoped_refptr<Extension>>({
       CreateProtectedApp(),
       CreateUnlimitedApp(),
-  };
+  });
 
-  int change_flags[] = {
+  auto change_flags = std::to_array<int>({
       SpecialStoragePolicy::STORAGE_PROTECTED,
 
       SpecialStoragePolicy::STORAGE_PROTECTED |
           SpecialStoragePolicy::STORAGE_UNLIMITED,
-  };
+  });
 
   ASSERT_EQ(std::size(apps), std::size(change_flags));
   for (size_t i = 0; i < std::size(apps); ++i) {

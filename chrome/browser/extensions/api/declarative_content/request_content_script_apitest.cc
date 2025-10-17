@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
@@ -21,18 +22,18 @@ namespace extensions {
 namespace {
 
 // Manifest permissions injected into |kManifest|:
-const char* const kPermissions[] = {
-  "*://*/*",              // ALL
-  "http://127.0.0.1/*",   // PARTICULAR
-  "http://nowhere.com/*"  // NOWHERE
-};
+constexpr auto kPermissions = std::to_array<const char*>({
+    "*://*/*",               // ALL
+    "http://127.0.0.1/*",    // PARTICULAR
+    "http://nowhere.com/*",  // NOWHERE
+});
 
 // Script matchers for injected into |kBackgroundScriptSource|:
-const char* const kScriptMatchers[] = {
-  "{ pageUrl: { hostContains: '' } }",          // ALL
-  "{ pageUrl: { hostEquals: '127.0.0.1' } }",   // PARTICULAR
-  "{ pageUrl: { hostEquals: 'nowhere.com' } }"  // NOWHERE
-};
+constexpr auto kScriptMatchers = std::to_array<const char*>({
+    "{ pageUrl: { hostContains: '' } }",           // ALL
+    "{ pageUrl: { hostEquals: '127.0.0.1' } }",    // PARTICULAR
+    "{ pageUrl: { hostEquals: 'nowhere.com' } }",  // NOWHERE
+});
 
 enum PermissionOrMatcherType {
   ALL = 0,
@@ -84,8 +85,8 @@ bool RunAllPendingInRenderer(content::WebContents* web_contents) {
   // common.
   // This is slight hack to achieve a RunPendingInRenderer() method. Since IPCs
   // are sent synchronously, anything started prior to this method will finish
-  // before this method returns (as content::ExecuteScript() is synchronous).
-  return content::ExecuteScript(web_contents, "1 == 1;");
+  // before this method returns (as content::ExecJs() is synchronous).
+  return content::ExecJs(web_contents, "1 == 1;");
 }
 
 }  // namespace
@@ -93,7 +94,7 @@ bool RunAllPendingInRenderer(content::WebContents* web_contents) {
 class RequestContentScriptAPITest : public ExtensionBrowserTest {
  public:
   RequestContentScriptAPITest();
-  ~RequestContentScriptAPITest() override {}
+  ~RequestContentScriptAPITest() override = default;
 
   // Performs script injection test on a common local URL using the given
   // |manifest_permission| and |script_matcher|. Does not return until

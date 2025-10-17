@@ -11,8 +11,10 @@ visibility = [ "//:gn_all" ]
 group("gn_all") {
   testonly = true
   deps = [
+    "av_testing:av_sync_tests",
     "runners:cast_runner",
     "shell",
     "webengine:web_engine",
+    "//build/fuchsia/test:component_storage_test",
   ]
 }

@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "third_party/blink/renderer/modules/imagecapture/image_capture.h"
 
+#include "base/time/time.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/web/web_heap.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_tester.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_string_stringsequence.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_constrain_boolean_parameters.h"
@@ -21,10 +25,17 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_constraindomstringparameters_string_stringsequence.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_constraindoublerange_double.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_constrainpoint2dparameters_point2dsequence.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/imagebitmap/image_bitmap.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/modules/imagecapture/image_capture.h"
+#include "third_party/blink/renderer/modules/mediastream/media_stream_video_capturer_source.h"
+#include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
 #include "third_party/blink/renderer/modules/mediastream/mock_media_stream_track.h"
+#include "third_party/blink/renderer/modules/mediastream/mock_video_capturer_source.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
+#include "third_party/blink/renderer/platform/testing/io_task_runner_testing_platform_support.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
@@ -36,6 +47,11 @@ using ExpectHasPanTiltZoom =
     base::StrongAlias<class ExpectHasPanTiltZoomTag, bool>;
 using PopulatePanTiltZoom =
     base::StrongAlias<class PopulatePanTiltZoomZoomTag, bool>;
+
+using testing::_;
+using testing::Invoke;
+using testing::NiceMock;
+using testing::Return;
 
 constexpr double kExposureCompensationDelta = 1;
 constexpr double kExposureTimeDelta = 2;
@@ -52,7 +68,8 @@ constexpr double kZoomDelta = 12;
 
 // CaptureErrorFunction implements a javascript function which captures
 // name, message and constraint of the exception passed as its argument.
-class CaptureErrorFunction final : public ScriptFunction::Callable {
+class CaptureErrorFunction final
+    : public ThenCallable<IDLAny, CaptureErrorFunction> {
  public:
   CaptureErrorFunction() = default;
 
@@ -61,7 +78,7 @@ class CaptureErrorFunction final : public ScriptFunction::Callable {
   const String& Message() const { return message_; }
   const String& Constraint() const { return constraint_; }
 
-  ScriptValue Call(ScriptState* script_state, ScriptValue value) override {
+  void React(ScriptState* script_state, ScriptValue value) {
     was_called_ = true;
 
     v8::Isolate* isolate = script_state->GetIsolate();
@@ -72,17 +89,17 @@ class CaptureErrorFunction final : public ScriptFunction::Callable {
 
     v8::Local<v8::Value> name =
         error_object->Get(context, V8String(isolate, "name")).ToLocalChecked();
-    name_ = ToCoreString(name->ToString(context).ToLocalChecked());
+    name_ = ToCoreString(isolate, name->ToString(context).ToLocalChecked());
     v8::Local<v8::Value> message =
         error_object->Get(context, V8String(isolate, "message"))
             .ToLocalChecked();
-    message_ = ToCoreString(message->ToString(context).ToLocalChecked());
+    message_ =
+        ToCoreString(isolate, message->ToString(context).ToLocalChecked());
     v8::Local<v8::Value> constraint =
         error_object->Get(context, V8String(isolate, "constraint"))
             .ToLocalChecked();
-    constraint_ = ToCoreString(constraint->ToString(context).ToLocalChecked());
-
-    return ScriptValue();
+    constraint_ =
+        ToCoreString(isolate, constraint->ToString(context).ToLocalChecked());
   }
 
  private:
@@ -336,6 +353,14 @@ void CheckExactValues(
   EXPECT_TRUE(settings->has_background_blur_mode);
   EXPECT_EQ(settings->background_blur_mode,
             media::mojom::blink::BackgroundBlurMode::BLUR);
+  EXPECT_TRUE(settings->eye_gaze_correction_mode.has_value());
+  EXPECT_EQ(settings->eye_gaze_correction_mode.value(),
+            media::mojom::blink::EyeGazeCorrectionMode::OFF);
+  EXPECT_TRUE(settings->has_face_framing_mode);
+  EXPECT_EQ(settings->face_framing_mode,
+            media::mojom::blink::MeteringMode::CONTINUOUS);
+  EXPECT_TRUE(settings->background_segmentation_mask_state.has_value());
+  EXPECT_FALSE(settings->background_segmentation_mask_state.value());
 }
 
 void CheckMaxValues(const media::mojom::blink::PhotoSettingsPtr& settings,
@@ -406,6 +431,9 @@ void CheckMaxValues(const media::mojom::blink::PhotoSettingsPtr& settings,
   }
   EXPECT_FALSE(settings->has_torch);
   EXPECT_FALSE(settings->has_background_blur_mode);
+  EXPECT_FALSE(settings->eye_gaze_correction_mode.has_value());
+  EXPECT_FALSE(settings->has_face_framing_mode);
+  EXPECT_FALSE(settings->background_segmentation_mask_state.has_value());
 }
 
 void CheckMinValues(const media::mojom::blink::PhotoSettingsPtr& settings,
@@ -476,6 +504,9 @@ void CheckMinValues(const media::mojom::blink::PhotoSettingsPtr& settings,
   }
   EXPECT_FALSE(settings->has_torch);
   EXPECT_FALSE(settings->has_background_blur_mode);
+  EXPECT_FALSE(settings->eye_gaze_correction_mode.has_value());
+  EXPECT_FALSE(settings->has_face_framing_mode);
+  EXPECT_FALSE(settings->background_segmentation_mask_state.has_value());
 }
 
 void CheckNoValues(const media::mojom::blink::PhotoSettingsPtr& settings,
@@ -499,6 +530,9 @@ void CheckNoValues(const media::mojom::blink::PhotoSettingsPtr& settings,
   EXPECT_FALSE(settings->has_zoom);
   EXPECT_FALSE(settings->has_torch);
   EXPECT_FALSE(settings->has_background_blur_mode);
+  EXPECT_FALSE(settings->eye_gaze_correction_mode.has_value());
+  EXPECT_FALSE(settings->has_face_framing_mode);
+  EXPECT_FALSE(settings->background_segmentation_mask_state.has_value());
 }
 
 template <typename ConstraintCreator>
@@ -582,21 +616,109 @@ void PopulateConstraintSet(
   constraint_set->setBackgroundBlur(
       MakeGarbageCollected<V8UnionBooleanOrConstrainBooleanParameters>(
           ConstraintCreator::Create(all_capabilities->backgroundBlur()[0])));
+  constraint_set->setEyeGazeCorrection(
+      MakeGarbageCollected<V8UnionBooleanOrConstrainBooleanParameters>(
+          ConstraintCreator::Create(all_capabilities->eyeGazeCorrection()[0])));
+  constraint_set->setFaceFraming(
+      MakeGarbageCollected<V8UnionBooleanOrConstrainBooleanParameters>(
+          ConstraintCreator::Create(all_capabilities->faceFraming()[0])));
+  constraint_set->setBackgroundSegmentationMask(
+      MakeGarbageCollected<V8UnionBooleanOrConstrainBooleanParameters>(
+          ConstraintCreator::Create(
+              all_capabilities->backgroundSegmentationMask()[0])));
 }
+
+class MockMediaStreamComponent
+    : public GarbageCollected<MockMediaStreamComponent>,
+      public MediaStreamComponent {
+ public:
+  virtual ~MockMediaStreamComponent() = default;
+  MOCK_CONST_METHOD0(Clone, MediaStreamComponent*());
+  MOCK_CONST_METHOD0(Source, MediaStreamSource*());
+  MOCK_CONST_METHOD0(Id, String());
+  MOCK_CONST_METHOD0(UniqueId, int());
+  MOCK_CONST_METHOD0(GetSourceType, MediaStreamSource::StreamType());
+  MOCK_CONST_METHOD0(GetSourceName, const String&());
+  MOCK_CONST_METHOD0(GetReadyState, MediaStreamSource::ReadyState());
+  MOCK_CONST_METHOD0(Remote, bool());
+  MOCK_CONST_METHOD0(Enabled, bool());
+  MOCK_METHOD1(SetEnabled, void(bool));
+  MOCK_METHOD0(ContentHint, WebMediaStreamTrack::ContentHintType());
+  MOCK_METHOD1(SetContentHint, void(WebMediaStreamTrack::ContentHintType));
+  MOCK_CONST_METHOD0(GetPlatformTrack, MediaStreamTrackPlatform*());
+  MOCK_METHOD1(SetPlatformTrack,
+               void(std::unique_ptr<MediaStreamTrackPlatform>));
+  MOCK_METHOD1(GetSettings, void(MediaStreamTrackPlatform::Settings&));
+  MOCK_METHOD0(GetCaptureHandle, MediaStreamTrackPlatform::CaptureHandle());
+  MOCK_METHOD0(CreationFrame, WebLocalFrame*());
+  MOCK_METHOD1(SetCreationFrameGetter,
+               void(base::RepeatingCallback<WebLocalFrame*()>));
+  MOCK_METHOD1(AddSourceObserver, void(MediaStreamSource::Observer*));
+  MOCK_METHOD1(AddSink, void(WebMediaStreamAudioSink*));
+  MOCK_METHOD4(AddSink,
+               void(WebMediaStreamSink*,
+                    const VideoCaptureDeliverFrameCB&,
+                    MediaStreamVideoSink::IsSecure,
+                    MediaStreamVideoSink::UsesAlpha));
+  MOCK_CONST_METHOD0(ToString, String());
+};
 
 }  // namespace
 
 class ImageCaptureTest : public testing::Test {
  public:
+  ImageCaptureTest()
+      : component_(MakeGarbageCollected<MockMediaStreamComponent>()),
+        track_(MakeGarbageCollected<MockMediaStreamTrack>()),
+        image_capture_(MakeGarbageCollected<ImageCapture>(
+            /*execution_context=*/nullptr,
+            track_,
+            /*pan_tilt_zoom_allowed=*/true,
+            base::DoNothing(),
+            base::Milliseconds(1))) {
+    track_->SetComponent(component_);
+  }
+
   void TearDown() override { WebHeap::CollectAllGarbageForTesting(); }
 
- protected:
-  ImageCapture* CreateImageCapture(bool pan_tilt_zoom_allowed = true) const {
-    constexpr ExecutionContext* execution_context = nullptr;
-    MediaStreamTrack* track = MakeGarbageCollected<MockMediaStreamTrack>();
-    return MakeGarbageCollected<ImageCapture>(
-        execution_context, track, pan_tilt_zoom_allowed, base::DoNothing());
+  void SetupTrackMocks(V8TestingScope& scope,
+                       bool produce_frame_on_add_sink = true) {
+    produce_frame_on_add_sink_ = produce_frame_on_add_sink;
+    source_ = std::make_unique<MediaStreamVideoCapturerSource>(
+        scope.GetFrame().GetTaskRunner(TaskType::kInternalMediaRealTime),
+        &scope.GetFrame(),
+        MediaStreamVideoCapturerSource::SourceStoppedCallback(),
+        std::make_unique<NiceMock<MockVideoCapturerSource>>());
+    platform_track_ = std::make_unique<MediaStreamVideoTrack>(
+        source_.get(), WebPlatformMediaStreamSource::ConstraintsOnceCallback(),
+        /*enabled=*/true);
+    EXPECT_CALL(*component_, GetPlatformTrack)
+        .WillRepeatedly(Return(platform_track_.get()));
+    EXPECT_CALL(*component_, GetSourceType)
+        .WillRepeatedly(Return(MediaStreamSource::kTypeVideo));
+
+    ON_CALL(*component_, AddSink(_, _, _, _))
+        .WillByDefault(Invoke([&](WebMediaStreamSink* sink,
+                                  const VideoCaptureDeliverFrameCB& callback,
+                                  MediaStreamVideoSink::IsSecure is_secure,
+                                  MediaStreamVideoSink::UsesAlpha uses_alpha) {
+          platform_track_->AddSink(sink, callback, is_secure, uses_alpha);
+          if (produce_frame_on_add_sink_) {
+            callback.Run(media::VideoFrame::CreateBlackFrame(gfx::Size(1, 1)),
+                         /*estimated_capture_time=*/base::TimeTicks());
+          }
+        }));
   }
+
+ protected:
+  test::TaskEnvironment task_environment_;
+  Persistent<MockMediaStreamComponent> component_;
+  Persistent<MockMediaStreamTrack> track_;
+  Persistent<ImageCapture> image_capture_;
+  ScopedTestingPlatformSupport<IOTaskRunnerTestingPlatformSupport> platform_;
+  std::unique_ptr<MediaStreamVideoCapturerSource> source_;
+  std::unique_ptr<MediaStreamVideoTrack> platform_track_;
+  bool produce_frame_on_add_sink_ = true;
 };
 
 class ImageCaptureConstraintTest : public ImageCaptureTest {
@@ -624,7 +746,11 @@ class ImageCaptureConstraintTest : public ImageCaptureTest {
     all_capabilities_->setZoom(CreateMediaSettingsRange("zo"));
     all_capabilities_->setTorch(true);
     all_capabilities_->setBackgroundBlur({true});
+    all_capabilities_->setEyeGazeCorrection({false});
+    all_capabilities_->setFaceFraming({true, false});
+    all_capabilities_->setBackgroundSegmentationMask({false, true});
     all_non_capabilities_->setBackgroundBlur({false});
+    all_non_capabilities_->setEyeGazeCorrection({true});
     default_settings_ = MediaTrackSettings::Create();
     default_settings_->setWhiteBalanceMode(
         all_capabilities_->whiteBalanceMode()[0]);
@@ -649,7 +775,10 @@ class ImageCaptureConstraintTest : public ImageCaptureTest {
     default_settings_->setTilt(RangeMean(all_capabilities_->tilt()));
     default_settings_->setZoom(RangeMean(all_capabilities_->zoom()));
     default_settings_->setTorch(false);
-    default_settings_->setBackgroundBlur(false);
+    default_settings_->setBackgroundBlur(true);
+    default_settings_->setEyeGazeCorrection(false);
+    default_settings_->setFaceFraming(false);
+    default_settings_->setBackgroundSegmentationMask(false);
     // Capabilities and default settings must be chosen so that at least
     // the constraint set {exposureCompensation: {max: ...}} with
     // `all_capabilities_->exposureCompensation()->min() +
@@ -665,7 +794,6 @@ class ImageCaptureConstraintTest : public ImageCaptureTest {
     // Otherwise `CheckMinValues` does not really check anything.
     DCHECK_GT(all_capabilities_->focusDistance()->min() + kFocusDistanceDelta,
               default_settings_->focusDistance());
-    image_capture_ = CreateImageCapture();
   }
 
  protected:
@@ -682,14 +810,13 @@ class ImageCaptureConstraintTest : public ImageCaptureTest {
   Persistent<MediaTrackCapabilities> all_capabilities_;
   Persistent<MediaTrackCapabilities> all_non_capabilities_;
   Persistent<MediaTrackSettings> default_settings_;
-  Persistent<ImageCapture> image_capture_;
 };
 
 TEST_F(ImageCaptureConstraintTest, ApplyBasicBareValueConstraints) {
   V8TestingScope scope;
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints:
   //   {
@@ -725,8 +852,8 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicBareValueConstraints) {
 TEST_F(ImageCaptureConstraintTest, ApplyBasicExactConstraints) {
   V8TestingScope scope;
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints:
   //   {
@@ -749,8 +876,8 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicExactConstraints) {
 TEST_F(ImageCaptureConstraintTest, ApplyBasicIdealConstraints) {
   V8TestingScope scope;
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints:
   //   {
@@ -799,8 +926,8 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicIdealConstraints) {
 TEST_F(ImageCaptureConstraintTest, ApplyBasicMaxConstraints) {
   V8TestingScope scope;
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints:
   //   {
@@ -823,8 +950,8 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicMaxConstraints) {
 TEST_F(ImageCaptureConstraintTest, ApplyBasicMinConstraints) {
   V8TestingScope scope;
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints:
   //   {
@@ -851,8 +978,8 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicMinConstraints) {
 TEST_F(ImageCaptureConstraintTest, ApplyBasicNoConstraints) {
   V8TestingScope scope;
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints:
   //   {
@@ -898,10 +1025,9 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicOverconstrainedConstraints) {
           ConstrainWithExactDictionaryCreator::Create(
               all_non_capabilities_->whiteBalanceMode()[0])));
   auto* capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
       &*settings, constraints, resolver));
   scope.PerformMicrotaskCheckpoint();  // Resolve/reject promises.
@@ -917,10 +1043,9 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicOverconstrainedConstraints) {
           ConstrainWithExactDictionaryCreator::Create(
               all_non_capabilities_->whiteBalanceMode())));
   capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
       &*settings, constraints, resolver));
   scope.PerformMicrotaskCheckpoint();  // Resolve/reject promises.
@@ -935,10 +1060,9 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicOverconstrainedConstraints) {
           ConstrainWithExactDictionaryCreator::Create(
               all_capabilities_->exposureCompensation()->min() - 1)));
   capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
       &*settings, constraints, resolver));
   scope.PerformMicrotaskCheckpoint();  // Resolve/reject promises.
@@ -953,10 +1077,9 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicOverconstrainedConstraints) {
           ConstrainWithMaxDictionaryCreator::Create(
               all_capabilities_->exposureCompensation()->min() - 1)));
   capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
       &*settings, constraints, resolver));
   scope.PerformMicrotaskCheckpoint();  // Resolve/reject promises.
@@ -971,10 +1094,9 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicOverconstrainedConstraints) {
           ConstrainWithMinDictionaryCreator::Create(
               all_capabilities_->exposureCompensation()->max() + 1)));
   capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
       &*settings, constraints, resolver));
   scope.PerformMicrotaskCheckpoint();  // Resolve/reject promises.
@@ -989,10 +1111,9 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicOverconstrainedConstraints) {
           ConstrainWithExactDictionaryCreator::Create(
               all_non_capabilities_->backgroundBlur()[0])));
   capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
       &*settings, constraints, resolver));
   scope.PerformMicrotaskCheckpoint();  // Resolve/reject promises.
@@ -1004,10 +1125,9 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicOverconstrainedConstraints) {
   image_capture_->SetCapabilitiesForTesting(
       MakeGarbageCollected<MediaTrackCapabilities>());
   capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
       &*settings, constraints, resolver));
   scope.PerformMicrotaskCheckpoint();  // Resolve/reject promises.
@@ -1019,8 +1139,8 @@ TEST_F(ImageCaptureConstraintTest, ApplyBasicOverconstrainedConstraints) {
 TEST_F(ImageCaptureConstraintTest, ApplyFirstAdvancedBareValueConstraints) {
   V8TestingScope scope;
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints:
   //   {advanced: [
@@ -1051,8 +1171,8 @@ TEST_F(ImageCaptureConstraintTest, ApplyFirstAdvancedBareValueConstraints) {
 TEST_F(ImageCaptureConstraintTest, ApplyFirstAdvancedExactConstraints) {
   V8TestingScope scope;
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints:
   //   {advanced: [
@@ -1082,8 +1202,8 @@ TEST_F(ImageCaptureConstraintTest, ApplyFirstAdvancedExactConstraints) {
 TEST_F(ImageCaptureConstraintTest, ApplyFirstAdvancedIdealConstraints) {
   V8TestingScope scope;
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints:
   //   {advanced: [
@@ -1143,10 +1263,9 @@ TEST_F(ImageCaptureConstraintTest,
   auto* constraints = MediaTrackConstraints::Create();
   constraints->setAdvanced({constraint_set});
   auto* capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   // TODO(crbug.com/1408091): This is not spec compliant. This should not fail.
   // Instead, should discard the first advanced constraint set and succeed.
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
@@ -1167,10 +1286,9 @@ TEST_F(ImageCaptureConstraintTest,
   constraints = MediaTrackConstraints::Create();
   constraints->setAdvanced({constraint_set});
   capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   // TODO(crbug.com/1408091): This is not spec compliant. This should not fail.
   // Instead, should discard the first advanced constraint set and succeed.
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
@@ -1193,10 +1311,9 @@ TEST_F(ImageCaptureConstraintTest,
   constraints = MediaTrackConstraints::Create();
   constraints->setAdvanced({constraint_set});
   capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   // TODO(crbug.com/1408091): This is not spec compliant. This should not fail.
   // Instead, should discard the first advanced constraint set and succeed.
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
@@ -1207,11 +1324,69 @@ TEST_F(ImageCaptureConstraintTest,
   EXPECT_EQ(capture_error->Constraint(), "pan");
 }
 
+TEST_F(ImageCaptureConstraintTest, ApplyAdvancedBareValueConstraints) {
+  V8TestingScope scope;
+  image_capture_->SetExecutionContext(scope.GetExecutionContext());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+
+  // Create constraints:
+  //   {advanced: [
+  //     {},
+  //     {
+  //       whiteBalanceMode: "...",
+  //       exposureMode: ["...", ...],
+  //       focusMode: ["...", ...],
+  //       exposureCompensation: ...,
+  //       ...
+  //     }
+  //   ]}
+  auto* constraint_set = MediaTrackConstraintSet::Create();
+  PopulateConstraintSet<ConstrainWithBareValueCreator>(constraint_set,
+                                                       all_capabilities_);
+  auto* constraints = MediaTrackConstraints::Create();
+  constraints->setAdvanced({MediaTrackConstraintSet::Create(), constraint_set});
+  auto settings = media::mojom::blink::PhotoSettings::New();
+  // Should apply the constraints to the settings as is and succeed.
+  EXPECT_TRUE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
+      &*settings, constraints, resolver));
+  CheckExactValues(settings, all_capabilities_);
+}
+
+TEST_F(ImageCaptureConstraintTest, ApplyAdvancedExactConstraints) {
+  V8TestingScope scope;
+  image_capture_->SetExecutionContext(scope.GetExecutionContext());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+
+  // Create constraints:
+  //   {advanced: [
+  //     {},
+  //     {
+  //       whiteBalanceMode: {exact: "..."},
+  //       exposureMode: {exact: ["...", ...]},
+  //       focusMode: {exact: ["...", ...]},
+  //       exposureCompensation: {exact: ...},
+  //       ...
+  //     }
+  //   ]}
+  auto* constraint_set = MediaTrackConstraintSet::Create();
+  PopulateConstraintSet<ConstrainWithExactDictionaryCreator>(constraint_set,
+                                                             all_capabilities_);
+  auto* constraints = MediaTrackConstraints::Create();
+  constraints->setAdvanced({MediaTrackConstraintSet::Create(), constraint_set});
+  auto settings = media::mojom::blink::PhotoSettings::New();
+  // Should apply the constraints to the settings as is and succeed.
+  EXPECT_TRUE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
+      &*settings, constraints, resolver));
+  CheckExactValues(settings, all_capabilities_);
+}
+
 TEST_F(ImageCaptureConstraintTest, ApplyAdvancedIdealConstraints) {
   V8TestingScope scope;
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints:
   //   {advanced: [
@@ -1262,8 +1437,8 @@ TEST_F(ImageCaptureConstraintTest, ApplyAdvancedIdealConstraints) {
 TEST_F(ImageCaptureConstraintTest, ApplyAdvancedNoConstraints) {
   V8TestingScope scope;
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints:
   //   {advanced: [
@@ -1306,8 +1481,8 @@ TEST_F(ImageCaptureConstraintTest, ApplyAdvancedOverconstrainedConstraints) {
   image_capture_->SetExecutionContext(scope.GetExecutionContext());
   const HeapVector<Member<Point2D>> points_of_interest = {
       CreatePoint2D(0.25, 0.75)};
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
 
   // Create constraints: {advanced: [{}, {whiteBalanceMode: "..."}]}
   auto* constraint_set = MediaTrackConstraintSet::Create();
@@ -1377,10 +1552,9 @@ TEST_F(ImageCaptureConstraintTest, ApplySecurityErrorConstraints) {
       MakeGarbageCollected<V8UnionBooleanOrConstrainDoubleRangeOrDouble>(
           default_settings_->pan()));
   auto* capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
       &*settings, constraints, resolver));
   scope.PerformMicrotaskCheckpoint();  // Resolve/reject promises.
@@ -1395,10 +1569,9 @@ TEST_F(ImageCaptureConstraintTest, ApplySecurityErrorConstraints) {
   constraints = MediaTrackConstraints::Create();
   constraints->setAdvanced({constraint_set});
   capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
+  resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
   EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
       &*settings, constraints, resolver));
   scope.PerformMicrotaskCheckpoint();  // Resolve/reject promises.
@@ -1413,14 +1586,82 @@ TEST_F(ImageCaptureConstraintTest, ApplySecurityErrorConstraints) {
   constraints = MediaTrackConstraints::Create();
   constraints->setAdvanced({MediaTrackConstraintSet::Create(), constraint_set});
   capture_error = MakeGarbageCollected<CaptureErrorFunction>();
-  resolver =
-      MakeGarbageCollected<ScriptPromiseResolver>(scope.GetScriptState());
-  resolver->Promise().Then(nullptr, MakeGarbageCollected<ScriptFunction>(
-                                        scope.GetScriptState(), capture_error));
-  // TODO(crbug.com/1408091): This is not spec compliant. This should fail with
-  // a `SecurityError`.
-  EXPECT_TRUE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
+  resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      scope.GetScriptState());
+  resolver->Promise().Catch(scope.GetScriptState(), capture_error);
+  EXPECT_FALSE(image_capture_->CheckAndApplyMediaTrackConstraintsToSettings(
       &*settings, constraints, resolver));
+  scope.PerformMicrotaskCheckpoint();  // Resolve/reject promises.
+  EXPECT_TRUE(capture_error->WasCalled());
+  EXPECT_EQ(capture_error->Name(), "SecurityError");
+}
+
+TEST_F(ImageCaptureTest, GrabFrameOfLiveTrackIsFulfilled) {
+  V8TestingScope scope;
+  SetupTrackMocks(scope);
+  track_->SetReadyState(V8MediaStreamTrackState::Enum::kLive);
+  track_->setEnabled(true);
+  track_->SetMuted(false);
+
+  auto result = image_capture_->grabFrame(scope.GetScriptState());
+
+  ScriptPromiseTester tester(scope.GetScriptState(), result);
+  tester.WaitUntilSettled();
+  EXPECT_TRUE(tester.IsFulfilled());
+}
+
+TEST_F(ImageCaptureTest, GrabFrameOfMutedTrackIsFulfilled) {
+  V8TestingScope scope;
+  SetupTrackMocks(scope);
+  track_->SetReadyState(V8MediaStreamTrackState::Enum::kLive);
+  track_->setEnabled(true);
+  track_->SetMuted(true);
+
+  auto result = image_capture_->grabFrame(scope.GetScriptState());
+
+  ScriptPromiseTester tester(scope.GetScriptState(), result);
+  tester.WaitUntilSettled();
+  EXPECT_TRUE(tester.IsFulfilled());
+}
+
+TEST_F(ImageCaptureTest, GrabFrameOfMutedTrackWithoutFramesIsRejected) {
+  V8TestingScope scope;
+  SetupTrackMocks(scope, /*produce_frame_on_add_sink=*/false);
+  track_->SetReadyState(V8MediaStreamTrackState::Enum::kLive);
+  track_->setEnabled(true);
+  track_->SetMuted(true);
+
+  auto result = image_capture_->grabFrame(scope.GetScriptState());
+
+  ScriptPromiseTester tester(scope.GetScriptState(), result);
+  tester.WaitUntilSettled();
+  EXPECT_TRUE(tester.IsRejected());
+}
+
+TEST_F(ImageCaptureTest, GrabFrameOfEndedTrackRejects) {
+  V8TestingScope scope;
+  track_->SetReadyState(V8MediaStreamTrackState::Enum::kEnded);
+  track_->setEnabled(true);
+  track_->SetMuted(false);
+
+  auto result = image_capture_->grabFrame(scope.GetScriptState());
+
+  ScriptPromiseTester tester(scope.GetScriptState(), result);
+  tester.WaitUntilSettled();
+  EXPECT_TRUE(tester.IsRejected());
+}
+
+TEST_F(ImageCaptureTest, GrabFrameOfDisabledTrackRejects) {
+  V8TestingScope scope;
+  track_->SetReadyState(V8MediaStreamTrackState::Enum::kLive);
+  track_->setEnabled(false);
+  track_->SetMuted(false);
+
+  auto result = image_capture_->grabFrame(scope.GetScriptState());
+
+  ScriptPromiseTester tester(scope.GetScriptState(), result);
+  tester.WaitUntilSettled();
+  EXPECT_TRUE(tester.IsRejected());
 }
 
 }  // namespace blink

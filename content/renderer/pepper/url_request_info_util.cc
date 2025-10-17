@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "base/check.h"
+#include "base/containers/span.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
@@ -25,9 +26,9 @@
 #include "ppapi/shared_impl/url_request_info_data.h"
 #include "ppapi/shared_impl/var.h"
 #include "ppapi/thunk/enter.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/filesystem/file_system.mojom.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/file_path_conversion.h"
 #include "third_party/blink/public/platform/web_data.h"
 #include "third_party/blink/public/platform/web_http_body.h"
@@ -59,7 +60,7 @@ mojo::Remote<blink::mojom::FileSystemManager> GetFileSystemManager(
   mojo::Remote<blink::mojom::FileSystemManager> file_system_manager;
   RenderFrame* frame = renderer_ppapi_host->GetRenderFrameForInstance(instance);
   if (frame)
-    frame->GetBrowserInterfaceBroker()->GetInterface(
+    frame->GetBrowserInterfaceBroker().GetInterface(
         file_system_manager.BindNewPipeAndPassReceiver());
   return file_system_manager;
 }
@@ -108,10 +109,10 @@ bool AppendFileRefToBody(PP_Instance instance,
     default:
       NOTREACHED();
   }
-  absl::optional<base::Time> optional_modified_time;
+  std::optional<base::Time> optional_modified_time;
   if (expected_last_modified_time != 0)
     optional_modified_time =
-        base::Time::FromDoubleT(expected_last_modified_time);
+        base::Time::FromSecondsSinceUnixEpoch(expected_last_modified_time);
   http_body->AppendFileRange(blink::FilePathToWebString(platform_path),
                              start_offset, number_of_bytes,
                              optional_modified_time);
@@ -210,7 +211,7 @@ bool CreateWebURLRequest(PP_Instance instance,
 
   const std::string& headers = data->headers;
   if (!headers.empty()) {
-    net::HttpUtil::HeadersIterator it(headers.begin(), headers.end(), "\n\r");
+    net::HttpUtil::HeadersIterator it(headers, "\n\r");
     while (it.GetNext()) {
       dest->AddHttpHeaderField(WebString::FromUTF8(it.name()),
                                WebString::FromUTF8(it.values()));
@@ -233,7 +234,7 @@ bool CreateWebURLRequest(PP_Instance instance,
           return false;
       } else {
         DCHECK(!item.data.empty());
-        http_body.AppendData(WebData(item.data));
+        http_body.AppendData(WebData(base::as_byte_span(item.data)));
       }
     }
     dest->SetHttpBody(http_body);

@@ -71,7 +71,7 @@ class RemoteTestServerSpawnerRequest::Core : public URLRequest::Delegate {
 RemoteTestServerSpawnerRequest::Core::Core()
     : event_(base::WaitableEvent::ResetPolicy::AUTOMATIC,
              base::WaitableEvent::InitialState::NOT_SIGNALED),
-      read_buffer_(base::MakeRefCounted<IOBuffer>(kBufferSize)) {
+      read_buffer_(base::MakeRefCounted<IOBufferWithSize>(kBufferSize)) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -93,7 +93,7 @@ void RemoteTestServerSpawnerRequest::Core::SendRequest(
     std::unique_ptr<UploadElementReader> reader(
         UploadOwnedBytesElementReader::CreateWithString(post_data));
     request_->set_upload(
-        ElementsUploadDataStream::CreateWithReader(std::move(reader), 0));
+        ElementsUploadDataStream::CreateWithReader(std::move(reader)));
     request_->SetExtraRequestHeaderByName(HttpRequestHeaders::kContentType,
                                           "application/json",
                                           /*overwrite=*/true);

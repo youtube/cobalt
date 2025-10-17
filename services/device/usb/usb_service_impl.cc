@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "services/device/usb/usb_service_impl.h"
 
 #include <stdint.h>
@@ -50,7 +55,7 @@ scoped_refptr<UsbContext> InitializeUsbContextBlocking() {
   return nullptr;
 }
 
-absl::optional<std::vector<ScopedLibusbDeviceRef>> GetDeviceListBlocking(
+std::optional<std::vector<ScopedLibusbDeviceRef>> GetDeviceListBlocking(
     scoped_refptr<UsbContext> usb_context) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
@@ -61,7 +66,7 @@ absl::optional<std::vector<ScopedLibusbDeviceRef>> GetDeviceListBlocking(
   if (device_count < 0) {
     USB_LOG(ERROR) << "Failed to get device list: "
                    << ConvertPlatformUsbErrorToString(device_count);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<ScopedLibusbDeviceRef> scoped_devices;
@@ -247,7 +252,7 @@ void UsbServiceImpl::RefreshDevices() {
 }
 
 void UsbServiceImpl::OnDeviceList(
-    absl::optional<std::vector<ScopedLibusbDeviceRef>> devices) {
+    std::optional<std::vector<ScopedLibusbDeviceRef>> devices) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!devices) {
     RefreshDevicesComplete();
@@ -259,8 +264,10 @@ void UsbServiceImpl::OnDeviceList(
   // Look for new and existing devices.
   for (auto& device : *devices) {
     // Ignore devices that have failed enumeration previously.
-    if (base::Contains(ignored_devices_, device.get()))
+    if (base::Contains(ignored_devices_, device.get(),
+                       &ScopedLibusbDeviceRef::get)) {
       continue;
+    }
 
     auto it = platform_devices_.find(device.get());
     if (it == platform_devices_.end()) {

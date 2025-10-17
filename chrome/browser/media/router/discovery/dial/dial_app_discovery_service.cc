@@ -4,11 +4,13 @@
 
 #include "chrome/browser/media/router/discovery/dial/dial_app_discovery_service.h"
 
-#include "base/containers/cxx20_erase.h"
+#include <vector>
+
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/time/default_clock.h"
 #include "chrome/browser/media/router/data_decoder_util.h"
 #include "net/http/http_status_code.h"
@@ -39,7 +41,7 @@ DialAppInfoResult::DialAppInfoResult(
     std::unique_ptr<ParsedDialAppInfo> app_info,
     DialAppInfoResultCode result_code,
     const std::string& error_message,
-    absl::optional<int> http_error_code)
+    std::optional<int> http_error_code)
     : app_info(std::move(app_info)),
       result_code(result_code),
       error_message(error_message),
@@ -76,7 +78,7 @@ void DialAppDiscoveryService::SetParserForTest(
 
 void DialAppDiscoveryService::RemovePendingRequest(
     DialAppDiscoveryService::PendingRequest* request) {
-  base::EraseIf(pending_requests_, [&request](const auto& entry) {
+  std::erase_if(pending_requests_, [&request](const auto& entry) {
     return entry.get() == request;
   });
 }
@@ -121,7 +123,7 @@ void DialAppDiscoveryService::PendingRequest::OnDialAppInfoFetchComplete(
 
 void DialAppDiscoveryService::PendingRequest::OnDialAppInfoFetchError(
     const std::string& error_message,
-    absl::optional<int> http_response_code) {
+    std::optional<int> http_response_code) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto result_code = DialAppInfoResultCode::kNetworkError;
   if (http_response_code) {
@@ -153,7 +155,7 @@ void DialAppDiscoveryService::PendingRequest::OnDialAppInfoParsed(
         LoggerImpl::Severity::kInfo, mojom::LogCategory::kDiscovery,
         kLoggerComponent,
         base::StringPrintf("DIAL sink supports disconnect: %s",
-                           parsed_app_info->allow_stop ? "true" : "false"),
+                           base::ToString(parsed_app_info->allow_stop)),
         sink_id_, "", "");
 
     RecordDialFetchAppInfo(DialAppInfoResultCode::kOk);

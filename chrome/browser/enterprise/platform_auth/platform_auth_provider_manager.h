@@ -9,6 +9,7 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,7 +19,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "net/http/http_request_headers.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 
 class GURL;
@@ -32,7 +32,8 @@ namespace enterprise_auth {
 class PlatformAuthProvider;
 
 // Provides a means by which a browser can enable and use platform-based
-// authentication (for example Cloud AP SSO on Windows).
+// authentication (for example Cloud AP SSO on Windows and Enterprise Extensible
+// SSO on MacOS).
 class PlatformAuthProviderManager {
  public:
   // Returns the process-wide instance owned by `BrowserMainLoop`.
@@ -77,6 +78,8 @@ class PlatformAuthProviderManager {
                            SupportedWithEmptyOrigins);
   FRIEND_TEST_ALL_PREFIXES(PlatformAuthProviderManagerTest, OriginRemoval);
   FRIEND_TEST_ALL_PREFIXES(PlatformAuthProviderManagerMetricsTest, Success);
+  FRIEND_TEST_ALL_PREFIXES(PlatformAuthProviderManagerNoOriginFilteringTest,
+                           OriginFilteringNotSupported);
   FRIEND_TEST_ALL_PREFIXES(PlatformAuthNavigationThrottleTest, ManagerDisabled);
   FRIEND_TEST_ALL_PREFIXES(PlatformAuthNavigationThrottleTest, EmptyOrigins);
   FRIEND_TEST_ALL_PREFIXES(PlatformAuthNavigationThrottleTest, EmptyData);
@@ -93,6 +96,7 @@ class PlatformAuthProviderManager {
       std::unique_ptr<PlatformAuthProvider> provider);
 
   std::unique_ptr<PlatformAuthProvider> provider_;
+  bool supports_origin_filtering_;
   bool enabled_ = false;
 
   base::OnceClosure on_enable_complete_;

@@ -16,11 +16,14 @@
 
 #include "src/trace_processor/util/glob.h"
 
-#include "perfetto/ext/base/string_utils.h"
+#include <cstddef>
+#include <cstdint>
 
-namespace perfetto {
-namespace trace_processor {
-namespace util {
+#include "perfetto/base/logging.h"
+#include "perfetto/ext/base/string_utils.h"
+#include "perfetto/ext/base/string_view.h"
+
+namespace perfetto::trace_processor::util {
 
 GlobMatcher::GlobMatcher(base::StringView pattern_str)
     : pattern_(pattern_str.size() + 1) {
@@ -78,7 +81,7 @@ GlobMatcher::GlobMatcher(base::StringView pattern_str)
   trailing_star_ = !pattern.empty() && empty_segment;
 }
 
-bool GlobMatcher::Matches(base::StringView in) {
+bool GlobMatcher::Matches(base::StringView in) const {
   // If there are no segments, that means the pattern is either '' or '*'
   // (or '**', '***' etc which is really the same as '*'). This means
   // we are match if either a) there is a leading star (== trailing star) or
@@ -105,7 +108,7 @@ bool GlobMatcher::Matches(base::StringView in) {
     return false;
   }
 
-  // Similarily, if there's no trailing star, the last segment needs to be
+  // Similarly, if there's no trailing star, the last segment needs to be
   // "anchored" to the right of the string.
   if (!trailing_star_ && !EndsWith(in, segments_.back())) {
     return false;
@@ -115,10 +118,10 @@ bool GlobMatcher::Matches(base::StringView in) {
   // sequentially with possibly some characters separating them. To handle
   // this, we just need to iteratively find each segment, starting from the
   // previous segment.
-  Segment* segment_start = segments_.begin() + (leading_star_ ? 0 : 1);
-  Segment* segment_end = segments_.end() - (trailing_star_ ? 0 : 1);
+  const Segment* segment_start = segments_.begin() + (leading_star_ ? 0 : 1);
+  const Segment* segment_end = segments_.end() - (trailing_star_ ? 0 : 1);
   size_t find_idx = leading_star_ ? 0 : segments_.front().matched_chars;
-  for (Segment* segment = segment_start; segment < segment_end; ++segment) {
+  for (const auto* segment = segment_start; segment < segment_end; ++segment) {
     size_t pos = Find(in, *segment, find_idx);
     if (pos == base::StringView::npos) {
       return false;
@@ -175,7 +178,7 @@ bool GlobMatcher::StartsWithSlow(base::StringView in, const Segment& segment) {
 
 base::StringView GlobMatcher::ExtractCharacterClass(base::StringView in) {
   if (in.empty())
-    return base::StringView();
+    return {};
 
   // We should always skip the first real character: it could be ']' but if
   // so, it is treated as a normal character because empty classes are not
@@ -197,7 +200,7 @@ bool GlobMatcher::MatchesCharacterClass(char in, base::StringView char_class) {
 
   PERFETTO_DCHECK(start != end);
 
-  for (auto* ptr = start; ptr != end; ++ptr) {
+  for (const char* ptr = start; ptr != end; ++ptr) {
     char cur = *ptr;
 
     // If we see a '-' at any point except at the start or end of the string,
@@ -225,6 +228,4 @@ bool GlobMatcher::MatchesCharacterClass(char in, base::StringView char_class) {
   return invert;
 }
 
-}  // namespace util
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor::util

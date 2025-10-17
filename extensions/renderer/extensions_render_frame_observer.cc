@@ -20,6 +20,7 @@
 #include "third_party/blink/public/common/logging/logging_utils.h"
 #include "third_party/blink/public/web/web_frame_widget.h"
 #include "third_party/blink/public/web/web_local_frame.h"
+#include "third_party/blink/public/web/web_view.h"
 
 namespace extensions {
 
@@ -95,6 +96,12 @@ ExtensionsRenderFrameObserver::~ExtensionsRenderFrameObserver() {
 void ExtensionsRenderFrameObserver::BindAppWindowReceiver(
     mojo::PendingReceiver<mojom::AppWindow> receiver) {
   receivers_.Add(this, std::move(receiver));
+}
+
+void ExtensionsRenderFrameObserver::SetSupportsDraggableRegions(
+    bool supports_draggable_regions) {
+  render_frame()->GetWebView()->SetSupportsDraggableRegions(
+      supports_draggable_regions);
 }
 
 void ExtensionsRenderFrameObserver::SetVisuallyDeemphasized(bool deemphasized) {

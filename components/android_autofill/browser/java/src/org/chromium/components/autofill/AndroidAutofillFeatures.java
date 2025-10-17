@@ -4,25 +4,42 @@
 
 package org.chromium.components.autofill;
 
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Features;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
 
 /**
  * Java accessor for base/feature_list.h state.
  *
- * This class provides methods to access values of feature flags registered in
+ * <p>This class provides methods to access values of feature flags registered in
  * `kFeaturesExposedToJava` in components/android_autofill/browser/android_autofill_features.cc.
- *
  */
 @JNINamespace("autofill::features")
+@NullMarked
 public class AndroidAutofillFeatures extends Features {
-    public static final String ANDROID_AUTOFILL_VIEW_STRUCTURE_WITH_FORM_HIERARCHY_LAYER_NAME =
-            "AndroidAutofillViewStructureWithFormHierarchyLayer";
+    public static final String ANDROID_AUTOFILL_DEPRECATE_ACCESSIBILITY_API_NAME =
+            "AndroidAutofillDeprecateAccessibilityApi";
+    public static final String ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER_NAME =
+            "AndroidAutofillLazyFrameworkWrapper";
+    public static final String ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID_IN_CCT_NAME =
+            "AutofillVirtualViewStructureAndroidInCct";
+    public static final String ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_PASSKEY_LONG_PRESS_NAME =
+            "AutofillVirtualViewStructureAndroidPasskeyLongPress";
 
+    public static final AndroidAutofillFeatures ANDROID_AUTOFILL_DEPRECATE_ACCESSIBILITY_API =
+            new AndroidAutofillFeatures(0, ANDROID_AUTOFILL_DEPRECATE_ACCESSIBILITY_API_NAME);
     public static final AndroidAutofillFeatures
-            ANDROID_AUTOFILL_VIEW_STRUCTURE_WITH_FORM_HIERARCHY_LAYER = new AndroidAutofillFeatures(
-                    0, ANDROID_AUTOFILL_VIEW_STRUCTURE_WITH_FORM_HIERARCHY_LAYER_NAME);
+            ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID_IN_CCT =
+                    new AndroidAutofillFeatures(
+                            1, ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID_IN_CCT_NAME);
+    public static final AndroidAutofillFeatures ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER =
+            new AndroidAutofillFeatures(2, ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER_NAME);
+    public static final AndroidAutofillFeatures
+            ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_PASSKEY_LONG_PRESS =
+                    new AndroidAutofillFeatures(
+                            3, ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_PASSKEY_LONG_PRESS_NAME);
 
     private final int mOrdinal;
 

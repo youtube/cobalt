@@ -9,7 +9,9 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/command_updater_delegate.h"
-#include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/feedback/show_feedback_page.h"
+#include "chrome/browser/ui/user_education/start_tutorial_in_page.h"
+#include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/base/interaction/element_tracker.h"
@@ -30,12 +32,12 @@ struct FeedbackCommandSettings {
   FeedbackCommandSettings() = default;
 
   FeedbackCommandSettings(const GURL& url,
-                          chrome::FeedbackSource source,
+                          feedback::FeedbackSource source,
                           std::string category)
       : url(url), source(source), category(category) {}
 
   GURL url;
-  chrome::FeedbackSource source = chrome::kFeedbackSourceCount;
+  feedback::FeedbackSource source = feedback::kFeedbackSourceCount;
   std::string category;
 };
 
@@ -49,7 +51,8 @@ class BrowserCommandHandler : public CommandUpdaterDelegate,
       mojo::PendingReceiver<browser_command::mojom::CommandHandler>
           pending_page_handler,
       Profile* profile,
-      std::vector<browser_command::mojom::Command> supported_commands);
+      std::vector<browser_command::mojom::Command> supported_commands,
+      content::WebContents* web_contents);
   ~BrowserCommandHandler() override;
 
   // browser_command::mojom::CommandHandler:
@@ -72,26 +75,39 @@ class BrowserCommandHandler : public CommandUpdaterDelegate,
   virtual CommandUpdater* GetCommandUpdater();
 
   virtual bool BrowserSupportsTabGroups();
-  virtual bool BrowserSupportsCustomizeChromeSidePanel();
   virtual bool DefaultSearchProviderIsGoogle();
-
-  virtual bool BrowserHasTabGroups();
+  virtual bool BrowserSupportsSavedTabGroups();
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(BrowserCommandHandlerTest,
+                           StartPasswordManagerTutorialCommand);
+  FRIEND_TEST_ALL_PREFIXES(BrowserCommandHandlerTest,
+                           StartSavedTabGroupTutorialCommand);
+
   virtual void NavigateToURL(const GURL& url,
                              WindowOpenDisposition disposition);
   virtual void OpenFeedbackForm();
-  virtual user_education::TutorialService* GetTutorialService();
-  virtual ui::ElementContext GetUiElementContext();
+  virtual void OnTutorialStarted(
+      user_education::TutorialIdentifier tutorial_id,
+      user_education::TutorialService* tutorial_service);
+  virtual void StartTutorial(StartTutorialInPage::Params params);
+  virtual bool TutorialServiceExists();
+  virtual void NavigateToEnhancedProtectionSetting();
+  virtual void OpenPasswordManager();
+  virtual void OpenAISettings();
+  virtual void OpenGlic();
+  virtual void OpenGlicSettings();
   void StartTabGroupTutorial();
-  void OpenNTPAndStartCustomizeChromeTutorial(
-      WindowOpenDisposition disposition);
+  void OpenNTPAndStartCustomizeChromeTutorial();
+  void StartPasswordManagerTutorial();
+  void StartSavedTabGroupTutorial();
 
   FeedbackCommandSettings feedback_settings_;
-  raw_ptr<Profile> profile_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
   std::vector<browser_command::mojom::Command> supported_commands_;
   std::unique_ptr<CommandUpdater> command_updater_;
   mojo::Receiver<browser_command::mojom::CommandHandler> page_handler_;
+  raw_ptr<content::WebContents> web_contents_;
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_BROWSER_COMMAND_BROWSER_COMMAND_HANDLER_H_

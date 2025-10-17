@@ -15,14 +15,14 @@
 
 namespace blink {
 
-DOMFloat32Array* transformationMatrixToDOMFloat32Array(
+NotShared<DOMFloat32Array> transformationMatrixToDOMFloat32Array(
     const gfx::Transform& matrix) {
   float array[16];
   matrix.GetColMajorF(array);
-  return DOMFloat32Array::Create(array, 16);
+  return NotShared<DOMFloat32Array>(DOMFloat32Array::Create(array));
 }
 
-gfx::Transform DOMFloat32ArrayToTransform(DOMFloat32Array* m) {
+gfx::Transform DOMFloat32ArrayToTransform(NotShared<DOMFloat32Array> m) {
   DCHECK_EQ(m->length(), 16u);
   return gfx::Transform::ColMajorF(m->Data());
 }
@@ -56,10 +56,9 @@ WebGLRenderingContextBase* webglRenderingContextBaseFromUnion(
       return context->GetAsWebGLRenderingContext();
   }
   NOTREACHED();
-  return nullptr;
 }
 
-absl::optional<device::Pose> CreatePose(const gfx::Transform& matrix) {
+std::optional<device::Pose> CreatePose(const gfx::Transform& matrix) {
   return device::Pose::Create(matrix);
 }
 
@@ -118,69 +117,66 @@ device::mojom::blink::XRHandJoint StringToMojomHandJoint(
   }
 
   NOTREACHED();
-  return device::mojom::blink::XRHandJoint::kMaxValue;
 }
 
-String MojomHandJointToString(device::mojom::blink::XRHandJoint hand_joint) {
+V8XRHandJoint::Enum MojomHandJointToV8Enum(
+    device::mojom::blink::XRHandJoint hand_joint) {
   switch (hand_joint) {
     case device::mojom::blink::XRHandJoint::kWrist:
-      return "wrist";
+      return V8XRHandJoint::Enum::kWrist;
     case device::mojom::blink::XRHandJoint::kThumbMetacarpal:
-      return "thumb-metacarpal";
+      return V8XRHandJoint::Enum::kThumbMetacarpal;
     case device::mojom::blink::XRHandJoint::kThumbPhalanxProximal:
-      return "thumb-phalanx-proximal";
+      return V8XRHandJoint::Enum::kThumbPhalanxProximal;
     case device::mojom::blink::XRHandJoint::kThumbPhalanxDistal:
-      return "thumb-phalanx-distal";
+      return V8XRHandJoint::Enum::kThumbPhalanxDistal;
     case device::mojom::blink::XRHandJoint::kThumbTip:
-      return "thumb-tip";
+      return V8XRHandJoint::Enum::kThumbTip;
     case device::mojom::blink::XRHandJoint::kIndexFingerMetacarpal:
-      return "index-finger-metacarpal";
+      return V8XRHandJoint::Enum::kIndexFingerMetacarpal;
     case device::mojom::blink::XRHandJoint::kIndexFingerPhalanxProximal:
-      return "index-finger-phalanx-proximal";
+      return V8XRHandJoint::Enum::kIndexFingerPhalanxProximal;
     case device::mojom::blink::XRHandJoint::kIndexFingerPhalanxIntermediate:
-      return "index-finger-phalanx-intermediate";
+      return V8XRHandJoint::Enum::kIndexFingerPhalanxIntermediate;
     case device::mojom::blink::XRHandJoint::kIndexFingerPhalanxDistal:
-      return "index-finger-phalanx-distal";
+      return V8XRHandJoint::Enum::kIndexFingerPhalanxDistal;
     case device::mojom::blink::XRHandJoint::kIndexFingerTip:
-      return "index-finger-tip";
+      return V8XRHandJoint::Enum::kIndexFingerTip;
     case device::mojom::blink::XRHandJoint::kMiddleFingerMetacarpal:
-      return "middle-finger-metacarpal";
+      return V8XRHandJoint::Enum::kMiddleFingerMetacarpal;
     case device::mojom::blink::XRHandJoint::kMiddleFingerPhalanxProximal:
-      return "middle-finger-phalanx-proximal";
+      return V8XRHandJoint::Enum::kMiddleFingerPhalanxProximal;
     case device::mojom::blink::XRHandJoint::kMiddleFingerPhalanxIntermediate:
-      return "middle-finger-phalanx-intermediate";
+      return V8XRHandJoint::Enum::kMiddleFingerPhalanxIntermediate;
     case device::mojom::blink::XRHandJoint::kMiddleFingerPhalanxDistal:
-      return "middle-finger-phalanx-distal";
+      return V8XRHandJoint::Enum::kMiddleFingerPhalanxDistal;
     case device::mojom::blink::XRHandJoint::kMiddleFingerTip:
-      return "middle-finger-tip";
+      return V8XRHandJoint::Enum::kMiddleFingerTip;
     case device::mojom::blink::XRHandJoint::kRingFingerMetacarpal:
-      return "ring-finger-metacarpal";
+      return V8XRHandJoint::Enum::kRingFingerMetacarpal;
     case device::mojom::blink::XRHandJoint::kRingFingerPhalanxProximal:
-      return "ring-finger-phalanx-proximal";
+      return V8XRHandJoint::Enum::kRingFingerPhalanxProximal;
     case device::mojom::blink::XRHandJoint::kRingFingerPhalanxIntermediate:
-      return "ring-finger-phalanx-intermediate";
+      return V8XRHandJoint::Enum::kRingFingerPhalanxIntermediate;
     case device::mojom::blink::XRHandJoint::kRingFingerPhalanxDistal:
-      return "ring-finger-phalanx-distal";
+      return V8XRHandJoint::Enum::kRingFingerPhalanxDistal;
     case device::mojom::blink::XRHandJoint::kRingFingerTip:
-      return "ring-finger-tip";
+      return V8XRHandJoint::Enum::kRingFingerTip;
     case device::mojom::blink::XRHandJoint::kPinkyFingerMetacarpal:
-      return "pinky-finger-metacarpal";
+      return V8XRHandJoint::Enum::kPinkyFingerMetacarpal;
     case device::mojom::blink::XRHandJoint::kPinkyFingerPhalanxProximal:
-      return "pinky-finger-phalanx-proximal";
+      return V8XRHandJoint::Enum::kPinkyFingerPhalanxProximal;
     case device::mojom::blink::XRHandJoint::kPinkyFingerPhalanxIntermediate:
-      return "pinky-finger-phalanx-intermediate";
+      return V8XRHandJoint::Enum::kPinkyFingerPhalanxIntermediate;
     case device::mojom::blink::XRHandJoint::kPinkyFingerPhalanxDistal:
-      return "pinky-finger-phalanx-distal";
+      return V8XRHandJoint::Enum::kPinkyFingerPhalanxDistal;
     case device::mojom::blink::XRHandJoint::kPinkyFingerTip:
-      return "pinky-finger-tip";
-    default:
-      NOTREACHED();
-      return "";
+      return V8XRHandJoint::Enum::kPinkyFingerTip;
   }
+  NOTREACHED();
 }
 
-absl::optional<device::mojom::XRSessionFeature> StringToXRSessionFeature(
-    const ExecutionContext* context,
+std::optional<device::mojom::XRSessionFeature> StringToXRSessionFeature(
     const String& feature_string) {
   if (feature_string == "viewer") {
     return device::mojom::XRSessionFeature::REF_SPACE_VIEWER;
@@ -202,28 +198,25 @@ absl::optional<device::mojom::XRSessionFeature> StringToXRSessionFeature(
     return device::mojom::XRSessionFeature::LIGHT_ESTIMATION;
   } else if (feature_string == "camera-access") {
     return device::mojom::XRSessionFeature::CAMERA_ACCESS;
-  } else if (RuntimeEnabledFeatures::WebXRPlaneDetectionEnabled(context) &&
-             feature_string == "plane-detection") {
+  } else if (feature_string == "plane-detection") {
     return device::mojom::XRSessionFeature::PLANE_DETECTION;
   } else if (feature_string == "depth-sensing") {
     return device::mojom::XRSessionFeature::DEPTH;
-  } else if (RuntimeEnabledFeatures::WebXRImageTrackingEnabled(context) &&
-             feature_string == "image-tracking") {
+  } else if (feature_string == "image-tracking") {
     return device::mojom::XRSessionFeature::IMAGE_TRACKING;
-  } else if (RuntimeEnabledFeatures::WebXRHandInputEnabled(context) &&
-             feature_string == "hand-tracking") {
+  } else if (feature_string == "hand-tracking") {
     return device::mojom::XRSessionFeature::HAND_INPUT;
   } else if (feature_string == "secondary-views") {
     return device::mojom::XRSessionFeature::SECONDARY_VIEWS;
-  } else if (RuntimeEnabledFeatures::WebXRLayersEnabled(context) &&
-             feature_string == "layers") {
+  } else if (feature_string == "layers") {
     return device::mojom::XRSessionFeature::LAYERS;
-  } else if (RuntimeEnabledFeatures::WebXRFrontFacingEnabled(context) &&
-             feature_string == "front-facing") {
+  } else if (feature_string == "front-facing") {
     return device::mojom::XRSessionFeature::FRONT_FACING;
+  } else if (feature_string == "webgpu") {
+    return device::mojom::XRSessionFeature::WEBGPU;
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 String XRSessionFeatureToString(device::mojom::XRSessionFeature feature) {
@@ -262,9 +255,42 @@ String XRSessionFeatureToString(device::mojom::XRSessionFeature feature) {
       return "layers";
     case device::mojom::XRSessionFeature::FRONT_FACING:
       return "front-facing";
+    case device::mojom::XRSessionFeature::WEBGPU:
+      return "webgpu";
   }
 
   return "";
+}
+
+bool IsFeatureEnabledForContext(device::mojom::XRSessionFeature feature,
+                                const ExecutionContext* context) {
+  switch (feature) {
+    case device::mojom::XRSessionFeature::PLANE_DETECTION:
+      return RuntimeEnabledFeatures::WebXRPlaneDetectionEnabled(context);
+    case device::mojom::XRSessionFeature::IMAGE_TRACKING:
+      return RuntimeEnabledFeatures::WebXRImageTrackingEnabled(context);
+    case device::mojom::XRSessionFeature::HAND_INPUT:
+      return RuntimeEnabledFeatures::WebXRHandInputEnabled(context);
+    case device::mojom::XRSessionFeature::LAYERS:
+      return RuntimeEnabledFeatures::WebXRLayersEnabled(context);
+    case device::mojom::XRSessionFeature::WEBGPU:
+      return RuntimeEnabledFeatures::WebXRGPUBindingEnabled(context);
+    case device::mojom::XRSessionFeature::FRONT_FACING:
+      return RuntimeEnabledFeatures::WebXRFrontFacingEnabled(context);
+    case device::mojom::XRSessionFeature::HIT_TEST:
+    case device::mojom::XRSessionFeature::LIGHT_ESTIMATION:
+    case device::mojom::XRSessionFeature::ANCHORS:
+    case device::mojom::XRSessionFeature::CAMERA_ACCESS:
+    case device::mojom::XRSessionFeature::DEPTH:
+    case device::mojom::XRSessionFeature::REF_SPACE_VIEWER:
+    case device::mojom::XRSessionFeature::REF_SPACE_LOCAL:
+    case device::mojom::XRSessionFeature::REF_SPACE_LOCAL_FLOOR:
+    case device::mojom::XRSessionFeature::REF_SPACE_BOUNDED_FLOOR:
+    case device::mojom::XRSessionFeature::REF_SPACE_UNBOUNDED:
+    case device::mojom::XRSessionFeature::DOM_OVERLAY:
+    case device::mojom::XRSessionFeature::SECONDARY_VIEWS:
+      return true;
+  }
 }
 
 }  // namespace blink

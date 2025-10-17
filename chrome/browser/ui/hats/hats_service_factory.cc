@@ -4,10 +4,17 @@
 
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
+#include "chrome/browser/metrics/variations/google_groups_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/hats/hats_service.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/android/hats/hats_service_android.h"
+#else
+#include "chrome/browser/ui/hats/hats_service_desktop.h"
+#endif
 
 // static
 HatsService* HatsServiceFactory::GetForProfile(Profile* profile,
@@ -18,19 +25,32 @@ HatsService* HatsServiceFactory::GetForProfile(Profile* profile,
 
 // static
 HatsServiceFactory* HatsServiceFactory::GetInstance() {
-  return base::Singleton<HatsServiceFactory>::get();
+  static base::NoDestructor<HatsServiceFactory> instance;
+  return instance.get();
 }
 
 HatsServiceFactory::HatsServiceFactory()
-    : ProfileKeyedServiceFactory("HatsService",
-                                 ProfileSelections::BuildForRegularProfile()) {
+    : ProfileKeyedServiceFactory(
+          "HatsService",
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
+              .Build()) {
   DependsOn(IdentityManagerFactory::GetInstance());
+  DependsOn(GoogleGroupsManagerFactory::GetInstance());
 }
 
-KeyedService* HatsServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+HatsServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
-  return new HatsService(profile);
+#if BUILDFLAG(IS_ANDROID)
+  return std::make_unique<HatsServiceAndroid>(profile);
+#else
+  return std::make_unique<HatsServiceDesktop>(profile);
+#endif
 }
 
 HatsServiceFactory::~HatsServiceFactory() = default;

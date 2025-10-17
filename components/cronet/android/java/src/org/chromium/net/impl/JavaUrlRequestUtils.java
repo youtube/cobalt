@@ -28,9 +28,17 @@ public final class JavaUrlRequestUtils {
      *
      *
      */
-    @IntDef({State.NOT_STARTED, State.STARTED, State.REDIRECT_RECEIVED,
-            State.AWAITING_FOLLOW_REDIRECT, State.AWAITING_READ, State.READING, State.ERROR,
-            State.COMPLETE, State.CANCELLED})
+    @IntDef({
+        State.NOT_STARTED,
+        State.STARTED,
+        State.REDIRECT_RECEIVED,
+        State.AWAITING_FOLLOW_REDIRECT,
+        State.AWAITING_READ,
+        State.READING,
+        State.ERROR,
+        State.COMPLETE,
+        State.CANCELLED
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface State {
         int NOT_STARTED = 0;
@@ -44,15 +52,40 @@ public final class JavaUrlRequestUtils {
         int CANCELLED = 8;
     }
 
-    /**
-     *  Interface used to run commands that could throw an exception. Specifically useful for
-     *  calling {@link UrlRequest.Callback}s on a user-supplied executor.
-     */
-    public interface CheckedRunnable { void run() throws Exception; }
+    public static String stateToString(@State int state) {
+        switch (state) {
+            case State.NOT_STARTED:
+                return "NOT_STARTED";
+            case State.STARTED:
+                return "STARTED";
+            case State.REDIRECT_RECEIVED:
+                return "REDIRECT_RECEIVED";
+            case State.AWAITING_FOLLOW_REDIRECT:
+                return "AWAITING_FOLLOW_REDIRECT";
+            case State.AWAITING_READ:
+                return "AWAITING_READ";
+            case State.READING:
+                return "READING";
+            case State.ERROR:
+                return "ERROR";
+            case State.COMPLETE:
+                return "COMPLETE";
+            case State.CANCELLED:
+                return "CANCELLED";
+            default:
+                throw new IllegalArgumentException("Unknown state " + state);
+        }
+    }
 
     /**
-     * Executor that detects and throws if its mDelegate runs a submitted runnable inline.
+     * Interface used to run commands that could throw an exception. Specifically useful for calling
+     * {@link UrlRequest.Callback}s on a user-supplied executor.
      */
+    public interface CheckedRunnable {
+        void run() throws Exception;
+    }
+
+    /** Executor that detects and throws if its mDelegate runs a submitted runnable inline. */
     public static final class DirectPreventingExecutor implements Executor {
         private final Executor mDelegate;
 

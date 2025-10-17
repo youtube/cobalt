@@ -4,6 +4,8 @@
 
 #include "base/native_library.h"
 
+#include <string_view>
+
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -19,28 +21,25 @@ NativeLibrary LoadNativeLibraryWithOptions(const FilePath&,
                                            NativeLibraryLoadError*) {
   NOTREACHED() << "LoadNativeLibraryWithOptions called, but Starboard " 
                << "does not support dlopen. This call will fail.";
-  return nullptr;
 }
 
 void UnloadNativeLibrary(NativeLibrary) {
   NOTREACHED() << "UnloadNativeLibrary was called, but Starboard " 
                << "does not support dlclose. This call will fail.";
-  return;
 }
 
 void* GetFunctionPointerFromNativeLibrary(NativeLibrary,
-                                          StringPiece) {
+                                          const char*) {
   NOTREACHED() << "GetFunctionPointerFromNativeLibrary was called, "
                << "but Starboard does not support dlsym. This call will fail.";
-  return nullptr;
 }
 
-std::string GetNativeLibraryName(StringPiece name) {
+std::string GetNativeLibraryName(std::string_view name) {
   DCHECK(IsStringASCII(name));
   return StrCat({"lib", name, ".so"});
 }
 
-std::string GetLoadableModuleName(StringPiece name) {
+std::string GetLoadableModuleName(std::string_view name) {
   return GetNativeLibraryName(name);
 }
 

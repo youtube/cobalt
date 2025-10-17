@@ -4,18 +4,31 @@
 
 #import "ios/web_view/public/cwv_user_script.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation CWVUserScript
 
 @synthesize source = _source;
+@synthesize forMainFrameOnly = _forMainFrameOnly;
+@synthesize injectionTime = _injectionTime;
 
 - (nonnull instancetype)initWithSource:(nonnull NSString*)source {
+  return [self initWithSource:source forMainFrameOnly:true];
+}
+
+- (nonnull instancetype)initWithSource:(nonnull NSString*)source
+                      forMainFrameOnly:(BOOL)forMainFrameOnly {
+  return [self initWithSource:source
+             forMainFrameOnly:forMainFrameOnly
+                injectionTime:CWVUserScriptInjectionTimeAtDocumentStart];
+}
+
+- (instancetype)initWithSource:(NSString*)source
+              forMainFrameOnly:(BOOL)forMainFrameOnly
+                 injectionTime:(CWVUserScriptInjectionTime)injectionTime {
   self = [super init];
   if (self) {
     _source = [source copy];
+    _forMainFrameOnly = forMainFrameOnly;
+    _injectionTime = injectionTime;
   }
   return self;
 }

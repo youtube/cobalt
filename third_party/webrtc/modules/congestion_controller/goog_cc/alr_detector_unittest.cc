@@ -10,6 +10,9 @@
 
 #include "modules/congestion_controller/goog_cc/alr_detector.h"
 
+#include <cstdint>
+#include <optional>
+
 #include "api/transport/field_trial_based_config.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/alr_experiment.h"
@@ -65,8 +68,8 @@ class SimulateOutgoingTrafficIn {
   }
   AlrDetector* const alr_detector_;
   int64_t* timestamp_ms_;
-  absl::optional<int> interval_ms_;
-  absl::optional<int> usage_percentage_;
+  std::optional<int> interval_ms_;
+  std::optional<int> usage_percentage_;
 };
 }  // namespace
 
@@ -153,18 +156,18 @@ TEST(AlrDetectorTest, BandwidthEstimateChanges) {
 }
 
 TEST(AlrDetectorTest, ParseControlFieldTrial) {
-  webrtc::test::ScopedFieldTrials scoped_field_trial(
+  test::ScopedFieldTrials scoped_field_trial(
       "WebRTC-ProbingScreenshareBwe/Control/");
-  absl::optional<AlrExperimentSettings> parsed_params =
+  std::optional<AlrExperimentSettings> parsed_params =
       AlrExperimentSettings::CreateFromFieldTrial(
           FieldTrialBasedConfig(), "WebRTC-ProbingScreenshareBwe");
   EXPECT_FALSE(static_cast<bool>(parsed_params));
 }
 
 TEST(AlrDetectorTest, ParseActiveFieldTrial) {
-  webrtc::test::ScopedFieldTrials scoped_field_trial(
+  test::ScopedFieldTrials scoped_field_trial(
       "WebRTC-ProbingScreenshareBwe/1.1,2875,85,20,-20,1/");
-  absl::optional<AlrExperimentSettings> parsed_params =
+  std::optional<AlrExperimentSettings> parsed_params =
       AlrExperimentSettings::CreateFromFieldTrial(
           FieldTrialBasedConfig(), "WebRTC-ProbingScreenshareBwe");
   ASSERT_TRUE(static_cast<bool>(parsed_params));
@@ -177,7 +180,7 @@ TEST(AlrDetectorTest, ParseActiveFieldTrial) {
 }
 
 TEST(AlrDetectorTest, ParseAlrSpecificFieldTrial) {
-  webrtc::test::ScopedFieldTrials scoped_field_trial(
+  test::ScopedFieldTrials scoped_field_trial(
       "WebRTC-AlrDetectorParameters/"
       "bw_usage:90%,start:0%,stop:-10%/");
   FieldTrialBasedConfig field_trials;

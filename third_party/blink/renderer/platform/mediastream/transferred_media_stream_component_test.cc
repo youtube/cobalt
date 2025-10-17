@@ -20,6 +20,7 @@ class MockSourceObserver : public GarbageCollected<MockSourceObserver>,
   MOCK_METHOD0(SourceChangedState, void());
   MOCK_METHOD0(SourceChangedCaptureConfiguration, void());
   MOCK_METHOD0(SourceChangedCaptureHandle, void());
+  MOCK_METHOD1(SourceChangedZoomLevel, void(int));
 };
 
 // TODO(crbug.com/1288839): Move this mock out into a share place.
@@ -46,7 +47,8 @@ class MockMediaStreamComponent
   MOCK_METHOD1(GetSettings, void(MediaStreamTrackPlatform::Settings&));
   MOCK_METHOD0(GetCaptureHandle, MediaStreamTrackPlatform::CaptureHandle());
   MOCK_METHOD0(CreationFrame, WebLocalFrame*());
-  MOCK_METHOD1(SetCreationFrame, void(WebLocalFrame*));
+  MOCK_METHOD1(SetCreationFrameGetter,
+               void(base::RepeatingCallback<WebLocalFrame*()>));
   MOCK_METHOD1(AddSourceObserver, void(MediaStreamSource::Observer*));
   MOCK_METHOD1(AddSink, void(WebMediaStreamAudioSink*));
   MOCK_METHOD4(AddSink,
@@ -54,7 +56,6 @@ class MockMediaStreamComponent
                     const VideoCaptureDeliverFrameCB&,
                     MediaStreamVideoSink::IsSecure,
                     MediaStreamVideoSink::UsesAlpha));
-  MOCK_CONST_METHOD0(HasClones, bool());
   MOCK_CONST_METHOD0(ToString, String());
 };
 

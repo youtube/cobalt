@@ -10,6 +10,14 @@
 
 #include "call/video_receive_stream.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <utility>
+
+#include "api/call/transport.h"
+#include "api/rtp_headers.h"
+#include "api/video_codecs/sdp_video_format.h"
 #include "rtc_base/strings/string_builder.h"
 
 namespace webrtc {
@@ -29,7 +37,7 @@ bool VideoReceiveStreamInterface::Decoder::operator==(
 
 std::string VideoReceiveStreamInterface::Decoder::ToString() const {
   char buf[1024];
-  rtc::SimpleStringBuilder ss(buf);
+  SimpleStringBuilder ss(buf);
   ss << "{payload_type: " << payload_type;
   ss << ", payload_name: " << video_format.name;
   ss << ", codec_params: {";
@@ -52,15 +60,22 @@ VideoReceiveStreamInterface::Stats::~Stats() = default;
 std::string VideoReceiveStreamInterface::Stats::ToString(
     int64_t time_ms) const {
   char buf[2048];
-  rtc::SimpleStringBuilder ss(buf);
+  SimpleStringBuilder ss(buf);
   ss << "VideoReceiveStreamInterface stats: " << time_ms << ", {ssrc: " << ssrc
      << ", ";
   ss << "total_bps: " << total_bitrate_bps << ", ";
-  ss << "width: " << width << ", ";
-  ss << "height: " << height << ", ";
+  // Spec-compliant stats are camelCased to distinguish them from
+  // the legacy and internal stats.
+  ss << "frameWidth: " << width << ", ";
+  ss << "frameHeight: " << height << ", ";
+  // TODO(crbug.com/webrtc/15166): `key` and `delta` will not
+  // perfectly match the other frame counters.
   ss << "key: " << frame_counts.key_frames << ", ";
   ss << "delta: " << frame_counts.delta_frames << ", ";
-  ss << "frames_dropped: " << frames_dropped << ", ";
+  ss << "framesAssembledFromMultiplePackets: "
+     << frames_assembled_from_multiple_packets << ", ";
+  ss << "framesDecoded: " << frames_decoded << ", ";
+  ss << "framesDropped: " << frames_dropped << ", ";
   ss << "network_fps: " << network_frame_rate << ", ";
   ss << "decode_fps: " << decode_frame_rate << ", ";
   ss << "render_fps: " << render_frame_rate << ", ";
@@ -68,17 +83,25 @@ std::string VideoReceiveStreamInterface::Stats::ToString(
   ss << "max_decode_ms: " << max_decode_ms << ", ";
   ss << "first_frame_received_to_decoded_ms: "
      << first_frame_received_to_decoded_ms << ", ";
-  ss << "cur_delay_ms: " << current_delay_ms << ", ";
-  ss << "targ_delay_ms: " << target_delay_ms << ", ";
-  ss << "jb_delay_ms: " << jitter_buffer_ms << ", ";
-  ss << "jb_cumulative_delay_seconds: " << jitter_buffer_delay_seconds << ", ";
-  ss << "jb_emitted_count: " << jitter_buffer_emitted_count << ", ";
+  ss << "current_delay_ms: " << current_delay_ms << ", ";
+  ss << "target_delay_ms: " << target_delay_ms << ", ";
+  ss << "jitter_delay_ms: " << jitter_buffer_ms << ", ";
+  ss << "totalAssemblyTime: " << total_assembly_time.seconds<double>() << ", ";
+  ss << "jitterBufferDelay: " << jitter_buffer_delay.seconds<double>() << ", ";
+  ss << "jitterBufferTargetDelay: "
+     << jitter_buffer_target_delay.seconds<double>() << ", ";
+  ss << "jitterBufferEmittedCount: " << jitter_buffer_emitted_count << ", ";
+  ss << "jitterBufferMinimumDelay: "
+     << jitter_buffer_minimum_delay.seconds<double>() << ", ";
+  ss << "totalDecodeTime: " << total_decode_time.seconds<double>() << ", ";
+  ss << "totalProcessingDelay: " << total_processing_delay.seconds<double>()
+     << ", ";
   ss << "min_playout_delay_ms: " << min_playout_delay_ms << ", ";
   ss << "sync_offset_ms: " << sync_offset_ms << ", ";
   ss << "cum_loss: " << rtp_stats.packets_lost << ", ";
-  ss << "nack: " << rtcp_packet_type_counts.nack_packets << ", ";
-  ss << "fir: " << rtcp_packet_type_counts.fir_packets << ", ";
-  ss << "pli: " << rtcp_packet_type_counts.pli_packets;
+  ss << "nackCount: " << rtcp_packet_type_counts.nack_packets << ", ";
+  ss << "firCount: " << rtcp_packet_type_counts.fir_packets << ", ";
+  ss << "pliCount: " << rtcp_packet_type_counts.pli_packets;
   ss << '}';
   return ss.str();
 }
@@ -97,7 +120,7 @@ VideoReceiveStreamInterface::Config::Config::~Config() = default;
 
 std::string VideoReceiveStreamInterface::Config::ToString() const {
   char buf[4 * 1024];
-  rtc::SimpleStringBuilder ss(buf);
+  SimpleStringBuilder ss(buf);
   ss << "{decoders: [";
   for (size_t i = 0; i < decoders.size(); ++i) {
     ss << decoders[i].ToString();
@@ -121,7 +144,7 @@ VideoReceiveStreamInterface::Config::Rtp::~Rtp() = default;
 
 std::string VideoReceiveStreamInterface::Config::Rtp::ToString() const {
   char buf[2 * 1024];
-  rtc::SimpleStringBuilder ss(buf);
+  SimpleStringBuilder ss(buf);
   ss << "{remote_ssrc: " << remote_ssrc;
   ss << ", local_ssrc: " << local_ssrc;
   ss << ", rtcp_mode: "

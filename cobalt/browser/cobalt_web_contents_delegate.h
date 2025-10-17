@@ -26,7 +26,7 @@ class CobaltWebContentsDelegate : public content::WebContentsDelegate {
                                     const content::MediaStreamRequest&,
                                     content::MediaResponseCallback) override;
   bool CheckMediaAccessPermission(content::RenderFrameHost*,
-                                  const GURL&,
+                                  const url::Origin&,
                                   blink::mojom::MediaStreamType) override;
   void CloseContents(content::WebContents* source) override;
 };

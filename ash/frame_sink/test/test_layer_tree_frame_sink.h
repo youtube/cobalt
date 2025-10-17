@@ -5,11 +5,12 @@
 #ifndef ASH_FRAME_SINK_TEST_TEST_LAYER_TREE_FRAME_SINK_H_
 #define ASH_FRAME_SINK_TEST_TEST_LAYER_TREE_FRAME_SINK_H_
 
+#include <optional>
+
 #include "cc/trees/layer_tree_frame_sink.h"
 #include "cc/trees/layer_tree_frame_sink_client.h"
 #include "components/viz/common/quads/compositor_frame.h"
 #include "components/viz/common/resources/transferable_resource.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -29,7 +30,7 @@ class TestLayerTreeFrameSink : public cc::LayerTreeFrameSink {
 
   int num_of_frames_received() const;
 
-  absl::optional<cc::FrameSkippedReason> GetLatestFrameSkippedReason() const;
+  std::optional<cc::FrameSkippedReason> GetLatestFrameSkippedReason() const;
 
   const viz::CompositorFrame& GetLatestReceivedFrame();
 
@@ -45,14 +46,11 @@ class TestLayerTreeFrameSink : public cc::LayerTreeFrameSink {
                              bool hit_test_data_changed) override;
   void DidNotProduceFrame(const viz::BeginFrameAck& ack,
                           cc::FrameSkippedReason reason) override;
-  void DidAllocateSharedBitmap(base::ReadOnlySharedMemoryRegion region,
-                               const viz::SharedBitmapId& id) override;
-  void DidDeleteSharedBitmap(const viz::SharedBitmapId& id) override;
 
  private:
   std::vector<viz::TransferableResource> resources_in_use_;
-  absl::optional<cc::FrameSkippedReason> latest_frame_skipped_reason_ =
-      absl::nullopt;
+  std::optional<cc::FrameSkippedReason> latest_frame_skipped_reason_ =
+      std::nullopt;
   viz::CompositorFrame latest_received_frame_;
   int num_of_frames_received_ = 0;
 };

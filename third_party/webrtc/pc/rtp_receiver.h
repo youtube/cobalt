@@ -10,31 +10,22 @@
 
 // This file contains classes that implement RtpReceiverInterface.
 // An RtpReceiver associates a MediaStreamTrackInterface with an underlying
-// transport (provided by cricket::VoiceChannel/cricket::VideoChannel)
+// transport (provided by webrtc::VoiceChannel/webrtc::VideoChannel)
 
 #ifndef PC_RTP_RECEIVER_H_
 #define PC_RTP_RECEIVER_H_
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
-#include "absl/types/optional.h"
-#include "api/crypto/frame_decryptor_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/media_stream_interface.h"
-#include "api/media_types.h"
-#include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/scoped_refptr.h"
-#include "api/video/video_frame.h"
-#include "api/video/video_sink_interface.h"
-#include "api/video/video_source_interface.h"
 #include "media/base/media_channel.h"
-#include "media/base/video_broadcaster.h"
-#include "pc/video_track_source.h"
-#include "rtc_base/thread.h"
 
 namespace webrtc {
 
@@ -53,8 +44,7 @@ class RtpReceiverInternal : public RtpReceiverInterface {
   // * SetMediaChannel(nullptr) must be called before the media channel is
   //   destroyed.
   // * This method must be invoked on the worker thread.
-  virtual void SetMediaChannel(
-      cricket::MediaReceiveChannelInterface* media_channel) = 0;
+  virtual void SetMediaChannel(MediaReceiveChannelInterface* media_channel) = 0;
 
   // Configures the RtpReceiver with the underlying media channel, with the
   // given SSRC as the stream identifier.
@@ -65,10 +55,10 @@ class RtpReceiverInternal : public RtpReceiverInterface {
   virtual void SetupUnsignaledMediaChannel() = 0;
 
   virtual void set_transport(
-      rtc::scoped_refptr<DtlsTransportInterface> dtls_transport) = 0;
+      scoped_refptr<DtlsTransportInterface> dtls_transport) = 0;
   // This SSRC is used as an identifier for the receiver between the API layer
   // and the WebRtcVideoEngine, WebRtcVoiceEngine layer.
-  virtual absl::optional<uint32_t> ssrc() const = 0;
+  virtual std::optional<uint32_t> ssrc() const = 0;
 
   // Call this to notify the RtpReceiver when the first packet has been received
   // on the corresponding channel.
@@ -82,7 +72,7 @@ class RtpReceiverInternal : public RtpReceiverInterface {
   // set_stream_ids() as soon as downstream projects are no longer dependent on
   // stream objects.
   virtual void SetStreams(
-      const std::vector<rtc::scoped_refptr<MediaStreamInterface>>& streams) = 0;
+      const std::vector<scoped_refptr<MediaStreamInterface>>& streams) = 0;
 
   // Returns an ID that changes if the attached track changes, but
   // otherwise remains constant. Used to generate IDs for stats.
@@ -92,8 +82,8 @@ class RtpReceiverInternal : public RtpReceiverInterface {
  protected:
   static int GenerateUniqueId();
 
-  static std::vector<rtc::scoped_refptr<MediaStreamInterface>>
-  CreateStreamsFromIds(std::vector<std::string> stream_ids);
+  static std::vector<scoped_refptr<MediaStreamInterface>> CreateStreamsFromIds(
+      std::vector<std::string> stream_ids);
 };
 
 }  // namespace webrtc

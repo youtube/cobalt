@@ -10,8 +10,7 @@
 #include <vector>
 
 #include "ash/ash_export.h"
-#include "ash/lock_screen_action/lock_screen_action_background_controller.h"
-#include "ash/lock_screen_action/lock_screen_action_background_observer.h"
+#include "ash/login/ui/lock_screen.h"
 #include "ash/login/ui/login_data_dispatcher.h"
 #include "ash/public/cpp/kiosk_app_menu.h"
 #include "ash/public/cpp/login_types.h"
@@ -22,11 +21,11 @@
 #include "ash/shutdown_controller_impl.h"
 #include "ash/system/enterprise/enterprise_domain_observer.h"
 #include "ash/system/model/enterprise_domain_model.h"
-#include "ash/tray_action/tray_action.h"
-#include "ash/tray_action/tray_action_observer.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "components/account_id/account_id.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/view.h"
 
@@ -40,8 +39,6 @@ enum class SessionState;
 
 namespace ash {
 
-enum class LockScreenActionBackgroundState;
-
 class LoginShelfButton;
 class KioskAppsButton;
 class TrayBackgroundView;
@@ -49,18 +46,17 @@ class TrayBackgroundView;
 // LoginShelfView contains the shelf buttons visible outside of an active user
 // session. ShelfView and LoginShelfView should never be shown together.
 class ASH_EXPORT LoginShelfView : public views::View,
-                                  public TrayActionObserver,
-                                  public LockScreenActionBackgroundObserver,
                                   public ShutdownControllerImpl::Observer,
                                   public LoginDataDispatcher::Observer,
                                   public EnterpriseDomainObserver,
                                   public ShelfConfig::Observer {
+  METADATA_HEADER(LoginShelfView, views::View)
+
  public:
   enum ButtonId {
     kShutdown = 1,          // Shut down the device.
     kRestart,               // Restart the device.
     kSignOut,               // Sign out the active user session.
-    kCloseNote,             // Close the lock screen note.
     kCancel,                // Cancel multiple user sign-in.
     kBrowseAsGuest,         // Use in guest mode.
     kAddUser,               // Add a new user.
@@ -69,6 +65,7 @@ class ASH_EXPORT LoginShelfView : public views::View,
     kEnterpriseEnrollment,  // Start enterprise enrollment flow.
     kSignIn,                // Start signin.
     kOsInstall,             // Start OS Install flow.
+    kSchoolEnrollment,      // Start enterprise enrollment flow for child setup.
   };
 
   // Stores and notifies UiUpdate test callbacks.
@@ -78,8 +75,7 @@ class ASH_EXPORT LoginShelfView : public views::View,
     virtual void OnUiUpdate() = 0;
   };
 
-  explicit LoginShelfView(
-      LockScreenActionBackgroundController* lock_screen_action_background);
+  LoginShelfView();
 
   LoginShelfView(const LoginShelfView&) = delete;
   LoginShelfView& operator=(const LoginShelfView&) = delete;
@@ -131,20 +127,16 @@ class ASH_EXPORT LoginShelfView : public views::View,
 
   // views::View:
   void AddedToWidget() override;
-  const char* GetClassName() const override;
   void OnFocus() override;
   void AboutToRequestFocusFromTabTraversal(bool reverse) override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
-  void Layout() override;
 
   // ShelfConfig::Observer:
   void OnShelfConfigUpdated() override;
 
-  gfx::Rect get_button_union_bounds() const { return button_union_bounds_; }
-
   // Test API. Returns true if request was successful (i.e. button was
   // clickable).
   bool LaunchAppForTesting(const std::string& app_id);
+  bool LaunchAppForTesting(const AccountId& account_id);
 
   // Adds test delegate. Delegate will become owned by LoginShelfView.
   void InstallTestUiUpdateDelegate(
@@ -157,12 +149,8 @@ class ASH_EXPORT LoginShelfView : public views::View,
   // Returns scoped object to temporarily block Browse as Guest login button.
   std::unique_ptr<ScopedGuestButtonBlocker> GetScopedGuestButtonBlocker();
 
-  // TrayActionObserver:
-  void OnLockScreenNoteStateChanged(mojom::TrayActionState state) override;
-
-  // LockScreenActionBackgroundObserver:
-  void OnLockScreenActionBackgroundStateChanged(
-      LockScreenActionBackgroundState state) override;
+  // Returns the button container.
+  views::View* GetButtonContainerByID(ButtonId button_id);
 
   // ShutdownControllerImpl::Observer:
   void OnShutdownPolicyChanged(bool reboot_on_shutdown) override;
@@ -185,14 +173,16 @@ class ASH_EXPORT LoginShelfView : public views::View,
   // Returns the shutdown confirmation bubble.
   ShelfShutdownConfirmationBubble* GetShutdownConfirmationBubbleForTesting();
 
+  LoginShelfButton* GetLoginShelfButtonByID(ButtonId button_id);
+
  private:
   class ScopedGuestButtonBlockerImpl;
-
-  bool LockScreenActionBackgroundAnimating() const;
 
   // Updates the visibility of buttons based on state changes, e.g. shutdown
   // policy updates, session state changes etc.
   void UpdateUi();
+
+  void UpdateAccessiblePreviousAndNextFocus();
 
   // Updates the colors of all buttons. Uses current theme colors and force
   // light colors during OOBE.
@@ -218,6 +208,8 @@ class ASH_EXPORT LoginShelfView : public views::View,
 
   bool ShouldShowEnterpriseEnrollmentButton() const;
 
+  bool ShouldShowSchoolEnrollmentButton() const;
+
   bool ShouldShowSignInButton() const;
 
   bool ShouldShowAddUserButton() const;
@@ -228,6 +220,8 @@ class ASH_EXPORT LoginShelfView : public views::View,
 
   bool ShouldShowOsInstallButton() const;
 
+  void SetButtonVisible(ButtonId id, bool visible);
+
   // Helper function which calls `closure` when device display is on. Or if the
   // number of dropped calls exceeds 'kMaxDroppedCallsWhenDisplaysOff'
   void CallIfDisplayIsOn(const base::RepeatingClosure& closure);
@@ -235,6 +229,8 @@ class ASH_EXPORT LoginShelfView : public views::View,
   // Helper function which calls on_kiosk_menu_shown when kiosk menu is shown.
   void OnKioskMenuShown(const base::RepeatingClosure& on_kiosk_menu_shown);
   void OnKioskMenuclosed();
+
+  void OnAddUserButtonClicked();
 
   OobeDialogState dialog_state_ = OobeDialogState::HIDDEN;
   bool allow_guest_ = true;
@@ -245,16 +241,6 @@ class ASH_EXPORT LoginShelfView : public views::View,
   // When the Gaia screen is active during Login, the guest-login button should
   // appear if there are no user views.
   bool login_screen_has_users_ = false;
-
-  raw_ptr<LockScreenActionBackgroundController, ExperimentalAsh>
-      lock_screen_action_background_;
-
-  base::ScopedObservation<TrayAction, TrayActionObserver>
-      tray_action_observation_{this};
-
-  base::ScopedObservation<LockScreenActionBackgroundController,
-                          LockScreenActionBackgroundObserver>
-      lock_screen_action_background_observation_{this};
 
   base::ScopedObservation<ShutdownControllerImpl,
                           ShutdownControllerImpl::Observer>
@@ -268,27 +254,25 @@ class ASH_EXPORT LoginShelfView : public views::View,
 
   // The kiosk app button will only be created for the primary display's login
   // shelf.
-  raw_ptr<KioskAppsButton, ExperimentalAsh> kiosk_apps_button_ = nullptr;
+  raw_ptr<KioskAppsButton> kiosk_apps_button_ = nullptr;
+
+  // The shutdown confirmation bubble button.
+  raw_ptr<LoginShelfButton> shutdown_confirmation_button_ = nullptr;
 
   // The kiosk app instruction will be shown if the kiosk app button is visible.
-  raw_ptr<KioskAppInstructionBubble, ExperimentalAsh>
-      kiosk_instruction_bubble_ = nullptr;
+  raw_ptr<KioskAppInstructionBubble> kiosk_instruction_bubble_ = nullptr;
 
   // This is used in tests to check if the confirmation bubble is visible and to
   // click its buttons.
-  raw_ptr<ShelfShutdownConfirmationBubble, ExperimentalAsh>
-      test_shutdown_confirmation_bubble_ = nullptr;
+  raw_ptr<ShelfShutdownConfirmationBubble> test_shutdown_confirmation_bubble_ =
+      nullptr;
 
   // This is used in tests to wait until UI is updated.
   std::unique_ptr<TestUiUpdateDelegate> test_ui_update_delegate_;
 
-  // The bounds of all the buttons that this view is showing. Useful for
-  // letting events that target the "empty space" pass through. These
-  // coordinates are local to the view.
-  gfx::Rect button_union_bounds_;
-
   // Maintains a list of LoginShelfButton children of LoginShelfView.
-  std::vector<LoginShelfButton*> login_shelf_buttons_;
+  std::vector<raw_ptr<LoginShelfButton, VectorExperimental>>
+      login_shelf_buttons_;
 
   // Number of active scoped Guest button blockers.
   int scoped_guest_button_blockers_ = 0;
@@ -302,7 +286,7 @@ class ASH_EXPORT LoginShelfView : public views::View,
   // Set of the tray buttons which are in disabled state. It is used to record
   // and recover the states of tray buttons after temporarily disable of the
   // buttons.
-  std::set<TrayBackgroundView*> disabled_tray_buttons_;
+  std::set<raw_ptr<TrayBackgroundView, SetExperimental>> disabled_tray_buttons_;
 
   base::WeakPtrFactory<LoginShelfView> weak_ptr_factory_{this};
 };

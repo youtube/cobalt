@@ -22,8 +22,20 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<histogram name="Session.Android.TabbedSessionContainedGoogleSearch"
+    enum="Boolean" expires_after="2025-10-26">
+  <owner>nafisabedin@google.com</owner>
+  <owner>yfriedman@chromium.org</owner>
+  <summary>
+    Records true if the Google Search Results Page is ever visited during a
+    session for a given ChromeTabbedActivity, false otherwise.
+
+    Recorded when an UMA Session ends.
+  </summary>
+</histogram>
+
 <histogram name="Session.Background.TotalDuration" units="ms"
-    expires_after="2023-08-27">
+    expires_after="2025-10-19">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -36,8 +48,38 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Session.BrowserFullscreen.DurationUpTo24H" units="ms"
+    expires_after="2025-11-16">
+  <owner>avi@chromium.org</owner>
+  <owner>chrome-mac-dev@google.com</owner>
+  <summary>
+    The total time a Chrome browser window spends in fullscreen. Content
+    fullscreen is not represented. Records are capped at 24 hours.
+
+    The metric is recorded when a browser window exits fullscreen or after 24
+    hours has elapsed, whichever comes first. This includes quitting the browser
+    while in fullscreen.
+
+    Mac-only.
+  </summary>
+</histogram>
+
+<histogram name="Session.ID.RestoredDifference" units="Session IDs"
+    expires_after="2026-02-28">
+  <owner>gambard@chromium.org</owner>
+  <owner>sdefresne@chromium.org</owner>
+  <summary>
+    Records the difference between the highest restored SessionID and the value
+    of the pref used for the next SessionID. If the difference is negative, 0 is
+    recorded (0 means there is no problem, the session ID's pref was correctly
+    restored). Having a value &gt; 0 means that there has been an issue and the
+    SessionID was probably not recorded properly. This is recorded after each
+    session restoration (so it can be recorded multiple times per run).
+  </summary>
+</histogram>
+
 <histogram name="Session.IsActive" enum="BooleanActive"
-    expires_after="2023-09-03">
+    expires_after="2025-10-26">
   <owner>rogerm@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -56,7 +98,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.OpenedTabCounts" units="operations"
-    expires_after="2023-09-17">
+    expires_after="2025-10-26">
   <owner>rohitrao@chromium.org</owner>
   <owner>marq@chromium.org</owner>
   <summary>
@@ -71,7 +113,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Session.TimeSpentInFocusMode" units="s" expires_after="M80">
   <owner>yiningwang@google.com</owner>
-  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
     Time spent in focus mode browser. This is recorded when the focus mode
     window closes. This metric is only recorded on Win/Mac/Linux/ChromeOS.
@@ -90,15 +132,21 @@ chromium-metrics-reviews@google.com.
     Session.TotalDurationMax1Day for the same histogram with a higher maximum
     value. (The one's maximum is 1 hour.)
 
-    Windows/Mac/Linux: A session ends (i) when the user puts another app in the
-    foreground, unless audio is playing. (The Chrome windows can still be shown.
-    What matters is that a different app has focus.) (ii) when Chrome quits.
-    (iii) when the screensaver turns on (again, unless audio is playing). (iv)
-    when the user is inactive for five minutes (again, unless audio is playing).
-    In this case (starting in M-55), that five minutes is not included in the
-    sesson length. (v) when audio stops playing, if the user has been inactive
-    for five minutes or Chrome is not in the foreground. Also, until M69, there
-    was a bug that caused double-counting of some sessions.
+    Windows/Mac/Linux: Sessions only include time a browser window is visible.
+    Time when Chrome is visible but not with a regular browsing window will not
+    count. For example, neither the &quot;profile picker&quot;, which is
+    sometimes shown at startup, nor the first-run experience flow will count as
+    active time in Chrome when calculating Session.TotalDuration.
+
+    Windows/Mac/Linux: An active session ends (i) when the user puts another app
+    in the foreground, unless audio is playing. (The Chrome windows can still be
+    shown. What matters is that a different app has focus.) (ii) when Chrome
+    quits. (iii) when the screensaver turns on (again, unless audio is playing).
+    (iv) when the user is inactive for five minutes (again, unless audio is
+    playing). In this case (starting in M-55), that five minutes is not included
+    in the sesson length. (v) when audio stops playing, if the user has been
+    inactive for five minutes or Chrome is not in the foreground. Also, until
+    M69, there was a bug that caused double-counting of some sessions.
 
     ChromeOS: not implemented. The ChromeOS histogram Platform.DailyUseTime is
     somewhat similar.
@@ -168,7 +216,53 @@ chromium-metrics-reviews@google.com.
     the case when the user did not opt in to sync, or sync is disabled due to
     another reason, e.g. enterprise policy. Note that auth errors are not
     counted here, but rather in
-    Session.TotalDuration.OptedInToSyncWithoutAccount.
+    Session.TotalDuration.NotOptedInToSyncWithAccountInAuthError.
+
+    This time is measured from when the user starts interacting with the browser
+    until either they stopped interacting with the browser or their signin or
+    sync status changes. These end-points are when the metric is emitted. For
+    details on how &quot;stopped interacting with the browser&quot; is decided,
+    see the description of Session.TotalDuration.
+
+    Because a duration can end either because the user became inactive or
+    because their status changed, the distribution of individual durations
+    measured are unlikely to be helpful. Instead, please compare total
+    durations.
+
+    This metric is recorded on Win/Mac/Linux/iOS/Android.
+
+    One caveat with this metric is that if the user has multiple profiles open
+    at the same time, their session activity will be logged from all the
+    profiles, instead of only from the profile that the user is using at that
+    moment.
+
+    This histogram is of special interest to the chrome-analysis-team@ and
+    chrome-signin-team@. Do not change its semantics or retire it without
+    talking to them first.
+  </summary>
+</histogram>
+
+<histogram name="Session.TotalDuration.NotOptedInToSyncWithAccountInAuthError"
+    units="ms" expires_after="never">
+<!-- expires-never: guiding metric (internal: go/chrome-browser-guiding-metrics) -->
+
+  <owner>bsazonov@chromium.org</owner>
+  <owner>droger@chromium.org</owner>
+  <owner>msarda@chromium.org</owner>
+  <owner>treib@chromium.org</owner>
+  <owner>tschumann@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <owner>chrome-analysis-team@google.com</owner>
+  <summary>
+    This histogram is in the process of being replaced with the equivalent
+    histogram
+    Session.TotalDurationMax1Day.NotOptedInToSyncWithAccountInAuthError; the
+    only difference is the histogram bucket ranges.
+
+    The amount of active browsing time that was spent with sync disabled while
+    having a primary account with an invalid refresh token. This corresponds to
+    the case when the user did not opt in to sync, or sync is disabled due to
+    another reason, e.g. enterprise policy.
 
     This time is measured from when the user starts interacting with the browser
     until either they stopped interacting with the browser or their signin or
@@ -350,9 +444,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.TotalDuration.TouchMode" units="times"
-    expires_after="2023-09-10">
+    expires_after="2024-01-14">
   <owner>collinbaker@chromium.org</owner>
-  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
     Time spent in touch mode in each session (as defined by
     DesktopSessionDurationTracker). Samples correspond one-to-one with
@@ -493,7 +587,49 @@ chromium-metrics-reviews@google.com.
     the case when the user did not opt in to sync, or sync is disabled due to
     another reason, e.g. enterprise policy. Note that auth errors are not
     counted here, but rather in
-    Session.TotalDurationMax1Day.OptedInToSyncWithoutAccount.
+    Session.TotalDurationMax1Day.NotOptedInToSyncWithAccountInAuthError.
+
+    This time is measured from when the user starts interacting with the browser
+    until either they stopped interacting with the browser or their signin or
+    sync status changes. These end-points are when the metric is emitted. For
+    details on how &quot;stopped interacting with the browser&quot; is decided,
+    see the description of Session.TotalDuration.
+
+    Because a duration can end either because the user became inactive or
+    because their status changed, the distribution of individual durations
+    measured are unlikely to be helpful. Instead, please compare total
+    durations.
+
+    This metric is recorded on Win/Mac/Linux/iOS/Android.
+
+    One caveat with this metric is that if the user has multiple profiles open
+    at the same time, their session activity will be logged from all the
+    profiles, instead of only from the profile that the user is using at that
+    moment.
+
+    This histogram is of special interest to the chrome-analysis-team@ and
+    chrome-signin-team@. Do not change its semantics or retire it without
+    talking to them first.
+  </summary>
+</histogram>
+
+<histogram
+    name="Session.TotalDurationMax1Day.NotOptedInToSyncWithAccountInAuthError"
+    units="ms" expires_after="never">
+<!-- expires-never: guiding metric (internal: go/chrome-browser-guiding-metrics) -->
+
+  <owner>bsazonov@chromium.org</owner>
+  <owner>droger@chromium.org</owner>
+  <owner>msarda@chromium.org</owner>
+  <owner>treib@chromium.org</owner>
+  <owner>tschumann@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <owner>chrome-analysis-team@google.com</owner>
+  <summary>
+    The amount of active browsing time that was spent with sync disabled while
+    having a primary account with an invalid refresh token. This corresponds to
+    the case when the user did not opt in to sync, or sync is disabled due to
+    another reason, e.g. enterprise policy.
 
     This time is measured from when the user starts interacting with the browser
     until either they stopped interacting with the browser or their signin or
@@ -748,21 +884,88 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Session.WebState.CustomWebViewSerializedSize" units="KB"
-    expires_after="2023-10-08">
-  <owner>justincohen@chromium.org</owner>
-  <owner>ajuma@chromium.org</owner>
+<histogram name="Session.TotalDurationMax1Day.{HistorySyncState}" units="ms"
+    expires_after="2025-11-09">
+  <owner>mastiz@chromium.org</owner>
+  <owner>msarda@chromium.org</owner>
+  <owner>treib@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
   <summary>
-    The size of the data used to persist each WKWebView's serialized session
-    history. It's recorded every time the WKWebView is serialized, which happens
-    on page loads, tab changes and app backgrounding.
+    The amount of active browsing time that was spent with history sync
+    {HistorySyncState}.
+
+    History sync counts as enabled if EITHER the user opted in to sync and did
+    not disable history, OR (on supported platforms) the user is signed-in (but
+    not syncing) and specifically opted in to history. Either way, if history is
+    disabled by enterprise policy, that counts as NOT enabled.
+
+    This time is measured from when the user starts interacting with the browser
+    until either they stopped interacting with the browser or their history sync
+    status changes. These end-points are when the metric is emitted. For details
+    on how &quot;stopped interacting with the browser&quot; is decided, see the
+    description of Session.TotalDuration.
+
+    Because a duration can end either because the user became inactive or
+    because their status changed, the distribution of individual durations
+    measured are unlikely to be helpful. Instead, please compare total
+    durations.
+
+    This metric is recorded on Win/Mac/Linux/iOS/Android.
+
+    One caveat with this metric is that if the user has multiple profiles open
+    at the same time, their session activity will be logged from all the
+    profiles, instead of only from the profile that the user is using at that
+    moment.
   </summary>
+  <token key="HistorySyncState">
+    <variant name="WithHistorySync"
+        summary="enabled (with or without persistent auth error)"/>
+    <variant name="WithHistorySyncAndAuthError"
+        summary="enabled but with persistent auth error"/>
+    <variant name="WithHistorySyncWithoutAuthError"
+        summary="enabled and without persistent auth error"/>
+    <variant name="WithoutHistorySync" summary="NOT enabled"/>
+  </token>
+</histogram>
+
+<histogram name="Session.TotalDurationMax1Day.{MsbbState}" units="ms"
+    expires_after="2025-11-09">
+  <owner>mastiz@chromium.org</owner>
+  <owner>msarda@chromium.org</owner>
+  <owner>treib@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    The amount of active browsing time that was spent with &quot;Make Searches
+    and Browsing Better&quot; {MsbbState}.
+
+    This time is measured from when the user starts interacting with the browser
+    until either they stopped interacting with the browser or their history sync
+    status changes. These end-points are when the metric is emitted. For details
+    on how &quot;stopped interacting with the browser&quot; is decided, see the
+    description of Session.TotalDuration.
+
+    Because a duration can end either because the user became inactive or
+    because their status changed, the distribution of individual durations
+    measured are unlikely to be helpful. Instead, please compare total
+    durations.
+
+    This metric is recorded on Win/Mac/Linux/iOS/Android.
+
+    One caveat with this metric is that if the user has multiple profiles open
+    at the same time, their session activity will be logged from all the
+    profiles, instead of only from the profile that the user is using at that
+    moment.
+  </summary>
+  <token key="MsbbState">
+    <variant name="WithMsbb" summary="enabled"/>
+    <variant name="WithoutMsbb" summary="NOT enabled"/>
+  </token>
 </histogram>
 
 <histogram name="Session.WebStates.AllSerializedCertPolicyCachesSize"
-    units="KB" expires_after="2024-03-21">
-  <owner>ajuma@chromium.org</owner>
+    units="KB" expires_after="2025-10-08">
   <owner>justincohen@chromium.org</owner>
+  <owner>bling-fundamentals@google.com</owner>
   <summary>
     The size of all cert policy caches for all open tabs. Recorded when
     SessionServiceIOS encodes the data, which happens on page loads, tab changes
@@ -770,21 +973,9 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Session.WebStates.ArchivedDataWithRootObjectTime" units="ms"
-    expires_after="2023-05-14">
-  <owner>justincohen@chromium.org</owner>
-  <owner>olivierrobin@chromium.org</owner>
-  <summary>
-    The time needed to convert iOS session webState data into something that can
-    be written to a file. It's recorded every time the file is written to
-    storage, which happens on page loads, tab changes and app backgrounding. The
-    time does not include the file writing.
-  </summary>
-</histogram>
-
 <histogram name="Session.WebStates.LoadingTimeOnMainThread" units="ms"
-    expires_after="2024-01-01">
-  <owner>fedegermi@chromium.org</owner>
+    expires_after="2025-09-28">
+  <owner>fedegermi@google.com</owner>
   <owner>sdefresne@chromium.org</owner>
   <summary>
     The time spent on the main thread to restore a session as a continuous task.
@@ -798,41 +989,62 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Session.WebStates.NativeRestoreSession" enum="BooleanSuccess"
-    expires_after="2023-10-16">
+<histogram name="Session.WebStates.NativeRestoreHasFetchers"
+    enum="BooleanHasFetchers" expires_after="2025-10-26">
   <owner>justincohen@chromium.org</owner>
-  <owner>ajuma@chromium.org</owner>
+  <owner>michaeldo@chromium.org</owner>
+  <summary>
+    Records whether the WKWebView native session restore has any fetchers or
+    not. Recorded each time a native session restore is attempted.
+  </summary>
+</histogram>
+
+<histogram name="Session.WebStates.NativeRestoreSession" enum="BooleanSuccess"
+    expires_after="2025-10-19">
+  <owner>justincohen@chromium.org</owner>
+  <owner>michaeldo@chromium.org</owner>
   <summary>
     Records whether generic WKWebView native session restore succeeded in
     creating navigation items. Recorded each time a generic native session
-    restore is attempted.
+    restore is attempted (if data exists).
   </summary>
 </histogram>
 
 <histogram name="Session.WebStates.NativeRestoreSessionFromCache"
-    enum="BooleanSuccess" expires_after="2023-09-03">
+    enum="BooleanSuccess" expires_after="2025-10-19">
   <owner>justincohen@chromium.org</owner>
-  <owner>ajuma@chromium.org</owner>
+  <owner>michaeldo@chromium.org</owner>
   <summary>
     Records whether WKWebView native session restore from cached data succeeded
     in creating navigation items. Recorded each time a cached native session
-    restore is attempted.
+    restore is attempted (if data exists).
   </summary>
 </histogram>
 
-<histogram base="true" name="Session.WebStates.NavigationItem" units="KB"
-    expires_after="2022-07-03">
-  <owner>djean@chromium.org</owner>
-  <owner>sdefresne@chromium.org</owner>
+<histogram name="Session.WebStates.NativeRestoreSessionFromCacheHasData"
+    enum="BooleanHasData" expires_after="2025-10-19">
+  <owner>justincohen@chromium.org</owner>
+  <owner>michaeldo@chromium.org</owner>
   <summary>
-    Recorded when CRWNavigationItemStorage encodes the data, which happens on
-    page loads, tab changes and app backgrounding. Estimated size, the actual
-    size can be larger than recorded number.
+    Records whether the WKWebView native session restore from cached data
+    fetcher has data or not. Recorded each time a cached native session restore
+    is attempted.
+  </summary>
+</histogram>
+
+<histogram name="Session.WebStates.NativeRestoreSessionHasData"
+    enum="BooleanHasData" expires_after="2025-10-26">
+  <owner>justincohen@chromium.org</owner>
+  <owner>michaeldo@chromium.org</owner>
+  <summary>
+    Records whether the generic WKWebView native session restore fetcher has
+    data or not. Recorded each time a generic native session restore is
+    attempted.
   </summary>
 </histogram>
 
 <histogram name="Session.WebStates.ReadFromFileTime" units="ms"
-    expires_after="2023-09-15">
+    expires_after="2025-04-20">
   <owner>justincohen@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -842,8 +1054,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.WebStates.SavingTimeOnMainThread" units="ms"
-    expires_after="2024-01-01">
-  <owner>fedegermi@chromium.org</owner>
+    expires_after="2025-09-28">
+  <owner>fedegermi@google.com</owner>
   <owner>sdefresne@chromium.org</owner>
   <summary>
     The time spend on the main thread to save a session as a continuous task.
@@ -859,9 +1071,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.WebStates.SerializedCertPolicyCacheSize" units="KB"
-    expires_after="2024-03-21">
-  <owner>ajuma@chromium.org</owner>
+    expires_after="2025-10-08">
   <owner>justincohen@chromium.org</owner>
+  <owner>bling-fundamentals@google.com</owner>
   <summary>
     The size of a single cert policy cache for one tab. Recorded when
     CRWNavigationItemStorage encodes the data, which happens on page loads, tab
@@ -869,19 +1081,52 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Session.WebStates.SerializedSize" units="KB"
-    expires_after="2023-10-08">
-  <owner>justincohen@chromium.org</owner>
-  <owner>rohitrao@chromium.org</owner>
+<histogram name="Session.WebStates.StorageFormat" enum="SessionStorageFormat"
+    expires_after="2025-09-28">
+  <owner>fedegermi@google.com</owner>
+  <owner>sdefresne@chromium.org</owner>
   <summary>
-    The size of the file used to persist iOS session history. It's recorded
-    every time the file is written to storage, which happens on page loads, tab
-    changes and app backgrounding.
+    The format used for the session storage. Recorded during every startup of
+    the application (after the migration if one is needed). Corresponds to the
+    actual format of the storage.
+  </summary>
+</histogram>
+
+<histogram name="Session.WebStates.StorageMigrationDuration" units="ms"
+    expires_after="2025-09-28">
+  <owner>fedegermi@google.com</owner>
+  <owner>sdefresne@chromium.org</owner>
+  <summary>
+    The time spent to migrate the session storage. This corresponds to the time
+    the user has to wait during the application startup (and includes the time
+    spent to wait for the background processing to complete).
+
+    This is recorded only when the storage may require migration (either because
+    the storage needs to be converted or the format is unknown).
+
+    The application is unresponsive (but won't be killed by the watchdog) during
+    the migration, so large value for this histogram are bad.
+  </summary>
+</histogram>
+
+<histogram name="Session.WebStates.StorageMigrationStatus"
+    enum="SessionStorageMigrationStatus" expires_after="2025-09-28">
+  <owner>fedegermi@google.com</owner>
+  <owner>sdefresne@chromium.org</owner>
+  <summary>
+    The status of the session storage format migration (from legacy to optimized
+    or from optimized to legacy). Recorded during every startup of the
+    application (except if the storage format is undetermined), even if no
+    migration is attempted (in that case, the status of the previous migration
+    attempt will be reported).
+
+    See go/bling-session-restoration for information about the session storage
+    refactoring. This details the different storage format.
   </summary>
 </histogram>
 
 <histogram name="Session.WebStates.WriteToFileTime" units="ms"
-    expires_after="2023-09-15">
+    expires_after="2025-04-20">
   <owner>justincohen@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -891,36 +1136,24 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="SessionCrashed.Bubble" enum="SessionCrashedBubbleUserAction"
-    expires_after="M77">
-  <owner>yiyaoliu@chromium.org</owner>
-  <summary>How did the user interact with the SessionCrashed Bubble?</summary>
-</histogram>
-
-<histogram name="SessionRestore.BackgroundUseCaseTabCount.Restored"
-    units="tabs" expires_after="2019-11-30">
-  <owner>chrisha@chromium.org</owner>
+<histogram name="SessionRestore.ForegroundTabFirstPaint4.FinishReason"
+    enum="SessionRestoreFinishReason" expires_after="2025-10-12">
+  <owner>joenotcharles@google.com</owner>
+  <owner>catan-team@chromium.org</owner>
   <summary>
-    The number of tabs involved in a single session restore that were observed
-    to have historically made use of background communication mechanisms
-    (favicon and tab title changes, notifications, etc).
+    The reason for which attempt to record
+    SessionRestore.ForegroundTabFirstPaint4 was deemed complete. Logged once per
+    session restore.
+
+    Warning: this histogram was expired from 2022-10-23 to 2024-02-15; data may
+    be missing.
   </summary>
 </histogram>
 
-<histogram name="SessionRestore.BackgroundUseCaseTabCount.Total" units="tabs"
-    expires_after="2019-11-30">
-  <owner>chrisha@chromium.org</owner>
-  <summary>
-    The number of tabs involved in a single session restore that were observed
-    to have historically made use of background communication mechanisms
-    (favicon and tab title changes, notifications, etc) and that were actually
-    loaded.
-  </summary>
-</histogram>
-
-<histogram name="SessionRestore.ForegroundTabFirstPaint4" units="ms"
-    expires_after="2024-02-22">
-  <owner>chrisha@chromium.org</owner>
+<histogram
+    name="SessionRestore.ForegroundTabFirstPaint4{SessionRestoreTabCounts}"
+    units="ms" expires_after="2025-10-12">
+  <owner>joenotcharles@google.com</owner>
   <owner>catan-team@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
   <summary>
@@ -931,19 +1164,63 @@ chromium-metrics-reviews@google.com.
     this is not recorded.
 
     Warning: this histogram was expired from 2022-10-23 to 2023-02-22; data may
-    be missing.
+    be missing. {SessionRestoreTabCounts}
+  </summary>
+  <token key="SessionRestoreTabCounts">
+    <variant name=""/>
+    <variant name=".1Tab" summary="1 tab present"/>
+    <variant name=".2to3Tabs" summary="2 to 3 tabs present"/>
+    <variant name=".4to7Tabs" summary="4 to 7 tabs present"/>
+    <variant name=".8to15Tabs" summary="8 to 15 tabs present"/>
+    <variant name=".16to31Tabs" summary="16 to 31 tabs present"/>
+    <variant name=".32PlusTabs" summary="32 or more tabs present"/>
+  </token>
+</histogram>
+
+<histogram name="SessionRestore.PageStateOldVersions" units="version"
+    expires_after="2025-12-16">
+  <owner>creis@chromium.org</owner>
+  <owner>chrome-security-architecture@google.com</owner>
+  <summary>
+    The number of times a PageState with the given non-current PageState version
+    number was decoded during session restore. Old PageState versions with
+    sufficiently low usage may be considered for deprecation. See
+    page_state_serialization.cc's kCurrentVersion for documentation of each
+    version.
   </summary>
 </histogram>
 
-<histogram name="SessionRestore.ForegroundTabFirstPaint4.FinishReason"
-    enum="SessionRestoreFinishReason" expires_after="2022-10-23">
-  <owner>chrisha@chromium.org</owner>
+<histogram name="SessionRestore.TabCount{TabType}" units="tabs"
+    expires_after="2025-10-26">
+  <owner>joenotcharles@google.com</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
-    The reason for which attempt to record
-    SessionRestore.ForegroundTabFirstPaint4 was deemed complete. Logged once per
-    session restore.
+    The number of {TabType} available to restore in a session. Logged once per
+    session restore. Not all of the tabs in the session will ultimately be
+    loaded.
+
+    This metric has several variants with suffixes for tabs with different
+    properties. The properties aren't mutually exclusive so the sum of all
+    variants won't equal SessionRestore.TabCount, which covers all tabs.
   </summary>
+  <token key="TabType">
+    <variant name="" summary="tabs"/>
+    <variant name=".Active" summary="active tabs"/>
+    <variant name=".App" summary="tabs whose browser window is an app"/>
+    <variant name=".BackgroundNotificationPermission"
+        summary="tabs with background notification permission"/>
+    <variant name=".Grouped" summary="tabs that are part of tab groups"/>
+    <variant name=".InternalPage" summary="tabs hosting internal WebUI pages"/>
+    <variant name=".LowSiteEngagement"
+        summary="tabs with site engagement below the restore threshold"/>
+    <variant name=".LowSiteEngagementWithBackgroundCommunication"
+        summary="tabs with LowSiteEngagement but either
+                 BackgroundNotificationPermission or
+                 UpdatesTitleOrFaviconInBackground"/>
+    <variant name=".Pinned" summary="pinned tabs"/>
+    <variant name=".UpdatesTitleOrFaviconInBackground"
+        summary="tabs that update their title or favicon in the background"/>
+  </token>
 </histogram>
 
 <histogram name="SessionRestore.UnrecoverableWriteErrorCount"
@@ -957,20 +1234,35 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="SessionStorageContext.CachePurgedInKB" units="KB"
-    expires_after="2023-12-01">
+<histogram
+    name="SessionStorageContext.CachePurgedInKB{DOMStorageCachePurgeReason}"
+    units="KB" expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
-    Total size of the HTML5 SessionStorage browser-side cache purged in KB when
-    memory pressure signal was triggered or cache size hit the limits.
+    Total size of the HTML5 SessionStorage browser-side cache purged in KB,
+    recorded when memory pressure signal is triggered or cache size hit the
+    limits.
 
     Warning: Histogram expired between M95-M110. Data may be missing.
+    {DOMStorageCachePurgeReason}
   </summary>
+  <token key="DOMStorageCachePurgeReason">
+    <variant name=""/>
+    <variant name=".AggressivePurgeTriggered"
+        summary="Aggressive purge was triggered on memory pressure."/>
+    <variant name=".AreaCountLimitExceeded"
+        summary="Storage areas count exceeded limit."/>
+    <variant name=".InactiveOnLowEndDevice"
+        summary="Inactive areas found in low end device."/>
+    <variant name=".ModeratePurgeTriggered"
+        summary="Moderate purge was triggered on memory pressure."/>
+    <variant name=".SizeLimitExceeded" summary="Cache size exceeded limit."/>
+  </token>
 </histogram>
 
 <histogram name="SessionStorageContext.CacheSizeInKB" units="KB"
-    expires_after="2023-12-01">
+    expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -982,18 +1274,19 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SessionStorageContext.CommitResult" enum="LevelDBStatus"
-    expires_after="2023-12-01">
+    expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     The result of an attempt to commit SessionStorage data to the database.
+    Recorded after the commit operation has completed.
 
     Warning: Histogram expired between M95-M110. Data may be missing.
   </summary>
 </histogram>
 
 <histogram name="SessionStorageContext.DatabaseOpenError" enum="LevelDBStatus"
-    expires_after="2023-12-01">
+    expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -1005,114 +1298,105 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SessionStorageContext.DatabaseOpenError.Disk"
-    enum="LevelDBStatus" expires_after="2023-12-01">
+    enum="LevelDBStatus" expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
-    The result of a failed attempt to open a LevelDB database for SessionStorage
-    on disk.
+    The status of a failed attempt to open a LevelDB database for SessionStorage
+    on disk. Recorded when the operation returns and error.
 
     Warning: Histogram expired between M95-M110. Data may be missing.
   </summary>
 </histogram>
 
 <histogram name="SessionStorageContext.DatabaseOpenError.Memory"
-    enum="LevelDBStatus" expires_after="2023-12-01">
+    enum="LevelDBStatus" expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
-    The result of a failed attempt to open a LevelDB database for SessionStorage
-    in memory.
+    The status of a failed attempt to open a LevelDB database for SessionStorage
+    in memory. Recorded when the operation returns an error.
 
     Warning: Histogram expired between M95-M110. Data may be missing.
   </summary>
 </histogram>
 
 <histogram name="SessionStorageContext.DestroyDBResult" enum="LevelDBStatus"
-    expires_after="2023-12-01">
+    expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
-    The result of attempting to delete the SessionStorage database.
-
-    Warning: Histogram expired between M95-M110. Data may be missing.
-  </summary>
-</histogram>
-
-<histogram name="SessionStorageContext.DirectoryOpenError"
-    enum="PlatformFileError" expires_after="2023-12-01">
-  <owner>ayui@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    The reason opening a directory for the LevelDB database that backs
-    LocalStorage failed.
-
-    Warning: Histogram expired between M95-M110. Data may be missing.
-  </summary>
-</histogram>
-
-<histogram name="SessionStorageContext.OnConnectionDestroyed" enum="Boolean"
-    expires_after="2023-12-01">
-  <owner>dullweber@chromium.org</owner>
-  <owner>ayui@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    Recorded when the database connection is closed unexpectedly.
+    The result of attempting to delete the SessionStorage database. Recorded
+    when the operation completes and returns a status.
 
     Warning: Histogram expired between M95-M110. Data may be missing.
   </summary>
 </histogram>
 
 <histogram name="SessionStorageContext.OpenError" enum="LocalStorageOpenError"
-    expires_after="2023-12-01">
+    expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     The reason opening the LevelDB database that backs SessionStorage failed.
+    Recorded after an error is encountered after an open operation.
 
     Warning: Histogram expired between M95-M110. Data may be missing.
   </summary>
 </histogram>
 
-<histogram base="true" name="SessionStorageContext.OpenResultAfter"
-    enum="LocalStorageOpenError" expires_after="2023-12-01">
-<!-- Name completed by histogram_suffixes name="SessionStorageContextOpenReasons" -->
-
+<histogram
+    name="SessionStorageContext.OpenResultAfter{SessionStorageContextOpenReasons}"
+    enum="LocalStorageOpenError" expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     The result of opening the LevelDB database that backs SessionStorage.
+    Recorded after an open operation attempt returns an error.
 
     Warning: Histogram expired between M95-M110. Data may be missing.
+    {SessionStorageContextOpenReasons}
   </summary>
+  <token key="SessionStorageContextOpenReasons">
+    <variant name="CommitErrors" summary="After too many commit errors."/>
+    <variant name="InvalidVersion"
+        summary="After an invalid version was read."/>
+    <variant name="OpenFailed" summary="After opening the DB failed."/>
+    <variant name="ReadNamespacesError"
+        summary="After reading the namespaces failed."/>
+    <variant name="ReadNextMapIdError"
+        summary="After reading the map id failed."/>
+    <variant name="ReadVersionError"
+        summary="After reading the schema version failed."/>
+  </token>
 </histogram>
 
 <histogram name="SessionStorageContext.ReadNamespacesError"
-    enum="LevelDBStatus" expires_after="2023-12-01">
+    enum="LevelDBStatus" expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     The reason reading the namespaces metadata of the SessionStorage database
-    failed.
+    failed. Recorded after the operation returns an error.
 
     Warning: Histogram expired between M95-M110. Data may be missing.
   </summary>
 </histogram>
 
 <histogram name="SessionStorageContext.ReadNextMapIdError" enum="LevelDBStatus"
-    expires_after="2023-12-01">
+    expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     The reason reading the next data map id metadata of the SessionStorage
-    database failed.
+    database failed. Recorded after the operation returns an error.
 
     Warning: Histogram expired between M95-M110. Data may be missing.
   </summary>
 </histogram>
 
 <histogram name="SessionStorageContext.ReadVersionError" enum="LevelDBStatus"
-    expires_after="2023-12-01">
+    expires_after="2024-12-01">
   <owner>ayui@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>

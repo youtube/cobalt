@@ -4,10 +4,6 @@
 
 #import "ios/chrome/test/earl_grey/test_switches.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace test_switches {
 
 // Uses the real SystemIdentityManager for EarlGrey tests.
@@ -15,9 +11,19 @@ const char kForceRealSystemIdentityManager[] =
     "force-real-system-identity-manager";
 
 // Identities to add at startup.
-const char kAddFakeIdentitiesAtStartup[] = "add_fake_identities";
+const char kAddFakeIdentitiesAtStartup[] = "add-fake-identities";
 
-// Sign in automatically at startup.
-const char kSignInAtStartup[] = "sign-in-at-startup";
+// Simulate post device restore.
+const char kSimulatePostDeviceRestore[] = "simulate-post-device-restore";
+
+// Enables FakeTabGroupSyncService.
+const char kEnableFakeTabGroupSyncService[] =
+    "enable-fake-tab-group-sync-service";
+
+// Status of the Google Family fetch API call for the user.
+const char kFamilyStatus[] = "family-status";
+
+// Enables the provided IPH.
+const char kEnableIPH[] = "enable-iph";
 
 }  // namespace test_switches

@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import './strings.m.js';
+import '/strings.m.js';
 import './policy_precedence_row.js';
 import './policy_row.js';
 
 import {CustomElement} from 'chrome://resources/js/custom_element.js';
-import {getRequiredElement} from 'chrome://resources/js/util_ts.js';
+import {getRequiredElement} from 'chrome://resources/js/util.js';
 
-import {Policy, PolicyRowElement} from './policy_row.js';
+import type {Policy, PolicyRowElement} from './policy_row.js';
 import {getTemplate} from './policy_table.html.js';
 
 export interface PolicyTableModel {
@@ -20,30 +20,81 @@ export interface PolicyTableModel {
   precedenceOrder?: string[];
 }
 
+// Sortable columns/fields identifiers.
+enum SortButtonsField {
+  POLICY_NAME = 'name',
+  POLICY_SOURCE = 'source',
+  POLICY_SCOPE = 'scope',
+  POLICY_LEVEL = 'level',
+  POLICY_STATUS = 'status'
+}
+
+// The possible directions for sort.
+enum SortOrder {
+  ASCENDING = 1,
+  DESCENDING = -1
+}
+
 export class PolicyTableElement extends CustomElement {
   static override get template() {
     return getTemplate();
   }
 
+  dataModel: PolicyTableModel;
   filterPattern: string = '';
+  // The last sort order and column for the policy table.
+  // These are used when policies are updated to prevent un-desired sort reset.
+  mostRecentSortOrder: number = SortOrder.ASCENDING;
+  mostRecentSortedColumn: string = SortButtonsField.POLICY_NAME;
 
-  update(dataModel: PolicyTableModel) {
+  // Updates the data model and table.
+  updateDataModel(dataModel: PolicyTableModel) {
+    this.dataModel = dataModel;
+    // Update table based on the updated data model.
+    this.update();
+  }
+
+  addEventListeners() {
+    for (const field of Object.values(SortButtonsField)) {
+      const sortUpButton = this.getRequiredElement(`#${field}-sort-up`);
+      const sortDownButton = this.getRequiredElement(`#${field}-sort-down`);
+      sortUpButton.onclick = () => this.update(SortOrder.ASCENDING, field);
+      sortDownButton.onclick = () => this.update(SortOrder.DESCENDING, field);
+    }
+  }
+
+  update(
+      order: number = this.mostRecentSortOrder,
+      field: string = this.mostRecentSortedColumn) {
     // Clear policies
-    const mainContent = this.shadowRoot!.querySelector('.main');
+    const mainContent = this.getRequiredElement('.main');
     const policies = this.shadowRoot!.querySelectorAll('.policy-data');
-    this.shadowRoot!.querySelector('.header')!.textContent = dataModel.name;
-    this.shadowRoot!.querySelector('.id')!.textContent = dataModel.id || null;
-    (this.shadowRoot!.querySelector('.id') as HTMLElement)!.hidden =
-        !dataModel.id;
-    policies.forEach(row => mainContent!.removeChild(row));
+    this.getRequiredElement('.header').textContent = this.dataModel.name;
+    this.getRequiredElement('.id').textContent = this.dataModel.id || null;
+    this.getRequiredElement('.id').hidden = !this.dataModel.id;
+    policies.forEach(row => mainContent.removeChild(row));
 
-    dataModel.policies
+    this.dataModel.policies
         .sort((a, b) => {
+          // Save most recent sort preference.
+          this.mostRecentSortOrder = order;
+          this.mostRecentSortedColumn = field;
           if ((a.value !== undefined && b.value !== undefined) ||
               a.value === b.value) {
             if (a.link !== undefined && b.link !== undefined) {
-              // Sorting the policies in ascending alpha order.
-              return a.name > b.name ? 1 : -1;
+              // Sorting the policies in chosen alpha order based on the field
+              // selected, with secondary sort based on Policy name.
+              if (field !== SortButtonsField.POLICY_NAME &&
+                  a[field as keyof Policy] === b[field as keyof Policy]) {
+                return order *
+                    (a[SortButtonsField.POLICY_NAME] >
+                             b[SortButtonsField.POLICY_NAME] ?
+                         1 :
+                         -1);
+              }
+              return order *
+                  (a[field as keyof Policy] > b[field as keyof Policy] ? 1 :
+                                                                         -1);
             }
 
             // Sorting so unknown policies are last.
@@ -57,20 +108,20 @@ export class PolicyTableElement extends CustomElement {
           const policyRow: PolicyRowElement =
               document.createElement('policy-row');
           policyRow.initialize(policy);
-          mainContent!.appendChild(policyRow);
+          mainContent.appendChild(policyRow);
         });
     this.filter();
 
     // Show the current policy precedence order in the Policy Precedence table.
-    if (dataModel.name === 'Policy Precedence') {
+    if (this.dataModel.name === 'Policy Precedence') {
       // Clear previous precedence row.
       const precedenceRowOld =
           this.shadowRoot!.querySelectorAll('.policy-precedence-data');
-      precedenceRowOld.forEach(row => mainContent!.removeChild(row));
-      if (dataModel.precedenceOrder != undefined) {
+      precedenceRowOld.forEach(row => mainContent.removeChild(row));
+      if (this.dataModel.precedenceOrder != null) {
         const precedenceRow = document.createElement('policy-precedence-row');
-        precedenceRow.initialize(dataModel.precedenceOrder);
-        mainContent!.appendChild(precedenceRow);
+        precedenceRow.initialize(this.dataModel.precedenceOrder);
+        mainContent.appendChild(precedenceRow);
       }
     }
   }
@@ -92,16 +143,16 @@ export class PolicyTableElement extends CustomElement {
    */
   filter() {
     const showUnset =
-        (getRequiredElement('show-unset') as HTMLInputElement)!.checked;
+        getRequiredElement<HTMLInputElement>('show-unset').checked;
     const policies = this.shadowRoot!.querySelectorAll('.policy-data');
     for (let i = 0; i < policies.length; i++) {
       const policyDisplay = policies[i] as PolicyRowElement;
-      policyDisplay!.hidden =
-          policyDisplay!.policy!.value === undefined && !showUnset ||
-          policyDisplay!.policy!.name.toLowerCase().indexOf(
+      policyDisplay.hidden =
+          policyDisplay.policy.value === undefined && !showUnset ||
+          policyDisplay.policy.name.toLowerCase().indexOf(
               this.filterPattern) === -1;
     }
-    this.shadowRoot!.querySelector<HTMLElement>('.no-policy')!.hidden =
+    this.getRequiredElement<HTMLElement>('.no-policy').hidden =
         !!this.shadowRoot!.querySelector('.policy-data:not([hidden])');
   }
 }

@@ -5,9 +5,10 @@
 #ifndef COMPONENTS_FEED_CORE_V2_PUBLIC_IOS_NOTICE_CARD_TRACKER_H_
 #define COMPONENTS_FEED_CORE_V2_PUBLIC_IOS_NOTICE_CARD_TRACKER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
-// TODO(crbug.com/1213474): Remove this include:
+// TODO(crbug.com/40768780): Remove this include:
 #include "components/feed/core/v2/public/ios/prefs.h"
 
 class PrefService;
@@ -40,7 +41,7 @@ class NoticeCardTracker {
   void MaybeUpdateNoticeCardViewsCount(int index);
   void MaybeUpdateNoticeCardClicksCount(int index);
 
-  PrefService* profile_prefs_;
+  raw_ptr<PrefService> profile_prefs_;
 
   // The number of views of the notice card.
   mutable base::Lock views_count_lock_;
@@ -49,14 +50,6 @@ class NoticeCardTracker {
   // The number of clicks/taps of the notice card.
   mutable base::Lock clicks_count_lock_;
   int clicks_count_ GUARDED_BY(clicks_count_lock_);
-
-  // The number of views of the notice card to consider it acknowledged by the
-  // user.
-  int views_count_threshold_;
-
-  // The number of clicks/taps of the notice card to consider it acknowledged by
-  // the user.
-  int clicks_count_threshold_;
 };
 
 }  // namespace ios_feed

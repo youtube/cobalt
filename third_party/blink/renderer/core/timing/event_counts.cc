@@ -42,7 +42,7 @@ class EventCountsIterationSource final
 
 void EventCounts::Add(const AtomicString& event_type) {
   auto iterator = event_count_map_.find(event_type);
-  DCHECK_NE(iterator, event_count_map_.end());
+  CHECK_NE(iterator, event_count_map_.end());
   iterator->value++;
 }
 

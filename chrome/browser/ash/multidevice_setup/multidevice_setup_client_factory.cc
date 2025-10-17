@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/multidevice_setup/multidevice_setup_client_factory.h"
 
+#include "ash/constants/ash_features.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -70,7 +71,7 @@ class MultiDeviceSetupClientHolder : public KeyedService {
     weak_factory_.InvalidateWeakPtrs();
   }
 
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile> profile_;
   std::unique_ptr<MultiDeviceSetupClient> multidevice_setup_client_;
   base::WeakPtrFactory<MultiDeviceSetupClientHolder> weak_factory_{this};
 };
@@ -82,9 +83,12 @@ MultiDeviceSetupClientFactory::MultiDeviceSetupClientFactory()
           "MultiDeviceSetupClient",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(device_sync::DeviceSyncClientFactory::GetInstance());
   // The MultiDeviceSetupServiceFactory dependency is omitted here, see the
@@ -118,20 +122,27 @@ MultiDeviceSetupClient* MultiDeviceSetupClientFactory::GetForProfile(
 
 // static
 MultiDeviceSetupClientFactory* MultiDeviceSetupClientFactory::GetInstance() {
-  return base::Singleton<MultiDeviceSetupClientFactory>::get();
+  static base::NoDestructor<MultiDeviceSetupClientFactory> instance;
+  return instance.get();
 }
 
-KeyedService* MultiDeviceSetupClientFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+MultiDeviceSetupClientFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  if (IsAllowedByPolicy(context)) {
-    PA_LOG(INFO)
-        << "Allowed by policy. Returning new MultiDeviceSetupClientHolder";
-    return new MultiDeviceSetupClientHolder(context);
+  if (!IsAllowedByPolicy(context)) {
+    PA_LOG(INFO) << "NOT allowed by policy. Unable to return "
+                    "MultiDeviceSetupClientHolder, returning nullptr instead.";
+    return nullptr;
   }
 
-  PA_LOG(INFO) << "NOT allowed by policy. Unable to return "
-                  "MultiDeviceSetupClientHolder, returning nullptr instead.";
-  return nullptr;
+  if (!features::IsCrossDeviceFeatureSuiteAllowed()) {
+    PA_LOG(INFO) << "Cross-device feature suite is disabled. Unable to return "
+                    "MultiDeviceSetupClientHolder, returning nullptr instead.";
+    return nullptr;
+  }
+
+  PA_LOG(INFO) << "Allowed. Returning new MultiDeviceSetupClientHolder";
+  return std::make_unique<MultiDeviceSetupClientHolder>(context);
 }
 
 bool MultiDeviceSetupClientFactory::ServiceIsNULLWhileTesting() const {

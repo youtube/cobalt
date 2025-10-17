@@ -398,7 +398,8 @@ void CrossThreadMediaSourceAttachment::AddTrackToMediaElementOnMainThread(
     case TrackAddRemovalType::kAudio: {
       auto* audio_track =
           MakeGarbageCollected<AudioTrack>(atomic_id, atomic_kind, atomic_label,
-                                           atomic_language, enable_or_select);
+                                           atomic_language, enable_or_select,
+                                           /*exclusive=*/false);
       attached_element_->audioTracks().Add(audio_track);
       break;
     }
@@ -476,7 +477,7 @@ bool CrossThreadMediaSourceAttachment::RunExclusively(
 
 void CrossThreadMediaSourceAttachment::Unregister() {
   // MSE-in-Worker does NOT use object URLs, so this should not be called.
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
 MediaSourceTracer*
@@ -602,8 +603,8 @@ void CrossThreadMediaSourceAttachment::CompleteAttachingToMediaElement(
 
     // In unlikely case this attachment is reused, clear the cached state of
     // previous attachment.
-    cached_buffered_.Clear();
-    cached_seekable_.Clear();
+    cached_buffered_.clear();
+    cached_seekable_.clear();
 
     // Verify the rest of the status once we're completing this in the worker
     // thread. Using WTF::RetainedRef(this) here to ensure we are still alive

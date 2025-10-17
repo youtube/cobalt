@@ -8,18 +8,15 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/streams/miscellaneous_operations.h"
-#include "third_party/blink/renderer/core/streams/promise_handler.h"
 #include "third_party/blink/renderer/core/streams/readable_stream.h"
 #include "third_party/blink/renderer/core/streams/readable_stream_default_controller.h"
 #include "third_party/blink/renderer/core/streams/stream_algorithms.h"
-#include "third_party/blink/renderer/core/streams/stream_promise_resolver.h"
 #include "third_party/blink/renderer/core/streams/transform_stream_default_controller.h"
 #include "third_party/blink/renderer/core/streams/transform_stream_transformer.h"
 #include "third_party/blink/renderer/core/streams/writable_stream.h"
 #include "third_party/blink/renderer/core/streams/writable_stream_default_controller.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
-#include "third_party/blink/renderer/platform/bindings/to_v8.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
 #include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -34,33 +31,32 @@ class TransformStream::FlushAlgorithm final : public StreamAlgorithm {
   explicit FlushAlgorithm(TransformStreamTransformer* transformer)
       : transformer_(transformer) {}
 
-  v8::Local<v8::Promise> Run(ScriptState* script_state,
-                             int argc,
-                             v8::Local<v8::Value> argv[]) override {
+  ScriptPromise<IDLUndefined> Run(ScriptState* script_state,
+                                  int argc,
+                                  v8::Local<v8::Value> argv[]) override {
     DCHECK_EQ(argc, 0);
     DCHECK(controller_);
+    v8::Isolate* isolate = script_state->GetIsolate();
     auto* transformer_script_state = transformer_->GetScriptState();
     if (!transformer_script_state->ContextIsValid()) {
-      return PromiseReject(script_state,
-                           V8ThrowException::CreateTypeError(
-                               script_state->GetIsolate(), "invalid realm"));
+      return ScriptPromise<IDLUndefined>::Reject(
+          script_state,
+          V8ThrowException::CreateTypeError(isolate, "invalid realm"));
     }
-    ExceptionState exception_state(script_state->GetIsolate(),
-                                   ExceptionState::kUnknownContext, "", "");
-    ScriptPromise promise;
+    v8::TryCatch try_catch(isolate);
+    ScriptPromise<IDLUndefined> promise;
     {
       // This is needed because the realm of the transformer can be different
       // from the realm of the transform stream.
       ScriptState::Scope scope(transformer_script_state);
-      promise = transformer_->Flush(controller_, exception_state);
+      promise = transformer_->Flush(controller_, PassThroughException(isolate));
     }
-    if (exception_state.HadException()) {
-      auto exception = exception_state.GetException();
-      exception_state.ClearException();
-      return PromiseReject(script_state, exception);
+    if (try_catch.HasCaught()) {
+      return ScriptPromise<IDLUndefined>::Reject(script_state,
+                                                 try_catch.Exception());
     }
 
-    return promise.V8Promise();
+    return promise;
   }
 
   // SetController() must be called before Run() is.
@@ -86,28 +82,27 @@ class TransformStream::TransformAlgorithm final : public StreamAlgorithm {
   explicit TransformAlgorithm(TransformStreamTransformer* transformer)
       : transformer_(transformer) {}
 
-  v8::Local<v8::Promise> Run(ScriptState* script_state,
-                             int argc,
-                             v8::Local<v8::Value> argv[]) override {
+  ScriptPromise<IDLUndefined> Run(ScriptState* script_state,
+                                  int argc,
+                                  v8::Local<v8::Value> argv[]) override {
     DCHECK_EQ(argc, 1);
     DCHECK(controller_);
+    v8::Isolate* isolate = script_state->GetIsolate();
     auto* transformer_script_state = transformer_->GetScriptState();
     if (!transformer_script_state->ContextIsValid()) {
-      return PromiseReject(script_state,
-                           V8ThrowException::CreateTypeError(
-                               script_state->GetIsolate(), "invalid realm"));
+      return ScriptPromise<IDLUndefined>::Reject(
+          script_state,
+          V8ThrowException::CreateTypeError(isolate, "invalid realm"));
     }
-    ExceptionState exception_state(script_state->GetIsolate(),
-                                   ExceptionState::kUnknownContext, "", "");
-    ScriptPromise promise =
-        transformer_->Transform(argv[0], controller_, exception_state);
-    if (exception_state.HadException()) {
-      auto exception = exception_state.GetException();
-      exception_state.ClearException();
-      return PromiseReject(script_state, exception);
+    v8::TryCatch try_catch(isolate);
+    auto promise = transformer_->Transform(argv[0], controller_,
+                                           PassThroughException(isolate));
+    if (try_catch.HasCaught()) {
+      return ScriptPromise<IDLUndefined>::Reject(script_state,
+                                                 try_catch.Exception());
     }
 
-    return promise.V8Promise();
+    return promise;
   }
 
   // SetController() must be called before Run() is.
@@ -225,14 +220,14 @@ TransformStream* TransformStream::Create(
 
   // 8. Let startPromise be a new promise.
   auto* start_promise =
-      MakeGarbageCollected<StreamPromiseResolver>(script_state);
+      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
 
   // 9. Perform ! InitializeTransformStream(stream, startPromise,
   //    writableHighWaterMark, writableSizeAlgorithm, readableHighWaterMark,
   //    readableSizeAlgorithm).
   Initialize(script_state, stream, start_promise, writable_high_water_mark,
              writable_size_algorithm, readable_high_water_mark,
-             readable_size_algorithm);
+             readable_size_algorithm, exception_state);
 
   // 10. Let controller be ObjectCreate(the original value of
   //     TransformStreamDefaultController's prototype property).
@@ -245,17 +240,15 @@ TransformStream* TransformStream::Create(
 
   // 12. Let startResult be the result of performing startAlgorithm. (This may
   //     throw an exception.)
-  v8::MaybeLocal<v8::Promise> start_result_maybe =
-      start_algorithm->Run(script_state, exception_state);
-  v8::Local<v8::Promise> start_result;
-  if (!start_result_maybe.ToLocal(&start_result)) {
-    CHECK(exception_state.HadException());
+  TryRethrowScope rethrow_scope(script_state->GetIsolate(), exception_state);
+  auto start_result = start_algorithm->Run(script_state);
+  if (start_result.IsEmpty()) {
+    CHECK(rethrow_scope.HasCaught());
     return nullptr;
   }
-  DCHECK(!exception_state.HadException());
 
   // 13. Resolve startPromise with startResult.
-  start_promise->Resolve(script_state, start_result);
+  start_promise->Resolve(start_result);
 
   // 14. Return stream.
   return stream;
@@ -289,12 +282,12 @@ void TransformStream::Trace(Visitor* visitor) const {
 class TransformStream::ReturnStartPromiseAlgorithm final
     : public StreamStartAlgorithm {
  public:
-  explicit ReturnStartPromiseAlgorithm(StreamPromiseResolver* start_promise)
+  explicit ReturnStartPromiseAlgorithm(
+      ScriptPromiseResolver<IDLUndefined>* start_promise)
       : start_promise_(start_promise) {}
 
-  v8::MaybeLocal<v8::Promise> Run(ScriptState* script_state,
-                                  ExceptionState&) override {
-    return start_promise_->V8Promise(script_state->GetIsolate());
+  ScriptPromise<IDLUndefined> Run(ScriptState*) override {
+    return start_promise_->Promise();
   }
 
   void Trace(Visitor* visitor) const override {
@@ -303,7 +296,7 @@ class TransformStream::ReturnStartPromiseAlgorithm final
   }
 
  private:
-  Member<StreamPromiseResolver> start_promise_;
+  Member<ScriptPromiseResolver<IDLUndefined>> start_promise_;
 };
 
 //
@@ -317,9 +310,9 @@ class TransformStream::DefaultSinkWriteAlgorithm final
   explicit DefaultSinkWriteAlgorithm(TransformStream* stream)
       : stream_(stream) {}
 
-  v8::Local<v8::Promise> Run(ScriptState* script_state,
-                             int argc,
-                             v8::Local<v8::Value> argv[]) override {
+  ScriptPromise<IDLUndefined> Run(ScriptState* script_state,
+                                  int argc,
+                                  v8::Local<v8::Value> argv[]) override {
     DCHECK_EQ(argc, 1);
     const auto chunk = argv[0];
 
@@ -335,21 +328,22 @@ class TransformStream::DefaultSinkWriteAlgorithm final
     if (stream_->had_backpressure_) {
       // a. Let backpressureChangePromise be
       //    stream.[[backpressureChangePromise]].
-      StreamPromiseResolver* backpressure_change_promise =
-          stream_->backpressure_change_promise_;
+      auto* backpressure_change_promise =
+          stream_->backpressure_change_promise_.Get();
 
       // b. Assert: backpressureChangePromise is not undefined.
       DCHECK(backpressure_change_promise);
 
-      class ResponseFunction final : public PromiseHandlerWithValue {
+      class ResponseFunction final
+          : public ThenCallable<IDLUndefined, ResponseFunction,
+                                IDLPromise<IDLUndefined>> {
        public:
         ResponseFunction(ScriptState* script_state,
                          TransformStream* stream,
                          v8::Local<v8::Value> chunk)
             : stream_(stream), chunk_(script_state->GetIsolate(), chunk) {}
 
-        v8::Local<v8::Value> CallWithLocal(ScriptState* script_state,
-                                           v8::Local<v8::Value>) override {
+        ScriptPromise<IDLUndefined> React(ScriptState* script_state) {
           auto* isolate = script_state->GetIsolate();
 
           // c. Return the result of transforming backpressureChangePromise with
@@ -360,8 +354,8 @@ class TransformStream::DefaultSinkWriteAlgorithm final
           //   ii. Let state be writable.[[state]].
           //  iii. If state is "erroring", throw writable.[[storedError]].
           if (writable->IsErroring()) {
-            return PromiseReject(script_state,
-                                 writable->GetStoredError(isolate));
+            return ScriptPromise<IDLUndefined>::Reject(
+                script_state, writable->GetStoredError(isolate));
           }
 
           // 4. Assert: state is "writable".
@@ -377,7 +371,8 @@ class TransformStream::DefaultSinkWriteAlgorithm final
         void Trace(Visitor* visitor) const override {
           visitor->Trace(stream_);
           visitor->Trace(chunk_);
-          PromiseHandlerWithValue::Trace(visitor);
+          ThenCallable<IDLUndefined, ResponseFunction,
+                       IDLPromise<IDLUndefined>>::Trace(visitor);
         }
 
        private:
@@ -386,12 +381,9 @@ class TransformStream::DefaultSinkWriteAlgorithm final
       };
 
       // c. Return the result of transforming backpressureChangePromise ...
-      return StreamThenPromise(
-          script_state->GetContext(),
-          backpressure_change_promise->V8Promise(script_state->GetIsolate()),
-          MakeGarbageCollected<ScriptFunction>(
-              script_state, MakeGarbageCollected<ResponseFunction>(
-                                script_state, stream_, chunk)));
+      return backpressure_change_promise->Promise().Then(
+          script_state,
+          MakeGarbageCollected<ResponseFunction>(script_state, stream_, chunk));
     }
 
     //  4. Return ! TransformStreamDefaultControllerPerformTransform(controller,
@@ -415,9 +407,9 @@ class TransformStream::DefaultSinkAbortAlgorithm final
   explicit DefaultSinkAbortAlgorithm(TransformStream* stream)
       : stream_(stream) {}
 
-  v8::Local<v8::Promise> Run(ScriptState* script_state,
-                             int argc,
-                             v8::Local<v8::Value> argv[]) override {
+  ScriptPromise<IDLUndefined> Run(ScriptState* script_state,
+                                  int argc,
+                                  v8::Local<v8::Value> argv[]) override {
     DCHECK_EQ(argc, 1);
     const auto reason = argv[0];
 
@@ -426,7 +418,7 @@ class TransformStream::DefaultSinkAbortAlgorithm final
     Error(script_state, stream_, reason);
 
     // 2. Return a promise resolved with undefined.
-    return PromiseResolveWithUndefined(script_state);
+    return ToResolvedUndefinedPromise(script_state);
   }
 
   void Trace(Visitor* visitor) const override {
@@ -444,9 +436,9 @@ class TransformStream::DefaultSinkCloseAlgorithm final
   explicit DefaultSinkCloseAlgorithm(TransformStream* stream)
       : stream_(stream) {}
 
-  v8::Local<v8::Promise> Run(ScriptState* script_state,
-                             int argc,
-                             v8::Local<v8::Value> argv[]) override {
+  ScriptPromise<IDLUndefined> Run(ScriptState* script_state,
+                                  int argc,
+                                  v8::Local<v8::Value> argv[]) override {
     DCHECK_EQ(argc, 0);
     // https://streams.spec.whatwg.org/#transform-stream-default-sink-close-algorithm
     // 1. Let readable be stream.[[readable]].
@@ -463,20 +455,21 @@ class TransformStream::DefaultSinkCloseAlgorithm final
     // 4. Perform ! TransformStreamDefaultControllerClearAlgorithms(controller).
     TransformStreamDefaultController::ClearAlgorithms(controller);
 
-    class ResolveFunction final : public PromiseHandlerWithValue {
+    class ResolveFunction final
+        : public ThenCallable<IDLUndefined, ResolveFunction> {
      public:
       explicit ResolveFunction(TransformStream* stream) : stream_(stream) {}
 
-      v8::Local<v8::Value> CallWithLocal(ScriptState* script_state,
-                                         v8::Local<v8::Value>) override {
+      void React(ScriptState* script_state) {
         // 5. Return the result of transforming flushPromise with:
         //    a. A fulfillment handler that performs the following steps:
         //       i. If readable.[[state]] is "errored", throw
         //          readable.[[storedError]].
         if (ReadableStream::IsErrored(stream_->readable_)) {
-          // Returning a rejection is equivalent to throwing here.
-          return PromiseReject(script_state, stream_->readable_->GetStoredError(
-                                                 script_state->GetIsolate()));
+          V8ThrowException::ThrowException(
+              script_state->GetIsolate(),
+              stream_->readable_->GetStoredError(script_state->GetIsolate()));
+          return;
         }
 
         //      ii. Let readableController be
@@ -491,38 +484,37 @@ class TransformStream::DefaultSinkCloseAlgorithm final
           ReadableStreamDefaultController::Close(script_state,
                                                  readable_controller);
         }
-
-        return v8::Undefined(script_state->GetIsolate());
       }
 
       void Trace(Visitor* visitor) const override {
         visitor->Trace(stream_);
-        PromiseHandlerWithValue::Trace(visitor);
+        ThenCallable<IDLUndefined, ResolveFunction>::Trace(visitor);
       }
 
      private:
       Member<TransformStream> stream_;
     };
 
-    class RejectFunction final : public PromiseHandlerWithValue {
+    class RejectFunction final : public ThenCallable<IDLAny, RejectFunction> {
      public:
       explicit RejectFunction(TransformStream* stream) : stream_(stream) {}
 
-      v8::Local<v8::Value> CallWithLocal(ScriptState* script_state,
-                                         v8::Local<v8::Value> r) override {
+      void React(ScriptState* script_state, ScriptValue r) {
         // b. A rejection handler that, when called with argument r, performs
         //    the following steps:
         //    i. Perform ! TransformStreamError(stream, r).
-        Error(script_state, stream_, r);
+        Error(script_state, stream_, r.V8Value());
 
         //   ii. Throw readable.[[storedError]].
-        return PromiseReject(script_state, stream_->readable_->GetStoredError(
-                                               script_state->GetIsolate()));
+        V8ThrowException::ThrowException(
+            script_state->GetIsolate(),
+            stream_->readable_->GetStoredError(script_state->GetIsolate()));
+        return;
       }
 
       void Trace(Visitor* visitor) const override {
         visitor->Trace(stream_);
-        PromiseHandlerWithValue::Trace(visitor);
+        ThenCallable<IDLAny, RejectFunction>::Trace(visitor);
       }
 
      private:
@@ -530,12 +522,9 @@ class TransformStream::DefaultSinkCloseAlgorithm final
     };
 
     // 5. Return the result of transforming flushPromise ...
-    return StreamThenPromise(
-        script_state->GetContext(), flush_promise,
-        MakeGarbageCollected<ScriptFunction>(
-            script_state, MakeGarbageCollected<ResolveFunction>(stream_)),
-        MakeGarbageCollected<ScriptFunction>(
-            script_state, MakeGarbageCollected<RejectFunction>(stream_)));
+    return flush_promise.Then(script_state,
+                              MakeGarbageCollected<ResolveFunction>(stream_),
+                              MakeGarbageCollected<RejectFunction>(stream_));
   }
 
   void Trace(Visitor* visitor) const override {
@@ -553,9 +542,9 @@ class TransformStream::DefaultSourcePullAlgorithm final
   explicit DefaultSourcePullAlgorithm(TransformStream* stream)
       : stream_(stream) {}
 
-  v8::Local<v8::Promise> Run(ScriptState* script_state,
-                             int argc,
-                             v8::Local<v8::Value> argv[]) override {
+  ScriptPromise<IDLUndefined> Run(ScriptState* script_state,
+                                  int argc,
+                                  v8::Local<v8::Value> argv[]) override {
     DCHECK_EQ(argc, 0);
 
     // https://streams.spec.whatwg.org/#transform-stream-default-source-pull
@@ -569,8 +558,7 @@ class TransformStream::DefaultSourcePullAlgorithm final
     SetBackpressure(script_state, stream_, false);
 
     // 4. Return stream.[[backpressureChangePromise]].
-    return stream_->backpressure_change_promise_->V8Promise(
-        script_state->GetIsolate());
+    return stream_->backpressure_change_promise_->Promise();
   }
 
   void Trace(Visitor* visitor) const override {
@@ -590,9 +578,9 @@ class TransformStream::DefaultSourceCancelAlgorithm final
   explicit DefaultSourceCancelAlgorithm(TransformStream* stream)
       : stream_(stream) {}
 
-  v8::Local<v8::Promise> Run(ScriptState* script_state,
-                             int argc,
-                             v8::Local<v8::Value> argv[]) override {
+  ScriptPromise<IDLUndefined> Run(ScriptState* script_state,
+                                  int argc,
+                                  v8::Local<v8::Value> argv[]) override {
     DCHECK_EQ(argc, 1);
 
     // https://streams.spec.whatwg.org/#initialize-transform-stream
@@ -602,7 +590,7 @@ class TransformStream::DefaultSourceCancelAlgorithm final
     ErrorWritableAndUnblockWrite(script_state, stream_, argv[0]);
 
     //    b. Return a promise resolved with undefined.
-    return PromiseResolveWithUndefined(script_state);
+    return ToResolvedUndefinedPromise(script_state);
   }
 
   void Trace(Visitor* visitor) const override {
@@ -659,13 +647,12 @@ void TransformStream::InitInternal(ScriptState* script_state,
     return;
   }
 
-  v8::TryCatch try_catch(isolate);
+  TryRethrowScope rethrow_scope(isolate, exception_state);
 
   // 5. Let writableType be ? GetV(transformer, "writableType").
   v8::Local<v8::Value> writable_type;
   if (!transformer->Get(context, V8AtomicString(isolate, "writableType"))
            .ToLocal(&writable_type)) {
-    exception_state.RethrowV8Exception(try_catch.Exception());
     return;
   }
 
@@ -696,7 +683,6 @@ void TransformStream::InitInternal(ScriptState* script_state,
   v8::Local<v8::Value> readable_type;
   if (!transformer->Get(context, V8AtomicString(isolate, "readableType"))
            .ToLocal(&readable_type)) {
-    exception_state.RethrowV8Exception(try_catch.Exception());
     return;
   }
 
@@ -725,14 +711,14 @@ void TransformStream::InitInternal(ScriptState* script_state,
 
   // 15. Let startPromise be a new promise.
   auto* start_promise =
-      MakeGarbageCollected<StreamPromiseResolver>(script_state);
+      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
 
   // 16. Perform ! InitializeTransformStream(this, startPromise,
   //     writableHighWaterMark, writableSizeAlgorithm, readableHighWaterMark,
   //     readableSizeAlgorithm).
   Initialize(script_state, this, start_promise, writable_high_water_mark,
              writable_size_algorithm, readable_high_water_mark,
-             readable_size_algorithm);
+             readable_size_algorithm, exception_state);
 
   // 17. Perform ? SetUpTransformStreamDefaultControllerFromTransformer(this,
   //     transformer).
@@ -756,20 +742,19 @@ void TransformStream::InitInternal(ScriptState* script_state,
   DCHECK(!exception_state.HadException());
 
   // 19. Resolve startPromise with startResult.
-  start_promise->Resolve(script_state, start_result);
+  start_promise->Resolve(
+      ScriptPromise<IDLUndefined>::FromV8Value(script_state, start_result));
 }
 
 void TransformStream::Initialize(
     ScriptState* script_state,
     TransformStream* stream,
-    StreamPromiseResolver* start_promise,
+    ScriptPromiseResolver<IDLUndefined>* start_promise,
     double writable_high_water_mark,
     StrategySizeAlgorithm* writable_size_algorithm,
     double readable_high_water_mark,
-    StrategySizeAlgorithm* readable_size_algorithm) {
-  ExceptionState exception_state(script_state->GetIsolate(),
-                                 ExceptionState::kUnknownContext, "", "");
-
+    StrategySizeAlgorithm* readable_size_algorithm,
+    ExceptionState& exception_state) {
   // https://streams.spec.whatwg.org/#initialize-transform-stream
   // 1. Let startAlgorithm be an algorithm that returns startPromise.
   auto* start_algorithm =
@@ -827,7 +812,8 @@ void TransformStream::Initialize(
   DCHECK(stream->had_backpressure_);
   DCHECK(!stream->backpressure_change_promise_);
   stream->backpressure_change_promise_ =
-      MakeGarbageCollected<StreamPromiseResolver>(script_state);
+      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
+  stream->backpressure_change_promise_->SuppressDetachCheck();
 
   // 11. Set stream.[[transformStreamController]] to undefined.
   // (This is set by the constructor; just verify the value here).
@@ -884,11 +870,12 @@ void TransformStream::SetBackpressure(ScriptState* script_state,
   // the function is never called without |backpressure_change_promise_| set
   // and we don't need to test it.
   DCHECK(stream->backpressure_change_promise_);
-  stream->backpressure_change_promise_->ResolveWithUndefined(script_state);
+  stream->backpressure_change_promise_->Resolve();
 
   // 3. Set stream.[[backpressureChangePromise]] to a new promise.
   stream->backpressure_change_promise_ =
-      MakeGarbageCollected<StreamPromiseResolver>(script_state);
+      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
+  stream->backpressure_change_promise_->SuppressDetachCheck();
 
   // 4. Set stream.[[backpressure]] to backpressure.
   stream->had_backpressure_ = backpressure;

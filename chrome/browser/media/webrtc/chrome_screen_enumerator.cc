@@ -9,7 +9,7 @@
 #include "base/feature_list.h"
 #include "base/lazy_instance.h"
 #include "base/task/bind_post_task.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/desktop_media_id.h"
@@ -18,21 +18,21 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "ui/display/screen.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/shell.h"
 #include "ui/aura/window.h"
-#elif BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_LINUX)
+#elif BUILDFLAG(IS_LINUX)
 #include "base/functional/callback.h"
 #include "content/public/browser/desktop_capture.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 namespace {
-base::LazyInstance<std::vector<aura::Window*>>::DestructorAtExit
-    root_windows_for_testing_ = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<std::vector<raw_ptr<aura::Window, VectorExperimental>>>::
+    DestructorAtExit root_windows_for_testing_ = LAZY_INSTANCE_INITIALIZER;
 }  // namespace
 
-#elif BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_LINUX)
+#elif BUILDFLAG(IS_LINUX)
 namespace {
 base::LazyInstance<std::unique_ptr<webrtc::DesktopCapturer>>::DestructorAtExit
     g_desktop_capturer_for_testing = LAZY_INSTANCE_INITIALIZER;
@@ -41,7 +41,7 @@ base::LazyInstance<std::unique_ptr<webrtc::DesktopCapturer>>::DestructorAtExit
 #endif
 
 namespace {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 blink::mojom::StreamDevicesSetPtr EnumerateScreens(
     blink::mojom::MediaStreamType stream_type) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
@@ -70,15 +70,16 @@ blink::mojom::StreamDevicesSetPtr EnumerateScreens(
         /*display_surface=*/media::mojom::DisplayCaptureSurfaceType::MONITOR,
         /*logical_surface=*/true,
         /*cursor=*/media::mojom::CursorCaptureType::NEVER,
-        /*capture_handle=*/nullptr);
+        /*capture_handle=*/nullptr,
+        /*initial_zoom_level=*/100);
     stream_devices_set->stream_devices.push_back(
-        blink::mojom::StreamDevices::New(/*audio_device=*/absl::nullopt,
+        blink::mojom::StreamDevices::New(/*audio_device=*/std::nullopt,
                                          /*video_device=*/device));
   }
   return stream_devices_set;
 }
 
-#elif BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_LINUX)
+#elif BUILDFLAG(IS_LINUX)
 blink::mojom::StreamDevicesSetPtr EnumerateScreens(
     blink::mojom::MediaStreamType stream_type) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
@@ -109,7 +110,7 @@ blink::mojom::StreamDevicesSetPtr EnumerateScreens(
                                     /*name=*/"Screen",
                                     /*display_id=*/source.display_id);
     stream_devices_set->stream_devices.push_back(
-        blink::mojom::StreamDevices::New(/*audio_device=*/absl::nullopt,
+        blink::mojom::StreamDevices::New(/*audio_device=*/std::nullopt,
                                          /*video_device=*/device));
   }
 
@@ -123,28 +124,24 @@ ChromeScreenEnumerator::ChromeScreenEnumerator() = default;
 
 ChromeScreenEnumerator::~ChromeScreenEnumerator() = default;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 void ChromeScreenEnumerator::SetRootWindowsForTesting(
-    std::vector<aura::Window*> root_windows) {
+    std::vector<raw_ptr<aura::Window, VectorExperimental>> root_windows) {
   root_windows_for_testing_.Get() = std::move(root_windows);
 }
 
-#elif BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_LINUX)
+#elif BUILDFLAG(IS_LINUX)
 void ChromeScreenEnumerator::SetDesktopCapturerForTesting(
     std::unique_ptr<webrtc::DesktopCapturer> capturer) {
   g_desktop_capturer_for_testing.Get() = std::move(capturer);
 }
 
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX)
 
 void ChromeScreenEnumerator::EnumerateScreens(
     blink::mojom::MediaStreamType stream_type,
     ScreensCallback screens_callback) const {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
-  DCHECK((base::FeatureList::IsEnabled(features::kGetDisplayMediaSet) &&
-          base::FeatureList::IsEnabled(
-              features::kGetDisplayMediaSetAutoSelectAllScreens)) ||
-         base::FeatureList::IsEnabled(blink::features::kGetAllScreensMedia));
 
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
   content::GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
@@ -160,10 +157,7 @@ void ChromeScreenEnumerator::EnumerateScreens(
           },
           std::move(screens_callback)));
 #else
-  // TODO(crbug.com/1300883): Implement for other platforms than Chrome OS.
+  // TODO(crbug.com/40216442): Implement for other platforms than Chrome OS.
   NOTREACHED();
-  std::move(screens_callback)
-      .Run(blink::mojom::StreamDevicesSet(),
-           blink::mojom::MediaStreamRequestResult::NOT_SUPPORTED);
 #endif
 }

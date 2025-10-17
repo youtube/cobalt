@@ -8,6 +8,8 @@
 #include "cc/test/fake_picture_layer.h"
 #include "cc/test/layer_tree_test.h"
 #include "cc/trees/transform_node.h"
+#include "skia/ext/font_utils.h"
+#include "third_party/skia/include/core/SkFont.h"
 #include "third_party/skia/include/core/SkTextBlob.h"
 
 namespace cc {
@@ -35,10 +37,11 @@ class FakeCaptureContentLayerClient : public FakeContentLayerClient {
 
   scoped_refptr<DisplayItemList> PaintContentsToDisplayList() override {
     auto display_list = base::MakeRefCounted<DisplayItemList>();
-    for (auto& holder : holders_) {
+    for (const auto& holder : holders_) {
       display_list->StartPaint();
+      SkFont font = skia::DefaultFont();
       display_list->push<DrawTextBlobOp>(
-          SkTextBlob::MakeFromString(holder.text().data(), SkFont()),
+          SkTextBlob::MakeFromString(holder.text().data(), font),
           static_cast<float>(holder.rect().x()),
           static_cast<float>(holder.rect().y()), holder.node_id(),
           PaintFlags());
@@ -49,7 +52,7 @@ class FakeCaptureContentLayerClient : public FakeContentLayerClient {
   }
 
  private:
-  std::vector<const FakeTextHolder> holders_;
+  std::vector<FakeTextHolder> holders_;
 };
 
 // These tests are for LayerTreeHost::CaptureContent().

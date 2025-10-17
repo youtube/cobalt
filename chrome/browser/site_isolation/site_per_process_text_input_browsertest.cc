@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <memory>
 #include <vector>
 
@@ -12,7 +17,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
@@ -33,6 +37,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test_utils.h"
+#include "content/public/test/no_renderer_crashes_assertion.h"
 #include "content/public/test/test_utils.h"
 #include "content/public/test/text_input_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
@@ -114,7 +119,7 @@ class ViewTextInputTypeObserver : public content::TextInputManagerObserverBase {
   }
 
   raw_ptr<content::WebContents, DanglingUntriaged> web_contents_;
-  raw_ptr<content::RenderWidgetHostView, DanglingUntriaged> view_;
+  raw_ptr<content::RenderWidgetHostView, AcrossTasksDanglingUntriaged> view_;
   const ui::TextInputType expected_type_;
 };
 
@@ -250,8 +255,9 @@ class RecordActiveViewsObserver {
   RecordActiveViewsObserver& operator=(const RecordActiveViewsObserver&) =
       delete;
 
-  const std::vector<const content::RenderWidgetHostView*>* active_views()
-      const {
+  const std::vector<
+      raw_ptr<const content::RenderWidgetHostView, VectorExperimental>>*
+  active_views() const {
     return &active_views_;
   }
 
@@ -263,7 +269,8 @@ class RecordActiveViewsObserver {
   }
 
   std::unique_ptr<content::TextInputManagerTester> tester_;
-  std::vector<const content::RenderWidgetHostView*> active_views_;
+  std::vector<raw_ptr<const content::RenderWidgetHostView, VectorExperimental>>
+      active_views_;
 };
 
 }  // namespace
@@ -271,14 +278,14 @@ class RecordActiveViewsObserver {
 // Main class for all TextInputState and IME related tests.
 class SitePerProcessTextInputManagerTest : public InProcessBrowserTest {
  public:
-  SitePerProcessTextInputManagerTest() {}
+  SitePerProcessTextInputManagerTest() = default;
 
   SitePerProcessTextInputManagerTest(
       const SitePerProcessTextInputManagerTest&) = delete;
   SitePerProcessTextInputManagerTest& operator=(
       const SitePerProcessTextInputManagerTest&) = delete;
 
-  ~SitePerProcessTextInputManagerTest() override {}
+  ~SitePerProcessTextInputManagerTest() override = default;
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     content::IsolateAllSitesForTesting(command_line);
@@ -319,7 +326,7 @@ class SitePerProcessTextInputManagerTest : public InProcessBrowserTest {
         type.c_str(), value.c_str(),
         append_as_first_child ? "insertBefore(input, document.body.firstChild)"
                               : "appendChild(input)");
-    EXPECT_TRUE(ExecuteScript(rfh, script));
+    EXPECT_TRUE(ExecJs(rfh, script));
   }
 
   // static
@@ -338,7 +345,7 @@ class SitePerProcessTextInputManagerTest : public InProcessBrowserTest {
         "input.setAttribute('placeholder', '%s');"
         "document.body.appendChild(input);",
         type.c_str(), id.c_str(), value.c_str(), placeholder.c_str());
-    EXPECT_TRUE(ExecuteScript(rfh, script));
+    EXPECT_TRUE(ExecJs(rfh, script));
   }
 
   // static
@@ -348,7 +355,7 @@ class SitePerProcessTextInputManagerTest : public InProcessBrowserTest {
     std::string script = base::StringPrintf(
         "document.getElementById('%s').focus();", id.c_str());
 
-    EXPECT_TRUE(ExecuteScript(rfh, script));
+    EXPECT_TRUE(ExecJs(rfh, script));
   }
 
   // Uses 'cross_site_iframe_factory.html'. The main frame's domain is
@@ -517,7 +524,7 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
   // ui::TEXT_INPUT_TYPE_NONE.
   content::TextInputManagerTypeObserver type_observer_none_a(
       active_contents(), ui::TEXT_INPUT_TYPE_NONE);
-  EXPECT_TRUE(ExecuteScript(active_contents(), remove_first_iframe_script));
+  EXPECT_TRUE(ExecJs(active_contents(), remove_first_iframe_script));
   type_observer_none_a.Wait();
 
   // Press tab to focus the <input> in the second frame.
@@ -531,7 +538,7 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
   // ui::TEXT_INPUT_TYPE_NONE.
   content::TextInputManagerTypeObserver type_observer_none_b(
       active_contents(), ui::TEXT_INPUT_TYPE_NONE);
-  EXPECT_TRUE(ExecuteScript(active_contents(), remove_first_iframe_script));
+  EXPECT_TRUE(ExecJs(active_contents(), remove_first_iframe_script));
   type_observer_none_b.Wait();
 }
 
@@ -558,8 +565,8 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
   // correctly sets its |TextInputState.type| to ui::TEXT_INPUT_TYPE_NONE.
   content::TextInputManagerTypeObserver child_reset_state_observer(
       active_contents(), ui::TEXT_INPUT_TYPE_NONE);
-  EXPECT_TRUE(ExecuteScript(
-      main_frame, "document.querySelector('iframe').src = 'about:blank'"));
+  EXPECT_TRUE(ExecJs(main_frame,
+                     "document.querySelector('iframe').src = 'about:blank'"));
   child_reset_state_observer.Wait();
 }
 
@@ -602,8 +609,8 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
         ViewSelectionBoundsChangedObserver bounds_observer(web_contents, view);
         // SimulateKeyPress(web_contents, ui::DomKey::TAB, ui::DomCode::TAB,
         //               ui::VKEY_TAB, false, true, false, false);
-        EXPECT_TRUE(ExecuteScript(main_frame,
-                                  "document.querySelector('input').focus();"));
+        EXPECT_TRUE(
+            ExecJs(main_frame, "document.querySelector('input').focus();"));
         bounds_observer.Wait();
       };
 
@@ -814,13 +821,13 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
     // Focus the input and listen to 'input' event inside the frame. When the
     // event fires, select all the text inside the input. This will trigger a
     // selection update on the browser side.
-    ASSERT_TRUE(ExecuteScript(frames[index],
-                              "window.focus();"
-                              "var input = document.querySelector('input');"
-                              "input.focus();"
-                              "window.addEventListener('input', function(e) {"
-                              "  input.select();"
-                              "});"))
+    ASSERT_TRUE(ExecJs(frames[index],
+                       "window.focus();"
+                       "var input = document.querySelector('input');"
+                       "input.focus();"
+                       "window.addEventListener('input', function(e) {"
+                       "  input.select();"
+                       "});"))
         << "Could not run script in frame with index:" << index;
 
     // Commit some text for this frame.
@@ -882,7 +889,7 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
 // This test makes sure browser correctly tracks focused editable element inside
 // each RenderFrameHost.
 // Test is flaky on chromeOS; https://crbug.com/705203.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_TrackingFocusedElementForAllFrames \
   DISABLED_TrackingFocusedElementForAllFrames
 #else
@@ -902,8 +909,7 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
   // a focused editable element in it.
   auto focus_input_and_return_editable_element_state =
       [](content::RenderFrameHost* frame) {
-        EXPECT_TRUE(
-            ExecuteScript(frame, "document.querySelector('input').focus();"));
+        EXPECT_TRUE(ExecJs(frame, "document.querySelector('input').focus();"));
         return content::DoesFrameHaveFocusedEditableElement(frame);
       };
 
@@ -915,8 +921,7 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
   // focused editable element in it.
   auto blur_input_and_return_editable_element_state =
       [](content::RenderFrameHost* frame) {
-        EXPECT_TRUE(
-            ExecuteScript(frame, "document.querySelector('input').blur();"));
+        EXPECT_TRUE(ExecJs(frame, "document.querySelector('input').blur();"));
         return content::DoesFrameHaveFocusedEditableElement(frame);
       };
 
@@ -931,7 +936,7 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
 // in both cases the test verifies that WebContents is aware whether or not a
 // focused editable element exists on the page.
 // Test is flaky on ChromeOS. crbug.com/705289
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_TrackPageFocusEditableElement \
   DISABLED_TrackPageFocusEditableElement
 #else
@@ -947,11 +952,11 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
     AddInputFieldToFrame(frames[i], "text", "some text", true);
 
   auto focus_frame = [](content::RenderFrameHost* frame) {
-    EXPECT_TRUE(ExecuteScript(frame, "window.focus();"));
+    EXPECT_TRUE(ExecJs(frame, "window.focus();"));
   };
 
   auto set_input_focus = [](content::RenderFrameHost* frame, bool focus) {
-    EXPECT_TRUE(ExecuteScript(
+    EXPECT_TRUE(ExecJs(
         frame, base::StringPrintf("document.querySelector('input').%s();",
                                   (focus ? "focus" : "blur"))));
   };
@@ -973,7 +978,7 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
 // WebContents to clear focused element and verifies that there is no longer
 // a focused editable element on the page.
 // Test is flaky on ChromeOS; https://crbug.com/705203.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_ClearFocusedElementOnPage DISABLED_ClearFocusedElementOnPage
 #else
 #define MAYBE_ClearFocusedElementOnPage ClearFocusedElementOnPage
@@ -988,9 +993,9 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
     AddInputFieldToFrame(frames[i], "text", "some text", true);
 
   auto focus_frame_and_input = [](content::RenderFrameHost* frame) {
-    EXPECT_TRUE(ExecuteScript(frame,
-                              "window.focus();"
-                              "document.querySelector('input').focus();"));
+    EXPECT_TRUE(ExecJs(frame,
+                       "window.focus();"
+                       "document.querySelector('input').focus();"));
   };
 
   for (auto* frame : frames) {
@@ -1192,14 +1197,9 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
 
     ~TextDeleteDelegate() override = default;
 
-    bool GetTextEditCommandsForEvent(
-        const ui::Event& event,
-        std::vector<ui::TextEditCommandAuraLinux>* commands) override {
-      if (commands) {
-        commands->emplace_back(ui::TextEditCommand::DELETE_TO_BEGINNING_OF_LINE,
-                               "");
-      }
-      return true;
+    ui::TextEditCommand GetTextEditCommandForEvent(const ui::Event& event,
+                                                   int text_flags) override {
+      return ui::TextEditCommand::DELETE_TO_BEGINNING_OF_LINE;
     }
   };
 
@@ -1239,7 +1239,7 @@ class ShowDefinitionForWordObserver
   ShowDefinitionForWordObserver& operator=(
       const ShowDefinitionForWordObserver&) = delete;
 
-  ~ShowDefinitionForWordObserver() override {}
+  ~ShowDefinitionForWordObserver() override = default;
 
   const std::string& WaitForWordLookUp() {
     if (did_receive_string_)
@@ -1279,8 +1279,7 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
   for (size_t i = 0; i < frames.size(); ++i) {
     AddInputFieldToFrame(frames[i], "text", expected_words[i].c_str(), true);
     // Focusing the <input> automatically selects the text.
-    ASSERT_TRUE(
-        ExecuteScript(frames[i], "document.querySelector('input').focus();"));
+    ASSERT_TRUE(ExecJs(frames[i], "document.querySelector('input').focus();"));
     ShowDefinitionForWordObserver word_lookup_observer(active_contents());
     // Request for the dictionary lookup and intercept the word on its way back.
     // The request is always on the tab's view which is a
@@ -1313,10 +1312,10 @@ IN_PROC_BROWSER_TEST_F(
   content::RenderFrameHost* child_frame = GetFrame(IndexVector{0});
   // Now add an <input> field and select its text.
   AddInputFieldToFrame(child_frame, "text", "four", true);
-  EXPECT_TRUE(ExecuteScript(child_frame,
-                            "window.focus();"
-                            "document.querySelector('input').focus();"
-                            "document.querySelector('input').select();"));
+  EXPECT_TRUE(ExecJs(child_frame,
+                     "window.focus();"
+                     "document.querySelector('input').focus();"
+                     "document.querySelector('input').select();"));
 
   content::TextInputTestLocalFrame text_input_local_frame;
   text_input_local_frame.SetUp(child_frame);
@@ -1327,7 +1326,7 @@ IN_PROC_BROWSER_TEST_F(
   // Destroy the RenderWidgetHost from the browser side right after the
   // dictionary message is received. The destruction is post tasked to UI
   // thread.
-  int32_t child_process_id = child_frame->GetProcess()->GetID();
+  int32_t child_process_id = child_frame->GetProcess()->GetDeprecatedID();
   int32_t child_frame_routing_id = child_frame->GetRoutingID();
 
   text_input_local_frame.SetStringForRangeCallback(base::BindRepeating(
@@ -1381,9 +1380,9 @@ IN_PROC_BROWSER_TEST_F(
   content::RenderFrameHost* main_frame = GetFrame(IndexVector{});
   // Now add an <input> field and select its text.
   AddInputFieldToFrame(main_frame, "text", "four", true);
-  EXPECT_TRUE(ExecuteScript(main_frame,
-                            "document.querySelector('input').focus();"
-                            "document.querySelector('input').select();"));
+  EXPECT_TRUE(ExecJs(main_frame,
+                     "document.querySelector('input').focus();"
+                     "document.querySelector('input').select();"));
 
   content::TextInputTestLocalFrame text_input_local_frame;
   text_input_local_frame.SetUp(main_frame);
@@ -1396,7 +1395,7 @@ IN_PROC_BROWSER_TEST_F(
   // Destroy the RenderWidgetHost from the browser side right after the
   // dictionary message is received. The destruction is post tasked to UI
   // thread.
-  int32_t main_frame_process_id = main_frame->GetProcess()->GetID();
+  int32_t main_frame_process_id = main_frame->GetProcess()->GetDeprecatedID();
   int32_t main_frame_routing_id = main_frame->GetRoutingID();
   text_input_local_frame.SetStringForRangeCallback(base::BindRepeating(
       [](int32_t process_id, int32_t routing_id,

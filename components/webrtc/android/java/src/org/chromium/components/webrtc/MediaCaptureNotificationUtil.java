@@ -8,28 +8,43 @@ import android.app.PendingIntent;
 import android.content.Context;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.notifications.NotificationWrapper;
 import org.chromium.components.browser_ui.notifications.NotificationWrapperBuilder;
 import org.chromium.components.browser_ui.notifications.PendingIntentProvider;
 import org.chromium.components.url_formatter.SchemeDisplay;
 import org.chromium.components.url_formatter.UrlFormatter;
 
-/**
- * Helper to build a notification for Media Capture and Streams.
- */
+/** Helper to build a notification for Media Capture and Streams. */
+@NullMarked
 public class MediaCaptureNotificationUtil {
-    @IntDef({MediaType.NO_MEDIA, MediaType.AUDIO_AND_VIDEO, MediaType.VIDEO_ONLY,
-            MediaType.AUDIO_ONLY, MediaType.SCREEN_CAPTURE})
+    @IntDef({
+        MediaType.NO_MEDIA,
+        MediaType.AUDIO_AND_VIDEO,
+        MediaType.VIDEO_ONLY,
+        MediaType.AUDIO_ONLY,
+        MediaType.TAB_CAPTURE,
+        MediaType.WINDOW_CAPTURE,
+        MediaType.SCREEN_CAPTURE
+    })
     public @interface MediaType {
         int NO_MEDIA = 0;
         int AUDIO_AND_VIDEO = 1;
         int VIDEO_ONLY = 2;
         int AUDIO_ONLY = 3;
-        int SCREEN_CAPTURE = 4;
+        int TAB_CAPTURE = 4;
+        int WINDOW_CAPTURE = 5;
+        int SCREEN_CAPTURE = 6;
+    }
+
+    public static boolean isCapture(@MediaType int mediaType) {
+        return mediaType == MediaType.TAB_CAPTURE
+                || mediaType == MediaType.WINDOW_CAPTURE
+                || mediaType == MediaType.SCREEN_CAPTURE;
     }
 
     /**
@@ -40,9 +55,13 @@ public class MediaCaptureNotificationUtil {
      * @param contentIntent the intent to be sent when the notification is clicked.
      * @param stopIntent if non-null, a stop button that triggers this intent will be added.
      */
-    public static NotificationWrapper createNotification(NotificationWrapperBuilder builder,
-            @MediaType int mediaType, @Nullable String url, @Nullable String appName,
-            @Nullable PendingIntentProvider contentIntent, @Nullable PendingIntent stopIntent) {
+    public static NotificationWrapper createNotification(
+            NotificationWrapperBuilder builder,
+            @MediaType int mediaType,
+            @Nullable String url,
+            @Nullable String appName,
+            @Nullable PendingIntentProvider contentIntent,
+            @Nullable PendingIntent stopIntent) {
         Context appContext = ContextUtils.getApplicationContext();
         builder.setAutoCancel(false)
                 .setOngoing(true)
@@ -53,10 +72,12 @@ public class MediaCaptureNotificationUtil {
         if (stopIntent != null) {
             builder.setPriorityBeforeO(NotificationCompat.PRIORITY_HIGH);
             builder.setVibrate(new long[0]);
-            builder.addAction(R.drawable.ic_stop_white_24dp,
-                    appContext.getString(R.string.accessibility_stop), stopIntent);
+            builder.addAction(
+                    R.drawable.ic_stop_white_24dp,
+                    appContext.getString(R.string.accessibility_stop),
+                    stopIntent);
         } else {
-            assert mediaType != MediaType.SCREEN_CAPTURE : "SCREEN_CAPTURE requires a stop action";
+            assert !isCapture(mediaType) : "Capture requires a stop action";
         }
 
         // App name is automatically added to the title from Android N.
@@ -64,17 +85,20 @@ public class MediaCaptureNotificationUtil {
 
         String contentText = null;
         if (url == null) {
-            contentText = appContext.getString(
-                    R.string.media_capture_notification_content_text_incognito);
+            contentText =
+                    appContext.getString(
+                            R.string.media_capture_notification_content_text_incognito);
             builder.setSubText(appContext.getString(R.string.notification_incognito_tab));
         } else {
-            String urlForDisplay = UrlFormatter.formatUrlForSecurityDisplay(
-                    url, SchemeDisplay.OMIT_HTTP_AND_HTTPS);
+            String urlForDisplay =
+                    UrlFormatter.formatUrlForSecurityDisplay(
+                            url, SchemeDisplay.OMIT_HTTP_AND_HTTPS);
             if (contentIntent == null) {
                 contentText = urlForDisplay;
             } else {
-                contentText = appContext.getString(
-                        R.string.media_capture_notification_content_text, urlForDisplay);
+                contentText =
+                        appContext.getString(
+                                R.string.media_capture_notification_content_text, urlForDisplay);
             }
         }
 
@@ -88,7 +112,11 @@ public class MediaCaptureNotificationUtil {
      */
     private static String getNotificationTitleText(@MediaType int mediaType) {
         int notificationContentTextId = 0;
-        if (mediaType == MediaType.SCREEN_CAPTURE) {
+        if (mediaType == MediaType.TAB_CAPTURE) {
+            notificationContentTextId = R.string.tab_capture_notification_title;
+        } else if (mediaType == MediaType.WINDOW_CAPTURE) {
+            notificationContentTextId = R.string.window_capture_notification_title;
+        } else if (mediaType == MediaType.SCREEN_CAPTURE) {
             notificationContentTextId = R.string.screen_capture_notification_title;
         } else if (mediaType == MediaType.AUDIO_AND_VIDEO) {
             notificationContentTextId = R.string.video_audio_capture_notification_title;
@@ -113,7 +141,7 @@ public class MediaCaptureNotificationUtil {
             notificationIconId = R.drawable.webrtc_video;
         } else if (mediaType == MediaType.AUDIO_ONLY) {
             notificationIconId = R.drawable.webrtc_audio;
-        } else if (mediaType == MediaType.SCREEN_CAPTURE) {
+        } else if (isCapture(mediaType)) {
             notificationIconId = R.drawable.webrtc_video;
         }
         return notificationIconId;

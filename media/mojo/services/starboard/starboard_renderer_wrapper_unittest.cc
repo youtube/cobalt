@@ -182,13 +182,11 @@ class StarboardRendererWrapperTest : public testing::Test {
     EXPECT_CALL(media_resource_, GetAllStreams())
         .WillRepeatedly(
             Invoke(this, &StarboardRendererWrapperTest::GetAllStreams));
-    EXPECT_CALL(media_resource_, GetType())
-        .WillRepeatedly(Return(MediaResource::STREAM));
   }
 
   ~StarboardRendererWrapperTest() override {
-    mock_renderer_.reset();
     renderer_wrapper_.reset();
+    mock_renderer_.reset();
   }
 
   void AddStream(DemuxerStream::Type type, bool encrypted) {

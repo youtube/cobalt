@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 #include "base/containers/flat_map.h"
 #include "base/containers/queue.h"
@@ -15,7 +16,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/timer/timer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/display/manager/content_protection_key_manager.h"
 #include "ui/display/manager/display_configurator.h"
 #include "ui/display/manager/display_manager_export.h"
@@ -62,7 +62,8 @@ class DISPLAY_MANAGER_EXPORT ContentProtectionManager
     ~Observer() override = default;
 
     // Called after the secure state of a display has been changed.
-    virtual void OnDisplaySecurityChanged(int64_t display_id, bool secure) = 0;
+    virtual void OnDisplaySecurityMaybeChanged(int64_t display_id,
+                                               bool secure) = 0;
   };
 
   // Returns whether display configuration is disabled, in which case API calls
@@ -82,7 +83,7 @@ class DISPLAY_MANAGER_EXPORT ContentProtectionManager
     hdcp_key_manager_.set_native_display_delegate(delegate);
   }
 
-  using ClientId = absl::optional<uint64_t>;
+  using ClientId = std::optional<uint64_t>;
 
   // On display reconfiguration, pending requests are cancelled, i.e. clients
   // receive failure callbacks, and are responsible for renewing requests. If a
@@ -150,10 +151,11 @@ class DISPLAY_MANAGER_EXPORT ContentProtectionManager
                                   Task::Status status);
 
   // DisplayConfigurator::Observer overrides:
-  void OnDisplayModeChanged(
+  void OnDisplayConfigurationChanged(
       const DisplayConfigurator::DisplayStateList&) override;
-  void OnDisplayModeChangeFailed(const DisplayConfigurator::DisplayStateList&,
-                                 MultipleDisplayState) override;
+  void OnDisplayConfigurationChangeFailed(
+      const DisplayConfigurator::DisplayStateList&,
+      MultipleDisplayState) override;
 
   bool HasExternalDisplaysWithContentProtection() const;
 

@@ -12,22 +12,24 @@ import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import '//resources/cr_elements/cr_search_field/cr_search_field.js';
 import '//resources/cr_elements/icons.html.js';
 import '//resources/cr_elements/cr_shared_style.css.js';
-import '//resources/polymer/v3_0/paper-spinner/paper-spinner-lite.js';
 import '../settings_shared.css.js';
 import '../site_favicon.js';
 
-import {CrSearchFieldElement} from '//resources/cr_elements/cr_search_field/cr_search_field.js';
-import {FindShortcutMixin, FindShortcutMixinInterface} from '//resources/cr_elements/find_shortcut_mixin.js';
-import {assert} from '//resources/js/assert_ts.js';
+import type {CrSearchFieldElement} from '//resources/cr_elements/cr_search_field/cr_search_field.js';
+import type {FindShortcutListener} from '//resources/cr_elements/find_shortcut_manager.js';
+import {FindShortcutMixin} from '//resources/cr_elements/find_shortcut_mixin.js';
+import type {I18nMixinInterface} from '//resources/cr_elements/i18n_mixin.js';
+import {I18nMixin} from '//resources/cr_elements/i18n_mixin.js';
+import {assert} from '//resources/js/assert.js';
 import {focusWithoutInk} from '//resources/js/focus_without_ink.js';
-import {I18nMixin, I18nMixinInterface} from '//resources/cr_elements/i18n_mixin.js';
-import {listenOnce} from '//resources/js/util_ts.js';
+import {listenOnce} from '//resources/js/util.js';
 import {IronResizableBehavior} from '//resources/polymer/v3_0/iron-resizable-behavior/iron-resizable-behavior.js';
 import {afterNextRender, mixinBehaviors, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
 
 import {loadTimeData} from '../i18n_setup.js';
-import {Route, RouteObserverMixin, RouteObserverMixinInterface, Router} from '../router.js';
+import type {Route, RouteObserverMixinInterface} from '../router.js';
+import {RouteObserverMixin, Router} from '../router.js';
 
 import {getTemplate} from './settings_subpage.html.js';
 
@@ -53,7 +55,7 @@ const SettingsSubpageElementBase =
     mixinBehaviors(
         [IronResizableBehavior],
         RouteObserverMixin(FindShortcutMixin(I18nMixin(PolymerElement)))) as {
-      new (): PolymerElement & FindShortcutMixinInterface & I18nMixinInterface &
+      new (): PolymerElement & FindShortcutListener & I18nMixinInterface &
           RouteObserverMixinInterface,
     };
 
@@ -80,21 +82,6 @@ export class SettingsSubpageElement extends SettingsSubpageElementBase {
       searchTerm: {
         type: String,
         notify: true,
-        value: '',
-      },
-
-      /** If true shows an active spinner at the end of the subpage header. */
-      showSpinner: {
-        type: Boolean,
-        value: false,
-      },
-
-      /**
-       * Title (i.e., tooltip) to be displayed on the spinner. If |showSpinner|
-       * is false, this field has no effect.
-       */
-      spinnerTitle: {
-        type: String,
         value: '',
       },
 
@@ -132,18 +119,16 @@ export class SettingsSubpageElement extends SettingsSubpageElementBase {
     };
   }
 
-  pageTitle: string;
-  titleIcon: string;
-  faviconSiteUrl: string;
-  learnMoreUrl: string;
-  searchLabel: string;
-  searchTerm: string;
-  showSpinner: boolean;
-  spinnerTitle: string;
-  hideCloseButton: boolean;
-  associatedControl: HTMLElement|null;
-  preserveSearchTerm: boolean;
-  private active_: boolean;
+  declare pageTitle: string;
+  declare titleIcon: string;
+  declare faviconSiteUrl: string;
+  declare learnMoreUrl: string;
+  declare searchLabel: string;
+  declare searchTerm: string;
+  declare hideCloseButton: boolean;
+  declare associatedControl: HTMLElement|null;
+  declare preserveSearchTerm: boolean;
+  declare private active_: boolean;
   private lastActiveValue_: boolean = false;
   private eventTracker_: EventTracker|null = null;
 
@@ -308,7 +293,7 @@ export class SettingsSubpageElement extends SettingsSubpageElementBase {
   // Override FindShortcutMixin methods.
   override searchInputHasFocus() {
     const field = this.shadowRoot!.querySelector('cr-search-field')!;
-    return field.getSearchInput() === field.shadowRoot!.activeElement;
+    return field.getSearchInput() === field.shadowRoot.activeElement;
   }
 
   static get template() {

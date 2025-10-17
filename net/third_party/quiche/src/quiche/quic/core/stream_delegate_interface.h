@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_CORE_STREAM_DELEGATE_INTERFACE_H_
 
 #include <cstddef>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 
@@ -17,7 +17,7 @@ class QuicStream;
 
 // Pure virtual class to get notified when particular QuicStream events
 // occurred.
-class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
+class QUICHE_EXPORT StreamDelegateInterface {
  public:
   virtual ~StreamDelegateInterface() {}
 

@@ -22,7 +22,7 @@ class BrowsingHistoryBridge : public ProfileBasedBrowsingHistoryDriver {
  public:
   explicit BrowsingHistoryBridge(JNIEnv* env,
                                  const JavaParamRef<jobject>& obj,
-                                 const JavaParamRef<jobject>& j_profile);
+                                 Profile* profile);
 
   BrowsingHistoryBridge(const BrowsingHistoryBridge&) = delete;
   BrowsingHistoryBridge& operator=(const BrowsingHistoryBridge&) = delete;
@@ -33,11 +33,16 @@ class BrowsingHistoryBridge : public ProfileBasedBrowsingHistoryDriver {
                     const JavaParamRef<jobject>& obj,
                     const JavaParamRef<jobject>& j_result_obj,
                     jstring j_query,
+                    const JavaParamRef<jstring>& j_app_id,
                     jboolean j_host_only);
 
   void QueryHistoryContinuation(JNIEnv* env,
                                 const JavaParamRef<jobject>& obj,
                                 const JavaParamRef<jobject>& j_result_obj);
+
+  void GetAllAppIds(JNIEnv* env,
+                    const JavaParamRef<jobject>& obj,
+                    const JavaParamRef<jobject>& j_result_obj);
 
   void GetLastVisitToHostBeforeRecentNavigations(
       JNIEnv* env,
@@ -51,6 +56,7 @@ class BrowsingHistoryBridge : public ProfileBasedBrowsingHistoryDriver {
   void MarkItemForRemoval(JNIEnv* env,
                           const JavaParamRef<jobject>& obj,
                           const JavaParamRef<jobject>& j_url,
+                          const JavaParamRef<jstring>& j_app_id,
                           const JavaParamRef<jlongArray>& j_native_timestamps);
 
   // Removes all items that have been marked for removal through
@@ -69,6 +75,7 @@ class BrowsingHistoryBridge : public ProfileBasedBrowsingHistoryDriver {
   void HistoryDeleted() override;
   void HasOtherFormsOfBrowsingHistory(
       bool has_other_forms, bool has_synced_results) override;
+  void OnGetAllAppIds(const std::vector<std::string>& app_ids) override;
 
   // ProfileBasedBrowsingHistoryDriver implementation.
   Profile* GetProfile() override;
@@ -79,6 +86,7 @@ class BrowsingHistoryBridge : public ProfileBasedBrowsingHistoryDriver {
   std::unique_ptr<history::BrowsingHistoryService> browsing_history_service_;
   base::android::ScopedJavaGlobalRef<jobject> j_history_service_obj_;
   base::android::ScopedJavaGlobalRef<jobject> j_query_result_obj_;
+  base::android::ScopedJavaGlobalRef<jobject> j_app_ids_result_obj_;
 
   std::vector<history::BrowsingHistoryService::HistoryEntry> items_to_remove_;
 

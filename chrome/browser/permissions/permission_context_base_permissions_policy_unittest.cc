@@ -13,13 +13,16 @@
 #include "components/permissions/contexts/geolocation_permission_context.h"
 #include "components/permissions/contexts/midi_permission_context.h"
 #include "components/permissions/permission_request_id.h"
+#include "components/permissions/permission_util.h"
+#include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_renderer_host.h"
-#include "third_party/blink/public/common/permissions_policy/origin_with_possible_wildcards.h"
-#include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy.mojom.h"
+#include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
+#include "third_party/blink/public/common/features.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -38,6 +41,9 @@
 class PermissionContextBasePermissionsPolicyTest
     : public ChromeRenderViewHostTestHarness {
  public:
+  void EnableBlockMidiByDefault() {
+    feature_list_.InitAndEnableFeature(blink::features::kBlockMidiByDefault);
+  }
   PermissionContextBasePermissionsPolicyTest()
       : last_request_result_(CONTENT_SETTING_DEFAULT) {}
 
@@ -58,17 +64,17 @@ class PermissionContextBasePermissionsPolicyTest
   content::RenderFrameHost* AddChildRFH(
       content::RenderFrameHost* parent,
       const char* origin,
-      blink::mojom::PermissionsPolicyFeature feature =
-          blink::mojom::PermissionsPolicyFeature::kNotFound) {
-    blink::ParsedPermissionsPolicy frame_policy = {};
-    if (feature != blink::mojom::PermissionsPolicyFeature::kNotFound) {
-      frame_policy.emplace_back(feature,
-                                std::vector({blink::OriginWithPossibleWildcards(
-                                    url::Origin::Create(GURL(origin)),
-                                    /*has_subdomain_wildcard=*/false)}),
-                                /*self_if_matches=*/absl::nullopt,
-                                /*matches_all_origins=*/false,
-                                /*matches_opaque_src=*/false);
+      network::mojom::PermissionsPolicyFeature feature =
+          network::mojom::PermissionsPolicyFeature::kNotFound) {
+    network::ParsedPermissionsPolicy frame_policy = {};
+    if (feature != network::mojom::PermissionsPolicyFeature::kNotFound) {
+      frame_policy.emplace_back(
+          feature,
+          std::vector({*network::OriginWithPossibleWildcards::FromOrigin(
+              url::Origin::Create(GURL(origin)))}),
+          /*self_if_matches=*/std::nullopt,
+          /*matches_all_origins=*/false,
+          /*matches_opaque_src=*/false);
     }
     content::RenderFrameHost* result =
         content::RenderFrameHostTester::For(parent)->AppendChildWithPolicy(
@@ -83,18 +89,19 @@ class PermissionContextBasePermissionsPolicyTest
   // page to simulate that.
   void RefreshPageAndSetHeaderPolicy(
       content::RenderFrameHost** rfh,
-      blink::mojom::PermissionsPolicyFeature feature,
+      network::mojom::PermissionsPolicyFeature feature,
       const std::vector<std::string>& origins) {
     content::RenderFrameHost* current = *rfh;
     auto navigation = content::NavigationSimulator::CreateRendererInitiated(
         current->GetLastCommittedURL(), current);
-    std::vector<blink::OriginWithPossibleWildcards> parsed_origins;
+    std::vector<network::OriginWithPossibleWildcards> parsed_origins;
     for (const std::string& origin : origins) {
-      parsed_origins.emplace_back(url::Origin::Create(GURL(origin)),
-                                  /*has_subdomain_wildcard=*/false);
+      parsed_origins.emplace_back(
+          *network::OriginWithPossibleWildcards::FromOrigin(
+              url::Origin::Create(GURL(origin))));
     }
     navigation->SetPermissionsPolicyHeader(
-        {{feature, parsed_origins, /*self_if_matches=*/absl::nullopt,
+        {{feature, parsed_origins, /*self_if_matches=*/std::nullopt,
           /*matches_all_origins=*/false,
           /*matches_opaque_src=*/false}});
     navigation->Commit();
@@ -103,11 +110,16 @@ class PermissionContextBasePermissionsPolicyTest
 
   ContentSetting GetPermissionForFrame(permissions::PermissionContextBase* pcb,
                                        content::RenderFrameHost* rfh) {
-    return pcb
-        ->GetPermissionStatus(
-            rfh, rfh->GetLastCommittedURL(),
-            web_contents()->GetPrimaryMainFrame()->GetLastCommittedURL())
-        .content_setting;
+    return permissions::PermissionUtil::PermissionStatusToContentSetting(
+        pcb->GetPermissionStatus(
+               content::PermissionDescriptorUtil::
+                   CreatePermissionDescriptorForPermissionType(
+                       permissions::PermissionUtil::
+                           ContentSettingsTypeToPermissionType(
+                               pcb->content_settings_type())),
+               rfh, rfh->GetLastCommittedURL(),
+               web_contents()->GetPrimaryMainFrame()->GetLastCommittedURL())
+            .status);
   }
 
   ContentSetting RequestPermissionForFrame(
@@ -116,7 +128,9 @@ class PermissionContextBasePermissionsPolicyTest
     permissions::PermissionRequestID id(
         rfh, permission_request_id_generator_.GenerateNextId());
     pcb->RequestPermission(
-        id, rfh->GetLastCommittedURL(), /*user_gesture=*/true,
+        std::make_unique<permissions::PermissionRequestData>(
+            pcb, id,
+            /*user_gesture=*/true, rfh->GetLastCommittedURL()),
         base::BindOnce(&PermissionContextBasePermissionsPolicyTest::
                            RequestPermissionForFrameFinished,
                        base::Unretained(this)));
@@ -139,6 +153,7 @@ class PermissionContextBasePermissionsPolicyTest
   }
 
  private:
+  base::test::ScopedFeatureList feature_list_;
   void RequestPermissionForFrameFinished(ContentSetting setting) {
     last_request_result_ = setting;
   }
@@ -159,9 +174,9 @@ TEST_F(PermissionContextBasePermissionsPolicyTest, DefaultPolicy) {
   content::RenderFrameHost* parent = GetMainRFH(kOrigin1);
   content::RenderFrameHost* child = AddChildRFH(parent, kOrigin2);
 
-  // Midi is allowed by default in the top level frame but not in subframes.
+  // Midi is ask by default in the top level frame but not in subframes.
   permissions::MidiPermissionContext midi(profile());
-  EXPECT_EQ(CONTENT_SETTING_ALLOW, GetPermissionForFrame(&midi, parent));
+  EXPECT_EQ(CONTENT_SETTING_ASK, GetPermissionForFrame(&midi, parent));
   EXPECT_EQ(CONTENT_SETTING_BLOCK, GetPermissionForFrame(&midi, child));
 
   // Geolocation is ask by default in top level frames but not in subframes.
@@ -178,12 +193,26 @@ TEST_F(PermissionContextBasePermissionsPolicyTest, DefaultPolicy) {
             GetPermissionForFrame(&notifications, child));
 }
 
+TEST_F(PermissionContextBasePermissionsPolicyTest,
+       DefaultPolicyBlockMidiByDefault) {
+  EnableBlockMidiByDefault();
+
+  content::RenderFrameHost* parent = GetMainRFH(kOrigin1);
+  content::RenderFrameHost* child = AddChildRFH(parent, kOrigin2);
+
+  // Midi is disallowed by default in the top level frame and blocked in
+  // subframes.
+  permissions::MidiPermissionContext midi(profile());
+  EXPECT_EQ(CONTENT_SETTING_ASK, GetPermissionForFrame(&midi, parent));
+  EXPECT_EQ(CONTENT_SETTING_BLOCK, GetPermissionForFrame(&midi, child));
+}
+
 TEST_F(PermissionContextBasePermissionsPolicyTest, DisabledTopLevelFrame) {
   content::RenderFrameHost* parent = GetMainRFH(kOrigin1);
 
   // Disable midi in the top level frame.
   RefreshPageAndSetHeaderPolicy(
-      &parent, blink::mojom::PermissionsPolicyFeature::kMidiFeature,
+      &parent, network::mojom::PermissionsPolicyFeature::kMidiFeature,
       std::vector<std::string>());
   content::RenderFrameHost* child = AddChildRFH(parent, kOrigin2);
   permissions::MidiPermissionContext midi(profile());
@@ -192,7 +221,7 @@ TEST_F(PermissionContextBasePermissionsPolicyTest, DisabledTopLevelFrame) {
 
   // Disable geolocation in the top level frame.
   RefreshPageAndSetHeaderPolicy(
-      &parent, blink::mojom::PermissionsPolicyFeature::kGeolocation,
+      &parent, network::mojom::PermissionsPolicyFeature::kGeolocation,
       std::vector<std::string>());
   child = AddChildRFH(parent, kOrigin2);
   auto geolocation = MakeGeolocationPermissionContext();
@@ -207,19 +236,33 @@ TEST_F(PermissionContextBasePermissionsPolicyTest, EnabledForChildFrame) {
 
   // Enable midi for the child frame.
   content::RenderFrameHost* child = AddChildRFH(
-      parent, kOrigin2, blink::mojom::PermissionsPolicyFeature::kMidiFeature);
+      parent, kOrigin2, network::mojom::PermissionsPolicyFeature::kMidiFeature);
   permissions::MidiPermissionContext midi(profile());
-  EXPECT_EQ(CONTENT_SETTING_ALLOW, GetPermissionForFrame(&midi, parent));
-  EXPECT_EQ(CONTENT_SETTING_ALLOW, GetPermissionForFrame(&midi, child));
+  EXPECT_EQ(CONTENT_SETTING_ASK, GetPermissionForFrame(&midi, parent));
+  EXPECT_EQ(CONTENT_SETTING_ASK, GetPermissionForFrame(&midi, child));
 
   // Enable geolocation for the child frame.
   child = AddChildRFH(parent, kOrigin2,
-                      blink::mojom::PermissionsPolicyFeature::kGeolocation);
+                      network::mojom::PermissionsPolicyFeature::kGeolocation);
   auto geolocation = MakeGeolocationPermissionContext();
   EXPECT_EQ(CONTENT_SETTING_ASK,
             GetPermissionForFrame(geolocation.get(), parent));
   EXPECT_EQ(CONTENT_SETTING_ASK,
             GetPermissionForFrame(geolocation.get(), child));
+}
+
+TEST_F(PermissionContextBasePermissionsPolicyTest,
+       EnabledForChildFrameBlockMidiByDefault) {
+  EnableBlockMidiByDefault();
+
+  content::RenderFrameHost* parent = GetMainRFH(kOrigin1);
+
+  // Enable midi for the child frame.
+  content::RenderFrameHost* child = AddChildRFH(
+      parent, kOrigin2, network::mojom::PermissionsPolicyFeature::kMidiFeature);
+  permissions::MidiPermissionContext midi(profile());
+  EXPECT_EQ(CONTENT_SETTING_ASK, GetPermissionForFrame(&midi, parent));
+  EXPECT_EQ(CONTENT_SETTING_ASK, GetPermissionForFrame(&midi, child));
 }
 
 TEST_F(PermissionContextBasePermissionsPolicyTest, RequestPermission) {
@@ -236,7 +279,7 @@ TEST_F(PermissionContextBasePermissionsPolicyTest, RequestPermission) {
 
   // Disable geolocation in the top level frame.
   RefreshPageAndSetHeaderPolicy(
-      &parent, blink::mojom::PermissionsPolicyFeature::kGeolocation,
+      &parent, network::mojom::PermissionsPolicyFeature::kGeolocation,
       std::vector<std::string>());
 
   // Request should fail.

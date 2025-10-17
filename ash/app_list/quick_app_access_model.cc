@@ -10,6 +10,9 @@
 #include "ash/app_list/app_list_model_provider.h"
 #include "ash/app_list/model/app_list_item.h"
 #include "ash/shell.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/image/image_skia_rep.h"
 
@@ -51,8 +54,7 @@ bool QuickAppAccessModel::SetQuickApp(const std::string& app_id) {
 
   // Request to load in the icon when the app item's icon is null.
   if (item->GetDefaultIcon().isNull()) {
-    // TODO(b/266734005): add a histogram that tracks delay between calling
-    // LoadIcon and getting an icon loaded
+    icon_load_start_time_ = base::TimeTicks::Now();
     Shell::Get()->app_list_controller()->LoadIcon(app_id);
   }
 
@@ -92,6 +94,14 @@ gfx::ImageSkia QuickAppAccessModel::GetAppIcon(gfx::Size icon_size) {
   return image;
 }
 
+const std::u16string QuickAppAccessModel::GetAppName() const {
+  AppListItem* item = GetQuickAppItem();
+  if (!item) {
+    return std::u16string();
+  }
+  return base::UTF8ToUTF16(item->GetDisplayName());
+}
+
 void QuickAppAccessModel::ItemDefaultIconChanged() {
   if (quick_app_should_show_state_) {
     // If quick app should already be shown, notify observers when the changed
@@ -102,8 +112,18 @@ void QuickAppAccessModel::ItemDefaultIconChanged() {
       }
     }
   } else {
+    if (icon_load_start_time_) {
+      UmaHistogramTimes("Apps.QuickAppIconLoadTime",
+                        base::TimeTicks::Now() - *icon_load_start_time_);
+      icon_load_start_time_.reset();
+    }
     UpdateQuickAppShouldShowState();
   }
+}
+
+void QuickAppAccessModel::ItemIconVersionChanged() {
+  icon_load_start_time_ = base::TimeTicks::Now();
+  Shell::Get()->app_list_controller()->LoadIcon(quick_app_id_);
 }
 
 void QuickAppAccessModel::ItemBeingDestroyed() {
@@ -119,7 +139,7 @@ void QuickAppAccessModel::OnAppListVisibilityChanged(bool shown,
   }
 }
 
-AppListItem* QuickAppAccessModel::GetQuickAppItem() {
+AppListItem* QuickAppAccessModel::GetQuickAppItem() const {
   return AppListModelProvider::Get()->model()->FindItem(quick_app_id_);
 }
 
@@ -150,6 +170,7 @@ bool QuickAppAccessModel::ShouldShowQuickApp() {
 void QuickAppAccessModel::ClearQuickApp() {
   quick_app_id_ = "";
   item_observation_.Reset();
+  icon_load_start_time_.reset();
 }
 
 }  // namespace ash

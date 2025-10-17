@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.payments;
 
+import android.os.Build;
+
 import androidx.test.filters.MediumTest;
 
 import org.junit.Assert;
@@ -12,26 +14,27 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisabledTest;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.AutofillProfile;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.payments.PaymentRequestTestRule.AppPresence;
 import org.chromium.chrome.browser.payments.PaymentRequestTestRule.FactorySpeed;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
-import org.chromium.components.payments.Event;
+import org.chromium.components.autofill.AutofillProfile;
+import org.chromium.components.payments.Event2;
+import org.chromium.ui.base.DeviceFormFactor;
 
 import java.util.concurrent.TimeoutException;
 
-/**
- * A payment integration test for a merchant that requests email address and a phone number.
- */
+/** A payment integration test for a merchant that requests email address and a phone number. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
+@Batch(Batch.PER_CLASS)
 public class PaymentRequestEmailAndPhoneTest {
     @Rule
     public PaymentRequestTestRule mPaymentRequestTestRule =
@@ -41,29 +44,77 @@ public class PaymentRequestEmailAndPhoneTest {
     public void setUp() throws TimeoutException {
         AutofillTestHelper helper = new AutofillTestHelper();
         // The user has a valid email address and phone number on disk.
-        helper.setProfile(new AutofillProfile("", "https://example.test", true,
-                "" /* honorific prefix */, "Jon Doe", "Google", "340 Main St", "CA", "Los Angeles",
-                "", "90291", "", "US", "555-555-5555", "jon.doe@google.com", "en-US"));
+        helper.setProfile(
+                AutofillProfile.builder()
+                        .setFullName("Jon Doe")
+                        .setCompanyName("Google")
+                        .setStreetAddress("340 Main St")
+                        .setRegion("CA")
+                        .setLocality("Los Angeles")
+                        .setPostalCode("90291")
+                        .setCountryCode("US")
+                        .setPhoneNumber("555-555-5555")
+                        .setEmailAddress("jon.doe@google.com")
+                        .setLanguageCode("en-US")
+                        .build());
 
         // Add the same profile but with a different address.
-        helper.setProfile(new AutofillProfile("", "https://example.test", true,
-                "" /* honorific prefix */, "", "Google", "999 Main St", "CA", "Los Angeles", "",
-                "90291", "", "US", "555-555-5555", "jon.doe@google.com", "en-US"));
+        helper.setProfile(
+                AutofillProfile.builder()
+                        .setCompanyName("Google")
+                        .setStreetAddress("999 Main St")
+                        .setRegion("CA")
+                        .setLocality("Los Angeles")
+                        .setPostalCode("90291")
+                        .setCountryCode("US")
+                        .setPhoneNumber("555-555-5555")
+                        .setEmailAddress("jon.doe@google.com")
+                        .setLanguageCode("en-US")
+                        .build());
 
         // Add the same profile but without a phone number.
-        helper.setProfile(new AutofillProfile("", "https://example.test", true,
-                "" /* honorific prefix */, "Jon Doe", "Google", "340 Main St", "CA", "Los Angeles",
-                "", "90291", "", "US", "" /* phoneNumber */, "jon.doe@google.com", "en-US"));
+        helper.setProfile(
+                AutofillProfile.builder()
+                        .setFullName("Jon Doe")
+                        .setCompanyName("Google")
+                        .setStreetAddress("340 Main St")
+                        .setRegion("CA")
+                        .setLocality("Los Angeles")
+                        .setPostalCode("90291")
+                        .setCountryCode("US")
+                        .setPhoneNumber(/* phoneNumber= */ "")
+                        .setEmailAddress("jon.doe@google.com")
+                        .setLanguageCode("en-US")
+                        .build());
 
         // Add the same profile but without an email.
-        helper.setProfile(new AutofillProfile("", "https://example.test", true,
-                "" /* honorific prefix */, "Jon Doe", "Google", "340 Main St", "CA", "Los Angeles",
-                "", "90291", "", "US", "555-555-5555", "" /* emailAddress */, "en-US"));
+        helper.setProfile(
+                AutofillProfile.builder()
+                        .setFullName("Jon Doe")
+                        .setCompanyName("Google")
+                        .setStreetAddress("340 Main St")
+                        .setRegion("CA")
+                        .setLocality("Los Angeles")
+                        .setPostalCode("90291")
+                        .setCountryCode("US")
+                        .setPhoneNumber("555-555-5555")
+                        .setEmailAddress(/* emailAddress= */ "")
+                        .setLanguageCode("en-US")
+                        .build());
 
         // Add the same profile but without a name.
-        helper.setProfile(new AutofillProfile("" /* name */, "https://example.test", true,
-                "" /* honorific prefix */, "", "Google", "340 Main St", "CA", "Los Angeles", "",
-                "90291", "", "US", "555-555-5555", "jon.doe@google.com", "en-US"));
+        helper.setProfile(
+                AutofillProfile.builder()
+                        .setCompanyName("Google")
+                        .setStreetAddress("340 Main St")
+                        .setRegion("CA")
+                        .setLocality("Los Angeles")
+                        .setPostalCode("90291")
+                        .setCountryCode("US")
+                        .setPhoneNumber("555-555-5555")
+                        .setEmailAddress("jon.doe@google.com")
+                        .setLanguageCode("en-US")
+                        .build());
 
         mPaymentRequestTestRule.addPaymentAppFactory(
                 AppPresence.HAVE_APPS, FactorySpeed.FAST_FACTORY);
@@ -73,8 +124,11 @@ public class PaymentRequestEmailAndPhoneTest {
     @Test
     @MediumTest
     @Feature({"Payments"})
+    @DisableIf.Build(
+            sdk_equals = Build.VERSION_CODES.UPSIDE_DOWN_CAKE) // https://crbug.com/383399707
     public void testPay() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyToPay());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buy();", mPaymentRequestTestRule.getReadyToPay());
         mPaymentRequestTestRule.clickAndWait(
                 R.id.button_primary, mPaymentRequestTestRule.getDismissed());
         mPaymentRequestTestRule.expectResultContains(
@@ -86,7 +140,8 @@ public class PaymentRequestEmailAndPhoneTest {
     @MediumTest
     @Feature({"Payments"})
     public void testAddInvalidEmailAndCancel() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyToPay());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buy();", mPaymentRequestTestRule.getReadyToPay());
         mPaymentRequestTestRule.clickInContactInfoAndWait(
                 R.id.payments_section, mPaymentRequestTestRule.getReadyForInput());
         mPaymentRequestTestRule.clickInContactInfoAndWait(
@@ -106,10 +161,10 @@ public class PaymentRequestEmailAndPhoneTest {
     /** Add a new email address and phone number and provide that to the merchant. */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1182234")
     @Feature({"Payments"})
     public void testAddEmailAndPhoneAndPay() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyToPay());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buy();", mPaymentRequestTestRule.getReadyToPay());
         mPaymentRequestTestRule.clickInContactInfoAndWait(
                 R.id.payments_section, mPaymentRequestTestRule.getReadyForInput());
         mPaymentRequestTestRule.clickInContactInfoAndWait(
@@ -133,34 +188,41 @@ public class PaymentRequestEmailAndPhoneTest {
     @MediumTest
     @Feature({"Payments"})
     public void testSuggestionsDeduped() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyToPay());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buy();", mPaymentRequestTestRule.getReadyToPay());
         mPaymentRequestTestRule.clickInContactInfoAndWait(
                 R.id.payments_section, mPaymentRequestTestRule.getReadyForInput());
         Assert.assertEquals(1, mPaymentRequestTestRule.getNumberOfContactDetailSuggestions());
     }
 
     /**
-     * Test that ending a payment request that requires only the user's email address results in
-     * the appropriate metric being logged in PaymentRequest.Events.
+     * Test that ending a payment request that requires only the user's email address results in the
+     * appropriate metric being logged in PaymentRequest.Events.
      */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1182234")
     @Feature({"Payments"})
+    @DisableIf.Device(DeviceFormFactor.TABLET) // https://crbug.com/383399707
     public void testPaymentRequestEventsMetric() throws TimeoutException {
+        int expectedSample =
+                Event2.SHOWN
+                        | Event2.USER_ABORTED
+                        | Event2.HAD_INITIAL_FORM_OF_PAYMENT
+                        | Event2.REQUEST_PAYER_DATA
+                        | Event2.REQUEST_METHOD_OTHER;
+        var histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord("PaymentRequest.Events2", expectedSample)
+                        .build();
+
         // Start and cancel the Payment Request.
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyToPay());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buy();", mPaymentRequestTestRule.getReadyToPay());
         mPaymentRequestTestRule.clickAndWait(
                 R.id.close_button, mPaymentRequestTestRule.getDismissed());
         mPaymentRequestTestRule.expectResultContains(
                 new String[] {"User closed the Payment Request UI."});
 
-        int expectedSample = Event.SHOWN | Event.USER_ABORTED | Event.HAD_INITIAL_FORM_OF_PAYMENT
-                | Event.HAD_NECESSARY_COMPLETE_SUGGESTIONS | Event.REQUEST_PAYER_EMAIL
-                | Event.REQUEST_PAYER_PHONE | Event.REQUEST_METHOD_BASIC_CARD
-                | Event.REQUEST_METHOD_OTHER | Event.AVAILABLE_METHOD_OTHER;
-        Assert.assertEquals(1,
-                RecordHistogram.getHistogramValueCountForTesting(
-                        "PaymentRequest.Events", expectedSample));
+        histogramWatcher.pollInstrumentationThreadUntilSatisfied();
     }
 }

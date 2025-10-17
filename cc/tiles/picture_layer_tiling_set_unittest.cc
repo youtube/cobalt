@@ -11,6 +11,7 @@
 #include "cc/test/fake_output_surface_client.h"
 #include "cc/test/fake_picture_layer_tiling_client.h"
 #include "cc/test/fake_raster_source.h"
+#include "cc/tiles/prioritized_tile.h"
 #include "cc/trees/layer_tree_settings.h"
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/test/fake_output_surface.h"
@@ -54,39 +55,6 @@ std::unique_ptr<TestablePictureLayerTilingSet> CreateTilingSetWithSettings(
 std::unique_ptr<TestablePictureLayerTilingSet> CreateTilingSet(
     PictureLayerTilingClient* client) {
   return CreateTilingSetWithSettings(client, LayerTreeSettings());
-}
-
-TEST(PictureLayerTilingSetTest, NoResources) {
-  FakePictureLayerTilingClient client;
-  gfx::Size layer_bounds(1000, 800);
-  std::unique_ptr<TestablePictureLayerTilingSet> set = CreateTilingSet(&client);
-  client.SetTileSize(gfx::Size(256, 256));
-
-  scoped_refptr<FakeRasterSource> raster_source =
-      FakeRasterSource::CreateEmpty(layer_bounds);
-
-  set->AddTiling(gfx::AxisTransform2d(), raster_source);
-  set->AddTiling(gfx::AxisTransform2d(1.5, gfx::Vector2dF()), raster_source);
-  set->AddTiling(gfx::AxisTransform2d(2.0, gfx::Vector2dF()), raster_source);
-
-  float contents_scale = 2.0;
-  gfx::Size content_bounds(
-      gfx::ScaleToCeiledSize(layer_bounds, contents_scale));
-  gfx::Rect content_rect(content_bounds);
-
-  Region remaining(content_rect);
-  PictureLayerTilingSet::CoverageIterator iter(set.get(), contents_scale,
-                                               content_rect, contents_scale);
-  for (; iter; ++iter) {
-    gfx::Rect geometry_rect = iter.geometry_rect();
-    EXPECT_TRUE(content_rect.Contains(geometry_rect));
-    ASSERT_TRUE(remaining.Contains(geometry_rect));
-    remaining.Subtract(geometry_rect);
-
-    // No tiles have resources, so no iter represents a real tile.
-    EXPECT_FALSE(*iter);
-  }
-  EXPECT_TRUE(remaining.IsEmpty());
 }
 
 TEST(PictureLayerTilingSetTest, TilingRange) {
@@ -243,7 +211,7 @@ class PictureLayerTilingSetTestWithResources : public testing::Test {
                float ideal_contents_scale,
                float expected_scale) {
     scoped_refptr<viz::TestContextProvider> context_provider =
-        viz::TestContextProvider::Create();
+        viz::TestContextProvider::CreateRaster();
     ASSERT_EQ(context_provider->BindToCurrentSequence(),
               gpu::ContextResult::kSuccess);
     std::unique_ptr<viz::ClientResourceProvider> resource_provider =
@@ -274,9 +242,9 @@ class PictureLayerTilingSetTestWithResources : public testing::Test {
     gfx::Rect content_rect(content_bounds);
 
     Region remaining(content_rect);
-    PictureLayerTilingSet::CoverageIterator iter(
-        set.get(), max_contents_scale, content_rect, ideal_contents_scale);
-    for (; iter; ++iter) {
+    for (auto iter =
+             set->Cover(content_rect, max_contents_scale, ideal_contents_scale);
+         iter; ++iter) {
       gfx::Rect geometry_rect = iter.geometry_rect();
       EXPECT_TRUE(content_rect.Contains(geometry_rect));
       ASSERT_TRUE(remaining.Contains(geometry_rect));
@@ -374,8 +342,9 @@ TEST(PictureLayerTilingSetTest, TileSizeChange) {
   std::vector<Tile*> pending_tiles =
       pending_set->tiling_at(0)->AllTilesForTesting();
   EXPECT_GT(pending_tiles.size(), 0u);
-  for (auto* tile : pending_tiles)
+  for (auto* tile : pending_tiles) {
     EXPECT_EQ(tile_size1, tile->content_rect().size());
+  }
 
   // Update to a new source frame with a new tile size.
   // Note that setting a new raster source can typically only happen after
@@ -398,8 +367,9 @@ TEST(PictureLayerTilingSetTest, TileSizeChange) {
   // Tiles should have the new correct size.
   pending_tiles = pending_set->tiling_at(0)->AllTilesForTesting();
   EXPECT_GT(pending_tiles.size(), 0u);
-  for (auto* tile : pending_tiles)
+  for (auto* tile : pending_tiles) {
     EXPECT_EQ(tile_size2, tile->content_rect().size());
+  }
 
   // Clone from the pending to the active tree.
   active_client.SetTileSize(tile_size2);
@@ -412,8 +382,9 @@ TEST(PictureLayerTilingSetTest, TileSizeChange) {
   std::vector<Tile*> active_tiles =
       active_set->tiling_at(0)->AllTilesForTesting();
   EXPECT_GT(active_tiles.size(), 0u);
-  for (auto* tile : active_tiles)
+  for (auto* tile : active_tiles) {
     EXPECT_EQ(tile_size2, tile->content_rect().size());
+  }
 
   // A new source frame with a new tile size.
   pending_client.SetTileSize(tile_size3);
@@ -430,8 +401,9 @@ TEST(PictureLayerTilingSetTest, TileSizeChange) {
   // Tiles are resized for the new size.
   pending_tiles = pending_set->tiling_at(0)->AllTilesForTesting();
   EXPECT_GT(pending_tiles.size(), 0u);
-  for (auto* tile : pending_tiles)
+  for (auto* tile : pending_tiles) {
     EXPECT_EQ(tile_size3, tile->content_rect().size());
+  }
 
   // Now we activate with a different tile size for the active tiling.
   active_client.SetTileSize(tile_size3);
@@ -443,8 +415,71 @@ TEST(PictureLayerTilingSetTest, TileSizeChange) {
   // And its tiles are resized.
   active_tiles = active_set->tiling_at(0)->AllTilesForTesting();
   EXPECT_GT(active_tiles.size(), 0u);
-  for (auto* tile : active_tiles)
+  for (auto* tile : active_tiles) {
     EXPECT_EQ(tile_size3, tile->content_rect().size());
+  }
+}
+
+TEST(PictureLayerTilingSetTest, ModifyPendingTilingSetTwiceInOneVsync) {
+  FakePictureLayerTilingClient pending_client;
+  FakePictureLayerTilingClient active_client;
+  std::unique_ptr<PictureLayerTilingSet> pending_set =
+      PictureLayerTilingSet::Create(PENDING_TREE, &pending_client, 1000, 1.f,
+                                    1000, 1000.f);
+  std::unique_ptr<PictureLayerTilingSet> active_set =
+      PictureLayerTilingSet::Create(ACTIVE_TREE, &active_client, 1000, 1.f,
+                                    1000, 1000.f);
+
+  gfx::Size layer_bounds(100, 100);
+  scoped_refptr<FakeRasterSource> raster_source =
+      FakeRasterSource::CreateFilled(layer_bounds);
+
+  gfx::Size tile_size1(10, 10);
+  gfx::Size tile_size2(30, 30);
+
+  // Initialize a tiling
+  pending_client.SetTileSize(tile_size1);
+  pending_set->AddTiling(gfx::AxisTransform2d(), raster_source);
+  // New tilings get the correct tile size.
+  EXPECT_EQ(tile_size1, pending_set->tiling_at(0)->tile_size());
+
+  // Set some expected things for the tiling set to function.
+  pending_set->tiling_at(0)->set_resolution(HIGH_RESOLUTION);
+  active_client.set_twin_tiling_set(pending_set.get());
+
+  // Set a priority rect so we get tiles.
+  // Note that the current_frame_time_in_seconds parameter is 1.0.
+  pending_set->UpdateTilePriorities(gfx::Rect(layer_bounds), 1.f, 1.0,
+                                    Occlusion(), false);
+  // The pending tiling should get the right tile size.
+  EXPECT_EQ(tile_size1, pending_set->tiling_at(0)->tile_size());
+  // The pending tiling should have tiles.
+  EXPECT_TRUE(pending_set->tiling_at(0)->has_tiles());
+
+  // Clone from the pending to the active tree.
+  active_client.SetTileSize(tile_size1);
+  active_set->UpdateTilingsToCurrentRasterSourceForActivation(
+      raster_source.get(), pending_set.get(), Region(), 1.f, 1.f);
+  // The active tiling should get the right tile size.
+  EXPECT_EQ(tile_size1, active_set->tiling_at(0)->tile_size());
+  // The active tiling should have tiles.
+  EXPECT_TRUE(active_set->tiling_at(0)->has_tiles());
+
+  // A new source frame with a new tile size.
+  pending_client.SetTileSize(tile_size2);
+  pending_set->UpdateTilingsToCurrentRasterSourceForCommit(raster_source.get(),
+                                                           Region(), 1.f, 1.f);
+  // The tiling gets the new size correctly.
+  EXPECT_EQ(tile_size2, pending_set->tiling_at(0)->tile_size());
+
+  // Re-update priority rect so we get new tiles.
+  // Note that the current_frame_time_in_seconds parameter is still 1.0.
+  pending_set->UpdateTilePriorities(gfx::Rect(layer_bounds), 1.f, 1.0,
+                                    Occlusion(), false);
+  // The pending tiling should get the new tile size.
+  EXPECT_EQ(tile_size2, pending_set->tiling_at(0)->tile_size());
+  // The pending tiling should have tiles.
+  EXPECT_TRUE(pending_set->tiling_at(0)->has_tiles());
 }
 
 TEST(PictureLayerTilingSetTest, MaxContentScale) {
@@ -459,7 +494,7 @@ TEST(PictureLayerTilingSetTest, MaxContentScale) {
 
   gfx::Size layer_bounds(100, 105);
   scoped_refptr<FakeRasterSource> raster_source =
-      FakeRasterSource::CreateEmpty(layer_bounds);
+      FakeRasterSource::CreateFilled(layer_bounds);
 
   // Tilings can be added of any scale, the tiling client can controls this.
   pending_set->AddTiling(gfx::AxisTransform2d(), raster_source);

@@ -18,6 +18,7 @@ class StubWebView : public WebView {
   // Overridden from WebView:
   bool IsServiceWorker() const override;
   std::string GetId() override;
+  std::string GetSessionId() override;
   bool WasCrashed() override;
   Status HandleEventsUntil(const ConditionalFunc& conditional_func,
                            const Timeout& timeout) override;
@@ -27,8 +28,12 @@ class StubWebView : public WebView {
   Status Reload(const Timeout* timeout) override;
   Status Freeze(const Timeout* timeout) override;
   Status Resume(const Timeout* timeout) override;
-  Status StartBidiServer(std::string bidi_mapper_script) override;
+  Status StartBidiServer(std::string bidi_mapper_script,
+                         bool enable_unsafe_extension_debugging) override;
   Status PostBidiCommand(base::Value::Dict command) override;
+  Status SendBidiCommand(base::Value::Dict command,
+                         const Timeout& timeout,
+                         base::Value::Dict& response) override;
   Status SendCommand(const std::string& cmd,
                      const base::Value::Dict& params) override;
   Status SendCommandFromWebSocket(const std::string& cmd,
@@ -46,11 +51,6 @@ class StubWebView : public WebView {
                       const std::string& function,
                       const base::Value::List& args,
                       std::unique_ptr<base::Value>* result) override;
-  Status CallAsyncFunction(const std::string& frame,
-                           const std::string& function,
-                           const base::Value::List& args,
-                           const base::TimeDelta& timeout,
-                           std::unique_ptr<base::Value>* result) override;
   Status CallUserAsyncFunction(const std::string& frame,
                                const std::string& function,
                                const base::Value::List& args,
@@ -67,16 +67,16 @@ class StubWebView : public WebView {
                             std::string* out_frame) override;
   Status DispatchMouseEvents(const std::vector<MouseEvent>& events,
                              const std::string& frame,
-                             bool async_dispatch_events = false) override;
+                             bool async_dispatch_events) override;
   Status DispatchTouchEvent(const TouchEvent& event,
-                            bool async_dispatch_events = false) override;
+                            bool async_dispatch_events) override;
   Status DispatchTouchEvents(const std::vector<TouchEvent>& events,
-                             bool async_dispatch_events = false) override;
+                             bool async_dispatch_events) override;
   Status DispatchTouchEventWithMultiPoints(
       const std::vector<TouchEvent>& events,
-      bool async_dispatch_events = false) override;
+      bool async_dispatch_events) override;
   Status DispatchKeyEvents(const std::vector<KeyEvent>& events,
-                           bool async_dispatch_events = false) override;
+                           bool async_dispatch_events) override;
   Status GetCookies(base::Value* cookies,
                     const std::string& current_page_url) override;
   Status DeleteCookie(const std::string& name,
@@ -95,9 +95,11 @@ class StubWebView : public WebView {
   Status WaitForPendingNavigations(const std::string& frame_id,
                                    const Timeout& timeout,
                                    bool stop_load_on_timeout) override;
-  Status IsPendingNavigation(const Timeout* timeout,
-                             bool* is_pending) const override;
-  JavaScriptDialogManager* GetJavaScriptDialogManager() override;
+  Status IsPendingNavigation(const Timeout* timeout, bool* is_pending) override;
+  Status WaitForPendingActivePage(const Timeout& timeout) override;
+  Status IsNotPendingActivePage(const Timeout* timeout,
+                                bool* is_not_pending) const override;
+  Status GetActivePage(WebView** web_view) override;
   MobileEmulationOverrideManager* GetMobileEmulationOverrideManager()
       const override;
   Status OverrideGeolocation(const Geoposition& geoposition) override;
@@ -125,15 +127,37 @@ class StubWebView : public WebView {
                                  int yoffset) override;
   bool IsNonBlocking() const override;
   FrameTracker* GetFrameTracker() const override;
+  Status GetFedCmTracker(FedCmTracker** out_tracker) override;
   std::unique_ptr<base::Value> GetCastSinks() override;
   std::unique_ptr<base::Value> GetCastIssueMessage() override;
   void SetFrame(const std::string& new_frame_id) override;
   Status GetBackendNodeIdByElement(const std::string& frame,
                                    const base::Value& element,
                                    int* node_id) override;
+  bool IsDetached() const override;
+  Status CallFunctionWithTimeout(const std::string& frame,
+                                 const std::string& function,
+                                 const base::Value::List& args,
+                                 const base::TimeDelta& timeout,
+                                 const CallFunctionOptions& options,
+                                 std::unique_ptr<base::Value>* result) override;
+
+  bool IsDialogOpen() const override;
+  Status GetDialogMessage(std::string& message) const override;
+  Status GetTypeOfDialog(std::string& type) const override;
+  Status HandleDialog(bool accept,
+                      const std::optional<std::string>& text) override;
+
+  WebView* FindContainerForFrame(const std::string& frame_id) override;
+  bool IsTab() const override;
+  std::string GetTabId() override;
+  PageTracker* GetPageTracker() const override;
+  void SetupChildView(std::unique_ptr<StubWebView> child);
 
  private:
   std::string id_;
+  std::string session_id_;
+  std::unique_ptr<StubWebView> child_;
 };
 
 #endif  // CHROME_TEST_CHROMEDRIVER_CHROME_STUB_WEB_VIEW_H_

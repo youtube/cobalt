@@ -9,6 +9,7 @@
 
 #include "base/containers/contains.h"
 #include "components/apdu/apdu_command.h"
+#include "crypto/hash.h"
 #include "device/fido/fido_constants.h"
 #include "device/fido/fido_parsing_utils.h"
 
@@ -41,10 +42,10 @@ bool IsConvertibleToU2fSignCommand(const CtapGetAssertionRequest& request) {
          !request.allow_list.empty();
 }
 
-absl::optional<std::vector<uint8_t>> ConvertToU2fRegisterCommand(
+std::optional<std::vector<uint8_t>> ConvertToU2fRegisterCommand(
     const CtapMakeCredentialRequest& request) {
   if (!IsConvertibleToU2fRegisterCommand(request))
-    return absl::nullopt;
+    return std::nullopt;
 
   if (request.pin_auth && request.pin_auth->size() == 0) {
     // An empty pin_auth in CTAP2 indicates that the device should just wait
@@ -55,29 +56,28 @@ absl::optional<std::vector<uint8_t>> ConvertToU2fRegisterCommand(
   const bool is_individual_attestation =
       request.attestation_preference ==
       AttestationConveyancePreference::kEnterpriseApprovedByBrowser;
-  return ConstructU2fRegisterCommand(
-      fido_parsing_utils::CreateSHA256Hash(request.rp.id),
-      request.client_data_hash, is_individual_attestation);
+  return ConstructU2fRegisterCommand(crypto::hash::Sha256(request.rp.id),
+                                     request.client_data_hash,
+                                     is_individual_attestation);
 }
 
-absl::optional<std::vector<uint8_t>> ConvertToU2fSignCommandWithBogusChallenge(
+std::optional<std::vector<uint8_t>> ConvertToU2fSignCommandWithBogusChallenge(
     const CtapMakeCredentialRequest& request,
     base::span<const uint8_t> key_handle) {
-  return ConstructU2fSignCommand(
-      fido_parsing_utils::CreateSHA256Hash(request.rp.id),
-      kBogusChallenge, key_handle);
+  return ConstructU2fSignCommand(crypto::hash::Sha256(request.rp.id),
+                                 kBogusChallenge, key_handle);
 }
 
-absl::optional<std::vector<uint8_t>> ConvertToU2fSignCommand(
+std::optional<std::vector<uint8_t>> ConvertToU2fSignCommand(
     const CtapGetAssertionRequest& request,
     ApplicationParameterType application_parameter_type,
     base::span<const uint8_t> key_handle) {
   if (!IsConvertibleToU2fSignCommand(request))
-    return absl::nullopt;
+    return std::nullopt;
 
   const auto& application_parameter =
       application_parameter_type == ApplicationParameterType::kPrimary
-          ? fido_parsing_utils::CreateSHA256Hash(request.rp_id)
+          ? crypto::hash::Sha256(request.rp_id)
           : request.alternative_application_parameter.value_or(
                 std::array<uint8_t, kRpIdHashLength>());
 
@@ -103,12 +103,12 @@ std::vector<uint8_t> ConstructU2fRegisterCommand(
   return command.GetEncodedCommand();
 }
 
-absl::optional<std::vector<uint8_t>> ConstructU2fSignCommand(
+std::optional<std::vector<uint8_t>> ConstructU2fSignCommand(
     base::span<const uint8_t, kU2fApplicationParamLength> application_parameter,
     base::span<const uint8_t, kU2fChallengeParamLength> challenge_parameter,
     base::span<const uint8_t> key_handle) {
   if (key_handle.size() > kMaxKeyHandleLength) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<uint8_t> data;

@@ -2,36 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <jni.h>
-
 #include <map>
 #include <string>
 
 #include "base/android/jni_string.h"
-#include "base/base_jni_headers/FieldTrialList_jni.h"
 #include "base/lazy_instance.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_list_including_low_anonymity.h"
 #include "base/metrics/field_trial_params.h"
 
-using base::android::ConvertJavaStringToUTF8;
-using base::android::ConvertUTF8ToJavaString;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/base_jni/FieldTrialList_jni.h"
 
 namespace {
 
 // Log trials and their groups on activation, for debugging purposes.
 class TrialLogger : public base::FieldTrialList::Observer {
  public:
-  TrialLogger() {}
+  TrialLogger() = default;
 
   TrialLogger(const TrialLogger&) = delete;
   TrialLogger& operator=(const TrialLogger&) = delete;
 
-  void OnFieldTrialGroupFinalized(const std::string& trial_name,
+  void OnFieldTrialGroupFinalized(const base::FieldTrial& trial,
                                   const std::string& group_name) override {
-    Log(trial_name, group_name);
+    Log(trial.trial_name(), group_name);
   }
 
   static void Log(const std::string& trial_name,
@@ -39,12 +34,12 @@ class TrialLogger : public base::FieldTrialList::Observer {
     // Changes to format of the log message below must be accompanied by
     // changes to finch smoke tests since they look for this log message
     // in the logcat.
-    LOG(INFO) << "Active field trial \"" << trial_name
-              << "\" in group \"" << group_name<< '"';
+    LOG(INFO) << "Active field trial \"" << trial_name << "\" in group \""
+              << group_name << '"';
   }
 
  protected:
-  ~TrialLogger() override {}
+  ~TrialLogger() override = default;
 };
 
 base::LazyInstance<TrialLogger>::Leaky g_trial_logger =
@@ -52,30 +47,23 @@ base::LazyInstance<TrialLogger>::Leaky g_trial_logger =
 
 }  // namespace
 
-static ScopedJavaLocalRef<jstring> JNI_FieldTrialList_FindFullName(
-    JNIEnv* env,
-    const JavaParamRef<jstring>& jtrial_name) {
-  std::string trial_name(ConvertJavaStringToUTF8(env, jtrial_name));
-  return ConvertUTF8ToJavaString(
-      env, base::FieldTrialList::FindFullName(trial_name));
+static std::string JNI_FieldTrialList_FindFullName(JNIEnv* env,
+                                                   std::string& trial_name) {
+  return base::FieldTrialList::FindFullName(trial_name);
 }
 
-static jboolean JNI_FieldTrialList_TrialExists(
-    JNIEnv* env,
-    const JavaParamRef<jstring>& jtrial_name) {
-  std::string trial_name(ConvertJavaStringToUTF8(env, jtrial_name));
+static jboolean JNI_FieldTrialList_TrialExists(JNIEnv* env,
+                                               std::string& trial_name) {
   return base::FieldTrialList::TrialExists(trial_name);
 }
 
-static ScopedJavaLocalRef<jstring> JNI_FieldTrialList_GetVariationParameter(
+static std::string JNI_FieldTrialList_GetVariationParameter(
     JNIEnv* env,
-    const JavaParamRef<jstring>& jtrial_name,
-    const JavaParamRef<jstring>& jparameter_key) {
+    std::string& trial_name,
+    std::string& parameter_key) {
   std::map<std::string, std::string> parameters;
-  base::GetFieldTrialParams(ConvertJavaStringToUTF8(env, jtrial_name),
-                            &parameters);
-  return ConvertUTF8ToJavaString(
-      env, parameters[ConvertJavaStringToUTF8(env, jparameter_key)]);
+  base::GetFieldTrialParams(trial_name, &parameters);
+  return parameters[parameter_key];
 }
 
 // JNI_FieldTrialList_LogActiveTrials() is static function, this makes friending
@@ -85,6 +73,8 @@ static ScopedJavaLocalRef<jstring> JNI_FieldTrialList_GetVariationParameter(
 // friend the JNI function and is, in turn, friended by
 // FieldTrialListIncludingLowAnonymity which allows for the private
 // GetActiveFieldTrialGroups() to be reached.
+static void JNI_FieldTrialList_LogActiveTrials(JNIEnv* env);
+
 class AndroidFieldTrialListLogActiveTrialsFriendHelper {
  private:
   friend void ::JNI_FieldTrialList_LogActiveTrials(JNIEnv* env);
@@ -101,7 +91,7 @@ class AndroidFieldTrialListLogActiveTrialsFriendHelper {
 };
 
 static void JNI_FieldTrialList_LogActiveTrials(JNIEnv* env) {
-  DCHECK(!g_trial_logger.IsCreated()); // This need only be called once.
+  DCHECK(!g_trial_logger.IsCreated());  // This need only be called once.
 
   LOG(INFO) << "Logging active field trials...";
   AndroidFieldTrialListLogActiveTrialsFriendHelper::AddObserver(
@@ -116,11 +106,11 @@ static void JNI_FieldTrialList_LogActiveTrials(JNIEnv* env) {
   }
 }
 
-static jboolean JNI_FieldTrialList_CreateFieldTrial(
-    JNIEnv* env,
-    const JavaParamRef<jstring>& jtrial_name,
-    const JavaParamRef<jstring>& jgroup_name) {
-  return base::FieldTrialList::CreateFieldTrial(
-             ConvertJavaStringToUTF8(env, jtrial_name),
-             ConvertJavaStringToUTF8(env, jgroup_name)) != nullptr;
+static jboolean JNI_FieldTrialList_CreateFieldTrial(JNIEnv* env,
+                                                    std::string& trial_name,
+                                                    std::string& group_name) {
+  return base::FieldTrialList::CreateFieldTrial(trial_name, group_name) !=
+         nullptr;
 }
+
+DEFINE_JNI_FOR_FieldTrialList()

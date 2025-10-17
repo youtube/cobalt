@@ -10,8 +10,8 @@
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
+#include "components/trusted_vault/standalone_trusted_vault_server_constants.h"
 #include "components/trusted_vault/trusted_vault_access_token_fetcher.h"
-#include "components/trusted_vault/trusted_vault_histograms.h"
 #include "components/trusted_vault/trusted_vault_server_constants.h"
 #include "google_apis/credentials_mode.h"
 #include "google_apis/gaia/core_account_id.h"
@@ -61,29 +61,29 @@ net::NetworkTrafficAnnotationTag CreateTrafficAnnotationTag() {
   return net::DefineNetworkTrafficAnnotation("trusted_vault_request",
                                              R"(
       semantics {
-        sender: "Chrome Sync"
+        sender: "Trusted Vault Service"
         description:
           "Request to vault service in order to retrieve, change or support "
-          "future retrieval or change of Sync encryption keys."
+          "future retrieval or change of encryption keys for Chrome or "
+          "Chrome OS features (such as Chrome Sync)."
         trigger:
           "Periodically/upon certain non-user controlled events after user "
           "signs in Chrome profile."
         data:
-          "An OAuth2 access token, sync metadata associated with encryption "
-          "keys: encrypted encryption keys, public counterpart of encryption "
-          "keys."
+          "An OAuth2 access token, metadata associated with encryption keys: "
+          "encrypted encryption keys, public counterpart of encryption keys."
         destination: GOOGLE_OWNED_SERVICE
       }
       policy {
         cookies_allowed: NO
         setting:
-          "Users can disable Chrome Sync by going into the profile settings "
-          "and choosing to sign out."
+          "This feature cannot be disabled in settings, but if user signs "
+          "out of Chrome, this request would not be made."
         chrome_policy {
-            SyncDisabled {
-               policy_options {mode: MANDATORY}
-               SyncDisabled: false
-            }
+          SigninAllowed {
+            policy_options {mode: MANDATORY}
+            SigninAllowed: false
+          }
         }
       })");
 }
@@ -94,9 +94,10 @@ std::string GetHttpMethodString(TrustedVaultRequest::HttpMethod http_method) {
       return "GET";
     case TrustedVaultRequest::HttpMethod::kPost:
       return "POST";
+    case TrustedVaultRequest::HttpMethod::kPatch:
+      return "PATCH";
   }
   NOTREACHED();
-  return std::string();
 }
 
 TrustedVaultRequest::HttpStatus AccessTokenFetchingErrorToRequestHttpStatus(
@@ -111,31 +112,33 @@ TrustedVaultRequest::HttpStatus AccessTokenFetchingErrorToRequestHttpStatus(
           kPrimaryAccountChangeAccessTokenFetchError;
   }
   NOTREACHED();
-  return TrustedVaultRequest::HttpStatus::kTransientAccessTokenFetchError;
 }
 
 }  // namespace
 
 TrustedVaultRequest::TrustedVaultRequest(
+    const SecurityDomainId& security_domain_id,
     const CoreAccountId& account_id,
     HttpMethod http_method,
     const GURL& request_url,
-    const absl::optional<std::string>& serialized_request_proto,
+    const std::optional<std::string>& serialized_request_proto,
     base::TimeDelta max_retry_duration,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     std::unique_ptr<TrustedVaultAccessTokenFetcher> access_token_fetcher,
-    TrustedVaultURLFetchReasonForUMA reason_for_uma)
-    : account_id_(account_id),
+    RecordFetchStatusCallback record_fetch_status_callback)
+    : security_domain_id_(security_domain_id),
+      account_id_(account_id),
       http_method_(http_method),
       request_url_(request_url),
       serialized_request_proto_(serialized_request_proto),
       url_loader_factory_(std::move(url_loader_factory)),
       access_token_fetcher_(std::move(access_token_fetcher)),
-      reason_for_uma_(reason_for_uma),
+      record_fetch_status_callback_(record_fetch_status_callback),
       max_retry_time_(base::TimeTicks::Now() + max_retry_duration),
       backoff_entry_(&kRetryPolicy) {
   DCHECK(url_loader_factory_);
   DCHECK(http_method == HttpMethod::kPost ||
+         http_method == HttpMethod::kPatch ||
          !serialized_request_proto.has_value());
   DCHECK(access_token_fetcher_);
 }
@@ -153,8 +156,10 @@ void TrustedVaultRequest::FetchAccessTokenAndSendRequest(
 void TrustedVaultRequest::OnAccessTokenFetched(
     TrustedVaultAccessTokenFetcher::AccessTokenInfoOrError
         access_token_info_or_error) {
-  base::UmaHistogramBoolean("Sync.TrustedVaultAccessTokenFetchSuccess",
-                            access_token_info_or_error.has_value());
+  base::UmaHistogramBoolean(
+      "TrustedVault.AccessTokenFetchSuccess." +
+          GetSecurityDomainNameForUma(security_domain_id_),
+      access_token_info_or_error.has_value());
 
   if (!access_token_info_or_error.has_value()) {
     backoff_entry_.InformOfRequest(/*succeeded=*/false);
@@ -182,18 +187,23 @@ void TrustedVaultRequest::OnAccessTokenFetched(
 }
 
 void TrustedVaultRequest::OnURLLoadComplete(
-    std::unique_ptr<std::string> response_body) {
+    std::optional<std::string> response_body) {
   int http_response_code = 0;
 
   if (url_loader_->ResponseInfo() && url_loader_->ResponseInfo()->headers) {
     http_response_code = url_loader_->ResponseInfo()->headers->response_code();
   }
 
-  trusted_vault::RecordTrustedVaultURLFetchResponse(
-      /*http_response_code=*/http_response_code,
-      /*net_error=*/url_loader_->NetError(), reason_for_uma_);
+  if (record_fetch_status_callback_) {
+    record_fetch_status_callback_.Run(http_response_code,
+                                      url_loader_->NetError());
+  }
 
-  std::string response_content = response_body ? *response_body : std::string();
+  if (!response_body) {
+    response_body = std::string();
+  }
+  const std::string& response_content = *response_body;
+
   if (http_response_code == 0) {
     backoff_entry_.InformOfRequest(/*succeeded=*/false);
     if (CanRetry()) {

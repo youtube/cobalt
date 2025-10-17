@@ -39,21 +39,17 @@ ServiceWorkerEventQueue::StayAwakeToken::~StayAwakeToken() {
 }
 
 ServiceWorkerEventQueue::ServiceWorkerEventQueue(
-    BeforeStartEventCallback before_start_event_callback,
     base::RepeatingClosure idle_callback,
     scoped_refptr<base::SequencedTaskRunner> task_runner)
-    : ServiceWorkerEventQueue(std::move(before_start_event_callback),
-                              std::move(idle_callback),
+    : ServiceWorkerEventQueue(std::move(idle_callback),
                               std::move(task_runner),
                               base::DefaultTickClock::GetInstance()) {}
 
 ServiceWorkerEventQueue::ServiceWorkerEventQueue(
-    BeforeStartEventCallback before_start_event_callback,
     base::RepeatingClosure idle_callback,
     scoped_refptr<base::SequencedTaskRunner> task_runner,
     const base::TickClock* tick_clock)
     : task_runner_(std::move(task_runner)),
-      before_start_event_callback_(std::move(before_start_event_callback)),
       idle_callback_(std::move(idle_callback)),
       tick_clock_(tick_clock) {}
 
@@ -67,20 +63,19 @@ ServiceWorkerEventQueue::~ServiceWorkerEventQueue() {
 
 void ServiceWorkerEventQueue::Start() {
   DCHECK(!timer_.IsRunning());
-  if (!HasInflightEvent() && !HasScheduledIdleCallback()) {
-    // If no event happens until Start(), the idle callback should be scheduled.
-    OnNoInflightEvent();
-  }
   timer_.Start(FROM_HERE, kUpdateInterval,
                WTF::BindRepeating(&ServiceWorkerEventQueue::UpdateStatus,
                                   WTF::Unretained(this)));
+  is_ready_for_processing_events_ = true;
+  ResetIdleTimeout();
+  ProcessEvents();
 }
 
 void ServiceWorkerEventQueue::EnqueueNormal(
     int event_id,
     StartCallback start_callback,
     AbortCallback abort_callback,
-    absl::optional<base::TimeDelta> custom_timeout) {
+    std::optional<base::TimeDelta> custom_timeout) {
   EnqueueEvent(std::make_unique<Event>(
       event_id, Event::Type::Normal, std::move(start_callback),
       std::move(abort_callback), std::move(custom_timeout)));
@@ -90,45 +85,10 @@ void ServiceWorkerEventQueue::EnqueuePending(
     int event_id,
     StartCallback start_callback,
     AbortCallback abort_callback,
-    absl::optional<base::TimeDelta> custom_timeout) {
+    std::optional<base::TimeDelta> custom_timeout) {
   EnqueueEvent(std::make_unique<Event>(
       event_id, Event::Type::Pending, std::move(start_callback),
       std::move(abort_callback), std::move(custom_timeout)));
-}
-
-void ServiceWorkerEventQueue::EnqueueOffline(
-    int event_id,
-    StartCallback start_callback,
-    AbortCallback abort_callback,
-    absl::optional<base::TimeDelta> custom_timeout) {
-  EnqueueEvent(std::make_unique<ServiceWorkerEventQueue::Event>(
-      event_id, ServiceWorkerEventQueue::Event::Type::Offline,
-      std::move(start_callback), std::move(abort_callback),
-      std::move(custom_timeout)));
-}
-
-bool ServiceWorkerEventQueue::CanStartEvent(const Event& event) const {
-  if (running_event_type_ == RunningEventType::kNone) {
-    DCHECK(!HasInflightEvent());
-    return true;
-  }
-  if (event.type == Event::Type::Offline)
-    return running_event_type_ == RunningEventType::kOffline;
-  return running_event_type_ == RunningEventType::kOnline;
-}
-
-std::map<int, std::unique_ptr<ServiceWorkerEventQueue::Event>>&
-ServiceWorkerEventQueue::GetActiveEventQueue() {
-  if (running_event_type_ == RunningEventType::kNone) {
-    // Either online events or offline events can be started when inflight
-    // events don't exist. If online events exist in the queue, prioritize
-    // online events.
-    return queued_online_events_.empty() ? queued_offline_events_
-                                         : queued_online_events_;
-  }
-  if (running_event_type_ == RunningEventType::kOffline)
-    return queued_offline_events_;
-  return queued_online_events_;
 }
 
 void ServiceWorkerEventQueue::EnqueueEvent(std::unique_ptr<Event> event) {
@@ -136,8 +96,9 @@ void ServiceWorkerEventQueue::EnqueueEvent(std::unique_ptr<Event> event) {
   DCHECK(!HasEvent(event->event_id));
   DCHECK(!HasEventInQueue(event->event_id));
 
-  bool can_start_processing_events =
-      !processing_events_ && event->type != Event::Type::Pending;
+  bool can_start_processing_events = is_ready_for_processing_events_ &&
+                                     !processing_events_ &&
+                                     event->type != Event::Type::Pending;
 
   // Start counting the timer when an event is enqueued.
   all_events_.insert(
@@ -147,9 +108,7 @@ void ServiceWorkerEventQueue::EnqueueEvent(std::unique_ptr<Event> event) {
               event->custom_timeout.value_or(kEventTimeout),
           WTF::BindOnce(std::move(event->abort_callback), event->event_id)));
 
-  auto& queue = event->type == Event::Type::Offline ? queued_offline_events_
-                                                    : queued_online_events_;
-  queue.emplace(event->event_id, std::move(event));
+  queued_online_events_.emplace(event->event_id, std::move(event));
 
   if (!can_start_processing_events)
     return;
@@ -159,13 +118,15 @@ void ServiceWorkerEventQueue::EnqueueEvent(std::unique_ptr<Event> event) {
 }
 
 void ServiceWorkerEventQueue::ProcessEvents() {
+  // TODO(crbug.com/1462568): Switch to CHECK once we resolve the bug.
+  DCHECK(is_ready_for_processing_events_);
   DCHECK(!processing_events_);
   processing_events_ = true;
-  auto& queue = GetActiveEventQueue();
-  while (!queue.empty() && CanStartEvent(*queue.begin()->second)) {
-    int event_id = queue.begin()->first;
-    std::unique_ptr<Event> event = std::move(queue.begin()->second);
-    queue.erase(queue.begin());
+  while (!queued_online_events_.empty()) {
+    int event_id = queued_online_events_.begin()->first;
+    std::unique_ptr<Event> event =
+        std::move(queued_online_events_.begin()->second);
+    queued_online_events_.erase(queued_online_events_.begin());
     StartEvent(event_id, std::move(event));
   }
   processing_events_ = false;
@@ -181,11 +142,6 @@ void ServiceWorkerEventQueue::ProcessEvents() {
 void ServiceWorkerEventQueue::StartEvent(int event_id,
                                          std::unique_ptr<Event> event) {
   DCHECK(HasEvent(event_id));
-  running_event_type_ = event->type == Event::Type::Offline
-                            ? RunningEventType::kOffline
-                            : RunningEventType::kOnline;
-  if (before_start_event_callback_)
-    before_start_event_callback_.Run(event->type == Event::Type::Offline);
   std::move(event->start_callback).Run(event_id);
 }
 
@@ -200,12 +156,11 @@ void ServiceWorkerEventQueue::EndEvent(int event_id) {
 }
 
 bool ServiceWorkerEventQueue::HasEvent(int event_id) const {
-  return all_events_.find(event_id) != all_events_.end();
+  return base::Contains(all_events_, event_id);
 }
 
 bool ServiceWorkerEventQueue::HasEventInQueue(int event_id) const {
-  return (base::Contains(queued_online_events_, event_id) ||
-          base::Contains(queued_offline_events_, event_id));
+  return base::Contains(queued_online_events_, event_id);
 }
 
 std::unique_ptr<ServiceWorkerEventQueue::StayAwakeToken>
@@ -232,8 +187,8 @@ void ServiceWorkerEventQueue::SetIdleDelay(base::TimeDelta idle_delay) {
   idle_callback_handle_.Cancel();
 
   // Calculate the updated time of when the |idle_callback_| should be invoked.
-  DCHECK(!last_no_inflight_event_.is_null());
-  auto new_idle_callback_time = last_no_inflight_event_ + idle_delay;
+  DCHECK(!last_no_inflight_event_time_.is_null());
+  auto new_idle_callback_time = last_no_inflight_event_time_ + idle_delay;
   base::TimeDelta delta_until_idle =
       new_idle_callback_time - tick_clock_->NowTicks();
 
@@ -276,7 +231,6 @@ void ServiceWorkerEventQueue::UpdateStatus() {
     // The event may still be in one of the queues when it timed out. Try to
     // remove the event from both.
     queued_online_events_.erase(event_id);
-    queued_offline_events_.erase(event_id);
 
     // Run the abort callback.
     std::move(event_info->abort_callback)
@@ -323,28 +277,37 @@ void ServiceWorkerEventQueue::TriggerIdleCallback() {
 
 void ServiceWorkerEventQueue::OnNoInflightEvent() {
   DCHECK(!HasInflightEvent());
-  running_event_type_ = RunningEventType::kNone;
-  // There might be events in the queue because offline (or non-offline) events
-  // can be enqueued during running non-offline (or offline) events.
-  auto& queue = GetActiveEventQueue();
-  if (!queue.empty()) {
+  if (!queued_online_events_.empty()) {
+    // The comment before offline queue removal
+    // https://chromium-review.googlesource.com/c/chromium/src/+/5847475 said:
+    //
+    // > There might be events in the queue because offline (or non-offline)
+    // > events can be enqueued during running non-offline (or offline) events.
+    //
+    // But also there can be events in the online queue even without offline
+    // queue interaction (crbug.com/373051915), perhaps the comment was
+    // obsolete.
+    //
+    // Call `ProcessEvents()` to anyway preserve the behavior before the offline
+    // queue removal.
+    //
+    // TODO(crbug.com/374797728): Investigate why the queue can be non-empty.
     ProcessEvents();
     return;
   }
-  last_no_inflight_event_ = tick_clock_->NowTicks();
+  last_no_inflight_event_time_ = tick_clock_->NowTicks();
   ScheduleIdleCallback(idle_delay_);
 }
 
 bool ServiceWorkerEventQueue::HasInflightEvent() const {
-  size_t num_queued_events =
-      queued_online_events_.size() + queued_offline_events_.size();
+  size_t num_queued_events = queued_online_events_.size();
   DCHECK_LE(num_queued_events, all_events_.size());
   return all_events_.size() - num_queued_events > 0 ||
          num_of_stay_awake_tokens_ > 0;
 }
 
 void ServiceWorkerEventQueue::ResetIdleTimeout() {
-  last_no_inflight_event_ = base::TimeTicks();
+  last_no_inflight_event_time_ = base::TimeTicks();
   idle_callback_handle_.Cancel();
   did_idle_timeout_ = false;
 }
@@ -363,7 +326,7 @@ ServiceWorkerEventQueue::Event::Event(
     ServiceWorkerEventQueue::Event::Type type,
     StartCallback start_callback,
     AbortCallback abort_callback,
-    absl::optional<base::TimeDelta> custom_timeout)
+    std::optional<base::TimeDelta> custom_timeout)
     : event_id(event_id),
       type(type),
       start_callback(std::move(start_callback)),

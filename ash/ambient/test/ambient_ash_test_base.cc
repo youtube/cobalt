@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -14,20 +15,20 @@
 #include "ash/ambient/ambient_managed_photo_controller.h"
 #include "ash/ambient/ambient_managed_slideshow_ui_launcher.h"
 #include "ash/ambient/ambient_photo_cache.h"
+#include "ash/ambient/ambient_photo_cache_settings.h"
 #include "ash/ambient/ambient_photo_controller.h"
 #include "ash/ambient/ambient_ui_launcher.h"
 #include "ash/ambient/ambient_ui_settings.h"
 #include "ash/ambient/test/ambient_ash_test_helper.h"
+#include "ash/ambient/test/ambient_test_util.h"
 #include "ash/ambient/ui/ambient_animation_view.h"
 #include "ash/ambient/ui/ambient_background_image_view.h"
 #include "ash/ambient/ui/ambient_container_view.h"
 #include "ash/ambient/ui/ambient_info_view.h"
 #include "ash/ambient/ui/ambient_slideshow_peripheral_ui.h"
 #include "ash/ambient/ui/ambient_view_ids.h"
-#include "ash/ambient/ui/jitter_calculator.h"
 #include "ash/ambient/ui/media_string_view.h"
 #include "ash/ambient/ui/photo_view.h"
-#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/ambient/ambient_prefs.h"
 #include "ash/public/cpp/ambient/ambient_ui_model.h"
 #include "ash/public/cpp/ambient/fake_ambient_backend_controller_impl.h"
@@ -36,25 +37,26 @@
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_util.h"
+#include "ash/webui/personalization_app/mojom/personalization_app.mojom-shared.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
-#include "base/memory/ptr_util.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/test/bind.h"
 #include "base/test/scoped_run_loop_timeout.h"
-#include "base/threading/scoped_blocking_call.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
-#include "base/values.h"
-#include "chromeos/ash/components/login/auth/auth_metrics_recorder.h"
 #include "chromeos/dbus/power/fake_power_manager_client.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "chromeos/dbus/power_manager/idle.pb.h"
+#include "components/prefs/testing_pref_service.h"
+#include "services/data_decoder/public/mojom/image_decoder.mojom-shared.h"
+#include "services/network/public/cpp/resource_request.h"
+#include "services/network/test/test_url_loader_factory.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_unittest_util.h"
@@ -63,148 +65,159 @@
 
 namespace ash {
 namespace {
-constexpr float kFastForwardFactor = 1.001;
+
+constexpr base::TimeDelta kWaitForWidgetsTimeout = base::Seconds(10);
+
+std::map<int, ::ambient::PhotoCacheEntry> GetCachedFilesFromStore(
+    ambient_photo_cache::Store store) {
+  std::map<int, ::ambient::PhotoCacheEntry> cached_files;
+  for (int i = 0; i < kMaxNumberOfCachedImages; ++i) {
+    base::test::TestFuture<::ambient::PhotoCacheEntry> future;
+    ambient_photo_cache::ReadPhotoCache(store, i, future.GetCallback());
+    ::ambient::PhotoCacheEntry entry = future.Get();
+    if (!entry.primary_photo().image().empty()) {
+      cached_files[i] = std::move(entry);
+    }
+  }
+  return cached_files;
+}
+
 }  // namespace
 
-class TestAmbientPhotoCacheImpl : public AmbientPhotoCache {
+class AmbientAshTestBase::FakePhotoDownloadServer {
  public:
-  TestAmbientPhotoCacheImpl() = default;
-  ~TestAmbientPhotoCacheImpl() override = default;
-
-  static std::unique_ptr<AmbientPhotoCache> Create() {
-    return std::make_unique<TestAmbientPhotoCacheImpl>();
+  explicit FakePhotoDownloadServer(
+      network::TestURLLoaderFactory& url_loader_factory)
+      : url_loader_factory_(&url_loader_factory) {
+    url_loader_factory.SetInterceptor(
+        base::BindRepeating(&FakePhotoDownloadServer::InterceptIncomingRequest,
+                            weak_factory_.GetWeakPtr()));
   }
+  FakePhotoDownloadServer(const FakePhotoDownloadServer&) = delete;
+  FakePhotoDownloadServer& operator=(const FakePhotoDownloadServer&) = delete;
+  ~FakePhotoDownloadServer() = default;
 
-  // AmbientPhotoCache:
-  void DownloadPhoto(
-      const std::string& url,
-      base::OnceCallback<void(std::string&&)> callback) override {
-    // Pretend to respond asynchronously.
-    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE, base::BindOnce(std::move(callback), GetDownloadData()),
-        photo_download_delay_);
-  }
-
-  void DownloadPhotoToFile(const std::string& url,
-                           int cache_index,
-                           base::OnceCallback<void(bool)> callback) override {
-    std::string download_data = GetDownloadData();
-    if (download_data.empty()) {
-      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), /*success=*/false));
-      return;
-    }
-    ::ambient::PhotoCacheEntry cache_entry;
-    cache_entry.mutable_primary_photo()->set_image(std::move(download_data));
-
-    files_.insert(
-        std::pair<int, ::ambient::PhotoCacheEntry>(cache_index, cache_entry));
-
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), /*success=*/true));
-  }
-
-  void DecodePhoto(
-      const std::string& data,
-      base::OnceCallback<void(const gfx::ImageSkia&)> callback) override {
-    gfx::ImageSkia image = decoded_image_ ? *decoded_image_
-                                          : CreateSolidColorTestImage(
-                                                decoded_size_, decoded_color_);
-
-    // Only use once.
-    decoded_image_.reset();
-
-    // Pretend to respond asynchronously.
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), image));
-  }
-
-  void WritePhotoCache(int cache_index,
-                       const ::ambient::PhotoCacheEntry& cache_entry,
-                       base::OnceClosure callback) override {
-    files_.insert(
-        std::pair<int, ::ambient::PhotoCacheEntry>(cache_index, cache_entry));
-    std::move(callback).Run();
-  }
-
-  void ReadPhotoCache(
-      int cache_index,
-      base::OnceCallback<void(::ambient::PhotoCacheEntry)> callback) override {
-    auto it = files_.find(cache_index);
-    if (it == files_.end()) {
-      std::move(callback).Run(::ambient::PhotoCacheEntry());
-      return;
-    }
-
-    std::move(callback).Run(it->second);
-  }
-
-  void Clear() override {
-    download_count_ = 0;
-    download_data_.reset();
-    decoded_size_ = gfx::Size(10, 20);
-    decoded_image_.reset();
-    files_.clear();
-  }
-
-  void SetDownloadData(std::unique_ptr<std::string> download_data) {
+  void set_download_data(std::unique_ptr<std::string> download_data) {
     download_data_ = std::move(download_data);
   }
 
-  void SetDecodedPhotoSize(int width, int height) {
-    decoded_size_.set_width(width);
-    decoded_size_.set_height(height);
+  std::map<GURL, std::string>& download_data_per_url() {
+    return download_data_per_url_;
   }
 
-  void SetDecodedPhotoColor(SkColor color) { decoded_color_ = color; }
+  void set_download_delay(base::TimeDelta delay) { download_delay_ = delay; }
 
-  void SetDecodedPhoto(const gfx::ImageSkia& image) { decoded_image_ = image; }
-
-  void SetPhotoDownloadDelay(base::TimeDelta delay) {
-    photo_download_delay_ = delay;
+  void set_custom_image_size(gfx::Size custom_image_size) {
+    custom_image_size_ = std::move(custom_image_size);
   }
 
-  const std::map<int, ::ambient::PhotoCacheEntry>& get_files() {
-    return files_;
+  void set_custom_image_color(SkColor custom_image_color) {
+    custom_image_color_ = std::move(custom_image_color);
+  }
+
+  void set_image_codec(data_decoder::mojom::ImageCodec image_codec) {
+    image_codec_ = image_codec;
   }
 
  private:
-  std::string GetDownloadData() {
-    // Reply with a unique string each time to avoid check to skip loading
-    // duplicate images.
-    return download_data_
-               ? *download_data_
-               : base::StringPrintf("test_image_%i", download_count_++);
+  static constexpr int kTestImageMinSize = 25;
+  static constexpr int kTestImageMaxSize = 50;
+
+  void InterceptIncomingRequest(const network::ResourceRequest& request) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&FakePhotoDownloadServer::RespondToPendingRequest,
+                       weak_factory_.GetWeakPtr(), request.url.spec(),
+                       GetDownloadData(request.url)),
+        download_delay_);
   }
 
-  int download_count_ = 0;
+  void RespondToPendingRequest(const std::string& url,
+                               const std::string& content) {
+    CHECK(url_loader_factory_->SimulateResponseForPendingRequest(url, content))
+        << "Failed to find pending request for " << url;
+  }
 
-  // If not null, will return this data when downloading.
+  std::string GetDownloadData(const GURL& url) {
+    if (download_data_per_url_.count(url)) {
+      return download_data_per_url_[url];
+    }
+
+    if (download_data_) {
+      return *download_data_;
+    }
+
+    return CreateEncodedImageForTesting(GetNextTestImageSize(),
+                                        GetNextTestImageColor(), image_codec_);
+  }
+
+  gfx::Size GetNextTestImageSize() {
+    if (custom_image_size_) {
+      return *custom_image_size_;
+    }
+
+    gfx::Size test_size = gfx::Size(test_image_size_, test_image_size_);
+    ++test_image_size_;
+    if (test_image_size_ > kTestImageMaxSize) {
+      test_image_size_ = kTestImageMinSize;
+    }
+    return test_size;
+  }
+
+  SkColor GetNextTestImageColor() {
+    if (custom_image_color_) {
+      SkColor custom_image_color = *custom_image_color_;
+      custom_image_color_.reset();
+      return custom_image_color;
+    }
+    SkColor test_color =
+        SkColorSetRGB(test_image_color_, test_image_color_, test_image_color_);
+    ++test_image_color_;
+    return test_color;
+  }
+
+  const raw_ptr<network::TestURLLoaderFactory> url_loader_factory_;
+  // Specific download data per url. Takes priority over `download_data_` if
+  // a match is not found in this map.
+  std::map<GURL, std::string> download_data_per_url_;
+  // If not null, will return an arbitrary photo when downloading.
   std::unique_ptr<std::string> download_data_;
+  base::TimeDelta download_delay_;
 
-  // Color of the test images.
-  SkColor decoded_color_ = SK_ColorGREEN;
-  // Width and height of test images.
-  gfx::Size decoded_size_{10, 20};
-  // If set, will replay this image.
-  absl::optional<gfx::ImageSkia> decoded_image_;
+  // Automatically generates images of different sizes and colors for every
+  // request to prevent duplicate photos being returned. This simulates the
+  // real backend behavior.
+  int test_image_size_ = kTestImageMinSize;
+  uint8_t test_image_color_ = 0;
 
-  std::map<int, ::ambient::PhotoCacheEntry> files_;
+  // If not specified, the size is automatically generated using
+  // `test_image_size_`.
+  std::optional<gfx::Size> custom_image_size_;
+  std::optional<SkColor> custom_image_color_;
 
-  base::TimeDelta photo_download_delay_ = base::Milliseconds(1);
+  data_decoder::mojom::ImageCodec image_codec_ =
+      data_decoder::mojom::ImageCodec::kDefault;
+
+  base::WeakPtrFactory<FakePhotoDownloadServer> weak_factory_{this};
 };
 
 AmbientAshTestBase::AmbientAshTestBase()
     : AshTestBase(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
-  recorder_ = AuthMetricsRecorder::CreateForTesting();
+  recorder_ = AuthEventsRecorder::CreateForTesting();
 }
 
 AmbientAshTestBase::~AmbientAshTestBase() = default;
 
 void AmbientAshTestBase::SetUp() {
-  AmbientPhotoCache::SetFactoryForTesting(
-      base::BindRepeating(&TestAmbientPhotoCacheImpl::Create));
+  ASSERT_TRUE(primary_cache_dir_.CreateUniqueTempDir());
+  ASSERT_TRUE(backup_cache_dir_.CreateUniqueTempDir());
+  SetAmbientPhotoCacheRootDirForTesting(primary_cache_dir_.GetPath());
+  SetAmbientBackupPhotoCacheRootDirForTesting(backup_cache_dir_.GetPath());
   AshTestBase::SetUp();
+
+  GetAmbientAshTestHelper()->ambient_client().SetAutomaticalyIssueToken(true);
+  fake_photo_download_server_ = std::make_unique<FakePhotoDownloadServer>(
+      GetAmbientAshTestHelper()->ambient_client().test_url_loader_factory());
 
   // Need to reset first and then assign the TestPhotoClient because can only
   // have one instance of AmbientBackendController.
@@ -217,17 +230,13 @@ void AmbientAshTestBase::SetUp() {
 }
 
 void AmbientAshTestBase::TearDown() {
+  fake_photo_download_server_.reset();
   AshTestBase::TearDown();
-  AmbientPhotoCache::SetFactoryForTesting(base::NullCallback());
 }
 
 void AmbientAshTestBase::SetAmbientModeEnabled(bool enabled) {
   Shell::Get()->session_controller()->GetActivePrefService()->SetBoolean(
       ambient::prefs::kAmbientModeEnabled, enabled);
-
-  if (enabled) {
-    DisableBackupCacheDownloads();
-  }
 }
 
 void AmbientAshTestBase::SetAmbientUiSettings(
@@ -235,6 +244,13 @@ void AmbientAshTestBase::SetAmbientUiSettings(
   settings.WriteToPrefService(
       *Shell::Get()->session_controller()->GetActivePrefService());
   DisableBackupCacheDownloads();
+}
+
+AmbientUiSettings AmbientAshTestBase::GetCurrentUiSettings() {
+  PrefService* pref_service =
+      Shell::Get()->session_controller()->GetActivePrefService();
+  CHECK(pref_service);
+  return AmbientUiSettings::ReadFromPrefService(*pref_service);
 }
 
 void AmbientAshTestBase::DisableBackupCacheDownloads() {
@@ -246,35 +262,42 @@ void AmbientAshTestBase::DisableBackupCacheDownloads() {
 }
 
 void AmbientAshTestBase::SetAmbientModeManagedScreensaverEnabled(bool enabled) {
-  Shell::Get()->session_controller()->GetActivePrefService()->SetBoolean(
-      ambient::prefs::kAmbientModeManagedScreensaverEnabled, enabled);
+  PrefService* prefs =
+      Shell::Get()->session_controller()->GetActivePrefService();
+  DCHECK(prefs);
+
+  static_cast<TestingPrefServiceSimple*>(prefs)->SetManagedPref(
+      ambient::prefs::kAmbientModeManagedScreensaverEnabled,
+      std::make_unique<base::Value>(enabled));
 }
 
-void AmbientAshTestBase::SetAmbientTheme(AmbientTheme theme) {
+void AmbientAshTestBase::SetAmbientTheme(
+    personalization_app::mojom::AmbientTheme theme) {
   SetAmbientUiSettings(AmbientUiSettings(theme));
 }
 
 void AmbientAshTestBase::DisableJitter() {
-  JitterCalculator::Config kZeroJitterConfig = {/*step_size=*/0};
-  auto* photo_view = GetPhotoView();
-  if (photo_view != nullptr) {
-    photo_view->GetJitterCalculatorForTesting()->SetConfigForTesting(
-        kZeroJitterConfig);
-  }
-
-  auto* ambient_animation_view = GetAmbientAnimationView();
-  if (ambient_animation_view != nullptr) {
-    ambient_animation_view->GetJitterCalculatorForTesting()
-        ->SetConfigForTesting(kZeroJitterConfig);
-  }
+  AmbientUiModel::Get()->set_jitter_config_for_testing(
+      {.step_size = 0,
+       .x_min_translation = 0,
+       .x_max_translation = 0,
+       .y_min_translation = 0,
+       .y_max_translation = 0});
 }
 
-void AmbientAshTestBase::ShowAmbientScreen() {
+void AmbientAshTestBase::SetAmbientShownAndWaitForWidgets() {
   // The widget will be destroyed in |AshTestBase::TearDown()|.
-  ambient_controller()->ShowUi();
+  ambient_controller()->SetUiVisibilityShouldShow();
+  WaitForWidgets(kWaitForWidgetsTimeout);
+}
 
-  static constexpr base::TimeDelta kTimeout = base::Seconds(10);
-  base::test::ScopedRunLoopTimeout loop_timeout(FROM_HERE, kTimeout);
+void AmbientAshTestBase::SetAmbientPreviewAndWaitForWidgets() {
+  ambient_controller()->SetUiVisibilityPreview();
+  WaitForWidgets(kWaitForWidgetsTimeout);
+}
+
+void AmbientAshTestBase::WaitForWidgets(base::TimeDelta timeout) {
+  base::test::ScopedRunLoopTimeout loop_timeout(FROM_HERE, timeout);
   base::RunLoop run_loop;
   task_environment()->GetMainThreadTaskRunner()->PostTask(
       FROM_HERE,
@@ -298,11 +321,11 @@ void AmbientAshTestBase::SpinWaitForAmbientViewAvailable(
 }
 
 void AmbientAshTestBase::HideAmbientScreen() {
-  ambient_controller()->ShowHiddenUi();
+  ambient_controller()->SetUiVisibilityHidden();
 }
 
 void AmbientAshTestBase::CloseAmbientScreen() {
-  ambient_controller()->CloseUi();
+  ambient_controller()->SetUiVisibilityClosed();
 }
 
 void AmbientAshTestBase::LockScreen() {
@@ -389,17 +412,21 @@ void AmbientAshTestBase::SimulateMediaPlaybackStateChanged(
 }
 
 void AmbientAshTestBase::SetDecodedPhotoSize(int width, int height) {
-  auto* photo_cache = static_cast<TestAmbientPhotoCacheImpl*>(
-      ambient_controller()->ambient_photo_cache());
-
-  photo_cache->SetDecodedPhotoSize(width, height);
+  fake_photo_download_server_->set_custom_image_size(gfx::Size(width, height));
 }
 
-void AmbientAshTestBase::SetDecodedPhotoColor(SkColor color) {
-  auto* photo_cache = static_cast<TestAmbientPhotoCacheImpl*>(
-      ambient_controller()->ambient_photo_cache());
+void AmbientAshTestBase::SetNextDecodedPhotoColor(SkColor color) {
+  fake_photo_download_server_->set_custom_image_color(std::move(color));
+}
 
-  photo_cache->SetDecodedPhotoColor(color);
+void AmbientAshTestBase::UseLosslessPhotoCompression(
+    bool use_lossless_photo_compression) {
+  data_decoder::mojom::ImageCodec codec =
+      use_lossless_photo_compression
+          ? data_decoder::mojom::ImageCodec::kPng
+          : data_decoder::mojom::ImageCodec::kDefault;
+  photo_controller()->set_image_codec_for_testing(codec);
+  fake_photo_download_server_->set_image_codec(codec);
 }
 
 void AmbientAshTestBase::SetPhotoOrientation(bool portrait) {
@@ -463,17 +490,30 @@ AmbientAnimationView* AmbientAshTestBase::GetAmbientAnimationView() {
       GetContainerView()->GetViewByID(kAmbientAnimationView));
 }
 
-void AmbientAshTestBase::FastForwardToLockScreenTimeout() {
-  task_environment()->FastForwardBy(kFastForwardFactor *
+void AmbientAshTestBase::FastForwardByLockScreenInactivityTimeout(
+    float factor) {
+  DCHECK_GT(factor, 0.f);
+  task_environment()->FastForwardBy(factor *
                                     ambient_controller()
                                         ->ambient_ui_model()
                                         ->lock_screen_inactivity_timeout());
 }
 
-void AmbientAshTestBase::FastForwardToNextImage() {
+void AmbientAshTestBase::FastForwardByPhotoRefreshInterval(float factor) {
   task_environment()->FastForwardBy(
-      kFastForwardFactor *
+      factor *
       ambient_controller()->ambient_ui_model()->photo_refresh_interval());
+}
+
+std::optional<float>
+AmbientAshTestBase::GetRemainingLockScreenTimeoutFraction() {
+  const auto& inactivity_timer = ambient_controller()->inactivity_timer_;
+  if (!inactivity_timer.IsRunning()) {
+    return std::nullopt;
+  }
+
+  return (inactivity_timer.desired_run_time() - base::TimeTicks::Now()) /
+         inactivity_timer.GetCurrentDelay();
 }
 
 void AmbientAshTestBase::FastForwardTiny() {
@@ -482,18 +522,16 @@ void AmbientAshTestBase::FastForwardTiny() {
   task_environment()->FastForwardBy(base::Milliseconds(10));
 }
 
-void AmbientAshTestBase::FastForwardToBackgroundLockScreenTimeout() {
-  task_environment()->FastForwardBy(kFastForwardFactor *
+void AmbientAshTestBase::FastForwardByBackgroundLockScreenTimeout(
+    float factor) {
+  task_environment()->FastForwardBy(factor *
                                     ambient_controller()
                                         ->ambient_ui_model()
                                         ->background_lock_screen_timeout());
 }
 
-void AmbientAshTestBase::FastForwardHalfLockScreenDelay() {
-  task_environment()->FastForwardBy(0.5 * kFastForwardFactor *
-                                    ambient_controller()
-                                        ->ambient_ui_model()
-                                        ->background_lock_screen_timeout());
+void AmbientAshTestBase::FastForwardByDurationInMinutes(int minutes) {
+  task_environment()->FastForwardBy(base::Minutes(minutes));
 }
 
 void AmbientAshTestBase::SetPowerStateCharging() {
@@ -524,6 +562,13 @@ void AmbientAshTestBase::SetExternalPowerConnected() {
   ambient_controller()->OnPowerStatusChanged();
 }
 
+void AmbientAshTestBase::SetExternalUsbPowerConnected() {
+  proto_.set_external_power(
+      power_manager::PowerSupplyProperties_ExternalPower_USB);
+  PowerStatus::Get()->SetProtoForTesting(proto_);
+  ambient_controller()->OnPowerStatusChanged();
+}
+
 void AmbientAshTestBase::SetExternalPowerDisconnected() {
   proto_.set_external_power(
       power_manager::PowerSupplyProperties_ExternalPower_DISCONNECTED);
@@ -537,7 +582,7 @@ void AmbientAshTestBase::SetBatteryPercent(double percent) {
   ambient_controller()->OnPowerStatusChanged();
 }
 
-void AmbientAshTestBase::FastForwardToRefreshWeather() {
+void AmbientAshTestBase::FastForwardByWeatherRefreshInterval() {
   task_environment()->FastForwardBy(1.2 * kWeatherRefreshInterval);
 }
 
@@ -568,42 +613,35 @@ base::TimeDelta AmbientAshTestBase::GetRefreshTokenDelay() {
   return token_controller()->GetTimeUntilReleaseForTesting();
 }
 
-const std::map<int, ::ambient::PhotoCacheEntry>&
-AmbientAshTestBase::GetCachedFiles() {
-  auto* photo_cache = static_cast<TestAmbientPhotoCacheImpl*>(
-      ambient_controller()->ambient_photo_cache());
-
-  return photo_cache->get_files();
+std::map<int, ::ambient::PhotoCacheEntry> AmbientAshTestBase::GetCachedFiles() {
+  return GetCachedFilesFromStore(ambient_photo_cache::Store::kPrimary);
 }
 
-const std::map<int, ::ambient::PhotoCacheEntry>&
+std::map<int, ::ambient::PhotoCacheEntry>
 AmbientAshTestBase::GetBackupCachedFiles() {
-  auto* photo_cache = static_cast<TestAmbientPhotoCacheImpl*>(
-      ambient_controller()->get_backup_photo_cache_for_testing());
-
-  return photo_cache->get_files();
+  return GetCachedFilesFromStore(ambient_photo_cache::Store::kBackup);
 }
 
 AmbientController* AmbientAshTestBase::ambient_controller() {
   return Shell::Get()->ambient_controller();
 }
 
+AmbientUiLauncher* AmbientAshTestBase::ambient_ui_launcher() {
+  return ambient_controller()->ambient_ui_launcher();
+}
+
 AmbientPhotoController* AmbientAshTestBase::photo_controller() {
-  return ambient_controller()->ambient_photo_controller();
+  return ambient_ui_launcher()->GetAmbientPhotoController();
 }
 
 AmbientManagedPhotoController* AmbientAshTestBase::managed_photo_controller() {
-  if (!ash::features::IsAmbientModeManagedScreensaverEnabled()) {
-    return nullptr;
-  }
   AmbientManagedSlideshowUiLauncher* ui_launcher =
-      static_cast<AmbientManagedSlideshowUiLauncher*>(
-          ambient_controller()->ambient_ui_launcher());
+      static_cast<AmbientManagedSlideshowUiLauncher*>(ambient_ui_launcher());
   return &ui_launcher->photo_controller_;
 }
 
-AmbientPhotoCache* AmbientAshTestBase::photo_cache() {
-  return ambient_controller()->ambient_photo_cache();
+ScreensaverImagesPolicyHandler* AmbientAshTestBase::managed_policy_handler() {
+  return ambient_controller()->screensaver_images_policy_handler_.get();
 }
 
 AmbientWeatherController* AmbientAshTestBase::weather_controller() {
@@ -637,7 +675,7 @@ AmbientContainerView* AmbientAshTestBase::GetContainerView() {
 }
 
 AmbientAccessTokenController* AmbientAshTestBase::token_controller() {
-  return ambient_controller()->access_token_controller_for_testing();
+  return ambient_controller()->access_token_controller();
 }
 
 FakeAmbientBackendControllerImpl* AmbientAshTestBase::backend_controller() {
@@ -658,67 +696,44 @@ void AmbientAshTestBase::FetchBackupImages() {
 }
 
 void AmbientAshTestBase::SetDownloadPhotoData(std::string data) {
-  auto* photo_cache = static_cast<TestAmbientPhotoCacheImpl*>(
-      ambient_controller()->ambient_photo_cache());
-
-  photo_cache->SetDownloadData(std::make_unique<std::string>(std::move(data)));
+  fake_photo_download_server_->set_download_data(
+      std::make_unique<std::string>(data));
 }
 
 void AmbientAshTestBase::ClearDownloadPhotoData() {
-  auto* photo_cache = static_cast<TestAmbientPhotoCacheImpl*>(
-      ambient_controller()->ambient_photo_cache());
-
-  photo_cache->SetDownloadData(nullptr);
+  fake_photo_download_server_->set_download_data(nullptr);
 }
 
-void AmbientAshTestBase::SetBackupDownloadPhotoData(std::string data) {
-  auto* backup_cache = static_cast<TestAmbientPhotoCacheImpl*>(
-      ambient_controller()->get_backup_photo_cache_for_testing());
-
-  backup_cache->SetDownloadData(std::make_unique<std::string>(std::move(data)));
-}
-
-void AmbientAshTestBase::ClearBackupDownloadPhotoData() {
-  auto* backup_cache = static_cast<TestAmbientPhotoCacheImpl*>(
-      ambient_controller()->get_backup_photo_cache_for_testing());
-
-  backup_cache->SetDownloadData(nullptr);
-}
-
-void AmbientAshTestBase::SetDecodePhotoImage(const gfx::ImageSkia& image) {
-  auto* photo_cache = static_cast<TestAmbientPhotoCacheImpl*>(
-      ambient_controller()->ambient_photo_cache());
-
-  photo_cache->SetDecodedPhoto(image);
+void AmbientAshTestBase::SetDownloadPhotoDataForUrl(GURL url,
+                                                    std::string data) {
+  fake_photo_download_server_->download_data_per_url()[std::move(url)] =
+      std::move(data);
 }
 
 void AmbientAshTestBase::SetPhotoDownloadDelay(base::TimeDelta delay) {
-  auto* photo_cache = static_cast<TestAmbientPhotoCacheImpl*>(
-      ambient_controller()->ambient_photo_cache());
-
-  photo_cache->SetPhotoDownloadDelay(delay);
+  fake_photo_download_server_->set_download_delay(delay);
 }
 
 void AmbientAshTestBase::CreateTestImageJpegFile(base::FilePath path,
                                                  size_t width,
                                                  size_t height,
                                                  SkColor color) {
-  SkBitmap bitmap;
-  bitmap.allocN32Pixels(width, height);
-  bitmap.eraseColor(color);
-  std::vector<unsigned char> data;
-  ASSERT_TRUE(gfx::JPEGCodec::Encode(bitmap, /*quality=*/50, &data));
-  size_t bytes_written = base::WriteFile(
-      path, reinterpret_cast<const char*>(data.data()), data.size());
-  ASSERT_EQ(data.size(), bytes_written);
+  SkBitmap bitmap = gfx::test::CreateBitmap(width, height, color);
+  std::optional<std::vector<uint8_t>> data =
+      gfx::JPEGCodec::Encode(std::move(bitmap), /*quality=*/50);
+  ASSERT_TRUE(data);
+  ASSERT_TRUE(base::WriteFile(path, data.value()));
 }
 
 void AmbientAshTestBase::SetScreenSaverDuration(int minutes) {
   ambient_controller()->SetScreenSaverDuration(minutes);
 }
 
-absl::optional<int> AmbientAshTestBase::GetScreenSaverDuration() {
-  return ambient_controller()->GetScreenSaverDuration();
+int AmbientAshTestBase::GetScreenSaverDuration() {
+  return Shell::Get()
+      ->session_controller()
+      ->GetPrimaryUserPrefService()
+      ->GetInteger(ambient::prefs::kAmbientModeRunningDurationMinutes);
 }
 
 }  // namespace ash

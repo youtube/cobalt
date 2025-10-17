@@ -15,15 +15,16 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/trace_event/trace_event.h"
 #include "base/values.h"
-#include "components/sync/base/model_type.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/base/sync_invalidation.h"
 #include "components/sync/engine/cancelation_signal.h"
 #include "components/sync/engine/configure_reason.h"
+#include "components/sync/engine/data_type_connector_proxy.h"
+#include "components/sync/engine/data_type_worker.h"
 #include "components/sync/engine/engine_components_factory.h"
 #include "components/sync/engine/loopback_server/loopback_connection_manager.h"
-#include "components/sync/engine/model_type_connector_proxy.h"
-#include "components/sync/engine/model_type_worker.h"
 #include "components/sync/engine/net/http_post_provider_factory.h"
 #include "components/sync/engine/net/sync_server_connection_manager.h"
 #include "components/sync/engine/net/url_translator.h"
@@ -47,8 +48,13 @@ sync_pb::SyncEnums::GetUpdatesOrigin GetOriginFromReason(
       return sync_pb::SyncEnums::MIGRATION;
     case CONFIGURE_REASON_NEW_CLIENT:
       return sync_pb::SyncEnums::NEW_CLIENT;
-    case CONFIGURE_REASON_NEWLY_ENABLED_DATA_TYPE:
+    case CONFIGURE_REASON_EXISTING_CLIENT_RESTART:
     case CONFIGURE_REASON_CRYPTO:
+      // Mapping these cases to NEWLY_SUPPORTED_DATATYPE is rather wrong, as it
+      // includes common cases like sync being unpaused or a crypto error having
+      // been resolved, if initial sync didn't complete earlier (or data was
+      // cleared while paused). The legacy behavior is kept until a better
+      // solution is found.
       return sync_pb::SyncEnums::NEWLY_SUPPORTED_DATATYPE;
     case CONFIGURE_REASON_PROGRAMMATIC:
       return sync_pb::SyncEnums::PROGRAMMATIC;
@@ -85,38 +91,33 @@ GURL MakeConnectionURL(const GURL& sync_server, const std::string& client_id) {
 SyncManagerImpl::SyncManagerImpl(
     const std::string& name,
     network::NetworkConnectionTracker* network_connection_tracker)
-    : name_(name),
-      network_connection_tracker_(network_connection_tracker),
-      initialized_(false),
-      observing_network_connectivity_changes_(false),
-      sync_encryption_handler_(nullptr) {}
+    : name_(name), network_connection_tracker_(network_connection_tracker) {}
 
 SyncManagerImpl::~SyncManagerImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!initialized_);
 }
 
-ModelTypeSet SyncManagerImpl::InitialSyncEndedTypes() {
+DataTypeSet SyncManagerImpl::InitialSyncEndedTypes() {
   DCHECK(initialized_);
-  return model_type_registry_->GetInitialSyncEndedTypes();
+  return data_type_registry_->GetInitialSyncEndedTypes();
 }
 
-ModelTypeSet SyncManagerImpl::GetConnectedTypes() {
+DataTypeSet SyncManagerImpl::GetConnectedTypes() {
   DCHECK(initialized_);
-  return model_type_registry_->GetConnectedTypes();
+  return data_type_registry_->GetConnectedTypes();
 }
 
 void SyncManagerImpl::ConfigureSyncer(ConfigureReason reason,
-                                      ModelTypeSet to_download,
+                                      DataTypeSet to_download,
                                       SyncFeatureState sync_feature_state,
                                       base::OnceClosure ready_task) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!ready_task.is_null());
   DCHECK(initialized_);
 
-  DVLOG(1) << "Configuring -"
-           << "\n\t"
-           << "types to download: " << ModelTypeSetToDebugString(to_download);
+  DVLOG(1) << "Configuring -" << "\n\t"
+           << "types to download: " << DataTypeSetToDebugString(to_download);
 
   scheduler_->Start(SyncScheduler::CONFIGURATION_MODE, base::Time());
   scheduler_->ScheduleConfiguration(GetOriginFromReason(reason), to_download,
@@ -175,10 +176,8 @@ void SyncManagerImpl::Init(InitArgs* args) {
 
   DVLOG(1) << "Setting sync client ID: " << args->cache_guid;
   sync_status_tracker_->SetCacheGuid(args->cache_guid);
-  DVLOG(1) << "Setting invalidator client ID: " << args->invalidator_client_id;
-  sync_status_tracker_->SetInvalidatorClientId(args->invalidator_client_id);
 
-  model_type_registry_ = std::make_unique<ModelTypeRegistry>(
+  data_type_registry_ = std::make_unique<DataTypeRegistry>(
       this, args->cancelation_signal, sync_encryption_handler_);
 
   // Build a SyncCycleContext and store the worker in it.
@@ -187,9 +186,8 @@ void SyncManagerImpl::Init(InitArgs* args) {
       this, sync_status_tracker_.get()};
   cycle_context_ = args->engine_components_factory->BuildContext(
       connection_manager_.get(), args->extensions_activity, listeners,
-      &debug_info_event_listener_, model_type_registry_.get(),
-      args->invalidator_client_id, args->cache_guid, args->birthday,
-      args->bag_of_chips, args->poll_interval);
+      &debug_info_event_listener_, data_type_registry_.get(), args->cache_guid,
+      args->birthday, args->bag_of_chips, args->poll_interval);
   scheduler_ = args->engine_components_factory->BuildScheduler(
       name_, cycle_context_.get(), args->cancelation_signal,
       args->enable_local_sync_backend);
@@ -225,7 +223,7 @@ void SyncManagerImpl::OnTrustedVaultKeyAccepted() {
   // Does nothing.
 }
 
-void SyncManagerImpl::OnEncryptedTypesChanged(ModelTypeSet encrypted_types,
+void SyncManagerImpl::OnEncryptedTypesChanged(DataTypeSet encrypted_types,
                                               bool encrypt_everything) {
   sync_status_tracker_->SetEncryptedTypes(encrypted_types);
 }
@@ -268,8 +266,9 @@ void SyncManagerImpl::UpdateCredentials(const SyncCredentials& credentials) {
   cycle_context_->set_account_name(credentials.email);
 
   observing_network_connectivity_changes_ = true;
-  if (!connection_manager_->SetAccessToken(credentials.access_token))
+  if (!connection_manager_->SetAccessToken(credentials.access_token)) {
     return;  // Auth token is known to be invalid, so exit early.
+  }
 
   scheduler_->OnCredentialsUpdated();
 
@@ -300,21 +299,23 @@ void SyncManagerImpl::ShutdownOnSyncThread() {
   scheduler_.reset();
   cycle_context_.reset();
 
-  model_type_registry_.reset();
+  data_type_registry_.reset();
 
   if (sync_encryption_handler_) {
     sync_encryption_handler_->RemoveObserver(&debug_info_event_listener_);
     sync_encryption_handler_->RemoveObserver(this);
+    sync_encryption_handler_->RemoveObserver(encryption_observer_proxy_.get());
   }
 
   RemoveObserver(&debug_info_event_listener_);
 
-  // |connection_manager_| may end up being null here in tests (in synchronous
+  // `connection_manager_` may end up being null here in tests (in synchronous
   // initialization mode).
   //
   // TODO(akalin): Fix this behavior.
-  if (connection_manager_)
+  if (connection_manager_) {
     connection_manager_->RemoveListener(this);
+  }
   connection_manager_.reset();
 
   network_connection_tracker_->RemoveNetworkConnectionObserver(this);
@@ -356,22 +357,24 @@ void SyncManagerImpl::OnServerConnectionEvent(
   }
 }
 
-void SyncManagerImpl::NudgeForInitialDownload(ModelType type) {
+void SyncManagerImpl::NudgeForInitialDownload(DataType type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   scheduler_->ScheduleInitialSyncNudge(type);
 }
 
-void SyncManagerImpl::NudgeForCommit(ModelType type) {
+void SyncManagerImpl::NudgeForCommit(DataType type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   debug_info_event_listener_.OnNudgeFromDatatype(type);
   scheduler_->ScheduleLocalNudge(type);
 }
 
 void SyncManagerImpl::SetHasPendingInvalidations(
-    ModelType type,
+    DataType type,
     bool has_pending_invalidations) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   scheduler_->SetHasPendingInvalidations(type, has_pending_invalidations);
+  sync_status_tracker_->SetHasPendingInvalidations(type,
+                                                   has_pending_invalidations);
 }
 
 void SyncManagerImpl::NotifySyncStatusChanged(const SyncStatus& status) {
@@ -412,11 +415,11 @@ void SyncManagerImpl::OnActionableProtocolError(
 
 void SyncManagerImpl::OnRetryTimeChanged(base::Time) {}
 
-void SyncManagerImpl::OnThrottledTypesChanged(ModelTypeSet) {}
+void SyncManagerImpl::OnThrottledTypesChanged(DataTypeSet) {}
 
-void SyncManagerImpl::OnBackedOffTypesChanged(ModelTypeSet) {}
+void SyncManagerImpl::OnBackedOffTypesChanged(DataTypeSet) {}
 
-void SyncManagerImpl::OnMigrationRequested(ModelTypeSet types) {
+void SyncManagerImpl::OnMigrationRequested(DataTypeSet types) {
   for (SyncManager::Observer& observer : observers_) {
     observer.OnMigrationRequested(types);
   }
@@ -438,42 +441,42 @@ void SyncManagerImpl::SetInvalidatorEnabled(bool invalidator_enabled) {
 }
 
 void SyncManagerImpl::OnIncomingInvalidation(
-    ModelType type,
+    DataType type,
     std::unique_ptr<SyncInvalidation> invalidation) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  UpdateHandler* handler = model_type_registry_->GetMutableUpdateHandler(type);
+  UpdateHandler* handler = data_type_registry_->GetMutableUpdateHandler(type);
   if (handler) {
     handler->RecordRemoteInvalidation(std::move(invalidation));
   } else {
-    ModelTypeWorker::LogPendingInvalidationStatus(
+    DataTypeWorker::LogPendingInvalidationStatus(
         PendingInvalidationStatus::kDataTypeNotConnected);
   }
   sync_status_tracker_->IncrementNotificationsReceived();
   scheduler_->ScheduleInvalidationNudge(type);
 }
 
-void SyncManagerImpl::RefreshTypes(ModelTypeSet types) {
+void SyncManagerImpl::RefreshTypes(DataTypeSet types) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  const ModelTypeSet types_to_refresh =
-      Intersection(types, model_type_registry_->GetConnectedTypes());
+  const DataTypeSet types_to_refresh =
+      Intersection(types, data_type_registry_->GetConnectedTypes());
 
-  if (!types_to_refresh.Empty()) {
+  if (!types_to_refresh.empty()) {
     scheduler_->ScheduleLocalRefreshRequest(types_to_refresh);
   }
 }
 
-ModelTypeConnector* SyncManagerImpl::GetModelTypeConnector() {
+DataTypeConnector* SyncManagerImpl::GetDataTypeConnector() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return model_type_registry_.get();
+  return data_type_registry_.get();
 }
 
-std::unique_ptr<ModelTypeConnector>
-SyncManagerImpl::GetModelTypeConnectorProxy() {
+std::unique_ptr<DataTypeConnector>
+SyncManagerImpl::GetDataTypeConnectorProxy() {
   DCHECK(initialized_);
-  return std::make_unique<ModelTypeConnectorProxy>(
+  return std::make_unique<DataTypeConnectorProxy>(
       base::SequencedTaskRunner::GetCurrentDefault(),
-      model_type_registry_->AsWeakPtr());
+      data_type_registry_->AsWeakPtr());
 }
 
 std::string SyncManagerImpl::cache_guid() {
@@ -494,7 +497,7 @@ std::string SyncManagerImpl::bag_of_chips() {
 }
 
 bool SyncManagerImpl::HasUnsyncedItemsForTest() {
-  return model_type_registry_->HasUnsyncedItems();
+  return data_type_registry_->HasUnsyncedItems();
 }
 
 SyncEncryptionHandler* SyncManagerImpl::GetEncryptionHandler() {
@@ -510,12 +513,6 @@ SyncManagerImpl::GetBufferedProtocolEvents() {
 void SyncManagerImpl::OnCookieJarChanged(bool account_mismatch) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   cycle_context_->set_cookie_jar_mismatch(account_mismatch);
-}
-
-void SyncManagerImpl::UpdateInvalidationClientId(const std::string& client_id) {
-  DVLOG(1) << "Setting invalidator client ID: " << client_id;
-  sync_status_tracker_->SetInvalidatorClientId(client_id);
-  cycle_context_->set_invalidator_client_id(client_id);
 }
 
 void SyncManagerImpl::UpdateActiveDevicesInvalidationInfo(

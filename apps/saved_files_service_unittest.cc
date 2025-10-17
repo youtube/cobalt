@@ -152,6 +152,7 @@ TEST_F(SavedFilesServiceUnitTest, NoRetainEntriesPermissionTest) {
   static const char kManifest[] =
       "{\"app\": {\"background\": {\"scripts\": [\"background.js\"]}},"
       "\"permissions\": [\"fileSystem\"]}";
+  extension_ = nullptr;
   extension_ = env_.MakeExtension(base::test::ParseJsonDict(kManifest));
   service_->RegisterFileEntry(extension_->id(), GenerateId(1), path_, true);
   TRACE_CALL(CheckEntrySequenceNumber(1, 0));

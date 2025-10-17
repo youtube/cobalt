@@ -4,10 +4,15 @@
 
 #include "components/memory_system/memory_system.h"
 
-#include "base/allocator/buildflags.h"
+#include "base/allocator/dispatcher/dispatcher.h"
+#include "base/allocator/dispatcher/initializer.h"
+#include "base/debug/crash_logging.h"
+#include "base/debug/debugging_buildflags.h"
 #include "build/build_config.h"
 #include "components/gwp_asan/buildflags/buildflags.h"
+#include "components/memory_system/memory_system_features.h"
 #include "components/memory_system/parameters.h"
+#include "partition_alloc/buildflags.h"
 
 #if BUILDFLAG(ENABLE_GWP_ASAN)
 #include "components/gwp_asan/client/gwp_asan.h"  // nogncheck
@@ -16,16 +21,16 @@
 #endif
 #endif
 
-#if BUILDFLAG(IS_IOS) && BUILDFLAG(USE_ALLOCATOR_SHIM)
-#include "base/allocator/partition_allocator/shim/allocator_interception_mac.h"
-#include "base/allocator/partition_allocator/shim/allocator_shim.h"
+#if BUILDFLAG(IS_IOS) && PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 #include "base/ios/ios_util.h"
 #include "base/metrics/histogram_functions.h"
+#include "partition_alloc/shim/allocator_interception_apple.h"
+#include "partition_alloc/shim/allocator_shim.h"
 #endif
 
 // HeapProfilerController's dependencies are not compiled on iOS unless
 // AllocatorShim is enabled.
-#if !BUILDFLAG(IS_IOS) || BUILDFLAG(USE_ALLOCATOR_SHIM)
+#if !BUILDFLAG(IS_IOS) || PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 #define HEAP_PROFILING_SUPPORTED 1
 #else
 #define HEAP_PROFILING_SUPPORTED 0
@@ -35,10 +40,6 @@
 #include "components/heap_profiling/in_process/heap_profiler_controller.h"  // nogncheck
 #include "components/services/heap_profiling/public/cpp/profiling_client.h"  // nogncheck
 #endif
-
-#if BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-#include "base/allocator/dispatcher/dispatcher.h"
-#include "base/allocator/dispatcher/initializer.h"
 
 #if HEAP_PROFILING_SUPPORTED
 // If profiling is not supported, the PoissonAllocationSampler is removed from
@@ -51,15 +52,17 @@
 #include "base/cpu.h"
 #include "base/debug/allocation_trace.h"
 #include "components/allocation_recorder/crash_client/client.h"
+#if BUILDFLAG(ENABLE_ALLOCATION_TRACE_RECORDER_FULL_REPORTING)
+#include "components/memory_system/allocation_trace_recorder_statistics_reporter.h"
+#endif  // BUILDFLAG(ENABLE_ALLOCATION_TRACE_RECORDER_FULL_REPORTING)
 #endif  // BUILDFLAG(ENABLE_ALLOCATION_STACK_TRACE_RECORDER)
-#endif  // BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
 
 namespace memory_system {
 namespace {
 
-#if BUILDFLAG(IS_IOS) && BUILDFLAG(USE_ALLOCATOR_SHIM)
+#if BUILDFLAG(IS_IOS) && PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 // Do not install allocator shim on iOS 13.4 due to high crash volume on this
-// particular version of OS. TODO(crbug.com/1108219): Remove this workaround
+// particular version of OS. TODO(crbug.com/40707342): Remove this workaround
 // when/if the bug gets fixed.
 bool ShouldInstallAllocatorShim() {
   return !base::ios::IsRunningOnOrLater(13, 4, 0) ||
@@ -74,10 +77,10 @@ struct MemorySystem::Impl {
   ~Impl();
 
   void Initialize(
-      const absl::optional<GwpAsanParameters>& gwp_asan_parameters,
-      const absl::optional<ProfilingClientParameters>&
+      const std::optional<GwpAsanParameters>& gwp_asan_parameters,
+      const std::optional<ProfilingClientParameters>&
           profiling_client_parameters,
-      const absl::optional<DispatcherParameters>& dispatcher_parameters);
+      const std::optional<DispatcherParameters>& dispatcher_parameters);
 
  private:
   // Initialization functions for the various subsystems.
@@ -108,7 +111,6 @@ struct MemorySystem::Impl {
   bool IsAllocatorShimInitialized();
 
 #if HEAP_PROFILING_SUPPORTED
-#if BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
   // Check if the the dispatcher should include the PoissonAllocationSampler as
   // observer.
   bool DispatcherIncludesPoissonAllocationSampler(
@@ -121,19 +123,35 @@ struct MemorySystem::Impl {
   bool DispatcherIncludesAllocationTraceRecorder(
       const DispatcherParameters& dispatcher_parameters);
 #endif
-#endif
 
   std::unique_ptr<heap_profiling::HeapProfilerController>
       heap_profiler_controller_;
 #endif
 
-#if BUILDFLAG(IS_IOS) && BUILDFLAG(USE_ALLOCATOR_SHIM)
+#if BUILDFLAG(IS_IOS) && PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
   const bool should_install_allocator_shim_ = ShouldInstallAllocatorShim();
+#endif
+
+#if BUILDFLAG(ENABLE_ALLOCATION_STACK_TRACE_RECORDER)
+  struct {
+    // We must not delete the recorder upon shutdown. Firstly, we do not have a
+    // possibility to remove an allocation hook reliably. So, once installed,
+    // the recorder may constantly be used by the allocation hooks. Secondly,
+    // the reporting may continue using the recorder event after destruction
+    // (see AllocationTraceRecorderStatisticsReporter for details). Therefore,
+    // we extend its lifetime as much as possible by making it an unmanaged
+    // pointer and not deleting in the course of the destruction of the memory
+    // system.
+    raw_ptr<base::debug::tracer::AllocationTraceRecorder> recorder;
+#if BUILDFLAG(ENABLE_ALLOCATION_TRACE_RECORDER_FULL_REPORTING)
+    internal::AllocationTraceRecorderStatisticsReporter reporting;
+#endif
+  } allocation_recording_;
 #endif
 };
 
 MemorySystem::Impl::Impl() {
-#if BUILDFLAG(IS_IOS) && BUILDFLAG(USE_ALLOCATOR_SHIM)
+#if BUILDFLAG(IS_IOS) && PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
   if (should_install_allocator_shim_) {
     allocator_shim::InitializeAllocatorShim();
   }
@@ -150,13 +168,27 @@ MemorySystem::Impl::Impl() {
 #endif
 }
 
-MemorySystem::Impl::~Impl() = default;
+MemorySystem::Impl::~Impl() {
+#if BUILDFLAG(ENABLE_ALLOCATION_STACK_TRACE_RECORDER)
+#if BUILDFLAG(ENABLE_ALLOCATION_TRACE_RECORDER_FULL_REPORTING)
+  allocation_recording_.reporting = {};
+#endif
+
+  if (allocation_recording_.recorder) {
+    allocation_recorder::crash_client::UnregisterRecorderWithCrashpad();
+  }
+
+  // Do not delete the recorder that |allocation_recording_.recorder| points to
+  // to prevent the allocations hooks and the reporting from operating on
+  // potentially invalid data. See the declaration of
+  // |allocation_recording_.recorder| for details.
+#endif  // BUILDFLAG(ENABLE_ALLOCATION_STACK_TRACE_RECORDER)
+}
 
 void MemorySystem::Impl::Initialize(
-    const absl::optional<GwpAsanParameters>& gwp_asan_parameters,
-    const absl::optional<ProfilingClientParameters>&
-        profiling_client_parameters,
-    const absl::optional<DispatcherParameters>& dispatcher_parameters) {
+    const std::optional<GwpAsanParameters>& gwp_asan_parameters,
+    const std::optional<ProfilingClientParameters>& profiling_client_parameters,
+    const std::optional<DispatcherParameters>& dispatcher_parameters) {
   if (!IsAllocatorShimInitialized()) {
     return;
   }
@@ -177,7 +209,7 @@ void MemorySystem::Impl::Initialize(
 }
 
 bool MemorySystem::Impl::IsAllocatorShimInitialized() {
-#if BUILDFLAG(IS_IOS) && BUILDFLAG(USE_ALLOCATOR_SHIM)
+#if BUILDFLAG(IS_IOS) && PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
   if (!should_install_allocator_shim_) {
     return false;
   }
@@ -195,22 +227,26 @@ void MemorySystem::Impl::InitializeGwpASan(
     const GwpAsanParameters& gwp_asan_parameters,
     InitializationData& initialization_data) {
 #if BUILDFLAG(ENABLE_GWP_ASAN)
-  // GWP-ASAN requires crashpad to gather alloc/dealloc stack traces, which is
-  // not always enabled on ChromeOS.
-#if BUILDFLAG(IS_CHROMEOS)
-  if (!crash_reporter::IsCrashpadEnabled()) {
-    return;
-  }
-#endif
+  // LUD has the highest priority and the Extreme LUD has the lowest priority.
+  // An allocator shim later installed has priority over the already-installed
+  // shims.
+  gwp_asan::MaybeEnableExtremeLightweightDetector(
+      gwp_asan_parameters.boost_sampling,
+      gwp_asan_parameters.process_type.c_str());
 
 #if BUILDFLAG(ENABLE_GWP_ASAN_MALLOC)
   gwp_asan::EnableForMalloc(gwp_asan_parameters.boost_sampling,
-                            gwp_asan_parameters.process_type.c_str());
+                            gwp_asan_parameters.process_type);
 #endif
+
 #if BUILDFLAG(ENABLE_GWP_ASAN_PARTITIONALLOC)
   gwp_asan::EnableForPartitionAlloc(gwp_asan_parameters.boost_sampling,
-                                    gwp_asan_parameters.process_type.c_str());
+                                    gwp_asan_parameters.process_type);
 #endif
+
+  gwp_asan::MaybeEnableLightweightDetector(
+      gwp_asan_parameters.boost_sampling,
+      gwp_asan_parameters.process_type.c_str());
 #endif  // BUILDFLAG(ENABLE_GWP_ASAN)
 }
 
@@ -228,7 +264,6 @@ void MemorySystem::Impl::InitializeHeapProfiler(
 #endif
 }
 
-#if BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
 #if HEAP_PROFILING_SUPPORTED
 bool MemorySystem::Impl::DispatcherIncludesPoissonAllocationSampler(
     const DispatcherParameters& dispatcher_parameters,
@@ -247,6 +282,16 @@ bool MemorySystem::Impl::DispatcherIncludesPoissonAllocationSampler(
 #if BUILDFLAG(ENABLE_ALLOCATION_STACK_TRACE_RECORDER)
 bool MemorySystem::Impl::DispatcherIncludesAllocationTraceRecorder(
     const DispatcherParameters& dispatcher_parameters) {
+  if (!base::FeatureList::IsEnabled(features::kAllocationTraceRecorder)) {
+    return false;
+  }
+
+  if (features::kAllocationTraceRecorderForceAllProcesses.Get()) {
+    // Note: Force enable Allocation Trace Recorder in all processes, even if
+    // MTE (Memory Tagging Extension) is not present or is unavailable.
+    return true;
+  }
+
   switch (dispatcher_parameters.allocation_trace_recorder_inclusion) {
     case DispatcherParameters::AllocationTraceRecorderInclusion::kDynamic:
       return base::CPU::GetInstanceNoAllocation().has_mte();
@@ -274,44 +319,47 @@ void MemorySystem::Impl::InitializeDispatcher(
 #endif
 
 #if BUILDFLAG(ENABLE_ALLOCATION_STACK_TRACE_RECORDER)
-  // Always initialize the crash client. This way it is always present in the
-  // crashpad report. The actual content will depend on further inclusion into
-  // the dispatcher.
-  auto& allocation_recorder = allocation_recorder::crash_client::Initialize();
   const bool include_allocation_recorder =
       DispatcherIncludesAllocationTraceRecorder(dispatcher_parameters);
 
-  auto* const allocation_recorder_to_include =
-      include_allocation_recorder ? &allocation_recorder : nullptr;
+  static auto* const crash_key = base::debug::AllocateCrashKeyString(
+      "allocation_trace_recorder", base::debug::CrashKeySize::Size32);
+  base::debug::SetCrashKeyString(
+      crash_key, include_allocation_recorder ? "enabled" : "disabled");
+
+  if (include_allocation_recorder) {
+    allocation_recording_.recorder =
+        new base::debug::tracer::AllocationTraceRecorder();
+
+    allocation_recorder::crash_client::RegisterRecorderWithCrashpad(
+        *allocation_recording_.recorder);
+
+#if BUILDFLAG(ENABLE_ALLOCATION_TRACE_RECORDER_FULL_REPORTING)
+    allocation_recording_.reporting = {
+        *allocation_recording_.recorder, dispatcher_parameters.process_type,
+        base::Seconds(15), logging::LOGGING_ERROR};
 #endif
+  }
+#endif  // BUILDFLAG(ENABLE_ALLOCATION_STACK_TRACE_RECORDER)
 
   base::allocator::dispatcher::CreateInitializer()
 #if HEAP_PROFILING_SUPPORTED
       .AddOptionalObservers(poisson_allocation_sampler)
 #endif
 #if BUILDFLAG(ENABLE_ALLOCATION_STACK_TRACE_RECORDER)
-      .AddOptionalObservers(allocation_recorder_to_include)
+      .AddOptionalObservers(allocation_recording_.recorder.get())
 #endif
       .DoInitialize(base::allocator::dispatcher::Dispatcher::GetInstance());
 }
-
-#else  // BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-
-void MemorySystem::Impl::InitializeDispatcher(
-    const DispatcherParameters& dispatcher_parameters,
-    InitializationData& initialization_data) {}
-
-#endif  // BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
 
 MemorySystem::MemorySystem() : impl_(std::make_unique<Impl>()) {}
 
 MemorySystem::~MemorySystem() = default;
 
 void MemorySystem::Initialize(
-    const absl::optional<GwpAsanParameters>& gwp_asan_parameters,
-    const absl::optional<ProfilingClientParameters>&
-        profiling_client_parameters,
-    const absl::optional<DispatcherParameters>& dispatcher_parameters) {
+    const std::optional<GwpAsanParameters>& gwp_asan_parameters,
+    const std::optional<ProfilingClientParameters>& profiling_client_parameters,
+    const std::optional<DispatcherParameters>& dispatcher_parameters) {
   impl_->Initialize(gwp_asan_parameters, profiling_client_parameters,
                     dispatcher_parameters);
 }

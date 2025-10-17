@@ -18,10 +18,12 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "components/segmentation_platform/public/input_context.h"
-#include "components/segmentation_platform/public/jni_headers/InputContext_jni.h"
 #include "components/segmentation_platform/public/types/processed_value.h"
 #include "url/android/gurl_android.h"
 #include "url/gurl.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/segmentation_platform/public/jni_headers/InputContext_jni.h"
 
 using base::android::JavaParamRef;
 
@@ -59,6 +61,13 @@ void ConvertAndAddToInputContext(
   }
 }
 
+void JavaGURLArrayToGURLVector(
+    JNIEnv* env,
+    const base::android::JavaRef<jobjectArray>& j_gurls,
+    std::vector<GURL>* ret) {
+  *ret = jni_zero::FromJniArray<std::vector<GURL>>(env, j_gurls);
+}
+
 static void JavaLongArrayToBaseTimeVector(
     JNIEnv* env,
     const base::android::JavaRef<jlongArray>& java_values,
@@ -66,7 +75,8 @@ static void JavaLongArrayToBaseTimeVector(
   std::vector<int64_t> time_values;
   base::android::JavaLongArrayToInt64Vector(env, java_values, &time_values);
   for (int64_t time_value : time_values) {
-    out_times->emplace_back(base::Time::FromJavaTime(time_value));
+    out_times->emplace_back(
+        base::Time::FromMillisecondsSinceUnixEpoch(time_value));
   }
 }
 
@@ -76,6 +86,9 @@ static void JavaLongArrayToBaseTimeVector(
 scoped_refptr<InputContext> InputContextAndroid::ToNativeInputContext(
     JNIEnv* env,
     const base::android::JavaRef<jobject>& j_input_context) {
+  if (!j_input_context) {
+    return nullptr;
+  }
   scoped_refptr<InputContext> input_context =
       base::MakeRefCounted<InputContext>();
   Java_InputContext_fillNativeInputContext(
@@ -123,7 +136,7 @@ void InputContextAndroid::FromJavaParams(
   ConvertAndAddToInputContext(env, input_context, jint64_keys, jint64_values,
                               base::android::JavaLongArrayToInt64Vector);
   ConvertAndAddToInputContext(env, input_context, jurl_keys, jurl_values,
-                              url::GURLAndroid::JavaGURLArrayToGURLVector);
+                              JavaGURLArrayToGURLVector);
 }
 
 static void JNI_InputContext_FillNative(

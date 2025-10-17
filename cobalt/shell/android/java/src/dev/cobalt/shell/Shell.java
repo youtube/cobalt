@@ -25,16 +25,18 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import org.chromium.base.Callback;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.SelectionPopupController;
+import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  *  Copied from org.chromium.content_shell.Shell.
@@ -210,11 +212,11 @@ public class Shell {
         mViewAndroidDelegate = new ShellViewAndroidDelegate(mRootView);
         assert (mWebContents != webContents);
         if (mWebContents != null) mWebContents.clearNativeReference();
-        webContents.initialize(
-                "", mViewAndroidDelegate, null /* ContentView */, mWindow, WebContents.createDefaultInternalsHolder());
+        webContents.setDelegates(
+                "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
         mWebContents = webContents;
         mNavigationController = mWebContents.getNavigationController();
-        mWebContents.onShow();
+        mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
         mContentViewRenderView.setCurrentWebContents(mWebContents);
         if (mWebContentsReadyListener != null) {
             mWebContentsReadyListener.onWebContentsReady();

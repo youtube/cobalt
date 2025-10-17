@@ -8,15 +8,16 @@
 #include <tuple>
 #include <utility>
 
+#include "base/memory/raw_ptr.h"
 #include "base/test/null_task_runner.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
-#include "mojo/public/interfaces/bindings/tests/sample_service.mojom-blink.h"
+#include "mojo/public/interfaces/bindings/tests/sample_service.test-mojom-blink.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/context_lifecycle_notifier.h"
 #include "third_party/blink/renderer/platform/heap/heap_test_utilities.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
-#include "third_party/blink/renderer/platform/heap_observer_set.h"
+#include "third_party/blink/renderer/platform/heap_observer_list.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/mojo/mojo_binding_context.h"
 #include "third_party/blink/renderer/platform/testing/mock_context_lifecycle_notifier.h"
@@ -46,7 +47,7 @@ class GCOwner final : public GarbageCollected<GCOwner<Mode>> {
 
  private:
   HeapMojoAssociatedRemoteSet<sample::blink::Service, Mode> remote_set_;
-  HeapMojoAssociatedRemoteSetGCBaseTest<Mode>* test_;
+  raw_ptr<HeapMojoAssociatedRemoteSetGCBaseTest<Mode>> test_;
 };
 
 template <HeapMojoWrapperMode Mode>

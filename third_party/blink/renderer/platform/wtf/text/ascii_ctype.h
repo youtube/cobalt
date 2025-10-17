@@ -26,6 +26,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_ASCII_CTYPE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_ASCII_CTYPE_H_
 
@@ -48,7 +53,7 @@
 namespace WTF {
 
 template <typename CharType>
-inline bool IsASCII(CharType c) {
+constexpr inline bool IsASCII(CharType c) {
   return !(c & ~0x7F);
 }
 
@@ -75,11 +80,6 @@ inline bool IsASCIIHexDigit(CharType c) {
 template <typename CharType>
 inline bool IsASCIILower(CharType c) {
   return c >= 'a' && c <= 'z';
-}
-
-template <typename CharType>
-inline bool IsASCIIOctalDigit(CharType c) {
-  return (c >= '0') & (c <= '7');
 }
 
 template <typename CharType>
@@ -126,7 +126,7 @@ inline char ToASCIILower(char c) {
 }
 
 template <typename CharType>
-inline CharType ToASCIIUpper(CharType c) {
+constexpr inline CharType ToASCIIUpper(CharType c) {
   return c & ~((c >= 'a' && c <= 'z') << 5);
 }
 
@@ -160,7 +160,10 @@ inline bool IsASCIIAlphaCaselessEqual(CharType css_character, char character) {
   // lowercase letter to any input character.
   DCHECK_GE(character, 'a');
   DCHECK_LE(character, 'z');
-  return LIKELY((css_character | 0x20) == character);
+  if ((css_character | 0x20) == character) [[likely]] {
+    return true;
+  }
+  return false;
 }
 
 }  // namespace WTF
@@ -172,7 +175,6 @@ using WTF::IsASCIIAlphanumeric;
 using WTF::IsASCIIDigit;
 using WTF::IsASCIIHexDigit;
 using WTF::IsASCIILower;
-using WTF::IsASCIIOctalDigit;
 using WTF::IsASCIIPrintable;
 using WTF::IsASCIISpace;
 using WTF::IsASCIIUpper;

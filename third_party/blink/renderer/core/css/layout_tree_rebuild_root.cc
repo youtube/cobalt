@@ -70,7 +70,6 @@ void LayoutTreeRebuildRoot::SubtreeModified(ContainerNode& parent) {
   if (!ancestor) {
     // The parent should be the pseudo element's originating element.
     NOTREACHED();
-    ancestor = parent.ParentOrShadowHostElement();
   }
   for (; ancestor; ancestor = ancestor->GetReattachParent()) {
     DCHECK(ancestor->ChildNeedsReattachLayoutTree());

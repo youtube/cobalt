@@ -48,14 +48,12 @@ AwSSLHostStateDelegate::~AwSSLHostStateDelegate() {
 
 void AwSSLHostStateDelegate::HostRanInsecureContent(
     const std::string& host,
-    int child_id,
     InsecureContentType content_type) {
   // Intentional no-op for Android WebView.
 }
 
 bool AwSSLHostStateDelegate::DidHostRunInsecureContent(
     const std::string& host,
-    int child_id,
     InsecureContentType content_type) {
   // Intentional no-op for Android WebView.
   return false;
@@ -82,8 +80,8 @@ void AwSSLHostStateDelegate::SetHttpsEnforcementForHost(
   // Intentional no-op for Android WebView.
 }
 
-bool AwSSLHostStateDelegate::IsHttpsEnforcedForHost(
-    const std::string& host,
+bool AwSSLHostStateDelegate::IsHttpsEnforcedForUrl(
+    const GURL& url,
     content::StoragePartition* storage_partition) {
   // Intentional no-op for Android WebView. Return value does not matter as
   // HTTPS-First Mode is not enabled on WebView.
@@ -121,9 +119,11 @@ SSLHostStateDelegate::CertJudgment AwSSLHostStateDelegate::QueryPolicy(
     const net::X509Certificate& cert,
     int error,
     content::StoragePartition* storage_partition) {
-  return cert_policy_for_host_[host].Check(cert, error)
-             ? SSLHostStateDelegate::ALLOWED
-             : SSLHostStateDelegate::DENIED;
+  auto iter = cert_policy_for_host_.find(host);
+  if (iter != cert_policy_for_host_.end() && iter->second.Check(cert, error)) {
+    return SSLHostStateDelegate::ALLOWED;
+  }
+  return SSLHostStateDelegate::DENIED;
 }
 
 void AwSSLHostStateDelegate::RevokeUserAllowExceptions(
@@ -137,6 +137,16 @@ bool AwSSLHostStateDelegate::HasAllowException(
   auto policy_iterator = cert_policy_for_host_.find(host);
   return policy_iterator != cert_policy_for_host_.end() &&
          policy_iterator->second.HasAllowException();
+}
+
+bool AwSSLHostStateDelegate::HasAllowExceptionForAnyHost(
+    content::StoragePartition* storage_partition) {
+  for (auto const& it : cert_policy_for_host_) {
+    if (it.second.HasAllowException()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace android_webview

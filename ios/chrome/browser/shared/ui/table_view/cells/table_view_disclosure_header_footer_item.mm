@@ -4,9 +4,9 @@
 
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_disclosure_header_footer_item.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/numerics/math_constants.h"
-#import "ios/chrome/browser/shared/ui/table_view/chrome_table_view_styler.h"
+#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -14,15 +14,9 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 // Identity rotation angle that positions disclosure pointing down.
 constexpr float kRotationNinetyCW = (90 / 180.0) * M_PI;
-
-static const CGFloat kDisabledOpacity = (CGFloat)0.40;
 }  // namespace
 
 @implementation TableViewDisclosureHeaderFooterItem
@@ -39,11 +33,10 @@ static const CGFloat kDisabledOpacity = (CGFloat)0.40;
                        withStyler:(ChromeTableViewStyler*)styler {
   [super configureHeaderFooterView:headerFooter withStyler:styler];
   TableViewDisclosureHeaderFooterView* header =
-      base::mac::ObjCCastStrict<TableViewDisclosureHeaderFooterView>(
+      base::apple::ObjCCastStrict<TableViewDisclosureHeaderFooterView>(
           headerFooter);
   header.titleLabel.text = self.text;
   header.subtitleLabel.text = self.subtitleText;
-  header.subtitleLabel.numberOfLines = 0;
   header.disabled = self.disabled;
   header.isAccessibilityElement = YES;
   header.accessibilityTraits |= UIAccessibilityTraitButton;
@@ -73,6 +66,7 @@ static const CGFloat kDisabledOpacity = (CGFloat)0.40;
   if (self) {
     // Labels, set font sizes using dynamic type.
     _titleLabel = [[UILabel alloc] init];
+    _titleLabel.numberOfLines = 0;
     UIFontDescriptor* baseDescriptor = [UIFontDescriptor
         preferredFontDescriptorWithTextStyle:UIFontTextStyleSubheadline];
     UIFontDescriptor* styleDescriptor = [baseDescriptor
@@ -84,6 +78,7 @@ static const CGFloat kDisabledOpacity = (CGFloat)0.40;
                                         forAxis:UILayoutConstraintAxisVertical];
 
     _subtitleLabel = [[UILabel alloc] init];
+    _subtitleLabel.numberOfLines = 0;
     _subtitleLabel.font =
         [UIFont preferredFontForTextStyle:UIFontTextStyleCaption1];
     [_subtitleLabel
@@ -113,8 +108,8 @@ static const CGFloat kDisabledOpacity = (CGFloat)0.40;
     // Add subviews to View Hierarchy.
     [self.contentView addSubview:horizontalStack];
 
-    // Lower the padding constraints priority. UITableView might try to set
-    // the header view height/width to 0 breaking the constraints. See
+    // Lower the height padding constraints priority. UITableView might try to
+    // set the header view height to 0 breaking the constraints. See
     // https://crbug.com/854117 for more information.
     NSLayoutConstraint* topAnchorConstraint = [horizontalStack.topAnchor
         constraintGreaterThanOrEqualToAnchor:self.contentView.topAnchor
@@ -124,23 +119,23 @@ static const CGFloat kDisabledOpacity = (CGFloat)0.40;
         constraintLessThanOrEqualToAnchor:self.contentView.bottomAnchor
                                  constant:-kTableViewVerticalSpacing];
     bottomAnchorConstraint.priority = UILayoutPriorityDefaultHigh;
-    NSLayoutConstraint* leadingAnchorConstraint = [horizontalStack.leadingAnchor
-        constraintEqualToAnchor:self.contentView.leadingAnchor
-                       constant:HorizontalPadding()];
-    leadingAnchorConstraint.priority = UILayoutPriorityDefaultHigh;
-    NSLayoutConstraint* trailingAnchorConstraint =
-        [horizontalStack.trailingAnchor
-            constraintEqualToAnchor:self.contentView.trailingAnchor
-                           constant:-HorizontalPadding()];
-    trailingAnchorConstraint.priority = UILayoutPriorityDefaultHigh;
-
     // Set and activate constraints.
     [NSLayoutConstraint activateConstraints:@[
-      topAnchorConstraint, bottomAnchorConstraint, leadingAnchorConstraint,
-      trailingAnchorConstraint,
-      [horizontalStack.centerYAnchor
-          constraintEqualToAnchor:self.contentView.centerYAnchor]
+      topAnchorConstraint, bottomAnchorConstraint,
+      [horizontalStack.leadingAnchor
+          constraintEqualToAnchor:self.contentView.leadingAnchor
+                         constant:HorizontalPadding()],
+      [horizontalStack.trailingAnchor
+          constraintEqualToAnchor:self.contentView.trailingAnchor
+                         constant:-HorizontalPadding()]
     ]];
+
+    if (@available(iOS 17, *)) {
+      NSArray<UITrait>* traits = TraitCollectionSetForTraits(
+          @[ UITraitPreferredContentSizeCategory.class ]);
+      [self registerForTraitChanges:traits
+                         withAction:@selector(updateFontOnTraitChange)];
+    }
   }
   return self;
 }
@@ -155,18 +150,19 @@ static const CGFloat kDisabledOpacity = (CGFloat)0.40;
   }
 }
 
+#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
 - (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
   [super traitCollectionDidChange:previousTraitCollection];
+  if (@available(iOS 17, *)) {
+    return;
+  }
+
   if (previousTraitCollection.preferredContentSizeCategory !=
       self.traitCollection.preferredContentSizeCategory) {
-    UIFontDescriptor* baseDescriptor = [UIFontDescriptor
-        preferredFontDescriptorWithTextStyle:UIFontTextStyleHeadline];
-    UIFontDescriptor* styleDescriptor = [baseDescriptor
-        fontDescriptorWithSymbolicTraits:UIFontDescriptorTraitBold];
-    self.titleLabel.font = [UIFont fontWithDescriptor:styleDescriptor
-                                                 size:kUseDefaultFontSize];
+    [self updateFontOnTraitChange];
   }
 }
+#endif
 
 #pragma mark - public methods
 
@@ -184,7 +180,6 @@ static const CGFloat kDisabledOpacity = (CGFloat)0.40;
   _subtitleLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
   if (disabled) {
     _titleLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
-    _subtitleLabel.alpha = kDisabledOpacity;
   } else {
     _titleLabel.textColor = [UIColor colorNamed:kTextPrimaryColor];
   }
@@ -245,6 +240,16 @@ static const CGFloat kDisabledOpacity = (CGFloat)0.40;
                                       : UIColor.clearColor;
   }
   return _cellDefaultBackgroundColor;
+}
+
+// Updates the font of the title label when UITraits have changed.
+- (void)updateFontOnTraitChange {
+  UIFontDescriptor* baseDescriptor = [UIFontDescriptor
+      preferredFontDescriptorWithTextStyle:UIFontTextStyleHeadline];
+  UIFontDescriptor* styleDescriptor = [baseDescriptor
+      fontDescriptorWithSymbolicTraits:UIFontDescriptorTraitBold];
+  self.titleLabel.font = [UIFont fontWithDescriptor:styleDescriptor
+                                               size:kUseDefaultFontSize];
 }
 
 #pragma mark - Accessibility

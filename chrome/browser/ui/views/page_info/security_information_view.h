@@ -20,8 +20,9 @@ class NonAccessibleImageView;
 // View that represents the header of the page info bubble. The header shows the
 // status of the site's identity check and the name of the site's identity.
 class SecurityInformationView : public views::View {
+  METADATA_HEADER(SecurityInformationView, views::View)
+
  public:
-  METADATA_HEADER(SecurityInformationView);
   explicit SecurityInformationView(int side_margin);
   SecurityInformationView(const SecurityInformationView&) = delete;
   SecurityInformationView& operator=(const SecurityInformationView&) = delete;
@@ -35,8 +36,12 @@ class SecurityInformationView : public views::View {
 
   // Sets the security details for the current page and the callback for the
   // "Learn more" link.
-  void SetDetails(const std::u16string& details_text,
-                  views::Link::ClickedCallback security_details_callback);
+  void SetDetailsWithLearnMore(
+      const std::u16string& details_text,
+      views::Link::ClickedCallback security_details_callback);
+
+  // Sets the security details for the current page.
+  void SetDetails(const std::u16string& details_text);
 
   // Adds the reset decision label and sets the callback for the link part of
   // the label.
@@ -52,7 +57,11 @@ class SecurityInformationView : public views::View {
       views::Button::PressedCallback password_reuse_callback);
 
  private:
-  // The icon that representes the security state for this site. Used for page
+  void AdjustContentWidth(int w);
+
+  int min_label_width_ = 0;
+
+  // The icon that represents the security state for this site. Used for page
   // info v2 only.
   raw_ptr<NonAccessibleImageView> icon_ = nullptr;
 

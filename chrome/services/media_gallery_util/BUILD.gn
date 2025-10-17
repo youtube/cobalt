@@ -17,6 +17,8 @@ source_set("lib") {
     "media_parser_factory.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   deps = [
     "//base",
     "//chrome/common",
@@ -25,22 +27,20 @@ source_set("lib") {
     "//third_party/libyuv",
   ]
 
-  if (is_android) {
-    sources += [
-      "media_parser_android.cc",
-      "media_parser_android.h",
-      "video_thumbnail_parser.cc",
-      "video_thumbnail_parser.h",
-    ]
-  }
-
   public_deps = [ "//chrome/services/media_gallery_util/public/mojom" ]
 
+  # FFmpeg is required to demux and extract metadata.
   if (media_use_ffmpeg) {
-    deps += [
-      "//third_party/ffmpeg",
-      "//third_party/ffmpeg:ffmpeg_features",
-    ]
+    if (is_android) {
+      sources += [
+        "media_parser_android.cc",
+        "media_parser_android.h",
+        "video_thumbnail_parser.cc",
+        "video_thumbnail_parser.h",
+      ]
+    }
+
+    deps += [ "//third_party/ffmpeg" ]
   }
 }
 
@@ -50,9 +50,12 @@ if (is_android) {
     sources = [ "media_parser_android_unittest.cc" ]
 
     data = [
-      "//media/test/data/bear.mp4",
+      "//media/test/data/bear-av1.mp4",
+      "//media/test/data/bear-hevc-frag.mp4",
       "//media/test/data/bear-vp8-webvtt.webm",
       "//media/test/data/bear-vp8a.webm",
+      "//media/test/data/bear-vp9.webm",
+      "//media/test/data/bear.mp4",
       "//media/test/data/sfx.mp3",
     ]
 

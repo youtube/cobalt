@@ -110,7 +110,7 @@ void VirtualKeyboardControllerFuchsia::WatchVisibility() {
     return;
   }
 
-  controller_client_->WatchVisibility().ThenExactlyOnce(fit::bind_member(
+  controller_client_->WatchVisibility().Then(fit::bind_member(
       this, &VirtualKeyboardControllerFuchsia::OnVisibilityChange));
 }
 
@@ -151,7 +151,6 @@ VirtualKeyboardControllerFuchsia::GetFocusedTextType() const {
     // Should be handled in InputMethodFuchsia.
     case TEXT_INPUT_MODE_NONE:
       NOTREACHED();
-      return fuchsia_input_virtualkeyboard::TextType::kAlphanumeric;
 
     case TEXT_INPUT_MODE_DEFAULT:
       // Fall-through to using TextInputType.

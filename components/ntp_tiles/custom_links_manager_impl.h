@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_NTP_TILES_CUSTOM_LINKS_MANAGER_IMPL_H_
 #define COMPONENTS_NTP_TILES_CUSTOM_LINKS_MANAGER_IMPL_H_
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -18,7 +19,6 @@
 #include "components/ntp_tiles/most_visited_sites.h"
 #include "components/ntp_tiles/ntp_tile.h"
 #include "components/prefs/pref_change_registrar.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class PrefService;
 
@@ -49,6 +49,9 @@ class CustomLinksManagerImpl : public CustomLinksManager,
 
   const std::vector<Link>& GetLinks() const override;
 
+  bool AddLinkTo(const GURL& url,
+                 const std::u16string& title,
+                 size_t pos) override;
   bool AddLink(const GURL& url, const std::u16string& title) override;
   bool UpdateLink(const GURL& url,
                   const GURL& new_url,
@@ -81,8 +84,8 @@ class CustomLinksManagerImpl : public CustomLinksManager,
   // history::HistoryServiceObserver implementation.
   // Deletes any Most Visited links whose URL is in |deletion_info|. Clears
   // |previous_links_|. Does not delete entries expired by HistoryService.
-  void OnURLsDeleted(history::HistoryService* history_service,
-                     const history::DeletionInfo& deletion_info) override;
+  void OnHistoryDeletions(history::HistoryService* history_service,
+                          const history::DeletionInfo& deletion_info) override;
   void HistoryServiceBeingDeleted(
       history::HistoryService* history_service) override;
 
@@ -96,7 +99,7 @@ class CustomLinksManagerImpl : public CustomLinksManager,
   std::vector<Link> current_links_;
   // The state of the current list of links before the last action was
   // performed.
-  absl::optional<std::vector<Link>> previous_links_;
+  std::optional<std::vector<Link>> previous_links_;
 
   // List of closures to be invoked when custom links are updated by outside
   // sources.

@@ -54,11 +54,6 @@ class ProfileHelper {
       const std::string& user_id_hash);
 
   // DEPRECATED: Please use
-  // ash::BrowserContextHelper::GetSigninBrowserContextPath() instead.
-  // Returns the path that corresponds to the sign-in profile.
-  static base::FilePath GetSigninProfileDir();
-
-  // DEPRECATED: Please use
   // ash::BrowserContextHelper::GetSigninBrowserContext() instead.
   // Returns OffTheRecord profile for use during signing phase.
   static Profile* GetSigninProfile();
@@ -79,24 +74,6 @@ class ProfileHelper {
   // construction of the signin Profile to determine if that Profile is the
   // signin Profile.
   static bool IsSigninProfile(const Profile* profile);
-
-  // DEPRECATED. Please use ash::GetSigninBrowserContext() and see if it
-  // returns non-nullptr, instead.
-  // Returns true if the signin profile has been initialized.
-  static bool IsSigninProfileInitialized();
-
-  // DEPRECATED. Please use
-  // ash::BrowserContextHelper::GetLockScreenAppBrowserContextPath() instead.
-  // Returns the path used for the lock screen apps profile - profile used
-  // for launching platform apps that can display windows on top of the lock
-  // screen.
-  static base::FilePath GetLockScreenAppProfilePath();
-
-  // DEPRECATED. Please use ash::IsLockScreenAppBrowserContext() instead.
-  // Returns whether |profile| is the lock screen app profile - the profile used
-  // for launching platform apps that can display a window on top of the lock
-  // screen.
-  static bool IsLockScreenAppProfile(const Profile* profile);
 
   // DEPRECATED. Please use
   // ash::BrowserContextHelper::GetLockScreenBrowserContextPath() instead.
@@ -169,11 +146,6 @@ class ProfileHelper {
   // primary user.
   static void SetAlwaysReturnPrimaryUserForTesting(bool value);
 
-  // DEPRECATED: please set up UserManager.
-  // Associates |user| with profile with the same user_id,
-  // for GetUserByProfile() testing.
-  virtual void SetProfileToUserMappingForTesting(user_manager::User* user) = 0;
-
   // DEPRECATED: please set up UserManager and create a Profile tied to a user
   // by its path. You may be interested in to create a testing profile by
   // TestingProfileManager.
@@ -181,10 +153,10 @@ class ProfileHelper {
   virtual void SetUserToProfileMappingForTesting(const user_manager::User* user,
                                                  Profile* profile) = 0;
 
-  // DEPRECATED: avoiding SetProfileToUserMappingForTesting will help
-  // to remove this function's invocations.
-  // Removes |account_id| user from |user_to_profile_for_testing_| for testing.
-  virtual void RemoveUserFromListForTesting(const AccountId& account_id) = 0;
+  // Enables/disables testing code path in GetUserByProfile() like
+  // always return primary user (when always_return_primary_user_for_testing is
+  // set).
+  static void SetProfileToUserForTestingEnabled(bool enabled);
 
  protected:
   // TODO(nkostylev): Create a test API class that will be the only one allowed
@@ -192,11 +164,6 @@ class ProfileHelper {
   friend class FakeChromeUserManager;
   friend class ProfileHelperTest;
   friend class ::IndependentOTRProfileManagerTest;
-
-  // Enables/disables testing code path in GetUserByProfile() like
-  // always return primary user (when always_return_primary_user_for_testing is
-  // set).
-  static void SetProfileToUserForTestingEnabled(bool enabled);
 
   // If true testing code path is used in GetUserByProfile() even if
   // user_list_for_testing_ list is empty. In that case primary user will always

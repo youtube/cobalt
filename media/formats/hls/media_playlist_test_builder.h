@@ -77,12 +77,12 @@ class MediaPlaylistTestBuilder : public PlaylistTestBuilder<MediaPlaylist> {
   void VerifyExpectations(const MediaPlaylist& playlist,
                           const base::Location& from) const override;
 
-  raw_ptr<const MultivariantPlaylist> parent_ = nullptr;
+  raw_ptr<const MultivariantPlaylist, DanglingUntriaged> parent_ = nullptr;
   std::vector<SegmentExpectations> segment_expectations_;
 };
 
-// Checks that the media playlist has the given type (or `absl::nullopt`).
-inline void HasType(absl::optional<PlaylistType> type,
+// Checks that the media playlist has the given type (or `std::nullopt`).
+inline void HasType(std::optional<PlaylistType> type,
                     const base::Location& from,
                     const MediaPlaylist& playlist) {
   EXPECT_EQ(playlist.GetPlaylistType(), type) << from.ToString();
@@ -106,7 +106,7 @@ inline void HasComputedDuration(base::TimeDelta value,
 
 // Checks that the value of `GetPartialSegmentInfo()` matches the given value.
 inline void HasPartialSegmentInfo(
-    absl::optional<MediaPlaylist::PartialSegmentInfo> partial_segment_info,
+    std::optional<MediaPlaylist::PartialSegmentInfo> partial_segment_info,
     const base::Location& from,
     const MediaPlaylist& playlist) {
   ASSERT_EQ(partial_segment_info.has_value(),
@@ -128,7 +128,7 @@ inline void HasMediaSequenceTag(bool value,
 }
 
 // Checks that the value of `GetSkipBoundary()` matches the given value.
-inline void HasSkipBoundary(absl::optional<base::TimeDelta> value,
+inline void HasSkipBoundary(std::optional<base::TimeDelta> value,
                             const base::Location& from,
                             const MediaPlaylist& playlist) {
   EXPECT_TRUE(RoughlyEqual(playlist.GetSkipBoundary(), value))
@@ -151,7 +151,7 @@ inline void HasHoldBackDistance(base::TimeDelta value,
 }
 
 // Checks that the value of `GetPartHoldBackDistance()` matches the given value.
-inline void HasPartHoldBackDistance(absl::optional<base::TimeDelta> value,
+inline void HasPartHoldBackDistance(std::optional<base::TimeDelta> value,
                                     const base::Location& from,
                                     const MediaPlaylist& playlist) {
   EXPECT_TRUE(RoughlyEqual(playlist.GetPartHoldBackDistance(), value))
@@ -177,6 +177,32 @@ inline void HasMediaSequenceNumber(types::DecimalInteger number,
                                    const base::Location& from,
                                    const MediaSegment& segment) {
   EXPECT_EQ(segment.GetMediaSequenceNumber(), number) << from.ToString();
+}
+
+// Checks that the latest media segment has the given media sequence number.
+inline void HasEncryptionData(
+    std::optional<std::tuple<GURL,
+                             XKeyTagMethod,
+                             XKeyTagKeyFormat,
+                             MediaSegment::EncryptionData::IVContainer>> pack,
+    const base::Location& from,
+    const MediaSegment& segment) {
+  auto enc_data = segment.GetEncryptionData();
+  if (!pack.has_value()) {
+    ASSERT_EQ(enc_data.get(), nullptr) << from.ToString();
+  } else {
+    ASSERT_NE(enc_data.get(), nullptr) << from.ToString();
+    GURL uri;
+    XKeyTagMethod method;
+    XKeyTagKeyFormat format;
+    MediaSegment::EncryptionData::IVContainer iv;
+    std::tie(uri, method, format, iv) = pack.value();
+    EXPECT_EQ(enc_data->GetUri(), uri) << from.ToString();
+    EXPECT_EQ(enc_data->GetMethod(), method) << from.ToString();
+    EXPECT_EQ(enc_data->GetKeyFormat(), format) << from.ToString();
+    EXPECT_EQ(enc_data->GetIV(segment.GetMediaSequenceNumber()), iv)
+        << from.ToString();
+  }
 }
 
 // Checks that the latest media segment has the given discontinuity sequence
@@ -225,7 +251,7 @@ inline void HasInitializationSegment(
 }
 
 // Checks that the latest media segment has the given byte range.
-inline void HasByteRange(absl::optional<types::ByteRange> range,
+inline void HasByteRange(std::optional<types::ByteRange> range,
                          const base::Location& from,
                          const MediaSegment& segment) {
   ASSERT_EQ(segment.GetByteRange().has_value(), range.has_value())
@@ -242,7 +268,7 @@ inline void HasByteRange(absl::optional<types::ByteRange> range,
 
 // Checks the latest media segment's `GetBitRate` property against the given
 // value.
-inline void HasBitRate(absl::optional<types::DecimalInteger> bitrate,
+inline void HasBitRate(std::optional<types::DecimalInteger> bitrate,
                        const base::Location& from,
                        const MediaSegment& segment) {
   EXPECT_EQ(segment.GetBitRate(), bitrate);
@@ -279,4 +305,4 @@ inline void IsIFramesOnly(bool value,
 
 }  // namespace media::hls
 
-#endif
+#endif  // MEDIA_FORMATS_HLS_MEDIA_PLAYLIST_TEST_BUILDER_H_

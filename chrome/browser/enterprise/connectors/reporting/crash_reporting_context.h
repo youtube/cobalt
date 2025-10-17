@@ -5,12 +5,13 @@
 #ifndef CHROME_BROWSER_ENTERPRISE_CONNECTORS_REPORTING_CRASH_REPORTING_CONTEXT_H_
 #define CHROME_BROWSER_ENTERPRISE_CONNECTORS_REPORTING_CRASH_REPORTING_CONTEXT_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/enterprise/connectors/reporting/browser_crash_event_router.h"
 #include "components/enterprise/browser/controller/chrome_browser_cloud_management_controller.h"
 
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 #include "third_party/crashpad/crashpad/client/crash_report_database.h"
 #endif
 
@@ -29,7 +30,7 @@ class CrashReportingContext
   CrashReportingContext operator=(CrashReportingContext&&) = delete;
   ~CrashReportingContext() override;
 
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   static CrashReportingContext* GetInstance();
 
   void AddProfile(BrowserCrashEventRouter* router, Profile* profile);
@@ -47,11 +48,13 @@ class CrashReportingContext
   CrashReportingContext();
 
   base::RepeatingTimer repeating_crash_report_;
-  std::unordered_map<BrowserCrashEventRouter*, Profile*> active_profiles_;
+  std::unordered_map<BrowserCrashEventRouter*,
+                     raw_ptr<Profile, CtnExperimental>>
+      active_profiles_;
 #endif
 };
 
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 
 // Utility function to parse reports from a crash database that were
 // created past a given timestamp. Included in header for testing.
@@ -71,7 +74,7 @@ time_t GetLatestCrashReportTime(PrefService* local_state);
 // update latest crash upload timestamp if one or more such events are uploaded.
 // Included in header for testing.
 void UploadToReportingServer(
-    RealtimeReportingClient* reporting_client,
+    base::WeakPtr<RealtimeReportingClient> reporting_client,
     PrefService* local_state,
     std::vector<crashpad::CrashReportDatabase::Report> reports);
 
@@ -82,4 +85,4 @@ base::TimeDelta GetCrashpadPollingInterval();
 #endif
 
 }  // namespace enterprise_connectors
-#endif
+#endif  // CHROME_BROWSER_ENTERPRISE_CONNECTORS_REPORTING_CRASH_REPORTING_CONTEXT_H_

@@ -4,38 +4,40 @@
 
 #include <stdint.h>
 
+#include <string_view>
+
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
-#include "base/test/metrics/histogram_tester.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/extensions/api/extension_action/extension_action_api.h"
-#include "chrome/browser/extensions/api/extension_action/test_extension_action_api_observer.h"
 #include "chrome/browser/extensions/api/extension_action/test_icon_image_observer.h"
-#include "chrome/browser/extensions/extension_action_icon_factory.h"
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/extensions/extension_browser_test_util.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/extension_util.h"
+#include "chrome/browser/extensions/test_extension_action_dispatcher_observer.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/extensions/extension_action_test_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/toolbar/toolbar_action_view_controller.h"
+#include "chrome/browser/ui/views/extensions/extensions_toolbar_container.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_icon_container_view.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_context.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/video_picture_in_picture_window_controller.h"
@@ -47,6 +49,7 @@
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/browser/extension_action.h"
+#include "extensions/browser/extension_action_icon_factory.h"
 #include "extensions/browser/extension_action_manager.h"
 #include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_host_test_helper.h"
@@ -54,13 +57,14 @@
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/process_manager.h"
 #include "extensions/browser/test_extension_registry_observer.h"
-#include "extensions/common/feature_switch.h"
+#include "extensions/common/extension.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "ui/base/layout.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/base/resource/resource_scale_factor.h"
+#include "ui/events/base_event_utils.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/skia_conversions.h"
@@ -69,6 +73,7 @@
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/image/image_unittest_util.h"
+#include "ui/views/test/button_test_api.h"
 
 using content::WebContents;
 
@@ -101,7 +106,7 @@ void VerifyIconsMatch(const gfx::Image& bar_rendering,
           .GetBitmap()));
 }
 
-using ContextType = ExtensionBrowserTest::ContextType;
+using ContextType = extensions::browser_test_util::ContextType;
 
 class BrowserActionApiTest : public ExtensionApiTest {
  public:
@@ -111,37 +116,33 @@ class BrowserActionApiTest : public ExtensionApiTest {
   BrowserActionApiTest(const BrowserActionApiTest&) = delete;
   BrowserActionApiTest& operator=(const BrowserActionApiTest&) = delete;
 
-  void TearDownOnMainThread() override {
-    // Clean up the test util first, so that any created UI properly removes
-    // itself before profile destruction.
-    browser_action_test_util_.reset();
-    ExtensionApiTest::TearDownOnMainThread();
-  }
-
  protected:
-  ExtensionActionTestHelper* GetBrowserActionsBar() {
-    if (!browser_action_test_util_)
-      browser_action_test_util_ = ExtensionActionTestHelper::Create(browser());
-    return browser_action_test_util_.get();
-  }
-
   ExtensionAction* GetBrowserAction(Browser* browser,
                                     const Extension& extension) {
     ExtensionAction* extension_action =
         ExtensionActionManager::Get(browser->profile())
             ->GetExtensionAction(extension);
-    return extension_action->action_type() == ActionInfo::TYPE_BROWSER
+    return extension_action->action_type() == ActionInfo::Type::kBrowser
                ? extension_action
                : nullptr;
   }
 
- private:
-  std::unique_ptr<ExtensionActionTestHelper> browser_action_test_util_;
+  void ClickAction(const extensions::ExtensionId& extension_id) {
+    ToolbarActionView* action_view =
+        extensions_container()->GetViewForId(extension_id);
+    ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(),
+                         gfx::Point(), ui::EventTimeForNow(), 0, 0);
+    views::test::ButtonTestApi(action_view).NotifyClick(event);
+  }
+
+  ExtensionsToolbarContainer* extensions_container() {
+    return browser()->GetBrowserView().toolbar()->extensions_container();
+  }
 };
 
 // Canvas tests rely on the harness producing pixel output in order to read back
 // pixels from a canvas element. So we have to override the setup function.
-// TODO(https://crbug.com/1093066): Investigate to see if these tests can be
+// TODO(crbug.com/40698663): Investigate to see if these tests can be
 // enabled for Service Worker-based extensions.
 class BrowserActionApiCanvasTest : public BrowserActionApiTest {
  public:
@@ -163,7 +164,7 @@ class BrowserActionApiTestWithContextType
       const BrowserActionApiTestWithContextType&) = delete;
 
  protected:
-  void RunUpdateTest(base::StringPiece path, bool expect_failure) {
+  void RunUpdateTest(std::string_view path, bool expect_failure) {
     ExtensionTestMessageListener ready_listener("ready",
                                                 ReplyBehavior::kWillReply);
     ASSERT_TRUE(embedded_test_server()->Start());
@@ -171,7 +172,7 @@ class BrowserActionApiTestWithContextType
         LoadExtension(test_data_dir_.AppendASCII(path));
     ASSERT_TRUE(extension) << message_;
     // Test that there is a browser action in the toolbar.
-    ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
+    ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
     ASSERT_TRUE(ready_listener.WaitUntilSatisfied());
     ExtensionAction* action = GetBrowserAction(browser(), *extension);
@@ -203,14 +204,14 @@ class BrowserActionApiTestWithContextType
               action->GetBadgeBackgroundColor(ExtensionAction::kDefaultTabId));
   }
 
-  void RunEnableTest(base::StringPiece path, bool start_enabled) {
+  void RunEnableTest(std::string_view path, bool start_enabled) {
     ExtensionTestMessageListener ready_listener("ready",
                                                 ReplyBehavior::kWillReply);
     const Extension* extension =
         LoadExtension(test_data_dir_.AppendASCII(path));
     ASSERT_TRUE(extension) << message_;
     // Test that there is a browser action in the toolbar.
-    ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
+    ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
     ASSERT_TRUE(ready_listener.WaitUntilSatisfied());
     ExtensionAction* action = GetBrowserAction(browser(), *extension);
@@ -231,9 +232,6 @@ class BrowserActionApiTestWithContextType
     EXPECT_EQ(!start_enabled,
               action->GetIsVisible(ExtensionAction::kDefaultTabId));
   }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, Basic) {
@@ -244,7 +242,7 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, Basic) {
   ASSERT_TRUE(extension) << message_;
 
   // Test that there is a browser action in the toolbar.
-  ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
+  ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
   ASSERT_TRUE(ready_listener.WaitUntilSatisfied());
 
@@ -273,9 +271,10 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, Update) {
 }
 
 IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, UpdateSvg) {
-  // TODO(crbug.com/1064671): Service Workers currently don't support loading
+  // TODO(crbug.com/40123818): Service Workers currently don't support loading
   // SVG images.
-  const bool expect_failure = GetParam() == ContextType::kServiceWorker;
+  const bool expect_failure =
+      browser_test_util::IsServiceWorkerContext(context_type_);
   ASSERT_NO_FATAL_FAILURE(
       RunUpdateTest("browser_action/update_svg", expect_failure));
 }
@@ -285,7 +284,7 @@ INSTANTIATE_TEST_SUITE_P(PersistentBackground,
                          ::testing::Values(ContextType::kPersistentBackground));
 INSTANTIATE_TEST_SUITE_P(ServiceWorker,
                          BrowserActionApiTestWithContextType,
-                         ::testing::Values(ContextType::kServiceWorker));
+                         ::testing::Values(ContextType::kServiceWorkerMV2));
 
 IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, DynamicBrowserAction) {
   ASSERT_TRUE(RunExtensionTest("browser_action/no_icon")) << message_;
@@ -293,21 +292,17 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, DynamicBrowserAction) {
   ASSERT_TRUE(extension) << message_;
 
 #if BUILDFLAG(IS_MAC)
-  // We need this on mac so we don't loose 2x representations from browser icon
+  // We need this on mac so we don't lose 2x representations from browser icon
   // in transformations gfx::ImageSkia -> NSImage -> gfx::ImageSkia.
-  std::vector<ui::ResourceScaleFactor> supported_scale_factors;
-  supported_scale_factors.push_back(ui::k100Percent);
-  supported_scale_factors.push_back(ui::k200Percent);
-  ui::SetSupportedResourceScaleFactors(supported_scale_factors);
+  ui::SetSupportedResourceScaleFactors({ui::k100Percent, ui::k200Percent});
 #endif
 
   // We should not be creating icons asynchronously, so we don't need an
   // observer.
   ExtensionActionIconFactory icon_factory(
-      profile(), extension, GetBrowserAction(browser(), *extension), nullptr);
+      extension, GetBrowserAction(browser(), *extension), nullptr);
   // Test that there is a browser action in the toolbar.
-  ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
-  EXPECT_TRUE(GetBrowserActionsBar()->HasIcon(extension->id()));
+  ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
   gfx::Image action_icon = icon_factory.GetIcon(0);
   uint32_t action_icon_last_id = action_icon.ToSkBitmap()->getGenerationID();
@@ -316,25 +311,35 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, DynamicBrowserAction) {
   ASSERT_EQ(action_icon_last_id,
             icon_factory.GetIcon(0).ToSkBitmap()->getGenerationID());
 
-  gfx::Image last_bar_icon = GetBrowserActionsBar()->GetIcon(extension->id());
-  EXPECT_TRUE(gfx::test::AreImagesEqual(
-      last_bar_icon, GetBrowserActionsBar()->GetIcon(extension->id())));
+  ToolbarActionView* action_view =
+      extensions_container()->GetViewForId(extension->id());
+  ToolbarActionViewController* action_controller =
+      extensions_container()->GetActionForId(extension->id());
+  ASSERT_TRUE(action_view);
+  ASSERT_TRUE(action_controller);
+
+  gfx::Image last_bar_icon = gfx::Image(action_view->GetIconForTest());
 
   // The reason we don't test more standard scales (like 1x, 2x, etc.) is that
   // these may be generated from the provided scales.
   float kSmallIconScale = 21.f / ExtensionAction::ActionIconSize();
   float kLargeIconScale = 42.f / ExtensionAction::ActionIconSize();
-  ASSERT_FALSE(ui::IsSupportedScale(kSmallIconScale));
-  ASSERT_FALSE(ui::IsSupportedScale(kLargeIconScale));
+  ASSERT_NE(ui::GetScaleForResourceScaleFactor(
+                ui::GetSupportedResourceScaleFactor(kSmallIconScale)),
+            kSmallIconScale);
+  ASSERT_NE(ui::GetScaleForResourceScaleFactor(
+                ui::GetSupportedResourceScaleFactor(kLargeIconScale)),
+            kLargeIconScale);
 
   // Tell the extension to update the icon using ImageData object.
   ResultCatcher catcher;
-  GetBrowserActionsBar()->Press(extension->id());
+  action_controller->ExecuteUserAction(
+      ToolbarActionViewController::InvocationSource::kToolbarButton);
   ASSERT_TRUE(catcher.GetNextResult());
 
   EXPECT_FALSE(gfx::test::AreImagesEqual(
-      last_bar_icon, GetBrowserActionsBar()->GetIcon(extension->id())));
-  last_bar_icon = GetBrowserActionsBar()->GetIcon(extension->id());
+      last_bar_icon, gfx::Image(action_view->GetIconForTest())));
+  last_bar_icon = gfx::Image(action_view->GetIconForTest());
 
   action_icon = icon_factory.GetIcon(0);
   uint32_t action_icon_current_id = action_icon.ToSkBitmap()->getGenerationID();
@@ -347,13 +352,14 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, DynamicBrowserAction) {
   EXPECT_FALSE(action_icon.ToImageSkia()->HasRepresentation(kLargeIconScale));
 
   // Tell the extension to update the icon using path.
-  GetBrowserActionsBar()->Press(extension->id());
+  action_controller->ExecuteUserAction(
+      ToolbarActionViewController::InvocationSource::kToolbarButton);
   ASSERT_TRUE(catcher.GetNextResult());
 
   // Make sure the browser action bar updated.
   EXPECT_FALSE(gfx::test::AreImagesEqual(
-      last_bar_icon, GetBrowserActionsBar()->GetIcon(extension->id())));
-  last_bar_icon = GetBrowserActionsBar()->GetIcon(extension->id());
+      last_bar_icon, gfx::Image(action_view->GetIconForTest())));
+  last_bar_icon = gfx::Image(action_view->GetIconForTest());
 
   action_icon = icon_factory.GetIcon(0);
   action_icon_current_id = action_icon.ToSkBitmap()->getGenerationID();
@@ -367,12 +373,13 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, DynamicBrowserAction) {
 
   // Tell the extension to update the icon using dictionary of ImageData
   // objects.
-  GetBrowserActionsBar()->Press(extension->id());
+  action_controller->ExecuteUserAction(
+      ToolbarActionViewController::InvocationSource::kToolbarButton);
   ASSERT_TRUE(catcher.GetNextResult());
 
   EXPECT_FALSE(gfx::test::AreImagesEqual(
-      last_bar_icon, GetBrowserActionsBar()->GetIcon(extension->id())));
-  last_bar_icon = GetBrowserActionsBar()->GetIcon(extension->id());
+      last_bar_icon, gfx::Image(action_view->GetIconForTest())));
+  last_bar_icon = gfx::Image(action_view->GetIconForTest());
 
   action_icon = icon_factory.GetIcon(0);
   action_icon_current_id = action_icon.ToSkBitmap()->getGenerationID();
@@ -385,12 +392,13 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, DynamicBrowserAction) {
   EXPECT_TRUE(action_icon.AsImageSkia().HasRepresentation(kLargeIconScale));
 
   // Tell the extension to update the icon using dictionary of paths.
-  GetBrowserActionsBar()->Press(extension->id());
+  action_controller->ExecuteUserAction(
+      ToolbarActionViewController::InvocationSource::kToolbarButton);
   ASSERT_TRUE(catcher.GetNextResult());
 
   EXPECT_FALSE(gfx::test::AreImagesEqual(
-      last_bar_icon, GetBrowserActionsBar()->GetIcon(extension->id())));
-  last_bar_icon = GetBrowserActionsBar()->GetIcon(extension->id());
+      last_bar_icon, gfx::Image(action_view->GetIconForTest())));
+  last_bar_icon = gfx::Image(action_view->GetIconForTest());
 
   action_icon = icon_factory.GetIcon(0);
   action_icon_current_id = action_icon.ToSkBitmap()->getGenerationID();
@@ -404,12 +412,13 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, DynamicBrowserAction) {
 
   // Tell the extension to update the icon using dictionary of ImageData
   // objects, but setting only one size.
-  GetBrowserActionsBar()->Press(extension->id());
+  action_controller->ExecuteUserAction(
+      ToolbarActionViewController::InvocationSource::kToolbarButton);
   ASSERT_TRUE(catcher.GetNextResult());
 
   EXPECT_FALSE(gfx::test::AreImagesEqual(
-      last_bar_icon, GetBrowserActionsBar()->GetIcon(extension->id())));
-  last_bar_icon = GetBrowserActionsBar()->GetIcon(extension->id());
+      last_bar_icon, gfx::Image(action_view->GetIconForTest())));
+  last_bar_icon = gfx::Image(action_view->GetIconForTest());
 
   action_icon = icon_factory.GetIcon(0);
   action_icon_current_id = action_icon.ToSkBitmap()->getGenerationID();
@@ -423,12 +432,13 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, DynamicBrowserAction) {
 
   // Tell the extension to update the icon using dictionary of paths, but
   // setting only one size.
-  GetBrowserActionsBar()->Press(extension->id());
+  action_controller->ExecuteUserAction(
+      ToolbarActionViewController::InvocationSource::kToolbarButton);
   ASSERT_TRUE(catcher.GetNextResult());
 
   EXPECT_FALSE(gfx::test::AreImagesEqual(
-      last_bar_icon, GetBrowserActionsBar()->GetIcon(extension->id())));
-  last_bar_icon = GetBrowserActionsBar()->GetIcon(extension->id());
+      last_bar_icon, gfx::Image(action_view->GetIconForTest())));
+  last_bar_icon = gfx::Image(action_view->GetIconForTest());
 
   action_icon = icon_factory.GetIcon(0);
   action_icon_current_id = action_icon.ToSkBitmap()->getGenerationID();
@@ -442,12 +452,13 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, DynamicBrowserAction) {
 
   // Tell the extension to update the icon using dictionary of ImageData
   // objects, but setting only size 42.
-  GetBrowserActionsBar()->Press(extension->id());
+  action_controller->ExecuteUserAction(
+      ToolbarActionViewController::InvocationSource::kToolbarButton);
   ASSERT_TRUE(catcher.GetNextResult());
 
   EXPECT_FALSE(gfx::test::AreImagesEqual(
-      last_bar_icon, GetBrowserActionsBar()->GetIcon(extension->id())));
-  last_bar_icon = GetBrowserActionsBar()->GetIcon(extension->id());
+      last_bar_icon, gfx::Image(action_view->GetIconForTest())));
+  last_bar_icon = gfx::Image(action_view->GetIconForTest());
 
   action_icon = icon_factory.GetIcon(0);
   action_icon_current_id = action_icon.ToSkBitmap()->getGenerationID();
@@ -459,12 +470,14 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, DynamicBrowserAction) {
   EXPECT_TRUE(action_icon.AsImageSkia().HasRepresentation(kLargeIconScale));
 
   // Try setting icon with empty dictionary of ImageData objects.
-  GetBrowserActionsBar()->Press(extension->id());
+  action_controller->ExecuteUserAction(
+      ToolbarActionViewController::InvocationSource::kToolbarButton);
   ASSERT_FALSE(catcher.GetNextResult());
   EXPECT_EQ(kEmptyImageDataError, catcher.message());
 
   // Try setting icon with empty dictionary of path objects.
-  GetBrowserActionsBar()->Press(extension->id());
+  action_controller->ExecuteUserAction(
+      ToolbarActionViewController::InvocationSource::kToolbarButton);
   ASSERT_FALSE(catcher.GetNextResult());
   EXPECT_EQ(kEmptyPathError, catcher.message());
 }
@@ -478,10 +491,10 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, InvisibleIconBrowserAction) {
   ASSERT_TRUE(extension) << message_;
 
   // Test there is a browser action in the toolbar.
-  ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
-  EXPECT_TRUE(GetBrowserActionsBar()->HasIcon(extension->id()));
-  gfx::Image initial_bar_icon =
-      GetBrowserActionsBar()->GetIcon(extension->id());
+  ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
+  ToolbarActionView* action_view =
+      extensions_container()->GetViewForId(extension->id());
+  gfx::Image initial_bar_icon = gfx::Image(action_view->GetIconForTest());
 
   ExtensionHost* background_page =
       ProcessManager::Get(profile())->GetBackgroundHostForExtension(
@@ -490,29 +503,21 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiCanvasTest, InvisibleIconBrowserAction) {
 
   static constexpr char kScript[] = "setIcon(%s);";
 
-  const std::string histogram_name =
-      "Extensions.DynamicExtensionActionIconWasVisible";
   {
-    base::HistogramTester histogram_tester;
     EXPECT_EQ("Icon not sufficiently visible.",
               EvalJs(background_page->host_contents(),
                      base::StringPrintf(kScript, "invisibleImageData")));
     // The icon should not have changed.
     EXPECT_TRUE(gfx::test::AreImagesEqual(
-        initial_bar_icon, GetBrowserActionsBar()->GetIcon(extension->id())));
-    EXPECT_THAT(histogram_tester.GetAllSamples(histogram_name),
-                testing::ElementsAre(base::Bucket(0, 1)));
+        initial_bar_icon, gfx::Image(action_view->GetIconForTest())));
   }
 
   {
-    base::HistogramTester histogram_tester;
     EXPECT_EQ("", EvalJs(background_page->host_contents(),
                          base::StringPrintf(kScript, "visibleImageData")));
     // The icon should have changed.
     EXPECT_FALSE(gfx::test::AreImagesEqual(
-        initial_bar_icon, GetBrowserActionsBar()->GetIcon(extension->id())));
-    EXPECT_THAT(histogram_tester.GetAllSamples(histogram_name),
-                testing::ElementsAre(base::Bucket(1, 1)));
+        initial_bar_icon, gfx::Image(action_view->GetIconForTest())));
   }
 }
 
@@ -523,31 +528,34 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType,
   const Extension* extension = GetSingleLoadedExtension();
   ASSERT_TRUE(extension) << message_;
 
-  // Test that there is a browser action in the toolbar and that it has an icon.
-  ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
-  EXPECT_TRUE(GetBrowserActionsBar()->HasIcon(extension->id()));
+  ExtensionAction* extension_action =
+      ExtensionActionManager::Get(browser()->profile())
+          ->GetExtensionAction(*extension);
+  ASSERT_TRUE(extension_action);
 
   // Execute the action, its title should change.
   ResultCatcher catcher;
-  GetBrowserActionsBar()->Press(extension->id());
+  ExecuteExtensionAction(browser(), extension);
   ASSERT_TRUE(catcher.GetNextResult());
-  EXPECT_EQ("Showing icon 2",
-            GetBrowserActionsBar()->GetTooltip(extension->id()));
+  int first_tab_id = ExtensionTabUtil::GetTabId(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  EXPECT_EQ("Showing icon 2", extension_action->GetTitle(first_tab_id));
 
   // Open a new tab, the title should go back.
   chrome::NewTab(browser());
-  EXPECT_EQ("hi!", GetBrowserActionsBar()->GetTooltip(extension->id()));
+  int second_tab_id = ExtensionTabUtil::GetTabId(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  EXPECT_EQ("hi!", extension_action->GetTitle(second_tab_id));
 
   // Go back to first tab, changed title should reappear.
   browser()->tab_strip_model()->ActivateTabAt(
       0, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
-  EXPECT_EQ("Showing icon 2",
-            GetBrowserActionsBar()->GetTooltip(extension->id()));
+  EXPECT_EQ("Showing icon 2", extension_action->GetTitle(first_tab_id));
 
   // Reload that tab, default title should come back.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
-  EXPECT_EQ("hi!", GetBrowserActionsBar()->GetTooltip(extension->id()));
+  EXPECT_EQ("hi!", extension_action->GetTitle(first_tab_id));
 }
 
 // Test that calling chrome.browserAction.setIcon() can set the icon for
@@ -572,7 +580,7 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, SetIcon) {
   // call setIcon().
   {
     ResultCatcher catcher;
-    GetBrowserActionsBar()->Press(extension->id());
+    ClickAction(extension->id());
     ASSERT_TRUE(catcher.GetNextResult());
   }
 
@@ -605,7 +613,7 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, AddPopup) {
   // will add a popup.
   {
     ResultCatcher catcher;
-    GetBrowserActionsBar()->Press(extension->id());
+    ClickAction(extension->id());
     ASSERT_TRUE(catcher.GetNextResult());
   }
 
@@ -673,7 +681,14 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, RemovePopup) {
       << "a specific tab id.";
 }
 
-IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, IncognitoBasic) {
+// TODO(crbug.com/414519997): Flaky on Linux_ASan_LSan.
+#if defined(SANITIZER_LINUX)
+#define MAYBE_IncognitoBasic DISABLED_IncognitoBasic
+#else
+#define MAYBE_IncognitoBasic IncognitoBasic
+#endif
+IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType,
+                       MAYBE_IncognitoBasic) {
   ExtensionTestMessageListener ready_listener("ready");
   ASSERT_TRUE(embedded_test_server()->Start());
   scoped_refptr<const Extension> extension =
@@ -681,14 +696,14 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, IncognitoBasic) {
   ASSERT_TRUE(extension) << message_;
 
   // Test that there is a browser action in the toolbar.
-  ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
+  ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
   // Open an incognito window and test that the browser action isn't there by
   // default.
   Browser* incognito_browser = CreateIncognitoBrowser(browser()->profile());
-
-  ASSERT_EQ(0, ExtensionActionTestHelper::Create(incognito_browser)
-                   ->NumberOfBrowserActions());
+  ExtensionsToolbarContainer* extensions_container_incognito =
+      incognito_browser->GetBrowserView().toolbar()->extensions_container();
+  ASSERT_EQ(0, extensions_container_incognito->GetNumberOfActionsForTesting());
 
   ASSERT_TRUE(ready_listener.WaitUntilSatisfied());
 
@@ -703,8 +718,7 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, IncognitoBasic) {
       extension->id(), browser()->profile(), true);
   extension = registry_observer.WaitForExtensionLoaded();
 
-  ASSERT_EQ(1, ExtensionActionTestHelper::Create(incognito_browser)
-                   ->NumberOfBrowserActions());
+  ASSERT_EQ(1, extensions_container_incognito->GetNumberOfActionsForTesting());
 
   ASSERT_TRUE(incognito_ready_listener.WaitUntilSatisfied());
 
@@ -721,7 +735,14 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, IncognitoBasic) {
   EXPECT_TRUE(catcher.GetNextResult());
 }
 
-IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, IncognitoUpdate) {
+// TODO(crbug.com/338638098): leaks flakily on LSAN bots.
+#if defined(LEAK_SANITIZER)
+#define MAYBE_IncognitoUpdate DISABLED_IncognitoUpdate
+#else
+#define MAYBE_IncognitoUpdate IncognitoUpdate
+#endif
+IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType,
+                       MAYBE_IncognitoUpdate) {
   ASSERT_TRUE(embedded_test_server()->Start());
   ExtensionTestMessageListener incognito_not_allowed_listener(
       "incognito not allowed");
@@ -729,15 +750,16 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, IncognitoUpdate) {
       LoadExtension(test_data_dir_.AppendASCII("browser_action/update"));
   ASSERT_TRUE(extension) << message_;
   ASSERT_TRUE(incognito_not_allowed_listener.WaitUntilSatisfied());
+
   // Test that there is a browser action in the toolbar.
-  ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
+  ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
   // Open an incognito window and test that the browser action isn't there by
   // default.
   Browser* incognito_browser = CreateIncognitoBrowser(browser()->profile());
-
-  ASSERT_EQ(0, ExtensionActionTestHelper::Create(incognito_browser)
-                   ->NumberOfBrowserActions());
+  ExtensionsToolbarContainer* extensions_container_incognito =
+      incognito_browser->GetBrowserView().toolbar()->extensions_container();
+  ASSERT_EQ(0, extensions_container_incognito->GetNumberOfActionsForTesting());
 
   // Set up a listener so we can reply for the extension to do the update.
   // This listener also adds a sequence point between the browser and the
@@ -757,8 +779,7 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, IncognitoUpdate) {
                                           true);
   extension = registry_observer.WaitForExtensionLoaded();
   ASSERT_TRUE(extension);
-  ASSERT_EQ(1, ExtensionActionTestHelper::Create(incognito_browser)
-                   ->NumberOfBrowserActions());
+  ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
   ASSERT_TRUE(incognito_allowed_listener.WaitUntilSatisfied());
   ExtensionAction* action = GetBrowserAction(incognito_browser, *extension);
@@ -799,8 +820,7 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, IncognitoSplit) {
                     {.allow_in_incognito = true});
   ASSERT_TRUE(extension) << message_;
 
-  ASSERT_EQ(1, ExtensionActionTestHelper::Create(incognito_browser)
-                   ->NumberOfBrowserActions());
+  ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
   // NOTE: It is necessary to ensure that browser.onClicked listener was
   // registered from the extension. Otherwise SW based extension occasionally
@@ -858,7 +878,7 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType,
   ASSERT_TRUE(extension) << message_;
 
   // Test that there is a browser action in the toolbar.
-  ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
+  ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
   // Test that CSS values (#FF0000) set color correctly.
   ExtensionAction* action = GetBrowserAction(browser(), *extension);
@@ -906,7 +926,7 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType, Getters) {
   ASSERT_TRUE(extension) << message_;
 
   // Test that there is a browser action in the toolbar.
-  ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
+  ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
   // Test the getters for defaults.
   ResultCatcher catcher;
@@ -930,7 +950,7 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType,
   ASSERT_TRUE(extension) << message_;
 
   // Test that there is a browser action in the toolbar.
-  ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
+  ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/simple.html")));
@@ -941,7 +961,7 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType,
   // Simulate a click on the browser action icon.
   {
     ResultCatcher catcher;
-    GetBrowserActionsBar()->Press(extension->id());
+    ClickAction(extension->id());
     EXPECT_TRUE(catcher.GetNextResult());
   }
 
@@ -968,17 +988,19 @@ IN_PROC_BROWSER_TEST_P(BrowserActionApiTestWithContextType,
   // gfx::Image.
   TestIconImageObserver::WaitForExtensionActionIcon(extension, profile());
 
-  gfx::Image first_icon = GetBrowserActionsBar()->GetIcon(extension->id());
+  ToolbarActionView* action_view =
+      extensions_container()->GetViewForId(extension->id());
+  gfx::Image first_icon = gfx::Image(action_view->GetIconForTest());
   ASSERT_FALSE(first_icon.IsEmpty());
 
-  TestExtensionActionAPIObserver observer(profile(), extension->id());
+  TestExtensionActionDispatcherObserver observer(profile(), extension->id());
   ResultCatcher catcher;
   ready_listener.Reply(std::string());
   EXPECT_TRUE(catcher.GetNextResult());
   // Wait for extension action to be updated.
   observer.Wait();
 
-  gfx::Image next_icon = GetBrowserActionsBar()->GetIcon(extension->id());
+  gfx::Image next_icon = gfx::Image(action_view->GetIconForTest());
   ASSERT_FALSE(next_icon.IsEmpty());
   EXPECT_FALSE(gfx::test::AreImagesEqual(first_icon, next_icon));
 }
@@ -996,7 +1018,7 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiTest,
   ASSERT_TRUE(extension) << message_;
 
   // Test that there is a browser action in the toolbar.
-  ASSERT_EQ(1, GetBrowserActionsBar()->NumberOfBrowserActions());
+  ASSERT_EQ(1, extensions_container()->GetNumberOfActionsForTesting());
 
   ExtensionAction* browser_action = GetBrowserAction(browser(), *extension);
   EXPECT_TRUE(browser_action);
@@ -1015,13 +1037,13 @@ IN_PROC_BROWSER_TEST_F(BrowserActionApiTest,
 
   // Click on the browser action icon to enter Picture-in-Picture.
   ResultCatcher catcher;
-  GetBrowserActionsBar()->Press(extension->id());
+  ClickAction(extension->id());
   EXPECT_TRUE(catcher.GetNextResult());
   ASSERT_TRUE(window_controller->GetWindowForTesting());
   EXPECT_TRUE(window_controller->GetWindowForTesting()->IsVisible());
 
   // Click on the browser action icon to exit Picture-in-Picture.
-  GetBrowserActionsBar()->Press(extension->id());
+  ClickAction(extension->id());
   EXPECT_TRUE(catcher.GetNextResult());
   ASSERT_TRUE(window_controller->GetWindowForTesting());
   EXPECT_FALSE(window_controller->GetWindowForTesting()->IsVisible());

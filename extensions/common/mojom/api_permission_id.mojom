@@ -69,7 +69,7 @@ enum APIPermissionID {
   kDeclarativeContent = 43,
   kDeclarativeWebRequest = 44,
   kDesktopCapture = 45,
-  kDesktopCapturePrivate = 46,
+  kDeleted_DesktopCapturePrivate = 46,
   kDeveloperPrivate = 47,
   kDevtools = 48,
   kDns = 49,
@@ -86,7 +86,7 @@ enum APIPermissionID {
   kDeleted_ExperienceSamplingPrivate = 60,
   kExperimental = 61,
   kDeleted_ExtensionView = 62,
-  // TODO(https://crbug.com/1363485): Remove this entry.
+  // TODO(crbug.com/40864987): Remove this entry.
   kDeprecated_ExternallyConnectableAllUrls = 63,
   kFeedbackPrivate = 64,
   kFileBrowserHandler = 65,
@@ -111,7 +111,7 @@ enum APIPermissionID {
   kHotwordPrivate = 84,
   kIdentity = 85,
   kIdentityEmail = 86,
-  kIdentityPrivate = 87,
+  kDeleted_IdentityPrivate = 87,
   kIdltest = 88,
   kIdle = 89,
   kImeWindowEnabled = 90,
@@ -148,7 +148,7 @@ enum APIPermissionID {
   kProxy = 121,
   kImageWriterPrivate = 122,
   kDeleted_ReadingListPrivate = 123,
-  kRtcPrivate = 124,
+  kDeleted_RtcPrivate = 124,
   kSearchProvider = 125,
   kSearchEnginesPrivate = 126,
   kSerial = 127,
@@ -229,7 +229,7 @@ enum APIPermissionID {
   kVirtualKeyboard = 202,
   kDeleted_NetworkingCastPrivate = 203,
   kMediaPerceptionPrivate = 204,
-  kLockScreen = 205,
+  kDeleted_LockScreen = 205,
   kNewTabPageOverride = 206,
   kDeclarativeNetRequest = 207,
   kLockWindowFullscreenPrivate = 208,
@@ -262,7 +262,7 @@ enum APIPermissionID {
   kSpeechRecognitionPrivate = 235,
   kChromeOSDiagnostics = 236,
   kChromeOSTelemetrySerialNumber = 237,
-  kSharedStoragePrivate = 238,
+  kDeleted_SharedStoragePrivate = 238,
   kEnterpriseRemoteApps = 239,
   kOffscreen = 240,
   kSidePanel = 241,
@@ -274,8 +274,22 @@ enum APIPermissionID {
   kSmartCardProviderPrivate = 247,
   kChromeOSEvents = 248,
   kChromeOSAttachedDeviceInfo = 249,
+  kReadingList = 250,
+  kImageLoaderPrivate = 251,
+  kAccessibilityServicePrivate = 252,
+  kUserScripts = 253,
+  kChromeOSBluetoothPeripheralsInfo = 254,
+  kEnterpriseKioskInput = 255,
+  kOdfsConfigPrivate = 256,
+  kChromeOSManagementAudio = 257,
+  kChromeOSDiagnosticsNetworkInfoForMlab = 258,
+  kDeleted_AILanguageModelOriginTrial = 259,
+  kExperimentalAiData = 260,
+  kOmniboxDirectInput = 261,
+  kExperimentalActor = 262,
 
   // Add new entries at the end of the enum and be sure to update the
-  // "ExtensionPermission3" enum in tools/metrics/histograms/enums.xml
-  // (by running update_extension_permission.py).
+  // "ExtensionPermission3" enum in
+  // tools/metrics/histograms/metadata/extensions/enums.xml (by running
+  // update_extension_permission.py).
 };

@@ -7,7 +7,7 @@
 #include "base/test/mock_entropy_provider.h"
 #include "content/browser/startup_helper.h"
 #include "content/public/browser/network_service_instance.h"
-#include "content/public/common/network_service_util.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/content_browser_test.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -37,9 +37,9 @@ class TestFieldTrialListObserver : public base::FieldTrialList::Observer {
   void WaitForTrialGroupToBeFinalized() { run_loop_.Run(); }
 
   // base::FieldTrialList::Observer:
-  void OnFieldTrialGroupFinalized(const std::string& trial_name,
+  void OnFieldTrialGroupFinalized(const base::FieldTrial& trial,
                                   const std::string& group_name) override {
-    if (trial_name == kFieldTrialName) {
+    if (trial.trial_name() == kFieldTrialName) {
       EXPECT_EQ(kFieldTrialGroup, group_name);
       run_loop_.Quit();
     }

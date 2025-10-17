@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_CODE_SPACE_ACCESS_H_
+#define V8_WASM_CODE_SPACE_ACCESS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_WASM_CODE_SPACE_ACCESS_H_
-#define V8_WASM_CODE_SPACE_ACCESS_H_
-
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
+#include "src/common/code-memory-access.h"
 
 namespace v8::internal::wasm {
 
@@ -41,24 +42,15 @@ class NativeModule;
 // permissions for all code pages.
 class V8_NODISCARD CodeSpaceWriteScope final {
  public:
-  explicit V8_EXPORT_PRIVATE CodeSpaceWriteScope(NativeModule*);
-  V8_EXPORT_PRIVATE ~CodeSpaceWriteScope();
+  explicit V8_EXPORT_PRIVATE CodeSpaceWriteScope();
 
   // Disable copy constructor and copy-assignment operator, since this manages
   // a resource and implicit copying of the scope can yield surprising errors.
   CodeSpaceWriteScope(const CodeSpaceWriteScope&) = delete;
   CodeSpaceWriteScope& operator=(const CodeSpaceWriteScope&) = delete;
 
-  static bool IsInScope() {
-    DCHECK_LE(0, scope_depth_);
-    return scope_depth_ != 0;
-  }
-
  private:
-  static thread_local int scope_depth_;
-
-  static void SetWritable();
-  static void SetExecutable();
+  RwxMemoryWriteScope rwx_write_scope_;
 };
 
 }  // namespace v8::internal::wasm

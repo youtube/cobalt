@@ -25,11 +25,15 @@ struct NetworkTrafficAnnotationTag;
 
 namespace signin {
 class IdentityManager;
-}  // namespace signin
+}
 
 namespace ash {
 
-class GlanceablesTasksClientImpl;
+namespace api {
+class TasksClientImpl;
+}  // namespace api
+
+class GlanceablesClassroomClientImpl;
 
 // Browser context keyed service that owns implementations of interfaces from
 // ash/ needed to communicate with different Google services as part of
@@ -60,23 +64,20 @@ class GlanceablesKeyedService : public KeyedService {
       const std::vector<std::string>& scopes,
       const net::NetworkTrafficAnnotationTag& traffic_annotation_tag) const;
 
-  // Creates clients needed to communicate with different Google services.
-  void CreateClients();
-
-  // Notifies `ash/` about created clients for `account_id_`.
-  void UpdateRegistrationInAsh() const;
-
   // The profile for which this keyed service was created.
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile> profile_;
 
   // Identity manager associated with `profile_`.
-  const raw_ptr<signin::IdentityManager, ExperimentalAsh> identity_manager_;
+  raw_ptr<signin::IdentityManager> identity_manager_;
 
   // Account id associated with the primary profile.
   const AccountId account_id_;
 
-  // Instance of the `GlanceablesTasksClient` interface implementation.
-  std::unique_ptr<GlanceablesTasksClientImpl> tasks_client_;
+  // Instance of the `GlanceablesClassroomClient` interface implementation.
+  std::unique_ptr<GlanceablesClassroomClientImpl> classroom_client_;
+
+  // Instance of the `api::TasksClient` interface implementation.
+  std::unique_ptr<api::TasksClientImpl> tasks_client_;
 };
 
 }  // namespace ash

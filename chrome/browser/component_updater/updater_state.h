@@ -6,16 +6,17 @@
 #define CHROME_BROWSER_COMPONENT_UPDATER_UPDATER_STATE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/containers/flat_map.h"
 #include "base/gtest_prod_util.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "base/version.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/update_client/update_client_errors.h"
 
 namespace component_updater {
 
@@ -48,6 +49,7 @@ class UpdaterState {
     base::Time last_checked;
     bool is_autoupdate_check_enabled = false;
     int update_policy = 0;
+    update_client::CategorizedError last_update_check_error = {};
   };
 
   class StateReader {
@@ -66,6 +68,7 @@ class UpdaterState {
     virtual base::Time GetUpdaterLastStartedAU(bool is_machine) const = 0;
     virtual base::Time GetUpdaterLastChecked(bool is_machine) const = 0;
     virtual int GetUpdatePolicy() const = 0;
+    virtual update_client::CategorizedError GetLastUpdateCheckError() const = 0;
   };
 
 #if BUILDFLAG(IS_MAC)
@@ -78,6 +81,7 @@ class UpdaterState {
     base::Time GetUpdaterLastStartedAU(bool is_machine) const override;
     base::Time GetUpdaterLastChecked(bool is_machine) const override;
     int GetUpdatePolicy() const override;
+    update_client::CategorizedError GetLastUpdateCheckError() const override;
   };
 #elif BUILDFLAG(IS_WIN)
   class StateReaderOmaha final : public StateReader {
@@ -89,11 +93,12 @@ class UpdaterState {
     base::Time GetUpdaterLastStartedAU(bool is_machine) const override;
     base::Time GetUpdaterLastChecked(bool is_machine) const override;
     int GetUpdatePolicy() const override;
+    update_client::CategorizedError GetLastUpdateCheckError() const override;
   };
 #endif
   class StateReaderChromiumUpdater final : public StateReader {
    public:
-    explicit StateReaderChromiumUpdater(base::Value parsed_json);
+    explicit StateReaderChromiumUpdater(base::Value::Dict parsed_json);
 
    private:
     // Overrides for StateReader.
@@ -103,9 +108,10 @@ class UpdaterState {
     base::Time GetUpdaterLastStartedAU(bool is_machine) const override;
     base::Time GetUpdaterLastChecked(bool is_machine) const override;
     int GetUpdatePolicy() const override;
+    update_client::CategorizedError GetLastUpdateCheckError() const override;
 
-    base::Time FindTimeKey(base::StringPiece key) const;
-    const base::Value parsed_json_;
+    base::Time FindTimeKey(std::string_view key) const;
+    const base::Value::Dict parsed_json_;
   };
 
   explicit UpdaterState(bool is_machine);
@@ -113,7 +119,7 @@ class UpdaterState {
   // Builds the map of state attributes by serializing the state of this object.
   Attributes Serialize() const;
 
-  static absl::optional<State> ReadState(bool is_machine);
+  static std::optional<State> ReadState(bool is_machine);
 
   static std::string GetUpdaterName();
   static base::Version GetUpdaterVersion(bool is_machine);
@@ -122,12 +128,12 @@ class UpdaterState {
   static base::Time GetUpdaterLastChecked(bool is_machine);
   static int GetUpdatePolicy();
 
-  static std::string NormalizeTimeDelta(const base::TimeDelta& delta);
+  static std::string NormalizeTimeDelta(base::TimeDelta delta);
 
   // True if the updater is installed per-machine.
   bool is_machine_ = false;
 
-  absl::optional<State> state_;
+  std::optional<State> state_;
 };
 
 }  // namespace component_updater

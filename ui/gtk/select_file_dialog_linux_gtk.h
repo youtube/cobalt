@@ -5,9 +5,12 @@
 #ifndef UI_GTK_SELECT_FILE_DIALOG_LINUX_GTK_H_
 #define UI_GTK_SELECT_FILE_DIALOG_LINUX_GTK_H_
 
-#include <map>
+#include <vector>
 
-#include "ui/base/glib/glib_signal.h"
+#include "base/containers/flat_map.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "ui/base/glib/scoped_gsignal.h"
 #include "ui/gtk/gtk_util.h"
 #include "ui/shell_dialogs/select_file_dialog_linux.h"
 
@@ -31,7 +34,7 @@ class SelectFileDialogLinuxGtk : public ui::SelectFileDialogLinux,
   bool IsRunning(gfx::NativeWindow parent_window) const override;
 
   // SelectFileDialog implementation.
-  // |params| is user data we pass back via the Listener interface.
+  // |params| is unused and must be nullptr.
   void SelectFileImpl(Type type,
                       const std::u16string& title,
                       const base::FilePath& default_path,
@@ -39,11 +42,27 @@ class SelectFileDialogLinuxGtk : public ui::SelectFileDialogLinux,
                       int file_type_index,
                       const base::FilePath::StringType& default_extension,
                       gfx::NativeWindow owning_window,
-                      void* params,
                       const GURL* caller) override;
 
  private:
   friend class FilePicker;
+
+  struct DialogState {
+    DialogState();
+    DialogState(std::vector<ScopedGSignal> signals,
+                aura::Window* parent,
+                base::OnceClosure reenable_parent_events);
+    DialogState(DialogState&& other);
+    DialogState& operator=(DialogState&& other);
+    ~DialogState();
+
+    std::vector<ScopedGSignal> signals;
+
+    raw_ptr<aura::Window> parent = nullptr;
+
+    base::OnceClosure reenable_parent_events;
+  };
+
   bool HasMultipleFileTypeChoicesImpl() override;
 
   // Overridden from aura::WindowObserver:
@@ -60,8 +79,6 @@ class SelectFileDialogLinuxGtk : public ui::SelectFileDialogLinux,
                           const std::vector<base::FilePath>& files);
 
   // Notifies the listener that no file was chosen (the action was canceled).
-  // Dialog is passed so we can find that |params| pointer that was passed to
-  // us when we were told to show the dialog.
   void FileNotSelected(GtkWidget* dialog);
 
   GtkWidget* CreateSelectFolderDialog(Type type,
@@ -81,10 +98,6 @@ class SelectFileDialogLinuxGtk : public ui::SelectFileDialogLinux,
                                 const base::FilePath& default_path,
                                 gfx::NativeWindow parent);
 
-  // Removes and returns the |params| associated with |dialog| from
-  // |params_map_|.
-  void* PopParamsForDialog(GtkWidget* dialog);
-
   // Check whether response_id corresponds to the user cancelling/closing the
   // dialog. Used as a helper for the below callbacks.
   bool IsCancelResponse(gint response_id);
@@ -101,53 +114,26 @@ class SelectFileDialogLinuxGtk : public ui::SelectFileDialogLinux,
                                   gfx::NativeWindow parent);
 
   // Callback for when the user responds to a Save As or Open File dialog.
-  CHROMEG_CALLBACK_1(SelectFileDialogLinuxGtk,
-                     void,
-                     OnSelectSingleFileDialogResponse,
-                     GtkWidget*,
-                     int);
+  void OnSelectSingleFileDialogResponse(GtkWidget* dialog, int response_id);
 
   // Callback for when the user responds to a Select Folder dialog.
-  CHROMEG_CALLBACK_1(SelectFileDialogLinuxGtk,
-                     void,
-                     OnSelectSingleFolderDialogResponse,
-                     GtkWidget*,
-                     int);
+  void OnSelectSingleFolderDialogResponse(GtkWidget* dialog, int response_id);
 
   // Callback for when the user responds to a Open Multiple Files dialog.
-  CHROMEG_CALLBACK_1(SelectFileDialogLinuxGtk,
-                     void,
-                     OnSelectMultiFileDialogResponse,
-                     GtkWidget*,
-                     int);
+  void OnSelectMultiFileDialogResponse(GtkWidget* dialog, int response_id);
 
   // Callback for when the file chooser gets destroyed.
-  CHROMEG_CALLBACK_0(SelectFileDialogLinuxGtk,
-                     void,
-                     OnFileChooserDestroy,
-                     GtkWidget*);
+  void OnFileChooserDestroy(GtkWidget* dialog);
 
   // Callback for when we update the preview for the selection. Only used on
   // GTK3.
-  CHROMEG_CALLBACK_0(SelectFileDialogLinuxGtk,
-                     void,
-                     OnUpdatePreview,
-                     GtkWidget*);
-
-  // A map from dialog windows to the |params| user data associated with them.
-  std::map<GtkWidget*, void*> params_map_;
+  void OnUpdatePreview(GtkWidget* dialog);
 
   // Only used on GTK3 since GTK4 provides its own preview.
   // The GtkImage widget for showing previews of selected images.
-  // This field is not a raw_ptr<> because of a static_cast not related by
-  // inheritance.
-  RAW_PTR_EXCLUSION GtkWidget* preview_ = nullptr;
+  raw_ptr<GtkWidget, DanglingUntriaged> preview_ = nullptr;
 
-  // Maps from dialogs to signal handler IDs.
-  std::map<GtkWidget*, unsigned long> dialogs_;
-
-  // The set of all parent windows for which we are currently running dialogs.
-  std::set<aura::Window*> parents_;
+  base::flat_map<GtkWidget*, DialogState> dialogs_;
 };
 
 }  // namespace gtk

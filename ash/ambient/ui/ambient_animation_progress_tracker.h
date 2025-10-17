@@ -5,10 +5,12 @@
 #ifndef ASH_AMBIENT_UI_AMBIENT_ANIMATION_PROGRESS_TRACKER_H_
 #define ASH_AMBIENT_UI_AMBIENT_ANIMATION_PROGRESS_TRACKER_H_
 
+#include <optional>
+
 #include "ash/ash_export.h"
 #include "base/containers/flat_set.h"
+#include "base/memory/raw_ptr.h"
 #include "base/scoped_multi_source_observation.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/lottie/animation.h"
 #include "ui/lottie/animation_observer.h"
 
@@ -77,6 +79,7 @@ class ASH_EXPORT AmbientAnimationProgressTracker
  private:
   // lottie::AnimationObserver implementation:
   void AnimationWillStartPlaying(const lottie::Animation* animation) override;
+  void AnimationStopped(const lottie::Animation* animation) override;
   void AnimationIsDeleting(const lottie::Animation* animation) override;
 
   void VerifyAnimationImmutableParams(const lottie::Animation& animation) const;
@@ -85,9 +88,11 @@ class ASH_EXPORT AmbientAnimationProgressTracker
                                      lottie::AnimationObserver>
       animation_observations_{this};
   // Registered animations that have been Start()ed.
-  base::flat_set<const lottie::Animation*> started_animations_;
+  base::flat_set<raw_ptr<const lottie::Animation, CtnExperimental>>
+      started_animations_;
   // Registered animations that have not been Start()ed yet.
-  base::flat_set<const lottie::Animation*> uninitialized_animations_;
+  base::flat_set<raw_ptr<const lottie::Animation, CtnExperimental>>
+      inactive_animations_;
 };
 
 }  // namespace ash

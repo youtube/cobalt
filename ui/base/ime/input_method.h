@@ -63,9 +63,6 @@ class InputMethod {
   // Called when the top-level system window gets keyboard focus.
   virtual void OnFocus() = 0;
 
-  // Called when there is a touch within a text field that has focus.
-  virtual void OnTouch(ui::EventPointerType pointerType) = 0;
-
   // Called when the top-level system window loses keyboard focus.
   virtual void OnBlur() = 0;
 
@@ -86,6 +83,9 @@ class InputMethod {
   // Returns whether the system input locale is in CJK languages.
   // This is only used in Windows platforms.
   virtual bool IsInputLocaleCJK() const = 0;
+
+  // Called when a frame with a committed Url has received focus.
+  virtual void OnUrlChanged() = 0;
 #endif
 
   // Sets the text input client which receives text input events such as
@@ -154,7 +154,7 @@ class InputMethod {
 
   // Sets a keyboard controller for testing.
   virtual void SetVirtualKeyboardControllerForTesting(
-      std::unique_ptr<VirtualKeyboardController> controller) {}
+      std::unique_ptr<VirtualKeyboardController> controller) = 0;
 };
 
 }  // namespace ui

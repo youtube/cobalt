@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/sync/test/integration/status_change_checker.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
@@ -79,11 +80,7 @@ bool AwaitAllProfilesHaveSameExtensions();
 }  // namespace extensions_helper
 
 // A helper class to implement waiting for a set of profiles to have matching
-// extensions lists. It waits for calls on both interfaces:
-// ExtensionRegistryObserver and NotificationObserver. Observing
-// NOTIFICATION_EXTENSION_UPDATING_STARTED notification is needed for tests
-// against local server because in such tests extensions are not installed and
-// ExtensionRegistryObserver methods are not called.
+// extensions lists.
 class ExtensionsMatchChecker : public StatusChangeChecker,
                                public extensions::ExtensionRegistryObserver {
  public:
@@ -113,8 +110,7 @@ class ExtensionsMatchChecker : public StatusChangeChecker,
  private:
   void OnExtensionUpdatingStarted(Profile* profile);
 
-  std::vector<Profile*> profiles_;
-  content::NotificationRegistrar registrar_;
+  std::vector<raw_ptr<Profile, VectorExperimental>> profiles_;
 
   base::WeakPtrFactory<ExtensionsMatchChecker> weak_ptr_factory_{this};
 };

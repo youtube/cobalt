@@ -10,6 +10,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,12 +29,12 @@
 #include "net/base/request_priority.h"
 #include "net/base/transport_info.h"
 #include "net/cert/cert_verifier.h"
-#include "net/cert/ct_policy_enforcer.h"
+#include "net/cookies/cookie_inclusion_status.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/cookies/cookie_setting_override.h"
+#include "net/cookies/cookie_util.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/first_party_sets/first_party_set_metadata.h"
-#include "net/first_party_sets/first_party_sets_cache_filter.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_layer.h"
@@ -48,7 +49,6 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_interceptor.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/url_util.h"
 
 namespace net {
@@ -109,7 +109,6 @@ class TestDelegate : public URLRequest::Delegate {
   // Sets the closure to be run on completion, for tests which need more fine-
   // grained control than RunUntilComplete().
   void set_on_complete(base::OnceClosure on_complete) {
-    use_legacy_on_complete_ = false;
     on_complete_ = std::move(on_complete);
   }
 
@@ -159,6 +158,7 @@ class TestDelegate : public URLRequest::Delegate {
   bool auth_required_called() const { return auth_required_; }
   bool response_completed() const { return response_completed_; }
   int request_status() const { return request_status_; }
+  std::optional<int> response_code() const { return response_code_; }
 
   // URLRequest::Delegate:
   int OnConnected(URLRequest* request,
@@ -193,10 +193,6 @@ class TestDelegate : public URLRequest::Delegate {
   bool allow_certificate_errors_ = false;
   AuthCredentials credentials_;
 
-  // True if legacy on-complete behaviour, using QuitCurrent*Deprecated(), is
-  // enabled. This is cleared if any of the Until*() APIs are used.
-  bool use_legacy_on_complete_ = true;
-
   // Used to register RunLoop quit closures, to implement the Until*() closures.
   base::OnceClosure on_complete_;
   base::OnceClosure on_redirect_;
@@ -218,6 +214,9 @@ class TestDelegate : public URLRequest::Delegate {
 
   // tracks status of request
   int request_status_ = ERR_IO_PENDING;
+
+  // tracks status of response
+  std::optional<int> response_code_;
 
   // our read buffer
   scoped_refptr<IOBuffer> buf_;
@@ -257,7 +256,7 @@ class TestNetworkDelegate : public NetworkDelegateImpl {
   }
 
   void set_preserve_fragment_on_redirect_url(
-      const absl::optional<GURL>& preserve_fragment_on_redirect_url) {
+      const std::optional<GURL>& preserve_fragment_on_redirect_url) {
     preserve_fragment_on_redirect_url_ = preserve_fragment_on_redirect_url;
   }
 
@@ -289,13 +288,14 @@ class TestNetworkDelegate : public NetworkDelegateImpl {
     before_start_transaction_fails_ = true;
   }
 
-  void set_fps_cache_filter(FirstPartySetsCacheFilter cache_filter) {
-    fps_cache_filter_ = std::move(cache_filter);
-  }
-
   const std::vector<CookieSettingOverrides>& cookie_setting_overrides_records()
       const {
     return cookie_setting_overrides_records_;
+  }
+
+  void set_storage_access_status(
+      std::optional<cookie_util::StorageAccessStatus> status) {
+    storage_access_status_ = status;
   }
 
  protected:
@@ -313,8 +313,9 @@ class TestNetworkDelegate : public NetworkDelegateImpl {
       const HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers,
       const IPEndPoint& endpoint,
-      absl::optional<GURL>* preserve_fragment_on_redirect_url) override;
+      std::optional<GURL>* preserve_fragment_on_redirect_url) override;
   void OnBeforeRedirect(URLRequest* request, const GURL& new_location) override;
+  void OnBeforeRetry(URLRequest* request) override;
   void OnResponseStarted(URLRequest* request, int net_error) override;
   void OnCompleted(URLRequest* request, bool started, int net_error) override;
   void OnURLRequestDestroyed(URLRequest* request) override;
@@ -325,18 +326,19 @@ class TestNetworkDelegate : public NetworkDelegateImpl {
       net::CookieAccessResultList& excluded_cookies) override;
   NetworkDelegate::PrivacySetting OnForcePrivacyMode(
       const URLRequest& request) const override;
-  bool OnCanSetCookie(const URLRequest& request,
-                      const net::CanonicalCookie& cookie,
-                      CookieOptions* options) override;
+  bool OnCanSetCookie(
+      const URLRequest& request,
+      const net::CanonicalCookie& cookie,
+      CookieOptions* options,
+      const net::FirstPartySetMetadata& first_party_set_metadata,
+      CookieInclusionStatus* inclusion_status) override;
   bool OnCancelURLRequestWithPolicyViolatingReferrerHeader(
       const URLRequest& request,
       const GURL& target_url,
       const GURL& referrer_url) const override;
-  absl::optional<FirstPartySetsCacheFilter::MatchInfo>
-  OnGetFirstPartySetsCacheFilterMatchInfoMaybeAsync(
-      const SchemefulSite& request_site,
-      base::OnceCallback<void(FirstPartySetsCacheFilter::MatchInfo)> callback)
-      const override;
+  std::optional<cookie_util::StorageAccessStatus> OnGetStorageAccessStatus(
+      const URLRequest& request,
+      base::optional_ref<const RedirectInfo> redirect_info) const override;
 
   void InitRequestStatesIfNew(int request_id);
 
@@ -351,7 +353,7 @@ class TestNetworkDelegate : public NetworkDelegateImpl {
   GURL redirect_on_headers_received_url_;
   // URL to mark as retaining its fragment if redirected to at the
   // OnHeadersReceived() stage.
-  absl::optional<GURL> preserve_fragment_on_redirect_url_;
+  std::optional<GURL> preserve_fragment_on_redirect_url_;
 
   int last_error_ = 0;
   int error_count_ = 0;
@@ -385,9 +387,10 @@ class TestNetworkDelegate : public NetworkDelegateImpl {
   bool add_header_to_first_response_ = false;
   int next_request_id_ = 0;
 
-  FirstPartySetsCacheFilter fps_cache_filter_;
-
   mutable std::vector<CookieSettingOverrides> cookie_setting_overrides_records_;
+
+  std::optional<cookie_util::StorageAccessStatus> storage_access_status_ =
+      std::nullopt;
 };
 
 // ----------------------------------------------------------------------------
@@ -397,9 +400,12 @@ class FilteringTestNetworkDelegate : public TestNetworkDelegate {
   FilteringTestNetworkDelegate();
   ~FilteringTestNetworkDelegate() override;
 
-  bool OnCanSetCookie(const URLRequest& request,
-                      const net::CanonicalCookie& cookie,
-                      CookieOptions* options) override;
+  bool OnCanSetCookie(
+      const URLRequest& request,
+      const net::CanonicalCookie& cookie,
+      CookieOptions* options,
+      const net::FirstPartySetMetadata& first_party_set_metadata,
+      CookieInclusionStatus* inclusion_status) override;
 
   void SetCookieFilter(std::string filter) {
     cookie_name_filter_ = std::move(filter);

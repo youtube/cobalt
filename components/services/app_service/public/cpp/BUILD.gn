@@ -2,7 +2,126 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
+# Component for the core data structures and types used by App Service. Large
+# parts of the codebase are dependent on this target (via
+# //chromeos/crosapi/mojom), so this must have minimal deps to avoid circular
+# chains.
+component("app_types") {
+  output_name = "APP_TYPES"
+  sources = [
+    "app.cc",
+    "app.h",
+    "app_launch_util.cc",
+    "app_launch_util.h",
+    "app_types.cc",
+    "app_types.h",
+    "capability_access.cc",
+    "capability_access.h",
+    "features.cc",
+    "features.h",
+    "icon_effects.h",
+    "icon_types.cc",
+    "icon_types.h",
+    "intent_filter.cc",
+    "intent_filter.h",
+    "menu.cc",
+    "menu.h",
+    "package_id.cc",
+    "package_id.h",
+    "permission.cc",
+    "permission.h",
+    "preferred_app.cc",
+    "preferred_app.h",
+    "run_on_os_login_types.cc",
+    "run_on_os_login_types.h",
+    "types_util.cc",
+    "types_util.h",
+  ]
+
+  defines = [ "IS_APP_TYPES_IMPL" ]
+
+  public_deps = [
+    "//base",
+    "//components/services/app_service/public/protos",
+  ]
+
+  deps = [
+    ":macros",
+    "//third_party/abseil-cpp:absl",
+    "//ui/gfx",
+    "//url",
+  ]
+
+  if (is_chromeos) {
+    sources += [
+      "browser_app_instance_update.cc",
+      "browser_app_instance_update.h",
+      "browser_window_instance_update.h",
+    ]
+  }
+}
+
+# This target is separate from //components/services/app_service because not all
+# clients of App Service are allowed to have a dependency on //content.
+if (is_chromeos) {
+  source_set("instance_update") {
+    sources = [
+      "instance.cc",
+      "instance.h",
+      "instance_registry.cc",
+      "instance_registry.h",
+      "instance_update.cc",
+      "instance_update.h",
+    ]
+    deps = [
+      ":macros",
+      "//ash/public/cpp",
+      "//content/public/browser",
+      "//skia",
+      "//ui/aura",
+      "//ui/compositor",
+    ]
+  }
+}
+
+source_set("test_support") {
+  testonly = true
+
+  sources = [
+    "intent_test_util.cc",
+    "intent_test_util.h",
+    "stub_icon_loader.cc",
+    "stub_icon_loader.h",
+  ]
+
+  deps = [
+    ":app_types",
+    ":icon_loader",
+    ":intents",
+    "//skia",
+    "//third_party/abseil-cpp:absl",
+    "//ui/gfx",
+  ]
+
+  public_deps = []
+
+  if (is_chromeos) {
+    sources += [
+      "app_instance_waiter.cc",
+      "app_instance_waiter.h",
+    ]
+    public_deps += [
+      ":instance_update",
+      "//base",
+    ]
+  }
+}
+
+# The following targets are used for internal code organization, and are not
+# exposed publicly. Clients should depend on "//components/services/app_service"
+# instead of individual targets. New targets added below should also be added to
+# public_deps on "//components/services/app_service" to make them available to
+# clients.
 
 source_set("app_file_handling") {
   sources = [
@@ -18,6 +137,8 @@ source_set("app_file_handling") {
     "//base",
     "//url",
   ]
+
+  visibility = [ "//components/services/app_service/*" ]
 }
 
 source_set("app_icon_info") {
@@ -30,6 +151,8 @@ source_set("app_icon_info") {
     "//base",
     "//url",
   ]
+
+  visibility = [ "//components/services/app_service/*" ]
 }
 
 source_set("app_share_target") {
@@ -42,42 +165,19 @@ source_set("app_share_target") {
     "//base",
     "//url",
   ]
+
+  visibility = [ "//components/services/app_service/*" ]
 }
 
 source_set("macros") {
   sources = [ "macros.h" ]
-}
+  public_deps = [ "//base" ]
 
-component("app_types") {
-  output_name = "APP_TYPES"
-  sources = [
-    "app_launch_util.cc",
-    "app_launch_util.h",
-    "app_types.cc",
-    "app_types.h",
-    "capability_access.cc",
-    "capability_access.h",
-    "features.cc",
-    "features.h",
-    "intent_filter.cc",
-    "intent_filter.h",
-    "menu.cc",
-    "menu.h",
-    "permission.cc",
-    "permission.h",
-  ]
-
-  defines = [ "IS_APP_TYPES_IMPL" ]
-
-  public_deps = [ "//components/services/app_service/public/protos" ]
-
-  deps = [
-    ":icon_types",
-    ":macros",
-    ":run_on_os_login",
-    "//ui/gfx:gfx",
-    "//ui/gfx/geometry:geometry",
-    "//url:url",
+  # Not exported through //components/services/app_service, and only exposed to
+  # App Service code.
+  visibility = [
+    "//chrome/browser/apps/app_service/*",
+    "//components/services/app_service/*",
   ]
 }
 
@@ -92,6 +192,10 @@ component("app_update") {
     "app_registry_cache.h",
     "app_registry_cache_wrapper.cc",
     "app_registry_cache_wrapper.h",
+    "app_storage/app_storage.cc",
+    "app_storage/app_storage.h",
+    "app_storage/app_storage_file_handler.cc",
+    "app_storage/app_storage_file_handler.h",
     "app_update.cc",
     "app_update.h",
     "capability_access_update.cc",
@@ -104,54 +208,12 @@ component("app_update") {
 
   deps = [
     ":app_types",
-    ":icon_types",
     ":intents",
     ":macros",
-    ":run_on_os_login",
     "//ui/gfx",
   ]
-}
 
-source_set("app_url_handling") {
-  sources = [
-    "url_handler_info.cc",
-    "url_handler_info.h",
-  ]
-
-  deps = [ "//url" ]
-}
-
-if (is_chromeos) {
-  source_set("browser_app_instance_registry_update") {
-    sources = [
-      "browser_app_instance_update.cc",
-      "browser_app_instance_update.h",
-      "browser_window_instance_update.h",
-    ]
-
-    deps = [ "//base" ]
-  }
-}
-
-if (is_chromeos_ash) {
-  source_set("instance_update") {
-    sources = [
-      "instance.cc",
-      "instance.h",
-      "instance_registry.cc",
-      "instance_registry.h",
-      "instance_update.cc",
-      "instance_update.h",
-    ]
-    deps = [
-      ":macros",
-      "//ash/public/cpp:cpp",
-      "//content/public/browser",
-      "//skia",
-      "//ui/aura",
-      "//ui/compositor",
-    ]
-  }
+  visibility = [ "//components/services/app_service/*" ]
 }
 
 source_set("icon_loader") {
@@ -166,49 +228,10 @@ source_set("icon_loader") {
 
   deps = [
     ":app_types",
-    ":icon_types",
     "//ui/gfx:gfx",
   ]
-}
 
-source_set("icon_loader_test_support") {
-  sources = [
-    "stub_icon_loader.cc",
-    "stub_icon_loader.h",
-  ]
-
-  deps = [
-    ":icon_loader",
-    "//skia",
-    "//ui/gfx:gfx",
-  ]
-}
-
-component("icon_types") {
-  output_name = "ICON_TYPES"
-  sources = [
-    "icon_types.cc",
-    "icon_types.h",
-  ]
-
-  defines = [ "IS_ICON_TYPES_IMPL" ]
-
-  deps = [ "//ui/gfx" ]
-}
-
-component("run_on_os_login") {
-  output_name = "LOGIN_MODE"
-  sources = [
-    "run_on_os_login_types.cc",
-    "run_on_os_login_types.h",
-  ]
-
-  defines = [ "IS_LOGIN_MODE_IMPL" ]
-
-  deps = [
-    ":macros",
-    "//base:base",
-  ]
+  visibility = [ "//components/services/app_service/*" ]
 }
 
 source_set("intents") {
@@ -227,6 +250,8 @@ source_set("intents") {
     "//third_party/blink/public/common",
     "//url",
   ]
+
+  visibility = [ "//components/services/app_service/*" ]
 }
 
 source_set("protocol_handling") {
@@ -236,19 +261,8 @@ source_set("protocol_handling") {
   ]
 
   deps = [ "//url" ]
-}
 
-source_set("preferred_app") {
-  sources = [
-    "preferred_app.cc",
-    "preferred_app.h",
-  ]
-
-  deps = [
-    ":app_types",
-    "//base:base",
-    "//third_party/abseil-cpp:absl",
-  ]
+  visibility = [ "//components/services/app_service/*" ]
 }
 
 source_set("preferred_apps") {
@@ -266,42 +280,33 @@ source_set("preferred_apps") {
   deps = [
     ":app_types",
     ":intents",
-    ":preferred_app",
     "//base",
-    "//content/public/browser",
     "//url",
   ]
+
+  visibility = [ "//components/services/app_service/*" ]
 }
 
-source_set("test_support") {
-  testonly = true
-
+source_set("app_shortcut_image") {
   sources = [
-    "intent_test_util.cc",
-    "intent_test_util.h",
+    "app_shortcut_image.cc",
+    "app_shortcut_image.h",
   ]
 
   deps = [
-    ":app_types",
-    ":intents",
-    "//third_party/abseil-cpp:absl",
-  ]
-}
-
-source_set("types") {
-  sources = [
-    "types_util.cc",
-    "types_util.h",
+    "//base",
+    "//cc/paint",
+    "//skia",
+    "//ui/gfx",
   ]
 
-  deps = [
-    ":app_types",
-    "//third_party/abseil-cpp:absl",
-  ]
+  visibility = [ "//components/services/app_service/*" ]
 }
 
 source_set("crosapi_utils") {
   sources = [ "crosapi_utils.h" ]
+
+  visibility = [ "//components/services/app_service/*" ]
 }
 
 source_set("unit_tests") {
@@ -312,12 +317,14 @@ source_set("unit_tests") {
     "app_capability_access_cache_wrapper_unittest.cc",
     "app_registry_cache_unittest.cc",
     "app_registry_cache_wrapper_unittest.cc",
+    "app_unittest.cc",
     "app_update_unittest.cc",
     "capability_access_update_unittest.cc",
     "icon_cache_unittest.cc",
     "icon_coalescer_unittest.cc",
     "intent_filter_util_unittest.cc",
     "intent_util_unittest.cc",
+    "package_id_unittest.cc",
     "preferred_apps_converter_unittest.cc",
     "preferred_apps_list_unittest.cc",
   ]
@@ -326,32 +333,29 @@ source_set("unit_tests") {
     ":app_types",
     ":app_update",
     ":icon_loader",
-    ":icon_types",
     ":intents",
-    ":preferred_app",
     ":preferred_apps",
-    ":run_on_os_login",
     ":test_support",
-    ":types",
     "//content/test:test_support",
     "//testing/gtest",
   ]
 
-  if (is_chromeos_ash) {
+  if (is_chromeos) {
     sources += [
+      "app_storage/app_storage_file_handler_unittest.cc",
+      "app_storage/app_storage_unittest.cc",
+      "icon_types_unittest.cc",
       "instance_registry_unittest.cc",
       "instance_unittest.cc",
       "instance_update_unittest.cc",
+      "permission_unittest.cc",
+      "run_on_os_login_types_unittest.cc",
     ]
 
     deps += [
       ":instance_update",
       "//chrome/test:test_support",
+      "//components/services/app_service/public/cpp/shortcut:unit_tests",
     ]
-  }
-
-  if (is_chromeos) {
-    deps +=
-        [ "//components/services/app_service/public/cpp/shortcut:unit_tests" ]
   }
 }

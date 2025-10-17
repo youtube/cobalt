@@ -8,16 +8,12 @@
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_edit_item_delegate.h"
-#import "ios/chrome/browser/shared/ui/table_view/chrome_table_view_styler.h"
+#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -72,7 +68,10 @@ const CGFloat kSymbolSize = 15;
   }
   cell.textField.text = self.textFieldValue;
   cell.textField.secureTextEntry = self.textFieldSecureTextEntry;
-  if (self.fieldNameLabelText.length) {
+  if (self.customTextfieldAccessibilityIdentifier.length) {
+    cell.textField.accessibilityIdentifier =
+        self.customTextfieldAccessibilityIdentifier;
+  } else if (self.fieldNameLabelText.length) {
     cell.textField.accessibilityIdentifier =
         [NSString stringWithFormat:@"%@_textField", self.fieldNameLabelText];
   }
@@ -138,6 +137,10 @@ const CGFloat kSymbolSize = 15;
         self.identifyingIconAccessibilityLabel;
   }
 
+  if ([self.cellAccessibilityLabel length]) {
+    cell.accessibilityLabelValue = self.cellAccessibilityLabel;
+  }
+
   // If the TextField or IconButton are enabled, the cell needs to make its
   // inner TextField or button accessible to voice over. In order to achieve
   // this the cell can't be an A11y element.
@@ -148,8 +151,7 @@ const CGFloat kSymbolSize = 15;
 #pragma mark Actions
 
 - (void)textFieldChanged:(UITextField*)textField {
-  self.textFieldValue = textField.text;
-  [self.delegate tableViewItemDidChange:self];
+  [self updateTextFieldValue:textField.text];
 }
 
 - (void)textFieldBeginEditing:(UITextField*)textField {
@@ -167,6 +169,11 @@ const CGFloat kSymbolSize = 15;
     return;
   }
   _hasValidText = hasValidText;
+}
+
+- (void)updateTextFieldValue:(NSString*)textFieldValue {
+  _textFieldValue = textFieldValue;
+  [self.delegate tableViewItemDidChange:self];
 }
 
 @end
@@ -300,6 +307,17 @@ const CGFloat kSymbolSize = 15;
     [self updateForAccessibilityContentSizeCategory:
               UIContentSizeCategoryIsAccessibilityCategory(
                   self.traitCollection.preferredContentSizeCategory)];
+
+    if (@available(iOS 17, *)) {
+      NSArray<UITrait>* traits = TraitCollectionSetForTraits(
+          @[ UITraitPreferredContentSizeCategory.class ]);
+      __weak __typeof(self) weakSelf = self;
+      UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
+                                       UITraitCollection* previousCollection) {
+        [weakSelf updateUIOnTraitChange:previousCollection];
+      };
+      [self registerForTraitChanges:traits withHandler:handler];
+    }
   }
   return self;
 }
@@ -335,7 +353,6 @@ const CGFloat kSymbolSize = 15;
       break;
     default:
       NOTREACHED();
-      break;
   }
 }
 
@@ -361,18 +378,15 @@ const CGFloat kSymbolSize = 15;
   }
 }
 
+#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
 - (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
   [super traitCollectionDidChange:previousTraitCollection];
-  BOOL isCurrentCategoryAccessibility =
-      UIContentSizeCategoryIsAccessibilityCategory(
-          self.traitCollection.preferredContentSizeCategory);
-  if (isCurrentCategoryAccessibility !=
-      UIContentSizeCategoryIsAccessibilityCategory(
-          previousTraitCollection.preferredContentSizeCategory)) {
-    [self updateForAccessibilityContentSizeCategory:
-              isCurrentCategoryAccessibility];
+  if (@available(iOS 17, *)) {
+    return;
   }
+  [self updateUIOnTraitChange:previousTraitCollection];
 }
+#endif
 
 #pragma mark - UITableViewCell
 
@@ -404,6 +418,10 @@ const CGFloat kSymbolSize = 15;
 #pragma mark Accessibility
 
 - (NSString*)accessibilityLabel {
+  if ([self.accessibilityLabelValue length]) {
+    return self.accessibilityLabelValue;
+  }
+
   // If `textFieldSecureTextEntry` is
   // YES, the voice over should not read the text value.
   NSString* textFieldText =
@@ -440,6 +458,20 @@ const CGFloat kSymbolSize = 15;
 // Returns the error icon image.
 - (UIImage*)errorImage {
   return DefaultSymbolWithPointSize(kErrorCircleFillSymbol, kSymbolSize);
+}
+
+// Updates the view's accessiblity properties when the device's
+// UITraitPreferredContentSizeCategory is modified.
+- (void)updateUIOnTraitChange:(UITraitCollection*)previousTraitCollection {
+  BOOL isCurrentCategoryAccessibility =
+      UIContentSizeCategoryIsAccessibilityCategory(
+          self.traitCollection.preferredContentSizeCategory);
+  if (isCurrentCategoryAccessibility !=
+      UIContentSizeCategoryIsAccessibilityCategory(
+          previousTraitCollection.preferredContentSizeCategory)) {
+    [self updateForAccessibilityContentSizeCategory:
+              isCurrentCategoryAccessibility];
+  }
 }
 
 @end

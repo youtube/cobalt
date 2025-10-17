@@ -13,8 +13,8 @@
 #include "build/build_config.h"
 #include "components/language/core/browser/accept_languages_service.h"
 #include "components/language/core/browser/url_language_histogram.h"
+#include "components/language_detection/content/browser/content_language_detection_driver.h"
 #include "components/translate/content/browser/content_translate_driver.h"
-#include "components/translate/content/browser/per_frame_content_translate_driver.h"
 #include "components/translate/core/browser/translate_client.h"
 #include "components/translate/core/browser/translate_step.h"
 #include "components/translate/core/common/translate_errors.h"
@@ -23,6 +23,8 @@
 
 namespace content {
 class BrowserContext;
+class Page;
+enum class Visibility;
 class WebContents;
 }  // namespace content
 
@@ -33,6 +35,7 @@ class AcceptLanguagesService;
 }
 
 namespace translate {
+class AutoTranslateSnackbarController;
 class LanguageState;
 class TranslatePrefs;
 class TranslateManager;
@@ -59,11 +62,16 @@ class ChromeTranslateClient
 
   // Returns the ContentTranslateDriver instance associated with this
   // WebContents.
-  translate::ContentTranslateDriver* translate_driver();
+  translate::ContentTranslateDriver* translate_driver() {
+    return translate_driver_.get();
+  }
 
-  // Returns the PerFrameContentTranslateDriver instance, if any, associated
-  // with this WebContents.
-  translate::PerFrameContentTranslateDriver* per_frame_translate_driver();
+  // Returns the ContentLanguageDetectionDriver instance associated with this
+  // WebContents.
+  language_detection::ContentLanguageDetectionDriver*
+  language_detection_driver() {
+    return language_detection_driver_.get();
+  }
 
   // Helper method to return a new TranslatePrefs instance.
   static std::unique_ptr<translate::TranslatePrefs> CreateTranslatePrefs(
@@ -97,11 +105,6 @@ class ChromeTranslateClient
   std::unique_ptr<translate::TranslatePrefs> GetTranslatePrefs() override;
   language::AcceptLanguagesService* GetAcceptLanguagesService() override;
 #if BUILDFLAG(IS_ANDROID)
-  std::unique_ptr<infobars::InfoBar> CreateInfoBar(
-      std::unique_ptr<translate::TranslateInfoBarDelegate> delegate)
-      const override;
-  int GetInfobarIconID() const override;
-
   // Trigger a manual translation when the necessary state (e.g. source
   // language) is ready.
   void ManualTranslateWhenReady();
@@ -145,8 +148,8 @@ class ChromeTranslateClient
 #endif
 
   std::unique_ptr<translate::ContentTranslateDriver> translate_driver_;
-  std::unique_ptr<translate::PerFrameContentTranslateDriver>
-      per_frame_translate_driver_;
+  std::unique_ptr<language_detection::ContentLanguageDetectionDriver>
+      language_detection_driver_;
   std::unique_ptr<translate::TranslateManager> translate_manager_;
 
 #if BUILDFLAG(IS_ANDROID)
@@ -155,6 +158,13 @@ class ChromeTranslateClient
   bool manual_translate_on_ready_ = false;
 
   std::unique_ptr<translate::TranslateMessage> translate_message_;
+  std::unique_ptr<translate::AutoTranslateSnackbarController>
+      auto_translate_snackbar_controller_;
+
+  // content::WebContentsObserver implementation on Android only. Used for the
+  // auto-translate Snackbar.
+  void PrimaryPageChanged(content::Page& page) override;
+  void OnVisibilityChanged(content::Visibility visibility) override;
 #endif
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();

@@ -4,7 +4,7 @@
 
 #include "chrome/browser/browser_process_platform_part_mac.h"
 
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
 #import "chrome/browser/app_controller_mac.h"
@@ -13,18 +13,11 @@
 #include "chrome/browser/apps/platform_apps/extension_app_shim_manager_delegate_mac.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/chrome_browser_application_mac.h"
-#include "services/device/public/cpp/geolocation/system_geolocation_source_mac.h"
+#include "services/device/public/cpp/geolocation/system_geolocation_source_apple.h"
 
-BrowserProcessPlatformPart::BrowserProcessPlatformPart() {
-}
+BrowserProcessPlatformPart::BrowserProcessPlatformPart() = default;
 
-BrowserProcessPlatformPart::~BrowserProcessPlatformPart() {
-}
-
-void BrowserProcessPlatformPart::BeginStartTearDown() {
-  if (app_shim_manager_)
-    app_shim_manager_->OnBeginTearDown();
-}
+BrowserProcessPlatformPart::~BrowserProcessPlatformPart() = default;
 
 void BrowserProcessPlatformPart::StartTearDown() {
   app_shim_listener_ = nullptr;
@@ -44,10 +37,9 @@ void BrowserProcessPlatformPart::AttemptExit(bool try_to_quit_application) {
 
   if (!try_to_quit_application) {
     // A keyboard menu invocation.
-    AppController* app_controller =
-        base::mac::ObjCCastStrict<AppController>([NSApp delegate]);
-    if (![app_controller runConfirmQuitPanel])
+    if (![AppController.sharedController runConfirmQuitPanel]) {
       return;
+    }
   }
 
   chrome_browser_application_mac::Terminate();
@@ -55,7 +47,7 @@ void BrowserProcessPlatformPart::AttemptExit(bool try_to_quit_application) {
 
 void BrowserProcessPlatformPart::PreMainMessageLoopRun() {
   // Create two AppShimManager::Delegates -- one for extensions-based apps
-  // (which will be deprecatedin 2020), and one for web apps (PWAs and
+  // (which will be deprecated in 2020), and one for web apps (PWAs and
   // bookmark apps). The WebAppShimManagerDelegate will defer to the
   // ExtensionAppShimManagerDelegate passed to it for extension-based apps.
   // When extension-based apps are deprecated, the
@@ -73,9 +65,12 @@ void BrowserProcessPlatformPart::PreMainMessageLoopRun() {
   DCHECK(!app_shim_listener_.get());
   app_shim_listener_ = new AppShimListener;
 
-  if (!g_browser_process->geolocation_manager()) {
-    g_browser_process->SetGeolocationManager(
-        device::SystemGeolocationSourceMac::CreateGeolocationManagerOnMac());
+  // Workaround for https://crbug.com/40155239: This needs to be created at
+  // browser startup.
+  if (!device::GeolocationSystemPermissionManager::GetInstance()) {
+    device::GeolocationSystemPermissionManager::SetInstance(
+        device::SystemGeolocationSourceApple::
+            CreateGeolocationSystemPermissionManager());
   }
 }
 

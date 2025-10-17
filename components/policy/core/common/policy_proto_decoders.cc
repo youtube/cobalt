@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "components/policy/core/common/policy_proto_decoders.h"
 
 #include <cstring>
@@ -63,7 +68,7 @@ base::Value DecodeBooleanProto(const em::BooleanPolicyProto& proto) {
 // Convert an IntegerPolicyProto to an int base::Value.
 base::Value DecodeIntegerProto(const em::IntegerPolicyProto& proto,
                                std::string* error) {
-  google::protobuf::int64 value = proto.value();
+  int64_t value = proto.value();
 
   if (value < std::numeric_limits<int>::min() ||
       value > std::numeric_limits<int>::max()) {
@@ -244,7 +249,7 @@ bool ParseComponentPolicy(base::Value::Dict json_dict,
     }
 
     base::Value::Dict& description_dict = description.GetDict();
-    absl::optional<base::Value> value = description_dict.Extract(kValue);
+    std::optional<base::Value> value = description_dict.Extract(kValue);
     if (!value.has_value()) {
       *error = base::StrCat(
           {"The JSON blob dictionary value doesn't contain the required ",

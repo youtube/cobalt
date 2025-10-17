@@ -53,6 +53,8 @@ class MessageWrapper {
   void SetDescriptionMaxLines(int max_lines);
   std::u16string GetPrimaryButtonText();
   void SetPrimaryButtonText(const std::u16string& primary_button_text);
+  int GetPrimaryButtonTextMaxLines();
+  void SetPrimaryButtonTextMaxLines(int max_lines);
   std::u16string GetSecondaryButtonMenuText();
   void SetSecondaryButtonMenuText(
       const std::u16string& secondary_button_menu_text);
@@ -101,8 +103,6 @@ class MessageWrapper {
   void HandleSecondaryActionClick(JNIEnv* env);
   void HandleSecondaryMenuItemSelected(JNIEnv* env, int item_id);
   void HandleDismissCallback(JNIEnv* env, int dismiss_reason);
-
-  // TODO (crbug.com/1264117): Add ON_STARTED_SHOWING support.
 
   const base::android::JavaRef<jobject>& GetJavaMessageWrapper() const;
 

@@ -13,37 +13,13 @@
 #include "base/functional/callback.h"
 #include "base/strings/string_split.h"
 #include "remoting/base/constants.h"
-#include "remoting/base/name_value_map.h"
 #include "remoting/base/rsa_key_pair.h"
+#include "remoting/protocol/authenticator.h"
 #include "remoting/protocol/channel_authenticator.h"
+#include "remoting/protocol/credentials_type.h"
 #include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
 
 namespace remoting::protocol {
-
-namespace {
-
-const NameMapElement<NegotiatingAuthenticatorBase::Method>
-    kAuthenticationMethodStrings[] = {
-        {NegotiatingAuthenticatorBase::Method::SHARED_SECRET_PLAIN_SPAKE2_P224,
-         "spake2_plain"},
-
-        {NegotiatingAuthenticatorBase::Method::SHARED_SECRET_SPAKE2_P224,
-         "spake2_hmac"},
-        {NegotiatingAuthenticatorBase::Method::SHARED_SECRET_SPAKE2_CURVE25519,
-         "spake2_curve25519"},
-
-        {NegotiatingAuthenticatorBase::Method::PAIRED_SPAKE2_P224,
-         "spake2_pair"},
-        {NegotiatingAuthenticatorBase::Method::PAIRED_SPAKE2_CURVE25519,
-         "pair_spake2_curve25519"},
-
-        {NegotiatingAuthenticatorBase::Method::THIRD_PARTY_SPAKE2_P224,
-         "third_party"},
-        {NegotiatingAuthenticatorBase::Method::THIRD_PARTY_SPAKE2_CURVE25519,
-         "third_party_spake2_curve25519"},
-};
-
-}  // namespace
 
 const jingle_xmpp::StaticQName
     NegotiatingAuthenticatorBase::kMethodAttributeQName = {"", "method"};
@@ -63,6 +39,20 @@ NegotiatingAuthenticatorBase::NegotiatingAuthenticatorBase(
 
 NegotiatingAuthenticatorBase::~NegotiatingAuthenticatorBase() = default;
 
+CredentialsType NegotiatingAuthenticatorBase::credentials_type() const {
+  if (!current_authenticator_) {
+    return CredentialsType::UNKNOWN;
+  }
+  return current_authenticator_->credentials_type();
+}
+
+const Authenticator& NegotiatingAuthenticatorBase::implementing_authenticator()
+    const {
+  return current_authenticator_
+             ? current_authenticator_->implementing_authenticator()
+             : *this;
+}
+
 Authenticator::State NegotiatingAuthenticatorBase::state() const {
   return state_;
 }
@@ -79,19 +69,9 @@ Authenticator::RejectionReason NegotiatingAuthenticatorBase::rejection_reason()
   return rejection_reason_;
 }
 
-// static
-NegotiatingAuthenticatorBase::Method
-NegotiatingAuthenticatorBase::ParseMethodString(const std::string& value) {
-  Method result;
-  if (!NameToValue(kAuthenticationMethodStrings, value, &result)) {
-    return Method::INVALID;
-  }
-  return result;
-}
-
-// static
-std::string NegotiatingAuthenticatorBase::MethodToString(Method method) {
-  return ValueToName(kAuthenticationMethodStrings, method);
+Authenticator::RejectionDetails
+NegotiatingAuthenticatorBase::rejection_details() const {
+  return rejection_details_;
 }
 
 void NegotiatingAuthenticatorBase::ProcessMessageInternal(
@@ -128,6 +108,7 @@ void NegotiatingAuthenticatorBase::UpdateState(
 
   if (state_ == REJECTED) {
     rejection_reason_ = current_authenticator_->rejection_reason();
+    rejection_details_ = current_authenticator_->rejection_details();
   }
 
   std::move(resume_callback).Run();
@@ -136,7 +117,7 @@ void NegotiatingAuthenticatorBase::UpdateState(
 std::unique_ptr<jingle_xmpp::XmlElement>
 NegotiatingAuthenticatorBase::GetNextMessageInternal() {
   DCHECK_EQ(state(), MESSAGE_READY);
-  DCHECK(current_method_ != Method::INVALID);
+  DCHECK(current_method_ != AuthenticationMethod::INVALID);
 
   std::unique_ptr<jingle_xmpp::XmlElement> result;
   if (current_authenticator_->state() == MESSAGE_READY) {
@@ -146,18 +127,34 @@ NegotiatingAuthenticatorBase::GetNextMessageInternal() {
   }
   state_ = current_authenticator_->state();
   DCHECK(state_ == ACCEPTED || state_ == WAITING_MESSAGE);
-  result->AddAttr(kMethodAttributeQName, MethodToString(current_method_));
+  result->AddAttr(kMethodAttributeQName,
+                  AuthenticationMethodToString(current_method_));
   return result;
 }
 
-void NegotiatingAuthenticatorBase::AddMethod(Method method) {
-  DCHECK(method != Method::INVALID);
+void NegotiatingAuthenticatorBase::NotifyStateChangeAfterAccepted() {
+  state_ = current_authenticator_->state();
+  if (state_ == REJECTED) {
+    rejection_reason_ = current_authenticator_->rejection_reason();
+    rejection_details_ = current_authenticator_->rejection_details();
+  }
+  Authenticator::NotifyStateChangeAfterAccepted();
+}
+
+void NegotiatingAuthenticatorBase::AddMethod(AuthenticationMethod method) {
+  DCHECK(method != AuthenticationMethod::INVALID);
   methods_.push_back(method);
 }
 
 const std::string& NegotiatingAuthenticatorBase::GetAuthKey() const {
   DCHECK_EQ(state(), ACCEPTED);
   return current_authenticator_->GetAuthKey();
+}
+
+const SessionPolicies* NegotiatingAuthenticatorBase::GetSessionPolicies()
+    const {
+  DCHECK_EQ(state(), ACCEPTED);
+  return current_authenticator_->GetSessionPolicies();
 }
 
 std::unique_ptr<ChannelAuthenticator>

@@ -4,19 +4,33 @@
 
 #import "ios/web/public/test/javascript_test.h"
 
+#import "base/test/ios/wait_util.h"
 #import "ios/web/public/test/js_test_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "net/base/apple/url_conversions.h"
 
 namespace web {
 
-JavascriptTest::JavascriptTest() : web_view_([[WKWebView alloc] init]) {}
+JavascriptTest::JavascriptTest() : web_view_([[WKWebView alloc] init]) {
+  if (@available(iOS 16.4, *)) {
+    web_view_.inspectable = YES;
+  }
+}
 JavascriptTest::~JavascriptTest() {}
 
-bool JavascriptTest::LoadHtml(NSString* html) {
-  return web::test::LoadHtml(web_view_, html, nil);
+bool JavascriptTest::LoadHtml(NSString* html, std::optional<GURL> base_url) {
+  return web::test::LoadHtml(web_view_, html,
+                             base_url ? net::NSURLWithGURL(*base_url) : nil);
+}
+
+bool JavascriptTest::LoadUrl(const GURL& url) {
+  NSURLRequest* request =
+      [[NSURLRequest alloc] initWithURL:net::NSURLWithGURL(url)];
+  [web_view_ loadRequest:request];
+
+  return base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForPageLoadTimeout, ^{
+        return !web_view_.loading;
+      });
 }
 
 void JavascriptTest::AddGCrWebScript() {
@@ -35,7 +49,7 @@ void JavascriptTest::AddUserScript(NSString* script_name) {
   WKUserScript* script = [[WKUserScript alloc]
         initWithSource:web::test::GetPageScript(script_name)
          injectionTime:WKUserScriptInjectionTimeAtDocumentStart
-      forMainFrameOnly:YES];
+      forMainFrameOnly:NO];
   [web_view_.configuration.userContentController addUserScript:script];
 }
 

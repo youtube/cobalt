@@ -8,36 +8,31 @@ import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
 
-import androidx.annotation.NonNull;
 import androidx.preference.PreferenceViewHolder;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.settings.FaviconLoader;
 import org.chromium.components.browser_ui.settings.FaviconViewUtils;
 import org.chromium.components.browser_ui.settings.ImageButtonPreference;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.url.GURL;
 
-/**
- * A Preference to represent a site using FLEDGE.
- */
+/** A Preference to represent a site using FLEDGE. */
+@NullMarked
 public class FledgePreference extends ImageButtonPreference {
-    private static final int FAVICON_PADDING_DP = 4;
-
     // The ETLD+1 that used Fledge.
-    private final @NonNull String mSite;
+    private final String mSite;
     private final LargeIconBridge mLargeIconBridge;
     // Whether the favicon has been fetched already.
     private boolean mFaviconFetched;
 
-    public FledgePreference(
-            Context context, @NonNull String site, LargeIconBridge largeIconBridge) {
+    public FledgePreference(Context context, String site, LargeIconBridge largeIconBridge) {
         super(context);
         mSite = site;
         mLargeIconBridge = largeIconBridge;
         setTitle(site);
     }
 
-    @NonNull
     public String getSite() {
         return mSite;
     }
@@ -51,7 +46,10 @@ public class FledgePreference extends ImageButtonPreference {
 
         if (!mFaviconFetched) {
             // Since Fledge is only available in secure contexts, use https as scheme.
-            FaviconLoader.loadFavicon(getContext(), mLargeIconBridge, new GURL("https://" + mSite),
+            FaviconLoader.loadFavicon(
+                    getContext(),
+                    mLargeIconBridge,
+                    new GURL("https://" + mSite),
                     this::onFaviconAvailable);
             mFaviconFetched = true;
         }

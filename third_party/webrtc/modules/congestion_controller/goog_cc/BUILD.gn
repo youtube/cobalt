@@ -8,16 +8,7 @@
 
 import("../../../webrtc.gni")
 
-config("bwe_test_logging") {
-  if (rtc_enable_bwe_test_logging) {
-    defines = [ "BWE_TEST_LOGGING_COMPILE_TIME_ENABLE=1" ]
-  } else {
-    defines = [ "BWE_TEST_LOGGING_COMPILE_TIME_ENABLE=0" ]
-  }
-}
-
 rtc_library("goog_cc") {
-  configs += [ ":bwe_test_logging" ]
   sources = [
     "goog_cc_network_control.cc",
     "goog_cc_network_control.h",
@@ -33,8 +24,9 @@ rtc_library("goog_cc") {
     ":send_side_bwe",
     "../../../api:field_trials_view",
     "../../../api:network_state_predictor_api",
+    "../../../api/environment",
     "../../../api/rtc_event_log",
-    "../../../api/transport:field_trial_based_config",
+    "../../../api/transport:bandwidth_usage",
     "../../../api/transport:network_control",
     "../../../api/units:data_rate",
     "../../../api/units:data_size",
@@ -49,10 +41,8 @@ rtc_library("goog_cc") {
     "../../../rtc_base/experiments:rate_control_settings",
     "../../../system_wrappers",
     "../../remote_bitrate_estimator",
-  ]
-  absl_deps = [
     "//third_party/abseil-cpp/absl/strings",
-    "//third_party/abseil-cpp/absl/types:optional",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
 
@@ -65,7 +55,6 @@ rtc_library("link_capacity_estimator") {
     "../../../api/units:data_rate",
     "../../../rtc_base:safe_minmax",
   ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
 
 rtc_library("pushback_controller") {
@@ -80,10 +69,6 @@ rtc_library("pushback_controller") {
     "../../../rtc_base:checks",
     "../../../rtc_base/experiments:rate_control_settings",
   ]
-  absl_deps = [
-    "//third_party/abseil-cpp/absl/strings",
-    "//third_party/abseil-cpp/absl/types:optional",
-  ]
 }
 
 rtc_library("alr_detector") {
@@ -94,7 +79,6 @@ rtc_library("alr_detector") {
   deps = [
     "../../../api:field_trials_view",
     "../../../api/rtc_event_log",
-    "../../../api/transport:field_trial_based_config",
     "../../../logging:rtc_event_pacing",
     "../../../rtc_base:checks",
     "../../../rtc_base:safe_conversions",
@@ -103,10 +87,8 @@ rtc_library("alr_detector") {
     "../../../rtc_base/experiments:field_trial_parser",
     "../../pacing:interval_budget",
   ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/types:optional" ]
 }
 rtc_library("estimators") {
-  configs += [ ":bwe_test_logging" ]
   sources = [
     "acknowledged_bitrate_estimator.cc",
     "acknowledged_bitrate_estimator.h",
@@ -127,6 +109,7 @@ rtc_library("estimators") {
     "../../../api:field_trials_view",
     "../../../api:network_state_predictor_api",
     "../../../api/rtc_event_log",
+    "../../../api/transport:bandwidth_usage",
     "../../../api/transport:network_control",
     "../../../api/units:data_rate",
     "../../../api/units:data_size",
@@ -141,10 +124,7 @@ rtc_library("estimators") {
     "../../../rtc_base:safe_minmax",
     "../../../rtc_base/experiments:field_trial_parser",
     "../../remote_bitrate_estimator",
-  ]
-  absl_deps = [
     "//third_party/abseil-cpp/absl/strings",
-    "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
 
@@ -156,7 +136,6 @@ rtc_library("loss_based_bwe_v2") {
   deps = [
     "../../../api:array_view",
     "../../../api:field_trials_view",
-    "../../../api:network_state_predictor_api",
     "../../../api/transport:network_control",
     "../../../api/units:data_rate",
     "../../../api/units:data_size",
@@ -165,15 +144,11 @@ rtc_library("loss_based_bwe_v2") {
     "../../../rtc_base:logging",
     "../../../rtc_base/experiments:field_trial_parser",
     "../../remote_bitrate_estimator",
-  ]
-  absl_deps = [
     "//third_party/abseil-cpp/absl/algorithm:container",
-    "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
 
 rtc_library("loss_based_bwe_v1") {
-  configs += [ ":bwe_test_logging" ]
   sources = [
     "loss_based_bandwidth_estimation.cc",
     "loss_based_bandwidth_estimation.h",
@@ -186,12 +161,12 @@ rtc_library("loss_based_bwe_v1") {
     "../../../api/units:timestamp",
     "../../../rtc_base:checks",
     "../../../rtc_base/experiments:field_trial_parser",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
-  absl_deps = [ "//third_party/abseil-cpp/absl/strings" ]
 }
 
 rtc_library("send_side_bwe") {
-  configs += [ ":bwe_test_logging" ]
   sources = [
     "send_side_bandwidth_estimation.cc",
     "send_side_bandwidth_estimation.h",
@@ -200,8 +175,8 @@ rtc_library("send_side_bwe") {
     ":loss_based_bwe_v1",
     ":loss_based_bwe_v2",
     "../../../api:field_trials_view",
-    "../../../api:network_state_predictor_api",
     "../../../api/rtc_event_log",
+    "../../../api/transport:bandwidth_usage",
     "../../../api/transport:network_control",
     "../../../api/units:data_rate",
     "../../../api/units:time_delta",
@@ -210,18 +185,13 @@ rtc_library("send_side_bwe") {
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
     "../../../rtc_base/experiments:field_trial_parser",
-    "../../../system_wrappers:field_trial",
     "../../../system_wrappers:metrics",
     "../../remote_bitrate_estimator",
-  ]
-  absl_deps = [
     "//third_party/abseil-cpp/absl/strings",
-    "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
 
 rtc_library("delay_based_bwe") {
-  configs += [ ":bwe_test_logging" ]
   sources = [
     "delay_based_bwe.cc",
     "delay_based_bwe.h",
@@ -231,10 +201,14 @@ rtc_library("delay_based_bwe") {
 
   deps = [
     ":estimators",
+    ":link_capacity_estimator",
     "../../../api:field_trials_view",
     "../../../api:network_state_predictor_api",
     "../../../api/rtc_event_log",
+    "../../../api/transport:bandwidth_usage",
     "../../../api/transport:network_control",
+    "../../../api/units:data_rate",
+    "../../../api/units:data_size",
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",
     "../../../logging:rtc_event_bwe",
@@ -245,10 +219,6 @@ rtc_library("delay_based_bwe") {
     "../../../system_wrappers:metrics",
     "../../pacing",
     "../../remote_bitrate_estimator",
-  ]
-  absl_deps = [
-    "//third_party/abseil-cpp/absl/strings",
-    "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
 
@@ -274,11 +244,8 @@ rtc_library("probe_controller") {
     "../../../rtc_base:safe_conversions",
     "../../../rtc_base/experiments:field_trial_parser",
     "../../../system_wrappers:metrics",
-  ]
-  absl_deps = [
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/strings",
-    "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
 
@@ -294,17 +261,18 @@ if (rtc_include_tests) {
       ":delay_based_bwe",
       ":estimators",
       ":goog_cc",
+      "../../../api:libjingle_logging_api",
       "../../../api/rtc_event_log",
       "../../../api/transport:goog_cc",
       "../../../api/transport:network_control",
+      "../../../api/units:data_rate",
+      "../../../api/units:data_size",
+      "../../../api/units:time_delta",
       "../../../api/units:timestamp",
       "../../../rtc_base:checks",
       "../../../test/logging:log_writer",
       "../../remote_bitrate_estimator",
-    ]
-    absl_deps = [
-      "//third_party/abseil-cpp/absl/strings",
-      "//third_party/abseil-cpp/absl/types:optional",
+      "//third_party/abseil-cpp/absl/strings:string_view",
     ]
   }
   if (!build_with_chromium) {
@@ -337,9 +305,12 @@ if (rtc_include_tests) {
         ":send_side_bwe",
         "../../../api:field_trials_view",
         "../../../api:network_state_predictor_api",
+        "../../../api/environment",
+        "../../../api/environment:environment_factory",
         "../../../api/rtc_event_log",
         "../../../api/test/network_emulation",
         "../../../api/test/network_emulation:create_cross_traffic",
+        "../../../api/transport:bandwidth_usage",
         "../../../api/transport:field_trial_based_config",
         "../../../api/transport:goog_cc",
         "../../../api/transport:network_control",
@@ -347,6 +318,7 @@ if (rtc_include_tests) {
         "../../../api/units:data_size",
         "../../../api/units:time_delta",
         "../../../api/units:timestamp",
+        "../../../call:video_receive_stream_api",
         "../../../logging:mocks",
         "../../../logging:rtc_event_bwe",
         "../../../rtc_base:checks",
@@ -359,11 +331,13 @@ if (rtc_include_tests) {
         "../../../test:explicit_key_value_config",
         "../../../test:field_trial",
         "../../../test:test_support",
+        "../../../test/network:emulated_network",
         "../../../test/scenario",
+        "../../../test/scenario:column_printer",
         "../../pacing",
         "//testing/gmock",
+        "//third_party/abseil-cpp/absl/strings:string_view",
       ]
-      absl_deps = [ "//third_party/abseil-cpp/absl/strings:strings" ]
     }
   }
 }

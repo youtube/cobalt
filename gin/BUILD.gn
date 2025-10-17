@@ -55,6 +55,8 @@ component("gin") {
     "runner.h",
     "shell_runner.cc",
     "shell_runner.h",
+    "thread_isolation.cc",
+    "thread_isolation.h",
     "time_clamper.cc",
     "time_clamper.h",
     "try_catch.cc",
@@ -82,6 +84,12 @@ component("gin") {
       "v8_platform_page_allocator.cc",
       "v8_platform_page_allocator.h",
     ]
+    if (enable_pkeys) {
+      sources += [
+        "v8_platform_thread_isolated_allocator.cc",
+        "v8_platform_thread_isolated_allocator.h",
+      ]
+    }
   }
 
   if (v8_use_external_startup_data) {
@@ -97,7 +105,6 @@ component("gin") {
     "//v8",
   ]
   deps = [
-    "//base/third_party/dynamic_annotations",
     "//third_party/abseil-cpp:absl",
     "//tools/v8_context_snapshot:buildflags",
   ]
@@ -128,10 +135,13 @@ if (is_android && enable_java_templates &&
   android_assets("v8_snapshot_assets") {
     if (v8_use_external_startup_data) {
       disable_compression = true
+      sources = []
+      deps = []
       if (use_v8_context_snapshot) {
-        deps = [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
-        sources = [ "$root_build_dir/$v8_context_snapshot_filename" ]
-      } else {
+        deps += [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
+        sources += [ "$root_build_dir/$v8_context_snapshot_filename" ]
+      }
+      if (!use_v8_context_snapshot || include_both_v8_snapshots) {
         if (current_cpu == "arm" || current_cpu == "x86") {
           _arch_suffix = "32"
         } else {
@@ -139,28 +149,38 @@ if (is_android && enable_java_templates &&
         }
         renaming_sources = [ "$root_build_dir/snapshot_blob.bin" ]
         renaming_destinations = [ "snapshot_blob_$_arch_suffix.bin" ]
-        deps = [ "//v8:run_mksnapshot_default" ]
+        deps += [ "//v8:run_mksnapshot_default" ]
       }
     }
   }
 
-  if (android_64bit_target_cpu && !skip_secondary_abi_for_cq) {
+  if (defined(android_app_secondary_abi)) {
     android_assets("v8_snapshot_secondary_abi_assets") {
-      assert(android_64bit_target_cpu,
-             "32-bit targets shouldn't have secondary abi")
-      disable_compression = true
-      if (use_v8_context_snapshot) {
-        sources = [ "$root_out_dir/v8_context_snapshot_32.bin" ]
-        deps =
-            [ "//tools/v8_context_snapshot($android_secondary_abi_toolchain)" ]
-      } else if (v8_use_external_startup_data) {
-        _secondary_abi_out_dir =
-            get_label_info("//v8($android_secondary_abi_toolchain)",
-                           "root_out_dir")
-        renaming_sources = [ "$_secondary_abi_out_dir/snapshot_blob.bin" ]
-        renaming_destinations = [ "snapshot_blob_32.bin" ]
-        deps =
-            [ "//v8:run_mksnapshot_default($android_secondary_abi_toolchain)" ]
+      # only import asset when v8_use_external_startup_data == true
+      # like "v8_snapshot_assets" above
+      if (v8_use_external_startup_data) {
+        assert(android_64bit_target_cpu,
+               "32-bit targets shouldn't have secondary abi")
+        disable_compression = true
+        sources = []
+        deps = []
+        if (use_v8_context_snapshot_android_secondary_abi) {
+          sources += [ "$root_out_dir/v8_context_snapshot_32.bin" ]
+          deps += [
+            "//tools/v8_context_snapshot($android_secondary_abi_toolchain)",
+          ]
+        }
+        if (!use_v8_context_snapshot_android_secondary_abi ||
+            include_both_v8_snapshots_android_secondary_abi) {
+          _secondary_abi_out_dir =
+              get_label_info("//v8($android_secondary_abi_toolchain)",
+                             "root_out_dir")
+          renaming_sources = [ "$_secondary_abi_out_dir/snapshot_blob.bin" ]
+          renaming_destinations = [ "snapshot_blob_32.bin" ]
+          deps += [
+            "//v8:run_mksnapshot_default($android_secondary_abi_toolchain)",
+          ]
+        }
       }
     }
   }
@@ -192,6 +212,7 @@ test("gin_unittests") {
     "converter_unittest.cc",
     "data_object_builder_unittest.cc",
     "interceptor_unittest.cc",
+    "isolate_holder_unittest.cc",
     "per_context_data_unittest.cc",
     "shell_runner_unittest.cc",
     "test/run_all_unittests.cc",
@@ -213,7 +234,7 @@ test("gin_unittests") {
   if (use_partition_alloc) {
     sources += [ "v8_platform_page_allocator_unittest.cc" ]
     if (target_cpu == "arm64" && (is_linux || is_android)) {
-      deps += [ "//base:arm_bti_testfunctions" ]
+      deps += [ "//base/allocator/partition_allocator/src/partition_alloc:arm_bti_testfunctions" ]
     }
   }
 
@@ -239,9 +260,6 @@ test("gin_unittests") {
   }
 
   if (is_fuchsia) {
-    # TODO(https://crbug.com/1185811): Investigate removing the requirement for
-    # job_policy_ambient_mark_vmo_exec for the sake of V8's allocator in tests.
-    test_runner_shard = "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
     additional_manifest_fragments =
         [ "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml" ]
   }

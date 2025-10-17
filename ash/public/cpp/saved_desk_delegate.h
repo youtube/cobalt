@@ -5,12 +5,12 @@
 #ifndef ASH_PUBLIC_CPP_SAVED_DESK_DELEGATE_H_
 #define ASH_PUBLIC_CPP_SAVED_DESK_DELEGATE_H_
 
+#include <optional>
 #include <string>
 
 #include "ash/public/cpp/ash_public_export.h"
 #include "base/functional/callback.h"
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace app_restore {
 struct AppLaunchInfo;
@@ -25,6 +25,7 @@ class CancelableTaskTracker;
 }
 
 namespace desks_storage {
+class AdminTemplateService;
 class DeskModel;
 }
 
@@ -62,19 +63,29 @@ class ASH_PUBLIC_EXPORT SavedDeskDelegate {
   // backend depending on the feature flag DeskTemplateSync.
   virtual desks_storage::DeskModel* GetDeskModel() = 0;
 
-  // Returns whether `window` is an incognito browser.
-  virtual bool IsIncognitoWindow(aura::Window* window) const = 0;
+  // returns the appropriate AdminTemplateService for the active profile.
+  virtual desks_storage::AdminTemplateService* GetAdminTemplateService() = 0;
+
+  // Returns whether `window` is persistable.  If true the window should be
+  // tracked and saved as part of the desk.  If false, this window should
+  // be ignored.
+  // TODO(minch) : Move and rename this or add a new function
+  // `IsNonRegularProfileWindow` inside shell delegate to check whether the
+  // `window` is an incognito ash browser window or a lacros window with the
+  // non-regular profile.
+  virtual bool IsWindowPersistable(aura::Window* window) const = 0;
 
   // Returns the corresponding icon for `icon_identifier` if it's a special
   // identifier. I.e. NTP or incognito window. If `icon_identifier` is not a
   // special identifier, return `asbl::nullopt`. `color_provider` should be the
   // ui::ColorProvider corresponding to an incognito window or nullptr.
-  virtual absl::optional<gfx::ImageSkia> MaybeRetrieveIconForSpecialIdentifier(
+  virtual std::optional<gfx::ImageSkia> MaybeRetrieveIconForSpecialIdentifier(
       const std::string& icon_identifier,
       const ui::ColorProvider* color_provider) const = 0;
 
   // Fetches the favicon for `page_url` and returns it via the provided
-  // `callback`. `callback` may be called synchronously.
+  // `callback`.
+  // `callback` may be called synchronously.
   virtual void GetFaviconForUrl(
       const std::string& page_url,
       base::OnceCallback<void(const gfx::ImageSkia&)> callback,
@@ -82,6 +93,7 @@ class ASH_PUBLIC_EXPORT SavedDeskDelegate {
 
   // Fetches the icon for the app with `app_id` and returns it via the provided
   // `callback`. `callback` may be called synchronously.
+  // TODO: This is used for other features, migrate to shell delegate.
   virtual void GetIconForAppId(
       const std::string& app_id,
       int desired_icon_size,

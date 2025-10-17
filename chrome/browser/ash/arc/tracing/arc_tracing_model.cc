@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <inttypes.h>
-
 #include "chrome/browser/ash/arc/tracing/arc_tracing_model.h"
 
+#include <inttypes.h>
+
+#include "base/compiler_specific.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/strings/string_split.h"
 #include "base/trace_event/common/trace_event_common.h"
@@ -48,22 +50,27 @@ size_t ParseUint32(const std::string& str,
   const size_t len = str.length();
   while (true) {
     const char& c = str[pos];
-    if (c != ' ')
+    if (c != ' ') {
       break;
-    if (++pos == len)
+    }
+    if (++pos == len) {
       return std::string::npos;
+    }
   }
 
   while (true) {
     const char& c = str[pos];
-    if (c < '0' || c > '9')
+    if (c < '0' || c > '9') {
       return std::string::npos;
+    }
     const uint32_t prev = *res;
     *res = *res * 10 + c - '0';
-    if (prev != (*res - c + '0') / 10)
+    if (prev != (*res - c + '0') / 10) {
       return std::string::npos;  // overflow
-    if (++pos == len || str[pos] == end_char)
+    }
+    if (++pos == len || str[pos] == end_char) {
       break;
+    }
   }
 
   return pos;
@@ -84,16 +91,19 @@ void SelectRecursively(
     const ArcTracingEvent* event,
     const std::vector<std::unique_ptr<ArcTracingEventMatcher>>& selector,
     ArcTracingModel::TracingEventPtrs* collector) {
-  if (level >= selector.size())
+  if (level >= selector.size()) {
     return;
-  if (!selector[level]->Match(*event))
+  }
+  if (!selector[level]->Match(*event)) {
     return;
+  }
   if (level == selector.size() - 1) {
     // Last segment
     collector->push_back(event);
   } else {
-    for (const auto& child : event->children())
+    for (const auto& child : event->children()) {
       SelectRecursively(level + 1, child.get(), selector, collector);
+    }
   }
 }
 
@@ -101,7 +111,7 @@ struct GraphicsEventsContext {
   // To keep in correct order of creation. This converts pair of 'B' and 'E'
   // events to the completed event, 'X'.
   ArcTracingModel::TracingEvents converted_events;
-  std::map<uint32_t, std::vector<ArcTracingEvent*>>
+  std::map<uint32_t, std::vector<raw_ptr<ArcTracingEvent, VectorExperimental>>>
       per_thread_pending_events_stack;
 
   std::map<std::pair<char, std::string>, std::unique_ptr<ArcTracingEvent>>
@@ -114,8 +124,8 @@ bool HandleGraphicsEvent(GraphicsEventsContext* context,
                          const std::string& line,
                          size_t event_position) {
   if (event_position + kTraceEventClockSyncLength < line.length() &&
-      !strncmp(&line[event_position], kTraceEventClockSync,
-               kTraceEventClockSyncLength)) {
+      UNSAFE_TODO(!strncmp(&line[event_position], kTraceEventClockSync,
+                           kTraceEventClockSyncLength))) {
     // Ignore this service message.
     return true;
   }
@@ -144,16 +154,18 @@ bool HandleGraphicsEvent(GraphicsEventsContext* context,
       event->SetTimestamp(timestamp);
       event->SetCategory(kAndroidCategory);
       event->SetName(name);
-      if (phase == TRACE_EVENT_PHASE_BEGIN)
+      if (phase == TRACE_EVENT_PHASE_BEGIN) {
         context->per_thread_pending_events_stack[tid].push_back(event.get());
-      else
+      } else {
         event->SetPhase(TRACE_EVENT_PHASE_COUNTER);
+      }
       context->converted_events.push_back(std::move(event));
     } break;
     case TRACE_EVENT_PHASE_END: {
       // Beginning event may not exist.
-      if (context->per_thread_pending_events_stack[tid].empty())
+      if (context->per_thread_pending_events_stack[tid].empty()) {
         return true;
+      }
       if (ParseUint32(line, event_position + 2, '\0', &pid) ==
           std::string::npos) {
         LOG(ERROR) << "Cannot parse pid of trace event: " << line;
@@ -219,8 +231,9 @@ bool HandleCpuIdle(AllCpuEvents* all_cpu_events,
   }
   uint32_t state;
   uint32_t cpu_id_from_event;
-  if (sscanf(&line[event_position], "state=%" SCNu32 " cpu_id=%" SCNu32, &state,
-             &cpu_id_from_event) != 2 ||
+  if (UNSAFE_TODO(sscanf(&line[event_position],
+                         "state=%" SCNu32 " cpu_id=%" SCNu32, &state,
+                         &cpu_id_from_event)) != 2 ||
       cpu_id != cpu_id_from_event) {
     LOG(ERROR) << "Failed to parse cpu_idle event: " << line;
     return false;
@@ -238,7 +251,7 @@ bool HandleSchedWakeUp(AllCpuEvents* all_cpu_events,
                        uint32_t tid,
                        const std::string& line,
                        size_t event_position) {
-  const char* data = strstr(&line[event_position], " pid=");
+  const char* data = UNSAFE_TODO(strstr(&line[event_position], " pid="));
   uint32_t target_tid;
   uint32_t target_priority;
   uint32_t success;
@@ -256,8 +269,9 @@ bool HandleSchedWakeUp(AllCpuEvents* all_cpu_events,
     static bool use_this = true;
     if (!parsed && use_this) {
       parsed =
-          sscanf(data, " pid=%" SCNu32 " prio=%" SCNu32 " target_cpu=%" SCNu32,
-                 &target_tid, &target_priority, &target_cpu_id) == 3;
+          UNSAFE_TODO(sscanf(
+              data, " pid=%" SCNu32 " prio=%" SCNu32 " target_cpu=%" SCNu32,
+              &target_tid, &target_priority, &target_cpu_id)) == 3;
       use_this = parsed;
     }
   }
@@ -265,11 +279,11 @@ bool HandleSchedWakeUp(AllCpuEvents* all_cpu_events,
   {
     static bool use_this = true;
     if (!parsed && use_this) {
-      parsed =
-          sscanf(data,
-                 " pid=%" SCNu32 " prio=%" SCNu32 " success=%" SCNu32
-                 " target_cpu=%" SCNu32,
-                 &target_tid, &target_priority, &success, &target_cpu_id) == 4;
+      parsed = UNSAFE_TODO(sscanf(data,
+                                  " pid=%" SCNu32 " prio=%" SCNu32
+                                  " success=%" SCNu32 " target_cpu=%" SCNu32,
+                                  &target_tid, &target_priority, &success,
+                                  &target_cpu_id)) == 4;
       use_this = parsed;
     }
   }
@@ -294,11 +308,11 @@ bool HandleSchedSwitch(AllCpuEvents* all_cpu_events,
                        uint32_t tid,
                        const std::string& line,
                        size_t event_position) {
-  const char* data = strstr(&line[event_position], " next_pid=");
+  const char* data = UNSAFE_TODO(strstr(&line[event_position], " next_pid="));
   uint32_t next_tid;
   uint32_t next_priority;
-  if (!data || sscanf(data, " next_pid=%d next_prio=%d", &next_tid,
-                      &next_priority) != 2) {
+  if (!data || UNSAFE_TODO(sscanf(data, " next_pid=%d next_prio=%d", &next_tid,
+                                  &next_priority)) != 2) {
     LOG(ERROR) << "Failed to parse sched_switch event: " << line;
     return false;
   }
@@ -312,7 +326,8 @@ bool HandleGpuFreq(ValueEvents* value_events,
                    const std::string& line,
                    size_t event_position) {
   int new_freq = -1;
-  if (sscanf(&line[event_position], "new_freq=%d", &new_freq) != 1) {
+  if (UNSAFE_TODO(sscanf(&line[event_position], "new_freq=%d", &new_freq)) !=
+      1) {
     LOG(ERROR) << "Failed to parse GPU freq event: " << line;
     return false;
   }
@@ -326,8 +341,9 @@ bool SortByTimestampPred(const std::unique_ptr<ArcTracingEvent>& lhs,
                          const std::unique_ptr<ArcTracingEvent>& rhs) {
   const uint64_t lhs_timestamp = lhs->GetTimestamp();
   const uint64_t rhs_timestamp = rhs->GetTimestamp();
-  if (lhs_timestamp != rhs_timestamp)
+  if (lhs_timestamp != rhs_timestamp) {
     return lhs_timestamp < rhs_timestamp;
+  }
   return lhs->GetDuration() > rhs->GetDuration();
 }
 
@@ -339,13 +355,13 @@ ArcTracingModel::~ArcTracingModel() = default;
 
 void ArcTracingModel::SetMinMaxTime(uint64_t min_timestamp,
                                     uint64_t max_timestamp) {
-  DCHECK(min_timestamp < max_timestamp);
+  DCHECK_LT(min_timestamp, max_timestamp);
   min_timestamp_ = min_timestamp;
   max_timestamp_ = max_timestamp;
 }
 
 bool ArcTracingModel::Build(const std::string& data) {
-  absl::optional<base::Value> value = base::JSONReader::Read(data);
+  std::optional<base::Value> value = base::JSONReader::Read(data);
   if (!value) {
     LOG(ERROR) << "Cannot parse trace data";
     return false;
@@ -380,6 +396,8 @@ bool ArcTracingModel::Build(const std::string& data) {
     std::sort(group_events.second.begin(), group_events.second.end(),
               SortByTimestampPred);
   }
+  std::sort(nongroup_events_.begin(), nongroup_events_.end(),
+            SortByTimestampPred);
 
   return true;
 }
@@ -387,34 +405,43 @@ bool ArcTracingModel::Build(const std::string& data) {
 ArcTracingModel::TracingEventPtrs ArcTracingModel::GetRoots() const {
   ArcTracingModel::TracingEventPtrs result;
   for (auto& gr : group_events_) {
-    for (const auto& event : gr.second)
+    for (const auto& event : gr.second) {
       result.emplace_back(event.get());
+    }
   }
 
   for (const auto& gr : per_thread_events_) {
-    for (const auto& event : gr.second)
+    for (const auto& event : gr.second) {
       result.emplace_back(event.get());
+    }
   }
+
+  for (const auto& event : nongroup_events_) {
+    result.emplace_back(event.get());
+  }
+
   return result;
 }
 
 ArcTracingModel::TracingEventPtrs ArcTracingModel::Select(
-    const std::string query) const {
+    const std::string& query) const {
   ArcTracingModel::TracingEventPtrs collector;
   const std::vector<std::unique_ptr<ArcTracingEventMatcher>> selector =
       BuildSelector(query);
-  for (const ArcTracingEvent* root : GetRoots())
+  for (const ArcTracingEvent* root : GetRoots()) {
     SelectRecursively(0, root, selector, &collector);
+  }
 
   return collector;
 }
 
 ArcTracingModel::TracingEventPtrs ArcTracingModel::Select(
     const ArcTracingEvent* event,
-    const std::string query) const {
+    const std::string& query) const {
   ArcTracingModel::TracingEventPtrs collector;
-  for (const auto& child : event->children())
+  for (const auto& child : event->children()) {
     SelectRecursively(0, child.get(), BuildSelector(query), &collector);
+  }
   return collector;
 }
 
@@ -422,10 +449,12 @@ ArcTracingModel::TracingEventPtrs ArcTracingModel::GetGroupEvents(
     const std::string& id) const {
   TracingEventPtrs result;
   const auto& it = group_events_.find(id);
-  if (it == group_events_.end())
+  if (it == group_events_.end()) {
     return result;
-  for (const auto& group_event : it->second)
+  }
+  for (const auto& group_event : it->second) {
     result.emplace_back(group_event.get());
+  }
   return result;
 }
 
@@ -441,8 +470,9 @@ bool ArcTracingModel::ProcessEvent(base::Value::List* events) {
     std::unique_ptr<ArcTracingEvent> event =
         std::make_unique<ArcTracingEvent>(std::move(event_data).TakeDict());
     const uint64_t timestamp = event->GetTimestamp();
-    if (timestamp < min_timestamp_ || timestamp >= max_timestamp_)
+    if (timestamp < min_timestamp_ || timestamp >= max_timestamp_) {
       continue;
+    }
 
     switch (event->GetPhase()) {
       case TRACE_EVENT_PHASE_METADATA:
@@ -451,6 +481,7 @@ bool ArcTracingModel::ProcessEvent(base::Value::List* events) {
       case TRACE_EVENT_PHASE_ASYNC_BEGIN:
       case TRACE_EVENT_PHASE_ASYNC_STEP_INTO:
       case TRACE_EVENT_PHASE_ASYNC_END:
+      case TRACE_EVENT_PHASE_INSTANT:
         break;
       default:
         // Ignore at this moment. They are not currently used.
@@ -472,12 +503,12 @@ bool ArcTracingModel::ProcessEvent(base::Value::List* events) {
   for (auto& event : parsed_events) {
     switch (event->GetPhase()) {
       case TRACE_EVENT_PHASE_METADATA:
-        metadata_events_.push_back(std::move(event));
-        break;
       case TRACE_EVENT_PHASE_ASYNC_BEGIN:
       case TRACE_EVENT_PHASE_ASYNC_STEP_INTO:
       case TRACE_EVENT_PHASE_ASYNC_END:
-        group_events_[event->GetId()].push_back(std::move(event));
+        break;
+      case TRACE_EVENT_PHASE_INSTANT:
+        nongroup_events_.push_back(std::move(event));
         break;
       case TRACE_EVENT_PHASE_COMPLETE:
       case TRACE_EVENT_PHASE_COUNTER:
@@ -488,7 +519,6 @@ bool ArcTracingModel::ProcessEvent(base::Value::List* events) {
         break;
       default:
         NOTREACHED();
-        return false;
     }
   }
 
@@ -522,22 +552,30 @@ bool ArcTracingModel::ConvertSysTraces(const std::string& sys_traces) {
   //            TASK-PID    TGID   CPU#  ||||    TIMESTAMP  FUNCTION
   //               | |        |      |   ||||       |         |
   //           <...>-32043 (-----) [000] ...1 14196.099290: tracing_mark_write
+  //
+  // From kernel 5.15, there is a fifth 1-character value "migrate-disable,"
+  // right after preempt-depth.
   constexpr int kPidPosition = 16;
+
+  // Position of the '[' before the CPU#
   size_t cpu_pos = 0;
   bool cpu_pos_found = false;
+
   while (true) {
     // Get end of line.
     size_t end_line_pos = sys_traces.find('\n', new_line_pos);
-    if (end_line_pos == std::string::npos)
+    if (end_line_pos == std::string::npos) {
       break;
+    }
 
     const std::string line =
         sys_traces.substr(new_line_pos, end_line_pos - new_line_pos);
     new_line_pos = end_line_pos + 1;
 
     // Skip comments and empty lines.
-    if (line.empty() || line[0] == '#')
+    if (line.empty() || line[0] == '#') {
       continue;
+    }
 
     // Spacing between TASK-PID and CPU# can vary between kernel versions
     // and depending on whether TGID option is enabled in trace_options.
@@ -550,11 +588,20 @@ bool ArcTracingModel::ConvertSysTraces(const std::string& sys_traces) {
       cpu_pos_found = true;
     }
 
-    // From CPU# to the TIMESTAMP marker, we have fixed positions for elements.
+    // CPU# is always in the form [###] (3 digits) followed by a space followed
+    // by the start of the flags (irqs-off etc).
+    size_t space_before_flags = cpu_pos + 5;
     if (line.length() < (cpu_pos + 12) || line[kPidPosition] != '-' ||
         line[cpu_pos - 1] != ' ' || line[cpu_pos + 4] != ']' ||
-        line[cpu_pos + 5] != ' ' || line[cpu_pos + 10] != ' ') {
+        line[space_before_flags] != ' ') {
       LOG(ERROR) << "Cannot recognize trace event: " << line;
+      return false;
+    }
+    size_t space_after_flags = line.find(' ', space_before_flags + 1);
+    // Expect at least 4 flags (kernel <= 5.10), so 5 slots from preceding
+    // space to following space.
+    if (space_after_flags - space_before_flags < 5) {
+      LOG(ERROR) << "Fewer than 4 flags after CPU#: " << line;
       return false;
     }
 
@@ -567,8 +614,9 @@ bool ArcTracingModel::ConvertSysTraces(const std::string& sys_traces) {
     if (system_model_.thread_map().find(tid) ==
         system_model_.thread_map().end()) {
       int thread_name_start = 0;
-      while (line[thread_name_start] == ' ')
+      while (line[thread_name_start] == ' ') {
         ++thread_name_start;
+      }
       system_model_.thread_map()[tid] = ArcSystemModel::ThreadInfo(
           ArcSystemModel::kUnknownPid,
           line.substr(thread_name_start, kPidPosition - thread_name_start));
@@ -583,7 +631,7 @@ bool ArcTracingModel::ConvertSysTraces(const std::string& sys_traces) {
     uint32_t timestamp_high;
     uint32_t timestamp_low;
     const size_t pos_dot =
-        ParseUint32(line, cpu_pos + 11, '.', &timestamp_high);
+        ParseUint32(line, space_after_flags + 1, '.', &timestamp_high);
     if (pos_dot == std::string::npos) {
       LOG(ERROR) << "Cannot parse timestamp in trace event: " << line;
       return false;
@@ -598,42 +646,46 @@ bool ArcTracingModel::ConvertSysTraces(const std::string& sys_traces) {
     }
 
     const uint64_t timestamp = 1000000LL * timestamp_high + timestamp_low;
-    if (timestamp < min_timestamp_ || timestamp >= max_timestamp_)
+    if (timestamp < min_timestamp_ || timestamp >= max_timestamp_) {
       continue;
+    }
 
-    if (!strncmp(&line[separator_position], kTracingMarkWrite,
-                 kTracingMarkWriteLength)) {
+    if (UNSAFE_TODO(!strncmp(&line[separator_position], kTracingMarkWrite,
+                             kTracingMarkWriteLength))) {
       if (!HandleGraphicsEvent(&graphics_events_context, timestamp, tid, line,
                                separator_position + kTracingMarkWriteLength)) {
         return false;
       }
-    } else if (!strncmp(&line[separator_position], kCpuIdle, kCpuIdleLength)) {
+    } else if (UNSAFE_TODO(!strncmp(&line[separator_position], kCpuIdle,
+                                    kCpuIdleLength))) {
       if (!HandleCpuIdle(&system_model_.all_cpu_events(), timestamp, cpu_id,
                          tid, line, separator_position + kCpuIdleLength)) {
         return false;
       }
-    } else if (!strncmp(&line[separator_position], kSchedWakeUp,
-                        kSchedWakeUpLength)) {
+    } else if (UNSAFE_TODO(!strncmp(&line[separator_position], kSchedWakeUp,
+                                    kSchedWakeUpLength))) {
       if (!HandleSchedWakeUp(&system_model_.all_cpu_events(), timestamp, cpu_id,
                              tid, line,
                              separator_position + kSchedWakeUpLength)) {
         return false;
       }
-    } else if (!strncmp(&line[separator_position], kSchedSwitch,
-                        kSchedSwitchLength)) {
+    } else if (UNSAFE_TODO(!strncmp(&line[separator_position], kSchedSwitch,
+                                    kSchedSwitchLength))) {
       if (!HandleSchedSwitch(&system_model_.all_cpu_events(), timestamp, cpu_id,
                              tid, line,
                              separator_position + kSchedSwitchLength)) {
         return false;
       }
-    } else if (!strncmp(&line[separator_position], kIntelGpuFreqChange,
-                        kIntelGpuFreqChangeLength)) {
+    } else if (UNSAFE_TODO(!strncmp(&line[separator_position],
+                                    kIntelGpuFreqChange,
+                                    kIntelGpuFreqChangeLength))) {
       if (!HandleGpuFreq(&system_model_.memory_events(), timestamp, line,
                          separator_position + kIntelGpuFreqChangeLength)) {
         return false;
       }
-    } else if (!strncmp(&line[separator_position], kMsmGpuFreqChange,
-                        kMsmGpuFreqChangeLength)) {
+    } else if (UNSAFE_TODO(!strncmp(&line[separator_position],
+                                    kMsmGpuFreqChange,
+                                    kMsmGpuFreqChangeLength))) {
       // msm_gpu_freq_change event has same format as intel_gpu_freq_change:
       if (!HandleGpuFreq(&system_model_.memory_events(), timestamp, line,
                          separator_position + kMsmGpuFreqChangeLength)) {
@@ -651,8 +703,9 @@ bool ArcTracingModel::ConvertSysTraces(const std::string& sys_traces) {
   // Close all pending tracing event, assuming last event is 0 duration.
   for (auto& pending_events :
        graphics_events_context.per_thread_pending_events_stack) {
-    if (pending_events.second.empty())
+    if (pending_events.second.empty()) {
       continue;
+    }
     const double last_timestamp = pending_events.second.back()->GetTimestamp();
     for (ArcTracingEvent* pending_event : pending_events.second) {
       pending_event->SetDuration(last_timestamp -
@@ -688,8 +741,9 @@ bool ArcTracingModel::AddToThread(std::unique_ptr<ArcTracingEvent> event) {
 }
 
 void ArcTracingModel::Dump(std::ostream& stream) const {
-  for (const ArcTracingEvent* root : GetRoots())
+  for (const ArcTracingEvent* root : GetRoots()) {
     root->Dump("", stream);
+  }
 }
 
 }  // namespace arc

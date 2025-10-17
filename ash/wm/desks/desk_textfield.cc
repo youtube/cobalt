@@ -5,20 +5,15 @@
 #include "ash/wm/desks/desk_textfield.h"
 
 #include "ash/shell.h"
-#include "ash/style/ash_color_provider.h"
 #include "ash/style/style_util.h"
-#include "ash/wm/overview/overview_constants.h"
-#include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/overview/overview_grid.h"
 #include "base/task/single_thread_task_runner.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
-#include "ui/color/color_id.h"
 #include "ui/gfx/canvas.h"
-#include "ui/gfx/text_elider.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
-#include "ui/views/controls/focus_ring.h"
 #include "ui/views/widget/widget.h"
 
 namespace ash {
@@ -33,6 +28,9 @@ DeskTextfield::DeskTextfield(Type type) : SystemTextfield(type) {
   views::Builder<DeskTextfield>(this).SetCursorEnabled(true).BuildChildren();
 
   GetRenderText()->SetElideBehavior(gfx::ELIDE_TAIL);
+  text_changed_subscription_ = AddTextChangedCallback(base::BindRepeating(
+      &DeskTextfield::UpdateTooltipText, base::Unretained(this)));
+  UpdateTooltipText();
 }
 
 DeskTextfield::~DeskTextfield() = default;
@@ -49,11 +47,11 @@ void DeskTextfield::CommitChanges(views::Widget* widget) {
   focus_manager->SetStoredFocusView(nullptr);
 }
 
-gfx::Size DeskTextfield::CalculatePreferredSize() const {
-  const std::u16string& text = GetText();
+gfx::Size DeskTextfield::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   int width = 0;
   int height = 0;
-  gfx::Canvas::SizeStringInt(text, GetFontList(), &width, &height, 0,
+  gfx::Canvas::SizeStringInt(GetText(), GetFontList(), &width, &height, 0,
                              gfx::Canvas::NO_ELLIPSIS);
   gfx::Size size{width + GetCaretBounds().width(), height};
   const auto insets = GetInsets();
@@ -64,19 +62,9 @@ gfx::Size DeskTextfield::CalculatePreferredSize() const {
 
 bool DeskTextfield::SkipDefaultKeyEventProcessing(const ui::KeyEvent& event) {
   // The default behavior of the tab key is that it moves the focus to the next
-  // available view.
-  // We want that to be handled by OverviewHighlightController as part of moving
-  // the highlight forward or backward when tab or shift+tab are pressed.
+  // available view. This is done in either in `OverviewSession::OnKeyEvent()`
+  // or `DeskBarController::OnKeyEvent()`.
   return event.key_code() == ui::VKEY_TAB;
-}
-
-std::u16string DeskTextfield::GetTooltipText(const gfx::Point& p) const {
-  return GetPreferredSize().width() > width() ? GetText() : std::u16string();
-}
-
-void DeskTextfield::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  Textfield::GetAccessibleNodeData(node_data);
-  node_data->SetNameChecked(GetAccessibleName());
 }
 
 ui::Cursor DeskTextfield::GetCursor(const ui::MouseEvent& event) {
@@ -91,8 +79,7 @@ void DeskTextfield::OnFocus() {
 void DeskTextfield::OnBlur() {
   GetRenderText()->SetElideBehavior(gfx::ELIDE_TAIL);
   SystemTextfield::OnBlur();
-  // Give user indication for the quick activatable view.
-  SetShowBackground(true);
+
   // Avoid having the focus restored to the same DeskNameView when the desk bar
   // widget is refocused. Use a post task to avoid calling
   // `FocusManager::SetStoredFocusView()` while `FocusManager::ClearFocus()` is
@@ -119,28 +106,25 @@ void DeskTextfield::OnDragExited() {
   views::Textfield::OnDragExited();
 }
 
-views::View* DeskTextfield::GetView() {
-  return this;
+void DeskTextfield::OnBoundsChanged(const gfx::Rect& previous_bounds) {
+  SystemTextfield::OnBoundsChanged(previous_bounds);
+  UpdateTooltipText();
 }
 
-void DeskTextfield::MaybeActivateHighlightedView() {
-  RequestFocus();
+void DeskTextfield::PreferredSizeChanged() {
+  SystemTextfield::PreferredSizeChanged();
+  UpdateTooltipText();
 }
 
-void DeskTextfield::MaybeCloseHighlightedView(bool primary_action) {}
-
-void DeskTextfield::MaybeSwapHighlightedView(bool right) {}
-
-void DeskTextfield::OnViewHighlighted() {
-  SetShowFocusRing(true);
+void DeskTextfield::UpdateTooltipText() {
+  if (GetPreferredSize().width() > width()) {
+    SetTooltipText(std::u16string(GetText()));
+  } else {
+    SetTooltipText(std::u16string());
+  }
 }
 
-void DeskTextfield::OnViewUnhighlighted() {
-  SetShowBackground(false);
-  SetShowFocusRing(false);
-}
-
-BEGIN_METADATA(DeskTextfield, views::Textfield)
+BEGIN_METADATA(DeskTextfield)
 END_METADATA
 
 }  // namespace ash

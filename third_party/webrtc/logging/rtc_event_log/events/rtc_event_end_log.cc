@@ -10,7 +10,17 @@
 
 #include "logging/rtc_event_log/events/rtc_event_end_log.h"
 
+#include <cstdint>
+#include <string>
+#include <vector>
+
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
+#include "api/rtc_event_log/rtc_event.h"
+#include "api/units/timestamp.h"
+#include "logging/rtc_event_log/events/rtc_event_field_encoding.h"
+#include "logging/rtc_event_log/events/rtc_event_field_encoding_parser.h"
+#include "logging/rtc_event_log/events/rtc_event_log_parse_status.h"
 
 namespace webrtc {
 constexpr RtcEvent::Type RtcEventEndLog::kType;
@@ -24,7 +34,7 @@ RtcEventEndLog::RtcEventEndLog(const RtcEventEndLog& other)
 
 RtcEventEndLog::~RtcEventEndLog() = default;
 
-std::string RtcEventEndLog::Encode(rtc::ArrayView<const RtcEvent*> batch) {
+std::string RtcEventEndLog::Encode(ArrayView<const RtcEvent*> batch) {
   EventEncoder encoder(event_params_, batch);
   return encoder.AsString();
 }
@@ -38,12 +48,12 @@ RtcEventLogParseStatus RtcEventEndLog::Parse(
   if (!status.ok())
     return status;
 
-  rtc::ArrayView<LoggedStopEvent> output_batch =
+  ArrayView<LoggedStopEvent> output_batch =
       ExtendLoggedBatch(output, parser.NumEventsInBatch());
 
   constexpr FieldParameters timestamp_params{
       "timestamp_ms", FieldParameters::kTimestampField, FieldType::kVarInt, 64};
-  RtcEventLogParseStatusOr<rtc::ArrayView<uint64_t>> result =
+  RtcEventLogParseStatusOr<ArrayView<uint64_t>> result =
       parser.ParseNumericField(timestamp_params);
   if (!result.ok())
     return result.status();

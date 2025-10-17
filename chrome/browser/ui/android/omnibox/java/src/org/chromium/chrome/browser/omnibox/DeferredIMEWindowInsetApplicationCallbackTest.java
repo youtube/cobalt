@@ -4,12 +4,13 @@
 
 package org.chromium.chrome.browser.omnibox;
 
-import static junit.framework.Assert.assertEquals;
-
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import android.app.Activity;
 import android.view.View;
 
 import androidx.core.graphics.Insets;
@@ -25,13 +26,13 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.components.browser_ui.widget.InsetObserverView;
-import org.chromium.components.browser_ui.widget.InsetObserverViewSupplier;
+import org.chromium.ui.InsetObserver;
+import org.chromium.ui.InsetObserver.WindowInsetsConsumer.InsetConsumerSource;
 import org.chromium.ui.base.WindowAndroid;
 
-/**
- * Unit tests for {@link DeferredIMEWindowInsetApplicationCallback}.
- */
+import java.lang.ref.WeakReference;
+
+/** Unit tests for {@link DeferredIMEWindowInsetApplicationCallback}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class DeferredIMEWindowInsetApplicationCallbackTest {
     private static final Insets STATUS_BAR_INSETS = Insets.of(0, 62, 0, 0);
@@ -44,18 +45,19 @@ public class DeferredIMEWindowInsetApplicationCallbackTest {
     private WindowInsetsAnimationCompat mAnimation;
     private WindowInsetsAnimationCompat mAnimation2;
 
-    @Mock
-    private Runnable mUpdateRunnable;
-    @Mock
-    private WindowAndroid mWindowAndroid;
-    @Mock
-    private View mView;
-    @Mock
-    InsetObserverView mInsetObserverView;
+    @Mock private Activity mActivity;
+    @Mock private Runnable mUpdateRunnable;
+    @Mock private WindowAndroid mWindowAndroid;
+    @Mock private View mView;
+    @Mock private InsetObserver mInsetObserver;
 
     @Before
     public void setUp() {
-        InsetObserverViewSupplier.setInstanceForTesting(mInsetObserverView);
+        WeakReference<Activity> activityRef = new WeakReference<>(mActivity);
+        when(mActivity.isFinishing()).thenReturn(false);
+        when(mWindowAndroid.getActivity()).thenReturn(activityRef);
+        when(mWindowAndroid.isDestroyed()).thenReturn(false);
+        when(mWindowAndroid.getInsetObserver()).thenReturn(mInsetObserver);
         mAnimation = new WindowInsetsAnimationCompat(WindowInsetsCompat.Type.ime(), null, 160);
         mAnimation2 = new WindowInsetsAnimationCompat(WindowInsetsCompat.Type.ime(), null, 160);
         mCallback = new DeferredIMEWindowInsetApplicationCallback(mUpdateRunnable);
@@ -71,11 +73,14 @@ public class DeferredIMEWindowInsetApplicationCallbackTest {
         mCallback.onPrepare(mAnimation);
 
         WindowInsetsCompat windowInsets =
-                mBaseWindowInsets.setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 384))
+                mBaseWindowInsets
+                        .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 384))
                         .build();
         WindowInsetsCompat modifiedInsets = mCallback.onApplyWindowInsets(mView, windowInsets);
 
         assertEquals(Insets.NONE, modifiedInsets.getInsets(WindowInsetsCompat.Type.ime()));
+        assertEquals(
+                Insets.NONE, modifiedInsets.getInsets(WindowInsetsCompat.Type.navigationBars()));
         verify(mUpdateRunnable, never()).run();
 
         mCallback.onEnd(mAnimation);
@@ -99,7 +104,8 @@ public class DeferredIMEWindowInsetApplicationCallbackTest {
         mCallback.onPrepare(mAnimation);
 
         WindowInsetsCompat windowInsets =
-                mBaseWindowInsets.setInsets(WindowInsetsCompat.Type.navigationBars(), Insets.NONE)
+                mBaseWindowInsets
+                        .setInsets(WindowInsetsCompat.Type.navigationBars(), Insets.NONE)
                         .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 384))
                         .build();
         WindowInsetsCompat modifiedInsets = mCallback.onApplyWindowInsets(mView, windowInsets);
@@ -111,7 +117,8 @@ public class DeferredIMEWindowInsetApplicationCallbackTest {
     @Test
     public void testUnanimatedChange_appliedImmediately() {
         WindowInsetsCompat windowInsets =
-                mBaseWindowInsets.setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 384))
+                mBaseWindowInsets
+                        .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 384))
                         .build();
         WindowInsetsCompat modifiedInsets = mCallback.onApplyWindowInsets(mView, windowInsets);
 
@@ -123,12 +130,30 @@ public class DeferredIMEWindowInsetApplicationCallbackTest {
     @Test
     public void testAttachDetach() {
         mCallback.attach(mWindowAndroid);
-        verify(mInsetObserverView).addWindowInsetsAnimationListener(mCallback);
-        verify(mInsetObserverView).addInsetsConsumer(mCallback);
+        verify(mInsetObserver).addWindowInsetsAnimationListener(mCallback);
+        verify(mInsetObserver)
+                .addInsetsConsumer(
+                        mCallback,
+                        InsetConsumerSource.DEFERRED_IME_WINDOW_INSET_APPLICATION_CALLBACK);
 
         mCallback.detach();
-        verify(mInsetObserverView).removeWindowInsetsAnimationListener(mCallback);
-        verify(mInsetObserverView).removeInsetsConsumer(mCallback);
+        verify(mInsetObserver).removeWindowInsetsAnimationListener(mCallback);
+        verify(mInsetObserver).removeInsetsConsumer(mCallback);
+    }
+
+    @Test
+    public void testAttachDetach_ActivityFinishing() {
+        when(mActivity.isFinishing()).thenReturn(true);
+        mCallback.attach(mWindowAndroid);
+        verify(mInsetObserver, never()).addWindowInsetsAnimationListener(mCallback);
+        verify(mInsetObserver, never())
+                .addInsetsConsumer(
+                        mCallback,
+                        InsetConsumerSource.DEFERRED_IME_WINDOW_INSET_APPLICATION_CALLBACK);
+
+        mCallback.detach();
+        verify(mInsetObserver, never()).removeWindowInsetsAnimationListener(mCallback);
+        verify(mInsetObserver, never()).removeInsetsConsumer(mCallback);
     }
 
     @Test
@@ -137,7 +162,8 @@ public class DeferredIMEWindowInsetApplicationCallbackTest {
         mCallback.onPrepare(mAnimation);
 
         WindowInsetsCompat windowInsets =
-                mBaseWindowInsets.setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 384))
+                mBaseWindowInsets
+                        .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 384))
                         .build();
         WindowInsetsCompat modifiedInsets = mCallback.onApplyWindowInsets(mView, windowInsets);
 

@@ -7,7 +7,9 @@
 #include "ash/public/cpp/login_screen_test_api.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_base.h"
 #include "base/run_loop.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/threading/thread_restrictions.h"
 #include "chrome/browser/ash/login/existing_user_controller.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
@@ -15,7 +17,6 @@
 #include "chrome/browser/ash/login/session/user_session_manager_test_api.h"
 #include "chrome/browser/ash/login/test/cryptohome_mixin.h"
 #include "chrome/browser/ash/login/test/device_state_mixin.h"
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/login/test/embedded_test_server_setup_mixin.h"
 #include "chrome/browser/ash/login/test/js_checker.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
@@ -23,13 +24,14 @@
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
 #include "chrome/browser/ash/login/test/user_policy_mixin.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
-#include "chrome/browser/ash/login/ui/webui_login_view.h"
+#include "chrome/browser/ash/login/wizard_context.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
-#include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
+#include "chrome/browser/ui/ash/login/webui_login_view.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webui/ash/login/family_link_notice_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
@@ -37,11 +39,13 @@
 #include "chrome/browser/ui/webui/ash/login/sync_consent_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/terms_of_service_screen_handler.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
+#include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
 #include "components/policy/core/common/cloud/test/policy_builder.h"
 #include "components/policy/proto/chrome_device_policy.pb.h"
 #include "components/prefs/pref_service.h"
 #include "components/user_manager/known_user.h"
 #include "content/public/test/browser_test.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -57,16 +61,16 @@ using ::net::test_server::HttpResponse;
 const char kAccountId[] = "dla@example.com";
 const char kDisplayName[] = "display name";
 const char kManagedUser[] = "user@example.com";
-const char kManagedGaiaID[] = "33333";
+const GaiaId::Literal kManagedGaiaID("33333");
 const char kTosText[] = "By using this test you agree to fix future bugs";
 
-absl::optional<std::string> ReadFileToOptionalString(
+std::optional<std::string> ReadFileToOptionalString(
     const base::FilePath& file_path) {
   base::ScopedAllowBlockingForTesting allow_blocking;
   std::string content;
   if (base::ReadFileToString(file_path, &content))
-    return absl::make_optional<std::string>(content);
-  return absl::nullopt;
+    return std::make_optional<std::string>(content);
+  return std::nullopt;
 }
 
 std::string TestServerBaseUrl(net::EmbeddedTestServer* server) {
@@ -208,7 +212,7 @@ class PublicSessionTosScreenTest : public OobeBaseTest {
     return FakeSessionManagerClient::Get();
   }
 
-  absl::optional<TermsOfServiceScreen::Result> result_;
+  std::optional<TermsOfServiceScreen::Result> result_;
   base::HistogramTester histogram_tester_;
 
  private:
@@ -235,7 +239,7 @@ class PublicSessionTosScreenTest : public OobeBaseTest {
   const AccountId account_id_ =
       AccountId::FromUserEmail(GenerateDeviceLocalAccountUserId(
           kAccountId,
-          policy::DeviceLocalAccount::TYPE_PUBLIC_SESSION));
+          policy::DeviceLocalAccountType::kPublicSession));
   policy::DevicePolicyCrosTestHelper policy_helper_;
   EmbeddedPolicyTestServerMixin policy_test_server_mixin_{&mixin_host_};
   DeviceStateMixin device_state_{
@@ -339,6 +343,10 @@ class ManagedUserTosScreenTest : public OobeBaseTest {
     original_callback_ = screen->get_exit_callback_for_testing();
     screen->set_exit_callback_for_testing(base::BindRepeating(
         &ManagedUserTosScreenTest::HandleScreenExit, base::Unretained(this)));
+    LoginDisplayHost::default_host()
+        ->GetWizardContext()
+        ->knowledge_factor_setup.auth_setup_flow =
+        WizardContext::AuthChangeFlow::kReauthentication;
   }
 
   void WaitForScreenShown() {
@@ -373,7 +381,7 @@ class ManagedUserTosScreenTest : public OobeBaseTest {
     return saved_tos.has_value() && saved_tos.value() == tos;
   }
 
-  absl::optional<TermsOfServiceScreen::Result> result_;
+  std::optional<TermsOfServiceScreen::Result> result_;
   base::HistogramTester histogram_tester_;
 
  protected:

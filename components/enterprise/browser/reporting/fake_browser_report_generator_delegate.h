@@ -7,10 +7,11 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/files/file_path.h"
-#include "base/strings/string_piece.h"
 #include "components/enterprise/browser/reporting/browser_report_generator.h"
+#include "components/enterprise/browser/reporting/real_time_report_controller.h"
 #include "components/enterprise/browser/reporting/report_util.h"
 #include "components/enterprise/browser/reporting/reporting_delegate_factory.h"
 #include "components/version_info/channel.h"
@@ -22,7 +23,7 @@ class BrowserReport;
 
 namespace policy {
 class PolicyConversionsClient;
-class MachineLevelUserCloudPolicyManager;
+class CloudPolicyManager;
 }  // namespace policy
 
 namespace enterprise_reporting::test {
@@ -37,23 +38,32 @@ class FakeProfileReportGeneratorDelegate
   void GetSigninUserInfo(
       enterprise_management::ChromeUserProfileInfo* report) override;
 
+  void GetAffiliationInfo(
+      enterprise_management::ChromeUserProfileInfo* report) override;
+
   void GetExtensionInfo(
       enterprise_management::ChromeUserProfileInfo* report) override;
 
   void GetExtensionRequest(
       enterprise_management::ChromeUserProfileInfo* report) override;
 
-  std::unique_ptr<policy::PolicyConversionsClient> MakePolicyConversionsClient()
-      override;
+  void GetProfileId(
+      enterprise_management::ChromeUserProfileInfo* report) override;
 
-  policy::MachineLevelUserCloudPolicyManager* GetCloudPolicyManager() override;
+  void GetProfileName(
+      enterprise_management::ChromeUserProfileInfo* report) override;
+
+  std::unique_ptr<policy::PolicyConversionsClient> MakePolicyConversionsClient(
+      bool is_machine_scope) override;
+
+  policy::CloudPolicyManager* GetCloudPolicyManager(
+      bool is_machine_scope) override;
 };
 
 class FakeBrowserReportGeneratorDelegate
     : public BrowserReportGenerator::Delegate {
  public:
-  explicit FakeBrowserReportGeneratorDelegate(
-      base::StringPiece executable_path);
+  explicit FakeBrowserReportGeneratorDelegate(std::string_view executable_path);
   ~FakeBrowserReportGeneratorDelegate() override;
 
   std::string GetExecutablePath() override;
@@ -74,24 +84,27 @@ class FakeBrowserReportGeneratorDelegate
 
 class FakeReportingDelegateFactory : public ReportingDelegateFactory {
  public:
-  explicit FakeReportingDelegateFactory(base::StringPiece executable_path);
+  explicit FakeReportingDelegateFactory(std::string_view executable_path);
 
   ~FakeReportingDelegateFactory() override;
 
   std::unique_ptr<BrowserReportGenerator::Delegate>
-  GetBrowserReportGeneratorDelegate() override;
+  GetBrowserReportGeneratorDelegate() const override;
 
   std::unique_ptr<ProfileReportGenerator::Delegate>
-  GetProfileReportGeneratorDelegate() override;
+  GetProfileReportGeneratorDelegate() const override;
 
   std::unique_ptr<ReportGenerator::Delegate> GetReportGeneratorDelegate()
-      override;
+      const override;
 
   std::unique_ptr<ReportScheduler::Delegate> GetReportSchedulerDelegate()
-      override;
+      const override;
 
   std::unique_ptr<RealTimeReportGenerator::Delegate>
-  GetRealTimeReportGeneratorDelegate() override;
+  GetRealTimeReportGeneratorDelegate() const override;
+
+  std::unique_ptr<RealTimeReportController::Delegate>
+  GetRealTimeReportControllerDelegate() const override;
 
  private:
   const std::string executable_path_;

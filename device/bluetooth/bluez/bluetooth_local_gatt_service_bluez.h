@@ -50,6 +50,10 @@ class BluetoothLocalGattServiceBlueZ
   void Delete() override;
   device::BluetoothLocalGattCharacteristic* GetCharacteristic(
       const std::string& identifier) override;
+  base::WeakPtr<device::BluetoothLocalGattCharacteristic> CreateCharacteristic(
+      const device::BluetoothUUID& uuid,
+      device::BluetoothGattCharacteristic::Properties properties,
+      device::BluetoothGattCharacteristic::Permissions permissions) override;
 
   const std::map<dbus::ObjectPath,
                  std::unique_ptr<BluetoothLocalGattCharacteristicBlueZ>>&
@@ -85,7 +89,8 @@ class BluetoothLocalGattServiceBlueZ
 
   // Delegate to receive read/write requests for attribute  values contained
   // in this service.
-  raw_ptr<device::BluetoothLocalGattService::Delegate> delegate_;
+  raw_ptr<device::BluetoothLocalGattService::Delegate, DanglingUntriaged>
+      delegate_;
 
   // Characteristics contained by this service.
   std::map<dbus::ObjectPath,

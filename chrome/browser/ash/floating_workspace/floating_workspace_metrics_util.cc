@@ -7,24 +7,15 @@
 
 namespace ash::floating_workspace_metrics_util {
 
-void RecordFloatingWorkspaceV1InitializedHistogram() {
-  base::UmaHistogramBoolean(kFloatingWorkspaceV1Initialized, true);
-}
-
-void RecordFloatingWorkspaceV1RestoredSessionType(
-    RestoredBrowserSessionType type) {
-  base::UmaHistogramEnumeration(kFloatingWorkspaceV1RestoredSessionType, type);
+void RecordFloatingWorkspaceStartupUiClosureReason(
+    StartupUiClosureReason reason) {
+  base::UmaHistogramEnumeration(kFloatingWorkspaceStartupUiClosureReason,
+                                reason);
 }
 
 void RecordFloatingWorkspaceV2TemplateLaunchFailureType(
     LaunchTemplateFailureType type) {
   base::UmaHistogramEnumeration(kFloatingWorkspaceV2TemplateLaunchFailureStatus,
-                                type);
-}
-
-void RecordFloatingWorkspaceV2TemplateLaunchTimeout(
-    LaunchTemplateTimeoutType type) {
-  base::UmaHistogramEnumeration(kFloatingWorkspaceV2TemplateLaunchTimedOut,
                                 type);
 }
 
@@ -45,6 +36,13 @@ void RecordFloatingWorkspaceV2TemplateUploadStatusHistogram(
     desks_storage::DeskModel::AddOrUpdateEntryStatus status) {
   base::UmaHistogramEnumeration(kFloatingWorkspaceV2TemplateUploadStatus,
                                 status);
+}
+
+void RecordFloatingWorkspaceV2InitializedHistogram() {
+  base::UmaHistogramBoolean(kFloatingWorkspaceV2Initialized, true);
+}
+void RecordFloatingWorkspaceV2TemplateNotFound() {
+  base::UmaHistogramBoolean(kFloatingWorkspaceV2TemplateNotFound, true);
 }
 
 }  // namespace ash::floating_workspace_metrics_util

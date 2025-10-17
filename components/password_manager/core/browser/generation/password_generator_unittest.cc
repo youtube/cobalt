@@ -4,10 +4,14 @@
 
 #include "components/password_manager/core/browser/generation/password_generator.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <string>
 
 #include "base/notreached.h"
+#include "base/test/scoped_feature_list.h"
 #include "components/autofill/core/browser/proto/password_requirements.pb.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill {
@@ -40,17 +44,13 @@ bool IsCharInClass(char16_t c, const std::string& class_name) {
   // symbols are treated like other character classes, so the importance of
   // dealing with them here is limited.
   NOTREACHED() << "Don't call IsCharInClass for symbols";
-  return false;
 }
 
 size_t CountCharsInClass(const std::u16string& password,
                          const std::string& class_name) {
-  size_t num = 0;
-  for (char16_t c : password) {
-    if (IsCharInClass(c, class_name))
-      ++num;
-  }
-  return num;
+  return std::ranges::count_if(password, [&class_name](char16_t c) {
+    return IsCharInClass(c, class_name);
+  });
 }
 
 PasswordRequirementsSpec_CharacterClass* GetMutableCharClass(
@@ -68,7 +68,6 @@ PasswordRequirementsSpec_CharacterClass* GetMutableCharClass(
     return spec->mutable_symbols();
   }
   NOTREACHED();
-  return nullptr;
 }
 
 class PasswordGeneratorTest : public testing::Test {
@@ -162,7 +161,7 @@ TEST_F(PasswordGeneratorTest, MinCharFrequenciesRespected) {
 
 TEST_F(PasswordGeneratorTest, MinCharFrequenciesInsane) {
   // Nothing breaks if the min frequencies are way beyond what's possible
-  // with the password length. In this case the generated passwor may contain
+  // with the password length. In this case the generated password may contain
   // just characters of one class but its target length does not increase.
   for (std::string char_class : kAllClassesButSymbols) {
     SCOPED_TRACE(char_class);
@@ -241,8 +240,9 @@ TEST_F(PasswordGeneratorTest, CharacterSetCanBeOverridden) {
   // as an indicator that the override was respected.
   size_t num_as_and_bs = 0;
   for (char16_t c : password) {
-    if (c == 'a' || c == 'b')
+    if (c == 'a' || c == 'b') {
       ++num_as_and_bs;
+    }
   }
   EXPECT_EQ(5u, num_as_and_bs);
 }
@@ -263,10 +263,12 @@ TEST_F(PasswordGeneratorTest, AllCharactersAreGenerated) {
     size_t num_as = 0;
     size_t num_bs = 0;
     for (char16_t c : password) {
-      if (c == 'a')
+      if (c == 'a') {
         ++num_as;
-      if (c == 'b')
+      }
+      if (c == 'b') {
         ++num_bs;
+      }
     }
     if (num_as > 0u && num_bs > 0u) {
       success = true;
@@ -305,6 +307,58 @@ TEST_F(PasswordGeneratorTest, ZeroLength) {
   // applied.
   EXPECT_EQ(kDefaultPasswordLength, GeneratePassword(spec_).length());
 }
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
+class PasswordGeneratorChunkingTest : public testing::Test {
+ public:
+  PasswordGeneratorChunkingTest() {
+    feature_list_.InitAndEnableFeature(
+        password_manager::features::kPasswordGenerationChunking);
+  }
+  ~PasswordGeneratorChunkingTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(PasswordGeneratorChunkingTest, ChunkedWithDifferentMaxLengths) {
+  PasswordRequirementsSpec spec;
+  spec.set_min_length(0);
+  spec.mutable_symbols()->set_character_set("-");
+
+  for (uint32_t max_length = 9; max_length <= kDefaultPasswordLength;
+       max_length++) {
+    spec.set_max_length(max_length);
+    std::u16string password = GeneratePassword(spec);
+
+    // Check every 5th char is a dash except when it's a last char.
+    for (uint32_t i = 4; i < max_length; i += 5) {
+      if (i < max_length - 1) {
+        EXPECT_EQ(password[i], '-');
+      }
+    }
+    EXPECT_NE(password[max_length - 1], '-');
+  }
+}
+
+TEST_F(PasswordGeneratorChunkingTest, DashDisallowed) {
+  PasswordRequirementsSpec spec;
+  spec.set_min_length(0);
+  spec.set_max_length(kDefaultPasswordLength);
+  spec.mutable_symbols()->set_character_set("");
+
+  EXPECT_TRUE(GeneratePassword(spec).find('-') == std::string::npos);
+}
+
+TEST_F(PasswordGeneratorChunkingTest, TooShortMaxLength) {
+  PasswordRequirementsSpec spec;
+  spec.set_min_length(0);
+  spec.set_max_length(8);
+  spec.mutable_symbols()->set_character_set("-");
+
+  EXPECT_TRUE(GeneratePassword(spec).find('-') == std::string::npos);
+}
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 }  // namespace
 

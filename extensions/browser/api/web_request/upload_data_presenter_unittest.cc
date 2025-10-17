@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 
+#include <string_view>
 #include <utility>
 
 #include "base/containers/span.h"
@@ -23,7 +24,7 @@ namespace extensions {
 TEST(WebRequestUploadDataPresenterTest, ParsedData) {
   // Input.
   const char block[] = "key.with.dots=value";
-  net::UploadBytesElementReader element(block, sizeof(block) - 1);
+  net::UploadBytesElementReader element(base::byte_span_from_cstring(block));
 
   // Expected output.
   base::Value::List values;
@@ -35,25 +36,22 @@ TEST(WebRequestUploadDataPresenterTest, ParsedData) {
   std::unique_ptr<ParsedDataPresenter> parsed_data_presenter(
       ParsedDataPresenter::CreateForTests());
   ASSERT_TRUE(parsed_data_presenter.get() != nullptr);
-  parsed_data_presenter->FeedBytes(
-      base::StringPiece(element.bytes(), element.length()));
+  parsed_data_presenter->FeedBytes(base::as_string_view(element.bytes()));
   EXPECT_TRUE(parsed_data_presenter->Succeeded());
-  absl::optional<base::Value> result = parsed_data_presenter->TakeResult();
+  std::optional<base::Value> result = parsed_data_presenter->TakeResult();
   EXPECT_EQ(result, expected_form);
 }
 
 TEST(WebRequestUploadDataPresenterTest, RawData) {
   // Input.
-  const char block1[] = "test";
-  const size_t block1_size = sizeof(block1) - 1;
+  auto block1 = base::byte_span_from_cstring("test");
   const char kFilename[] = "path/test_filename.ext";
-  const char block2[] = "another test";
-  const size_t block2_size = sizeof(block2) - 1;
+  auto block2 = base::byte_span_from_cstring("another test");
 
   // Expected output.
-  base::Value expected_a(base::as_bytes(base::make_span(block1, block1_size)));
+  base::Value expected_a(block1);
   base::Value expected_b(kFilename);
-  base::Value expected_c(base::as_bytes(base::make_span(block2, block2_size)));
+  base::Value expected_c(block2);
 
   base::Value::List expected_list;
   subtle::AppendKeyValuePair(keys::kRequestBodyRawBytesKey,
@@ -65,11 +63,11 @@ TEST(WebRequestUploadDataPresenterTest, RawData) {
 
   // Real output.
   RawDataPresenter raw_presenter;
-  raw_presenter.FeedNextBytes(block1, block1_size);
+  raw_presenter.FeedNextBytes(block1);
   raw_presenter.FeedNextFile(kFilename);
-  raw_presenter.FeedNextBytes(block2, block2_size);
+  raw_presenter.FeedNextBytes(block2);
   EXPECT_TRUE(raw_presenter.Succeeded());
-  absl::optional<base::Value> result = raw_presenter.TakeResult();
+  std::optional<base::Value> result = raw_presenter.TakeResult();
   EXPECT_EQ(expected_list, result);
 }
 

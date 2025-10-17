@@ -10,6 +10,7 @@
 #include "ash/ash_export.h"
 #include "ash/public/cpp/metrics_util.h"
 #include "ash/public/cpp/shelf_types.h"
+#include "ash/shelf/desk_button_widget.h"
 #include "ash/shelf/shelf_layout_manager_observer.h"
 #include "ash/shelf/shelf_locking_manager.h"
 #include "base/memory/raw_ptr.h"
@@ -68,7 +69,6 @@ T SelectValueByShelfAlignment(ShelfAlignment alignment,
       return right;
   }
   NOTREACHED();
-  return bottom;
 }
 
 bool IsHorizontalAlignment(ShelfAlignment alignment);
@@ -103,7 +103,7 @@ class ASH_EXPORT Shelf : public ShelfLayoutManagerObserver {
     }
 
    private:
-    raw_ptr<Shelf, ExperimentalAsh> shelf_;
+    raw_ptr<Shelf> shelf_;
   };
 
   // Used to disable auto-hide shelf behavior while in scope. Note that
@@ -153,6 +153,7 @@ class ASH_EXPORT Shelf : public ShelfLayoutManagerObserver {
   static void UpdateShelfVisibility();
 
   void CreateNavigationWidget(aura::Window* container);
+  void CreateDeskButtonWidget(aura::Window* container);
   void CreateHotseatWidget(aura::Window* container);
   void CreateStatusAreaWidget(aura::Window* status_container);
   void CreateShelfWidget(aura::Window* root);
@@ -263,6 +264,9 @@ class ASH_EXPORT Shelf : public ShelfLayoutManagerObserver {
   ShelfNavigationWidget* navigation_widget() const {
     return navigation_widget_.get();
   }
+  DeskButtonWidget* desk_button_widget() const {
+    return desk_button_widget_.get();
+  }
   HotseatWidget* hotseat_widget() const { return hotseat_widget_.get(); }
   StatusAreaWidget* status_area_widget() const {
     return status_area_widget_.get();
@@ -284,12 +288,6 @@ class ASH_EXPORT Shelf : public ShelfLayoutManagerObserver {
 
   ShelfFocusCycler* shelf_focus_cycler() { return shelf_focus_cycler_.get(); }
 
-  void set_is_tablet_mode_animation_running(bool value) {
-    is_tablet_mode_animation_running_ = value;
-  }
-  bool is_tablet_mode_animation_running() const {
-    return is_tablet_mode_animation_running_;
-  }
   int auto_hide_lock() const { return auto_hide_lock_; }
   int disable_auto_hide() const { return disable_auto_hide_; }
 
@@ -333,10 +331,11 @@ class ASH_EXPORT Shelf : public ShelfLayoutManagerObserver {
 
   // Layout manager for the shelf container window. Instances are constructed by
   // ShelfWidget and lifetimes are managed by the container windows themselves.
-  raw_ptr<ShelfLayoutManager, ExperimentalAsh> shelf_layout_manager_ = nullptr;
+  raw_ptr<ShelfLayoutManager> shelf_layout_manager_ = nullptr;
 
   // Pointers to shelf components.
   std::unique_ptr<ShelfNavigationWidget> navigation_widget_;
+  std::unique_ptr<DeskButtonWidget> desk_button_widget_;
   std::unique_ptr<HotseatWidget> hotseat_widget_;
   std::unique_ptr<StatusAreaWidget> status_area_widget_;
   // Null during display teardown, see WindowTreeHostManager::DeleteHost() and
@@ -377,14 +376,6 @@ class ASH_EXPORT Shelf : public ShelfLayoutManagerObserver {
   // Shelf to ensure it outlives the Navigation Widget.
   std::unique_ptr<NavigationWidgetAnimationMetricsReporter>
       navigation_widget_metrics_reporter_;
-
-  // True while the animation to enter or exit tablet mode is running. Sometimes
-  // this value is true when the shelf movements are not actually animating
-  // (animation value = 0.0). This is because this is set to true when we
-  // enter/exit tablet mode but the animation is not started until a shelf
-  // OnBoundsChanged is called because of tablet mode. Use this value to sync
-  // the animation for HomeButton.
-  bool is_tablet_mode_animation_running_ = false;
 
   // Used by ScopedAutoHideLock to maintain the state of the lock for auto-hide
   // shelf.

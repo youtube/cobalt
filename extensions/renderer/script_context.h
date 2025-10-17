@@ -12,18 +12,22 @@
 
 #include "base/compiler_specific.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/unguessable_token.h"
 #include "extensions/common/features/feature.h"
 #include "extensions/common/mojom/api_permission_id.mojom-shared.h"
+#include "extensions/common/mojom/context_type.mojom-forward.h"
+#include "extensions/common/mojom/host_id.mojom.h"
+#include "extensions/common/mojom/match_origin_as_fallback.mojom-forward.h"
 #include "extensions/common/permissions/api_permission_set.h"
-#include "extensions/common/script_constants.h"
+#include "extensions/common/stack_frame.h"
 #include "extensions/renderer/module_system.h"
 #include "extensions/renderer/safe_builtins.h"
 #include "third_party/blink/public/web/web_script_execution_callback.h"
 #include "url/gurl.h"
-#include "v8-exception.h"
 #include "v8/include/v8-context.h"
+#include "v8/include/v8-exception.h"
 #include "v8/include/v8-forward.h"
 #include "v8/include/v8-script.h"
 
@@ -54,30 +58,32 @@ class ScriptContext {
 
   ScriptContext(const v8::Local<v8::Context>& context,
                 blink::WebLocalFrame* frame,
+                const mojom::HostID& host_id,
                 const Extension* extension,
-                Feature::Context context_type,
+                std::optional<int> blink_isolated_world_id,
+                mojom::ContextType context_type,
                 const Extension* effective_extension,
-                Feature::Context effective_context_type);
+                mojom::ContextType effective_context_type);
 
   ScriptContext(const ScriptContext&) = delete;
   ScriptContext& operator=(const ScriptContext&) = delete;
 
   ~ScriptContext();
 
-  // Returns whether |url| from any Extension in |extension_set| is sandboxed,
+  // Returns whether `url` from any Extension in `extension_set` is sandboxed,
   // as declared in each Extension's manifest.
   // TODO(kalman): Delete this when crbug.com/466373 is fixed.
   // See comment in HasAccessOrThrowError.
   static bool IsSandboxedPage(const GURL& url);
 
-  // Initializes |module_system| and associates it with this context.
+  // Initializes `module_system` and associates it with this context.
   void SetModuleSystem(std::unique_ptr<ModuleSystem> module_system);
 
   // Clears the WebLocalFrame for this contexts and invalidates the associated
   // ModuleSystem.
   void Invalidate();
 
-  // Registers |observer| to be run when this context is invalidated. Closures
+  // Registers `observer` to be run when this context is invalidated. Closures
   // are run immediately when Invalidate() is called, not in a message loop.
   void AddInvalidationObserver(base::OnceClosure observer);
 
@@ -89,6 +95,8 @@ class ScriptContext {
     return v8::Local<v8::Context>::New(isolate_, v8_context_);
   }
 
+  const mojom::HostID& host_id() const { return host_id_; }
+
   const Extension* extension() const { return extension_.get(); }
 
   const Extension* effective_extension() const {
@@ -97,9 +105,9 @@ class ScriptContext {
 
   blink::WebLocalFrame* web_frame() const { return web_frame_; }
 
-  Feature::Context context_type() const { return context_type_; }
+  mojom::ContextType context_type() const { return context_type_; }
 
-  Feature::Context effective_context_type() const {
+  mojom::ContextType effective_context_type() const {
     return effective_context_type_;
   }
 
@@ -131,10 +139,10 @@ class ScriptContext {
                         v8::Local<v8::Value> argv[],
                         blink::WebScriptExecutionCallback callback);
 
-  // Returns the availability of the API |api_name|.
+  // Returns the availability of the API `api_name`.
   Feature::Availability GetAvailability(const std::string& api_name);
-  // Returns the availability of the API |api_name|.
-  // |check_alias| Whether API that has an alias that is available should be
+  // Returns the availability of the API `api_name`.
+  // `check_alias` Whether API that has an alias that is available should be
   // considered available (even if the API itself is not available).
   Feature::Availability GetAvailability(const std::string& api_name,
                                         CheckAliasStatus check_alias);
@@ -178,9 +186,9 @@ class ScriptContext {
     service_worker_version_id_ = service_worker_version_id;
   }
 
-  // Returns whether the API |api| or any part of the API could be available in
+  // Returns whether the API `api` or any part of the API could be available in
   // this context without taking into account the context's extension.
-  // |check_alias| Whether the API should be considered available if it has an
+  // `check_alias` Whether the API should be considered available if it has an
   // alias that is available.
   bool IsAnyFeatureAvailableToContext(const extensions::Feature& api,
                                       CheckAliasStatus check_alias);
@@ -200,8 +208,8 @@ class ScriptContext {
     ~ScopedFrameDocumentLoader();
 
    private:
-    blink::WebLocalFrame* frame_;
-    blink::WebDocumentLoader* document_loader_;
+    raw_ptr<blink::WebLocalFrame> frame_;
+    raw_ptr<blink::WebDocumentLoader> document_loader_;
   };
 
   // TODO(devlin): Move all these Get*URL*() methods out of here? While they are
@@ -222,10 +230,10 @@ class ScriptContext {
 
   // Used to determine the "effective" URL in context classification, such as to
   // associate an about:blank frame in an extension context with its extension.
-  // If |document_url| is an about: or data: URL, returns the URL of the first
+  // If `document_url` is an about: or data: URL, returns the URL of the first
   // frame without an about: or data: URL that matches the initiator origin.
-  // This may not be the immediate parent. Returns |document_url| if it is not
-  // an about: URL, if |match_about_blank| is false, or if a suitable parent
+  // This may not be the immediate parent. Returns `document_url` if it is not
+  // an about: URL, if `match_about_blank` is false, or if a suitable parent
   // cannot be found.
   // Will not check parent contexts that cannot be accessed (as is the case
   // for sandboxed frames).
@@ -234,17 +242,17 @@ class ScriptContext {
                                                 bool match_about_blank);
 
   // Used to determine the "effective" URL for extension script injection.
-  // If |document_url| is an about: or data: URL, returns the URL of the first
+  // If `document_url` is an about: or data: URL, returns the URL of the first
   // frame without an about: or data: URL that matches the initiator origin.
-  // This may not be the immediate parent. Returns |document_url| if it is not
-  // an about: or data: URL, if |match_origin_as_fallback| is set to not match,
+  // This may not be the immediate parent. Returns `document_url` if it is not
+  // an about: or data: URL, if `match_origin_as_fallback` is set to not match,
   // or if a suitable parent cannot be found.
   // Considers parent contexts that cannot be accessed (as is the case for
   // sandboxed frames).
   static GURL GetEffectiveDocumentURLForInjection(
       blink::WebLocalFrame* frame,
       const GURL& document_url,
-      MatchOriginAsFallbackBehavior match_origin_as_fallback);
+      mojom::MatchOriginAsFallbackBehavior match_origin_as_fallback);
 
   // Grants a set of content capabilities to this context.
   void set_content_capabilities(APIPermissionSet capabilities) {
@@ -258,7 +266,7 @@ class ScriptContext {
   bool HasAPIPermission(mojom::APIPermissionID permission) const;
 
   // Throws an Error in this context's JavaScript context, if this context does
-  // not have access to |name|. Returns true if this context has access (i.e.
+  // not have access to `name`. Returns true if this context has access (i.e.
   // no exception thrown), false if it does not (i.e. an exception was thrown).
   bool HasAccessOrThrowError(const std::string& name);
 
@@ -268,11 +276,14 @@ class ScriptContext {
   // Gets the current stack trace as a multi-line string to be logged.
   std::string GetStackTraceAsString() const;
 
+  // Gets the current stack trace in a structured form instead of a string.
+  std::optional<StackTrace> GetStackTrace(int frame_limit);
+
   // Generate a unique integer value. This is only unique within this instance.
   int32_t GetNextIdFromCounter() { return id_counter++; }
 
-  // Runs |code|, labelling the script that gets created as |name| (the name is
-  // used in the devtools and stack traces). |exception_handler| will be called
+  // Runs `code`, labelling the script that gets created as `name` (the name is
+  // used in the devtools and stack traces). `exception_handler` will be called
   // re-entrantly if an exception is thrown during the script's execution.
   v8::Local<v8::Value> RunScript(
       v8::Local<v8::String> name,
@@ -290,14 +301,25 @@ class ScriptContext {
 
   // The WebLocalFrame associated with this context. This can be NULL because
   // this object can outlive is destroyed asynchronously.
-  blink::WebLocalFrame* web_frame_;
+  raw_ptr<blink::WebLocalFrame> web_frame_;
+
+  // The HostID associated with this context. For extensions, the HostID
+  // HostType should match kExtensions and the ID should match
+  // |extension()->id()|.
+  const mojom::HostID host_id_;
 
   // The extension associated with this context, or NULL if there is none. This
   // might be a hosted app in the case that this context is hosting a web URL.
   scoped_refptr<const Extension> extension_;
 
+  // The ID of the isolated world with which this context is associated, if
+  // any.  This is predominantly set for user script and content script
+  // contexts, but may be set for others, such as when something injects into a
+  // <webview>.
+  const std::optional<int> blink_isolated_world_id_;
+
   // The type of context.
-  Feature::Context context_type_;
+  mojom::ContextType context_type_;
 
   // The effective extension associated with this context, or NULL if there is
   // none. This is different from the above extension if this context is in an
@@ -305,7 +327,7 @@ class ScriptContext {
   scoped_refptr<const Extension> effective_extension_;
 
   // The type of context.
-  Feature::Context effective_context_type_;
+  mojom::ContextType effective_context_type_;
 
   // A globally-unique ID for the script context.
   base::UnguessableToken context_id_;
@@ -323,7 +345,7 @@ class ScriptContext {
   // invalidation.
   std::vector<base::OnceClosure> invalidate_observers_;
 
-  v8::Isolate* isolate_;
+  raw_ptr<v8::Isolate> isolate_;
 
   GURL url_;
 

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/file_manager/io_task_controller.h"
 
+#include <vector>
+
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
@@ -88,6 +90,19 @@ IOTaskId IOTaskController::Add(std::unique_ptr<IOTask> task) {
   return task_id;
 }
 
+void IOTaskController::Pause(IOTaskId task_id, PauseParams params) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  auto it = tasks_.find(task_id);
+  if (it != tasks_.end()) {
+    IOTask* task = it->second.get();
+    task->Pause(std::move(params));
+    NotifyIOTaskObservers(task->progress());
+  } else {
+    LOG(WARNING) << "Failed to pause task: " << task_id << " not found";
+  }
+}
+
 void IOTaskController::Resume(IOTaskId task_id, ResumeParams params) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -95,6 +110,7 @@ void IOTaskController::Resume(IOTaskId task_id, ResumeParams params) {
   if (it != tasks_.end()) {
     IOTask* task = it->second.get();
     task->Resume(std::move(params));
+    NotifyIOTaskObservers(task->progress());
   } else {
     LOG(WARNING) << "Failed to resume task: " << task_id << " not found";
   }
@@ -126,6 +142,21 @@ void IOTaskController::ProgressPausedTasks() {
       NotifyIOTaskObservers(task->progress());
       break;
     }
+  }
+}
+
+void IOTaskController::CompleteWithError(IOTaskId task_id,
+                                         PolicyError policy_error) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  auto it = tasks_.find(task_id);
+  if (it != tasks_.end()) {
+    IOTask* task = it->second.get();
+    task->CompleteWithError(std::move(policy_error));
+    NotifyIOTaskObservers(task->progress());
+    RemoveIOTask(task_id);
+  } else {
+    LOG(WARNING) << "Failed to abort task: " << task_id << " not found";
   }
 }
 
@@ -166,6 +197,18 @@ void IOTaskController::RemoveIOTask(const IOTaskId task_id) {
     GetWakeLock()->CancelWakeLock();
     --wake_lock_counter_for_tests_;
   }
+}
+
+std::vector<std::reference_wrapper<const ProgressStatus>>
+IOTaskController::TaskStatuses() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::vector<std::reference_wrapper<const ProgressStatus>> status_vector;
+  for (auto& it : tasks_) {
+    IOTask* task = it.second.get();
+    status_vector.push_back(task->progress());
+  }
+  return status_vector;
 }
 
 }  // namespace io_task

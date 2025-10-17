@@ -70,53 +70,8 @@ class DiscardsGraphDumpImpl : public discards::mojom::GraphDump,
       const performance_manager::FrameNode* frame_node) override;
   void OnBeforeFrameNodeRemoved(
       const performance_manager::FrameNode* frame_node) override;
-  // Ignored.
-  void OnIsCurrentChanged(
-      const performance_manager::FrameNode* frame_node) override {}
-  // Ignored.
-  void OnNetworkAlmostIdleChanged(
-      const performance_manager::FrameNode* frame_node) override {}
-  // Ignored.
-  void OnFrameLifecycleStateChanged(
-      const performance_manager::FrameNode* frame_node) override {}
   void OnURLChanged(const performance_manager::FrameNode* frame_node,
                     const GURL& previous_value) override;
-  // Ignored.
-  void OnIsAdFrameChanged(
-      const performance_manager::FrameNode* frame_node) override {}
-  // Ignored.
-  void OnFrameIsHoldingWebLockChanged(
-      const performance_manager::FrameNode* frame_node) override {}
-  // Ignored.
-  void OnFrameIsHoldingIndexedDBLockChanged(
-      const performance_manager::FrameNode* frame_node) override {}
-  // Ignored.
-  void OnNonPersistentNotificationCreated(
-      const performance_manager::FrameNode* frame_node) override {}
-  // Ignored.
-  void OnPriorityAndReasonChanged(
-      const performance_manager::FrameNode* frame_node,
-      const performance_manager::PriorityAndReason& previous_value) override {}
-  // Ignored.
-  void OnHadFormInteractionChanged(
-      const performance_manager::FrameNode* frame_node) override {}
-  // Ignored.
-  void OnHadUserEditsChanged(
-      const performance_manager::FrameNode* frame_node) override {}
-  // Ignored.
-  void OnIsAudibleChanged(
-      const performance_manager::FrameNode* frame_node) override {}
-  // Ignored.
-  void OnFirstContentfulPaint(
-      const performance_manager::FrameNode* frame_node,
-      base::TimeDelta time_since_navigation_start) override {}
-  // Ignored.
-  void OnViewportIntersectionChanged(
-      const performance_manager::FrameNode* frame_node) override {}
-  // Ignored.
-  void OnFrameVisibilityChanged(
-      const performance_manager::FrameNode* frame_node,
-      performance_manager::FrameNode::Visibility previous_value) override {}
 
   // PageNodeObserver implementation:
   void OnPageNodeAdded(const performance_manager::PageNode* page_node) override;
@@ -127,61 +82,11 @@ class DiscardsGraphDumpImpl : public discards::mojom::GraphDump,
       const performance_manager::FrameNode* previous_opener) override;
   void OnEmbedderFrameNodeChanged(
       const performance_manager::PageNode* page_node,
-      const performance_manager::FrameNode* previous_embedder,
-      EmbeddingType previous_embedding_type) override;
-  // Ignored.
-  void OnTypeChanged(const performance_manager::PageNode* page_node,
-                     performance_manager::PageType previous_type) override {}
-  // Ignored.
-  void OnIsVisibleChanged(
-      const performance_manager::PageNode* page_node) override {}
-  // Ignored.
-  void OnIsAudibleChanged(
-      const performance_manager::PageNode* page_node) override {}
-  // Ignored.
-  void OnLoadingStateChanged(
-      const performance_manager::PageNode* page_node,
-      performance_manager::PageNode::LoadingState previous_state) override {}
-  // Ignored.
-  void OnUkmSourceIdChanged(
-      const performance_manager::PageNode* page_node) override {}
-  // Ignored.
-  void OnPageLifecycleStateChanged(
-      const performance_manager::PageNode* page_node) override {}
-  // Ignored.
-  void OnPageIsHoldingWebLockChanged(
-      const performance_manager::PageNode* page_node) override {}
-  // Ignored.
-  void OnPageIsHoldingIndexedDBLockChanged(
-      const performance_manager::PageNode* page_node) override {}
+      const performance_manager::FrameNode* previous_embedder) override;
   void OnMainFrameUrlChanged(
       const performance_manager::PageNode* page_node) override;
-  // Ignored.
-  void OnMainFrameDocumentChanged(
-      const performance_manager::PageNode* page_node) override {}
-  // Ignored.
-  void OnHadFormInteractionChanged(
-      const performance_manager::PageNode* page_node) override {}
-  // Ignored
-  void OnHadUserEditsChanged(
-      const performance_manager::PageNode* page_node) override {}
-  // Ignored.
-  void OnTitleUpdated(const performance_manager::PageNode* page_node) override {
-  }
   void OnFaviconUpdated(
       const performance_manager::PageNode* page_node) override;
-  // Ignored.
-  void OnFreezingVoteChanged(
-      const performance_manager::PageNode* page_node,
-      absl::optional<performance_manager::freezing::FreezingVote>) override {}
-  // Ignored.
-  void OnPageStateChanged(
-      const performance_manager::PageNode* page_node,
-      performance_manager::PageNode::PageState old_state) override {}
-  // Ignored.
-  void OnAboutToBeDiscarded(
-      const performance_manager::PageNode* page_node,
-      const performance_manager::PageNode* new_page_node) override {}
 
   // ProcessNodeObserver implementation:
   void OnProcessNodeAdded(
@@ -190,38 +95,32 @@ class DiscardsGraphDumpImpl : public discards::mojom::GraphDump,
       const performance_manager::ProcessNode* process_node) override;
   void OnBeforeProcessNodeRemoved(
       const performance_manager::ProcessNode* process_node) override;
-  // Ignored.
-  void OnMainThreadTaskLoadIsLow(
-      const performance_manager::ProcessNode* process_node) override {}
-  // Ignored.
-  void OnAllFramesInProcessFrozen(
-      const performance_manager::ProcessNode* process_node) override {}
-  void OnPriorityChanged(const performance_manager::ProcessNode* process_node,
-                         base::TaskPriority previous_value) override {}
 
-  // performance_manager::WorkerNodeObserver implementation:
+  // WorkerNodeObserver implementation:
   void OnWorkerNodeAdded(
       const performance_manager::WorkerNode* worker_node) override;
   void OnBeforeWorkerNodeRemoved(
       const performance_manager::WorkerNode* worker_node) override;
   void OnFinalResponseURLDetermined(
       const performance_manager::WorkerNode* worker_node) override;
+  void OnBeforeClientFrameAdded(
+      const performance_manager::WorkerNode* worker_node,
+      const performance_manager::FrameNode* client_frame_node) override;
   void OnClientFrameAdded(
       const performance_manager::WorkerNode* worker_node,
       const performance_manager::FrameNode* client_frame_node) override;
   void OnBeforeClientFrameRemoved(
       const performance_manager::WorkerNode* worker_node,
       const performance_manager::FrameNode* client_frame_node) override;
+  void OnBeforeClientWorkerAdded(
+      const performance_manager::WorkerNode* worker_node,
+      const performance_manager::WorkerNode* client_worker_node) override;
   void OnClientWorkerAdded(
       const performance_manager::WorkerNode* worker_node,
       const performance_manager::WorkerNode* client_worker_node) override;
   void OnBeforeClientWorkerRemoved(
       const performance_manager::WorkerNode* worker_node,
       const performance_manager::WorkerNode* client_worker_node) override;
-  // Ignored.
-  void OnPriorityAndReasonChanged(
-      const performance_manager::WorkerNode* worker_node,
-      const performance_manager::PriorityAndReason& previous_value) override {}
 
  private:
   // The favicon requests happen on the UI thread. This helper class
@@ -264,8 +163,6 @@ class DiscardsGraphDumpImpl : public discards::mojom::GraphDump,
 
   static void OnConnectionError(DiscardsGraphDumpImpl* impl);
 
-  raw_ptr<performance_manager::Graph> graph_ = nullptr;
-
   // Helper that requests favicons on the UI thread. Initialized to null to
   // avoid posting an initialization task to the UI thread during startup.
   // Access this through EnsureFaviconRequestHelper to initialize it on first
@@ -274,11 +171,13 @@ class DiscardsGraphDumpImpl : public discards::mojom::GraphDump,
 
   // The live nodes and their IDs.
   base::flat_map<const performance_manager::Node*, NodeId> node_ids_;
-  base::flat_map<NodeId, const performance_manager::Node*> nodes_by_id_;
+  base::flat_map<NodeId,
+                 raw_ptr<const performance_manager::Node, CtnExperimental>>
+      nodes_by_id_;
   NodeId::Generator node_id_generator_;
 
   // The current change subscriber to this dumper. This instance is subscribed
-  // to every node in |graph_| save for the system node, so long as there is a
+  // to every node in the graph save for the system node, so long as there is a
   // subscriber.
   mojo::Remote<discards::mojom::GraphChangeStream> change_subscriber_;
   mojo::Receiver<discards::mojom::GraphDump> receiver_{this};

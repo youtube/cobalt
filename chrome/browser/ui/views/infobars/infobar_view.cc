@@ -25,20 +25,24 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/theme_provider.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_palette.h"
+#include "ui/gfx/color_utils.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/native_theme/common_theme.h"
 #include "ui/native_theme/native_theme.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
 #include "ui/views/controls/button/label_button_border.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/button/menu_button.h"
+#include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/link.h"
@@ -52,11 +56,9 @@
 
 namespace {
 
-constexpr int kSeparatorHeightDip = 1;
-
 int GetElementSpacing() {
   return ChromeLayoutProvider::Get()->GetDistanceMetric(
-      DISTANCE_UNRELATED_CONTROL_HORIZONTAL);
+      views::DISTANCE_UNRELATED_CONTROL_HORIZONTAL);
 }
 
 gfx::Insets GetCloseButtonSpacing() {
@@ -71,8 +73,10 @@ gfx::Insets GetCloseButtonSpacing() {
 
 }  // namespace
 
-
 // InfoBarView ----------------------------------------------------------------
+
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(InfoBarView, kInfoBarElementId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(InfoBarView, kDismissButtonElementId);
 
 InfoBarView::InfoBarView(std::unique_ptr<infobars::InfoBarDelegate> delegate)
     : infobars::InfoBar(std::move(delegate)),
@@ -82,7 +86,8 @@ InfoBarView::InfoBarView(std::unique_ptr<infobars::InfoBarDelegate> delegate)
               gfx::AnimationDelegateNotifier<views::AnimationDelegateViews>>(
       this, this));
 
-  set_owned_by_client();  // InfoBar deletes itself at the appropriate time.
+  set_owned_by_client(OwnedByClientPassKey());  // InfoBar deletes itself at the
+                                                // appropriate time.
 
   // Clip child layers; without this, buttons won't look correct during
   // animation.
@@ -99,7 +104,7 @@ InfoBarView::InfoBarView(std::unique_ptr<infobars::InfoBarDelegate> delegate)
         gfx::Insets::VH(ChromeLayoutProvider::Get()->GetDistanceMetric(
                             DISTANCE_TOAST_LABEL_VERTICAL),
                         0));
-    AddChildView(icon_.get());
+    AddChildViewRaw(icon_.get());
   }
 
   if (this->delegate()->IsCloseable()) {
@@ -108,7 +113,7 @@ InfoBarView::InfoBarView(std::unique_ptr<infobars::InfoBarDelegate> delegate)
     // This is the wrong color, but allows the button's size to be computed
     // correctly.  We'll reset this with the correct color in OnThemeChanged().
     views::SetImageFromVectorIconWithColor(
-        close_button.get(), vector_icons::kCloseRoundedIcon,
+        close_button.get(), vector_icons::kCloseChromeRefreshIcon,
         gfx::kPlaceholderColor, gfx::kPlaceholderColor);
     close_button->SetTooltipText(l10n_util::GetStringUTF16(IDS_ACCNAME_CLOSE));
     gfx::Insets close_button_spacing = GetCloseButtonSpacing();
@@ -117,7 +122,18 @@ InfoBarView::InfoBarView(std::unique_ptr<infobars::InfoBarDelegate> delegate)
         gfx::Insets::TLBR(close_button_spacing.top(), 0,
                           close_button_spacing.bottom(), 0));
     close_button_ = AddChildView(std::move(close_button));
+    close_button_->SetProperty(views::kElementIdentifierKey,
+                               kDismissButtonElementId);
+
+    InstallCircleHighlightPathGenerator(close_button_);
   }
+
+  SetTargetHeight(
+      ChromeLayoutProvider::Get()->GetDistanceMetric(DISTANCE_INFOBAR_HEIGHT));
+
+  GetViewAccessibility().SetRole(ax::mojom::Role::kAlertDialog);
+  GetViewAccessibility().SetName(l10n_util::GetStringUTF8(IDS_ACCNAME_INFOBAR));
+  GetViewAccessibility().SetKeyShortcuts("Alt+Shift+A");
 }
 
 InfoBarView::~InfoBarView() {
@@ -127,18 +143,7 @@ InfoBarView::~InfoBarView() {
   DCHECK(!menu_runner_.get());
 }
 
-void InfoBarView::RecalculateHeight() {
-  // Ensure the infobar is tall enough to display its contents.
-  int height = 0;
-  for (View* child : children()) {
-    const gfx::Insets* const margins = child->GetProperty(views::kMarginsKey);
-    const int margin_height = margins ? margins->height() : 0;
-    height = std::max(height, child->height() + margin_height);
-  }
-  SetTargetHeight(height + kSeparatorHeightDip);
-}
-
-void InfoBarView::Layout() {
+void InfoBarView::Layout(PassKey) {
   const int spacing = GetElementSpacing();
   int start_x = 0;
   if (icon_) {
@@ -147,8 +152,9 @@ void InfoBarView::Layout() {
   }
 
   const int content_minimum_width = GetContentMinimumWidth();
-  if (content_minimum_width > 0)
+  if (content_minimum_width > 0) {
     start_x += spacing + content_minimum_width;
+  }
 
   if (close_button_) {
     const gfx::Insets close_button_spacing = GetCloseButtonSpacing();
@@ -164,23 +170,19 @@ void InfoBarView::Layout() {
   }
 }
 
-void InfoBarView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  node_data->role = ax::mojom::Role::kAlertDialog;
-  node_data->SetNameChecked(l10n_util::GetStringUTF8(IDS_ACCNAME_INFOBAR));
-  node_data->AddStringAttribute(ax::mojom::StringAttribute::kKeyShortcuts,
-                                "Alt+Shift+A");
-}
-
-gfx::Size InfoBarView::CalculatePreferredSize() const {
+gfx::Size InfoBarView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   int width = 0;
 
   const int spacing = GetElementSpacing();
-  if (icon_)
+  if (icon_) {
     width += spacing + icon_->width();
+  }
 
   const int content_width = GetContentMinimumWidth();
-  if (content_width)
+  if (content_width) {
     width += spacing + content_width;
+  }
 
   const int trailing_space =
       close_button_ ? GetCloseButtonSpacing().width() + close_button_->width()
@@ -193,22 +195,12 @@ void InfoBarView::ViewHierarchyChanged(
   View::ViewHierarchyChanged(details);
 
   // Anything that needs to happen once after all subclasses add their children.
-  if (details.is_add && (details.child == this)) {
-    if (close_button_)
-      ReorderChildView(close_button_, children().size());
-    RecalculateHeight();
+  // TODO(330923783): Create a container for info bar subclasses to add children
+  // to, so that we don't have to move the close button to the end every time a
+  // child is added.
+  if (details.is_add && (details.child == this) && close_button_) {
+    ReorderChildView(close_button_, children().size());
   }
-}
-
-void InfoBarView::OnPaint(gfx::Canvas* canvas) {
-  views::View::OnPaint(canvas);
-
-  const SkColor color =
-      GetColorProvider()->GetColor(kColorInfoBarContentAreaSeparator);
-  const gfx::RectF local_bounds(GetLocalBounds());
-  const gfx::Vector2d separator_offset(0, kSeparatorHeightDip);
-  canvas->DrawSharpLine(local_bounds.bottom_left() - separator_offset,
-                        local_bounds.bottom_right() - separator_offset, color);
 }
 
 void InfoBarView::OnThemeChanged() {
@@ -222,9 +214,9 @@ void InfoBarView::OnThemeChanged() {
   const SkColor icon_disabled_color =
       cp->GetColor(kColorInfoBarButtonIconDisabled);
   if (close_button_) {
-    views::SetImageFromVectorIconWithColor(close_button_,
-                                           vector_icons::kCloseRoundedIcon,
-                                           icon_color, icon_disabled_color);
+    views::SetImageFromVectorIconWithColor(
+        close_button_, vector_icons::kCloseChromeRefreshIcon, icon_color,
+        icon_disabled_color);
   }
 
   for (views::View* child : children()) {
@@ -238,8 +230,13 @@ void InfoBarView::OnThemeChanged() {
     }
   }
 
-  // Native theme changes can affect font sizes.
-  RecalculateHeight();
+  // Set dark mode status so that it can be used to set a different icon image
+  // that is more suitable for a dark background.
+  delegate()->set_dark_mode(
+      color_utils::IsDark(cp->GetColor(kColorInfoBarBackground)));
+  if (icon_) {
+    icon_->SetImage(delegate()->GetIcon());
+  }
 }
 
 void InfoBarView::OnWillChangeFocus(View* focused_before, View* focused_now) {
@@ -249,7 +246,7 @@ void InfoBarView::OnWillChangeFocus(View* focused_before, View* focused_now) {
   // infobar.
   if (focused_before && focused_now && !Contains(focused_before) &&
       Contains(focused_now)) {
-    NotifyAccessibilityEvent(ax::mojom::Event::kAlert, true);
+    NotifyAccessibilityEventDeprecated(ax::mojom::Event::kAlert, true);
   }
 }
 
@@ -310,7 +307,7 @@ void InfoBarView::PlatformSpecificShow(bool animate) {
   // that if we gain focus we'll know what the previously-focused element was.
   SetFocusManager(GetFocusManager());
 
-  NotifyAccessibilityEvent(ax::mojom::Event::kAlert, true);
+  NotifyAccessibilityEventDeprecated(ax::mojom::Event::kAlert, true);
 }
 
 void InfoBarView::PlatformSpecificHide(bool animate) {
@@ -324,14 +321,16 @@ void InfoBarView::PlatformSpecificHide(bool animate) {
   // false); in this case the second SetFocusManager() call will silently no-op.
   SetFocusManager(nullptr);
 
-  if (!animate)
+  if (!animate) {
     return;
+  }
 
   // Do not restore focus (and active state with it) if some other top-level
   // window became active.
   views::Widget* widget = GetWidget();
-  if (!widget || widget->IsActive())
+  if (!widget || widget->IsActive()) {
     FocusLastFocusedExternalView();
+  }
 }
 
 void InfoBarView::PlatformSpecificOnHeightRecalculated() {
@@ -342,8 +341,9 @@ void InfoBarView::PlatformSpecificOnHeightRecalculated() {
 
 // static
 void InfoBarView::AssignWidthsSorted(Views* views, int available_width) {
-  if (views->empty())
+  if (views->empty()) {
     return;
+  }
   gfx::Size back_view_size(views->back()->GetPreferredSize());
   back_view_size.set_width(
       std::min(back_view_size.width(),
@@ -364,20 +364,23 @@ void InfoBarView::SetLabelDetails(views::Label* label) const {
 }
 
 void InfoBarView::LinkClicked(const ui::Event& event) {
-  if (!owner())
+  if (!owner()) {
     return;  // We're closing; don't call anything, it might access the owner.
-  if (delegate()->LinkClicked(ui::DispositionFromEventFlags(event.flags())))
+  }
+  if (delegate()->LinkClicked(ui::DispositionFromEventFlags(event.flags()))) {
     RemoveSelf();
+  }
 }
 
 void InfoBarView::CloseButtonPressed() {
-  if (!owner())
+  if (!owner()) {
     return;  // We're closing; don't call anything, it might access the owner.
+  }
   delegate()->InfoBarDismissed();
   RemoveSelf();
 }
 
-BEGIN_METADATA(InfoBarView, views::View)
+BEGIN_METADATA(InfoBarView)
 ADD_READONLY_PROPERTY_METADATA(int, ContentMinimumWidth)
 ADD_READONLY_PROPERTY_METADATA(int, StartX)
 ADD_READONLY_PROPERTY_METADATA(int, EndX)

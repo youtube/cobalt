@@ -60,8 +60,11 @@ class MediaEngagementService : public KeyedService,
   // Returns the engagement score of |origin|.
   double GetEngagementScore(const url::Origin& origin) const;
 
-  // Returns true if |origin| has an engagement score considered high.
-  bool HasHighEngagement(const url::Origin& origin) const;
+  // Returns true if `origin` has an engagement score considered high.
+  // Otherwise, check the global data (`MediaEngagementPreloadedList`) if the
+  // `kPreloadMediaEngagementData` feature flag is enabled and the number of
+  // visits is less than the number of visits required to have an MEI score.
+  virtual bool HasHighEngagement(const url::Origin& origin) const;
 
   // Returns a map of all stored origins and their engagement levels.
   std::map<url::Origin, double> GetScoreMapForTesting() const;
@@ -75,8 +78,8 @@ class MediaEngagementService : public KeyedService,
       const;
 
   // Overridden from history::HistoryServiceObserver:
-  void OnURLsDeleted(history::HistoryService* history_service,
-                     const history::DeletionInfo& deletion_info) override;
+  void OnHistoryDeletions(history::HistoryService* history_service,
+                          const history::DeletionInfo& deletion_info) override;
 
   // KeyedService support:
   void Shutdown() override;
@@ -111,10 +114,11 @@ class MediaEngagementService : public KeyedService,
   // engagement is only earned for HTTP and HTTPS.
   bool ShouldRecordEngagement(const url::Origin& origin) const;
 
-  base::flat_map<content::WebContents*, MediaEngagementContentsObserver*>
+  base::flat_map<content::WebContents*,
+                 raw_ptr<MediaEngagementContentsObserver, CtnExperimental>>
       contents_observers_;
 
-  raw_ptr<Profile> profile_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
 
   // Clear any data for a specific origin.
   void Clear(const url::Origin& origin);

@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/inspector/inspector_issue_conversion.h"
 
+#include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/inspector/inspector_issue.h"
 #include "third_party/blink/renderer/core/inspector/protocol/audits.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -23,11 +24,10 @@ std::unique_ptr<protocol::Audits::AffectedCookie> BuildAffectedCookie(
 
 std::unique_ptr<protocol::Audits::AffectedRequest> BuildAffectedRequest(
     const mojom::blink::AffectedRequestPtr& request) {
-  auto protocol_request = protocol::Audits::AffectedRequest::create()
-                              .setRequestId(request->request_id)
-                              .build();
-  if (!request->url.empty()) {
-    protocol_request->setUrl(request->url);
+  auto protocol_request =
+      protocol::Audits::AffectedRequest::create().setUrl(request->url).build();
+  if (!request->request_id.empty()) {
+    protocol_request->setRequestId(request->request_id);
   }
   return protocol_request;
 }
@@ -53,25 +53,21 @@ blink::protocol::String InspectorIssueCodeValue(
           ContentSecurityPolicyIssue;
     case mojom::blink::InspectorIssueCode::kSharedArrayBufferIssue:
       return protocol::Audits::InspectorIssueCodeEnum::SharedArrayBufferIssue;
-    case mojom::blink::InspectorIssueCode::kTrustedWebActivityIssue:
-      CHECK(false);
-      return "";
-    case mojom::blink::InspectorIssueCode::kHeavyAdIssue:
-      CHECK(false);
-      return "";
     case mojom::blink::InspectorIssueCode::kLowTextContrastIssue:
       return protocol::Audits::InspectorIssueCodeEnum::LowTextContrastIssue;
+    case mojom::blink::InspectorIssueCode::kUserReidentificationIssue:
+      return protocol::Audits::InspectorIssueCodeEnum::
+          UserReidentificationIssue;
+    case mojom::blink::InspectorIssueCode::kHeavyAdIssue:
     case mojom::blink::InspectorIssueCode::kFederatedAuthRequestIssue:
-      CHECK(false);
-      return "";
+    case mojom::blink::InspectorIssueCode::kFederatedAuthUserInfoRequestIssue:
     case mojom::blink::InspectorIssueCode::kBounceTrackingIssue:
-      NOTREACHED_NORETURN();
+    case mojom::blink::InspectorIssueCode::kPartitioningBlobURLIssue:
+    case mojom::blink::InspectorIssueCode::kCookieDeprecationMetadataIssue:
     case mojom::blink::InspectorIssueCode::kGenericIssue:
-      NOTREACHED();
-      return "";
     case mojom::blink::InspectorIssueCode::kDeprecationIssue:
+    case mojom::blink::InspectorIssueCode::kAttributionReportingIssue:
       NOTREACHED();
-      return "";
   }
 }
 
@@ -92,6 +88,13 @@ protocol::String BuildCookieExclusionReason(
       return protocol::Audits::CookieExclusionReasonEnum::ExcludeSameSiteStrict;
     case blink::mojom::blink::CookieExclusionReason::kExcludeDomainNonASCII:
       return protocol::Audits::CookieExclusionReasonEnum::ExcludeDomainNonASCII;
+    case blink::mojom::blink::CookieExclusionReason::kExcludeThirdPartyPhaseout:
+      return protocol::Audits::CookieExclusionReasonEnum::
+          ExcludeThirdPartyPhaseout;
+    case blink::mojom::blink::CookieExclusionReason::kExcludePortMismatch:
+      return protocol::Audits::CookieExclusionReasonEnum::ExcludePortMismatch;
+    case blink::mojom::blink::CookieExclusionReason::kExcludeSchemeMismatch:
+      return protocol::Audits::CookieExclusionReasonEnum::ExcludeSchemeMismatch;
   }
 }
 
@@ -146,6 +149,12 @@ protocol::String BuildCookieWarningReason(
           WarnAttributeValueExceedsMaxSize;
     case blink::mojom::blink::CookieWarningReason::kWarnDomainNonASCII:
       return protocol::Audits::CookieWarningReasonEnum::WarnDomainNonASCII;
+    case blink::mojom::blink::CookieWarningReason::kWarnThirdPartyPhaseout:
+      return protocol::Audits::CookieWarningReasonEnum::WarnThirdPartyPhaseout;
+    case blink::mojom::blink::CookieWarningReason::
+        kWarnCrossSiteRedirectDowngradeChangesInclusion:
+      return protocol::Audits::CookieWarningReasonEnum::
+          WarnCrossSiteRedirectDowngradeChangesInclusion;
   }
 }
 
@@ -222,6 +231,10 @@ protocol::String BuildMixedContentResourceType(
       return protocol::Audits::MixedContentResourceTypeEnum::Image;
     case blink::mojom::blink::RequestContextType::INTERNAL:
       return protocol::Audits::MixedContentResourceTypeEnum::Resource;
+    case blink::mojom::blink::RequestContextType::JSON:
+      // TODO(crbug.com/1511738): Consider adding a type
+      // specific to JSON modules requests
+      return protocol::Audits::MixedContentResourceTypeEnum::Resource;
     case blink::mojom::blink::RequestContextType::LOCATION:
       return protocol::Audits::MixedContentResourceTypeEnum::Resource;
     case blink::mojom::blink::RequestContextType::MANIFEST:
@@ -240,6 +253,8 @@ protocol::String BuildMixedContentResourceType(
       return protocol::Audits::MixedContentResourceTypeEnum::ServiceWorker;
     case blink::mojom::blink::RequestContextType::SHARED_WORKER:
       return protocol::Audits::MixedContentResourceTypeEnum::SharedWorker;
+    case blink::mojom::blink::RequestContextType::SPECULATION_RULES:
+      return protocol::Audits::MixedContentResourceTypeEnum::SpeculationRules;
     case blink::mojom::blink::RequestContextType::STYLE:
       return protocol::Audits::MixedContentResourceTypeEnum::Stylesheet;
     case blink::mojom::blink::RequestContextType::SUBRESOURCE:
@@ -278,8 +293,20 @@ protocol::String BuildBlockedByResponseReason(
         kCorpNotSameOriginAfterDefaultedToSameOriginByCoep:
       return protocol::Audits::BlockedByResponseReasonEnum::
           CorpNotSameOriginAfterDefaultedToSameOriginByCoep;
+    case network::mojom::blink::BlockedByResponseReason::
+        kCorpNotSameOriginAfterDefaultedToSameOriginByDip:
+      return protocol::Audits::BlockedByResponseReasonEnum::
+          CorpNotSameOriginAfterDefaultedToSameOriginByDip;
+    case network::mojom::blink::BlockedByResponseReason::
+        kCorpNotSameOriginAfterDefaultedToSameOriginByCoepAndDip:
+      return protocol::Audits::BlockedByResponseReasonEnum::
+          CorpNotSameOriginAfterDefaultedToSameOriginByCoepAndDip;
     case network::mojom::blink::BlockedByResponseReason::kCorpNotSameSite:
       return protocol::Audits::BlockedByResponseReasonEnum::CorpNotSameSite;
+    case network::mojom::blink::BlockedByResponseReason::
+        kSRIMessageSignatureMismatch:
+      return protocol::Audits::BlockedByResponseReasonEnum::
+          SRIMessageSignatureMismatch;
   }
 }
 
@@ -301,6 +328,9 @@ protocol::String BuildViolationType(
     case blink::mojom::blink::ContentSecurityPolicyViolationType::kURLViolation:
       return protocol::Audits::ContentSecurityPolicyViolationTypeEnum::
           KURLViolation;
+    case blink::mojom::blink::ContentSecurityPolicyViolationType::kSRIViolation:
+      return protocol::Audits::ContentSecurityPolicyViolationTypeEnum::
+          KSRIViolation;
     case blink::mojom::blink::ContentSecurityPolicyViolationType::
         kTrustedTypesSinkViolation:
       return protocol::Audits::ContentSecurityPolicyViolationTypeEnum::

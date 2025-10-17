@@ -4,12 +4,12 @@
 
 #include "chromeos/ash/services/quick_pair/public/mojom/fast_pair_traits.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
-#include "base/ranges/algorithm.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace mojo {
 
@@ -30,8 +30,14 @@ bool StructTraits<DecryptedResponseDataView, DecryptedResponse>::Read(
           data.message_type(), &out->message_type))
     return false;
 
-  base::ranges::copy(address_bytes, out->address_bytes.begin());
-  base::ranges::copy(salt_bytes, out->salt.begin());
+  if (!data.ReadSecondaryAddressBytes(&out->secondary_address_bytes)) {
+    return false;
+  }
+
+  std::ranges::copy(address_bytes, out->address_bytes.begin());
+  std::ranges::copy(salt_bytes, out->salt.begin());
+  out->flags = data.flags();
+  out->num_addresses = data.num_addresses();
 
   return true;
 }
@@ -49,7 +55,7 @@ bool StructTraits<DecryptedPasskeyDataView, DecryptedPasskey>::Read(
     return false;
 
   out->passkey = data.passkey();
-  base::ranges::copy(salt_bytes, out->salt.begin());
+  std::ranges::copy(salt_bytes, out->salt.begin());
 
   return true;
 }
@@ -100,8 +106,8 @@ bool StructTraits<BatteryInfoDataView, BatteryInfo>::Read(
 
   out->is_charging = data.is_charging();
   out->percentage = data.percentage() == -1
-                        ? absl::nullopt
-                        : absl::make_optional(data.percentage());
+                        ? std::nullopt
+                        : std::make_optional(data.percentage());
 
   return true;
 }

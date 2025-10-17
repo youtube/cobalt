@@ -7,15 +7,17 @@
 
 #include <windows.h>
 
+#include <optional>
 #include <string>
 
 #include "base/component_export.h"
+#include "base/containers/flat_set.h"
 #include "device/fido/authenticator_get_assertion_response.h"
 #include "device/fido/authenticator_make_credential_response.h"
 #include "device/fido/ctap_get_assertion_request.h"
+#include "device/fido/fido_authenticator.h"
 #include "device/fido/fido_constants.h"
 #include "device/fido/fido_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/microsoft_webauthn/webauthn.h"
 
 namespace device {
@@ -25,12 +27,12 @@ enum class GetAssertionStatus;
 enum class MakeCredentialStatus;
 
 COMPONENT_EXPORT(DEVICE_FIDO)
-absl::optional<AuthenticatorMakeCredentialResponse>
+std::optional<AuthenticatorMakeCredentialResponse>
 ToAuthenticatorMakeCredentialResponse(
     const WEBAUTHN_CREDENTIAL_ATTESTATION& credential_attestation);
 
 COMPONENT_EXPORT(DEVICE_FIDO)
-absl::optional<AuthenticatorGetAssertionResponse>
+std::optional<AuthenticatorGetAssertionResponse>
 ToAuthenticatorGetAssertionResponse(
     const WEBAUTHN_ASSERTION& credential_attestation,
     const CtapGetAssertionOptions& request_options);
@@ -54,34 +56,18 @@ std::vector<WEBAUTHN_CREDENTIAL_EX> ToWinCredentialExVector(
 COMPONENT_EXPORT(DEVICE_FIDO)
 uint32_t ToWinLargeBlobSupport(LargeBlobSupport large_blob_support);
 
-// WinErrorNameToCtapDeviceResponseCode maps a string returned by
-// WebAuthNGetErrorName() to a CtapDeviceResponseCode.
-//
-// The Windows WebAuthn API returns errors as defined by the WebAuthn spec,
-// whereas FidoAuthenticator callbacks generally resolve with a
-// CtapDeviceResponseCode. This method hence yields a "synthetic"
-// CtapDeviceResponseCode that can then be mapped to the corresponding
-// {MakeCredential,GetAssertion}Status by calling
-// WinCtapDeviceResponseCodeTo{MakeCredential,GetAssertion}Status().
+// WinErrorNameToMakeCredentialStatus maps a string returned by
+// WebAuthNGetErrorName() to a MakeCredentialStatus.
 COMPONENT_EXPORT(DEVICE_FIDO)
-CtapDeviceResponseCode WinErrorNameToCtapDeviceResponseCode(
-    const std::u16string& error_name);
+MakeCredentialStatus WinErrorNameToMakeCredentialStatus(
+    std::u16string_view error_name);
 
-// WinCtapDeviceResponseCodeToMakeCredentialStatus returns the
-// MakeCredentialStatus that corresponds to a synthetic CtapDeviceResponseCode
-// obtained from WinErrorNameToCtapDeviceResponseCode(). Return values are one
-// of {kSuccess, kWinInvalidStateError, kWinNotAllowedError}.
+// WinErrorNameToGetAssertionStatus maps a string returned by
+// WebAuthNGetErrorName() to a GetAssertionStatus.
 COMPONENT_EXPORT(DEVICE_FIDO)
-MakeCredentialStatus WinCtapDeviceResponseCodeToMakeCredentialStatus(
-    CtapDeviceResponseCode status);
 
-// WinCtapDeviceResponseCodeToGetAssertionStatus returns the GetAssertionStatus
-// that corresponds to a synthetic CtapDeviceResponseCode obtained from
-// WinErrorNameToCtapDeviceResponseCode(). Return values are one of {kSuccess,
-// kWinNotAllowedError}.
-COMPONENT_EXPORT(DEVICE_FIDO)
-GetAssertionStatus WinCtapDeviceResponseCodeToGetAssertionStatus(
-    CtapDeviceResponseCode status);
+GetAssertionStatus WinErrorNameToGetAssertionStatus(
+    std::u16string_view error_name);
 
 COMPONENT_EXPORT(DEVICE_FIDO)
 uint32_t ToWinAttestationConveyancePreference(
@@ -92,6 +78,14 @@ COMPONENT_EXPORT(DEVICE_FIDO)
 std::vector<DiscoverableCredentialMetadata>
 WinCredentialDetailsListToCredentialMetadata(
     const WEBAUTHN_CREDENTIAL_DETAILS_LIST& credentials);
+
+COMPONENT_EXPORT(DEVICE_FIDO)
+std::optional<FidoTransportProtocol> FromWinTransportsMask(
+    const DWORD transport);
+
+COMPONENT_EXPORT(DEVICE_FIDO)
+uint32_t ToWinTransportsMask(
+    const base::flat_set<FidoTransportProtocol>& transports);
 
 }  // namespace device
 

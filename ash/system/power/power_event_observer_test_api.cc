@@ -16,6 +16,11 @@ PowerEventObserverTestApi::PowerEventObserverTestApi(
 
 PowerEventObserverTestApi::~PowerEventObserverTestApi() = default;
 
+void PowerEventObserverTestApi::SendLidEvent(
+    chromeos::PowerManagerClient::LidState state) {
+  power_event_observer_->LidEventReceived(state, base::TimeTicks::Now());
+}
+
 void PowerEventObserverTestApi::CompositingDidCommit(
     ui::Compositor* compositor) {
   if (!power_event_observer_->compositor_watcher_.get())
@@ -31,10 +36,12 @@ void PowerEventObserverTestApi::CompositingStarted(ui::Compositor* compositor) {
       compositor, base::TimeTicks());
 }
 
-void PowerEventObserverTestApi::CompositingEnded(ui::Compositor* compositor) {
+void PowerEventObserverTestApi::CompositingAckDeprecated(
+    ui::Compositor* compositor) {
   if (!power_event_observer_->compositor_watcher_.get())
     return;
-  power_event_observer_->compositor_watcher_->OnCompositingEnded(compositor);
+  power_event_observer_->compositor_watcher_->OnCompositingAckDeprecated(
+      compositor);
 }
 
 void PowerEventObserverTestApi::CompositeFrame(ui::Compositor* compositor) {
@@ -44,7 +51,8 @@ void PowerEventObserverTestApi::CompositeFrame(ui::Compositor* compositor) {
       compositor);
   power_event_observer_->compositor_watcher_->OnCompositingStarted(
       compositor, base::TimeTicks());
-  power_event_observer_->compositor_watcher_->OnCompositingEnded(compositor);
+  power_event_observer_->compositor_watcher_->OnCompositingAckDeprecated(
+      compositor);
 }
 
 bool PowerEventObserverTestApi::SimulateCompositorsReadyForSuspend() {

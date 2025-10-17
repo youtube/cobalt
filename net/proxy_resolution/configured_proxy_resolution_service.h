@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -29,7 +30,6 @@
 #include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/proxy_resolution/proxy_resolver.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace base {
@@ -131,13 +131,6 @@ class NET_EXPORT ConfiguredProxyResolutionService
                    const NetLogWithSource& net_log) override;
 
   // ProxyResolutionService
-  bool MarkProxiesAsBadUntil(
-      const ProxyInfo& results,
-      base::TimeDelta retry_delay,
-      const std::vector<ProxyServer>& additional_bad_proxies,
-      const NetLogWithSource& net_log) override;
-
-  // ProxyResolutionService
   void ReportSuccess(const ProxyInfo& proxy_info) override;
 
   // Sets the PacFileFetcher and DhcpPacFileFetcher dependencies. This
@@ -154,12 +147,12 @@ class NET_EXPORT ConfiguredProxyResolutionService
   void OnShutdown() override;
 
   // Returns the last configuration fetched from ProxyConfigService.
-  const absl::optional<ProxyConfigWithAnnotation>& fetched_config() const {
+  const std::optional<ProxyConfigWithAnnotation>& fetched_config() const {
     return fetched_config_;
   }
 
   // Returns the current configuration being used by ProxyConfigService.
-  const absl::optional<ProxyConfigWithAnnotation>& config() const {
+  const std::optional<ProxyConfigWithAnnotation>& config() const {
     return config_;
   }
 
@@ -226,6 +219,13 @@ class NET_EXPORT ConfiguredProxyResolutionService
       const std::string& pac_string,
       const NetworkTrafficAnnotationTag& traffic_annotation);
 
+  // This method is used by tests to create a ConfiguredProxyResolutionService
+  // that returns a proxy fallback list (|proxy_chain|) for every URL.
+  static std::unique_ptr<ConfiguredProxyResolutionService>
+  CreateFixedFromProxyChainsForTest(
+      const std::vector<ProxyChain>& proxy_chains,
+      const NetworkTrafficAnnotationTag& traffic_annotation);
+
   // This method should only be used by unit tests.
   void set_stall_proxy_auto_config_delay(base::TimeDelta delay) {
     stall_proxy_auto_config_delay_ = delay;
@@ -252,7 +252,8 @@ class NET_EXPORT ConfiguredProxyResolutionService
   class InitProxyResolver;
   class PacFileDeciderPoller;
 
-  typedef std::set<ConfiguredProxyResolutionRequest*> PendingRequests;
+  typedef std::set<raw_ptr<ConfiguredProxyResolutionRequest, SetExperimental>>
+      PendingRequests;
 
   enum State {
     STATE_NONE,
@@ -306,11 +307,13 @@ class NET_EXPORT ConfiguredProxyResolutionService
   // Called when proxy resolution has completed (either synchronously or
   // asynchronously). Handles logging the result, and cleaning out
   // bad entries from the results list.
-  int DidFinishResolvingProxy(const GURL& url,
-                              const std::string& method,
-                              ProxyInfo* result,
-                              int result_code,
-                              const NetLogWithSource& net_log);
+  int DidFinishResolvingProxy(
+      const GURL& url,
+      const NetworkAnonymizationKey& network_anonymization_key,
+      const std::string& method,
+      ProxyInfo* result,
+      int result_code,
+      const NetLogWithSource& net_log);
 
   // Start initialization using |fetched_config_|.
   void InitializeUsingLastFetchedConfig();
@@ -353,8 +356,8 @@ class NET_EXPORT ConfiguredProxyResolutionService
   // and custom PAC url).
   //
   // These are "optional" as their value remains unset while being calculated.
-  absl::optional<ProxyConfigWithAnnotation> fetched_config_;
-  absl::optional<ProxyConfigWithAnnotation> config_;
+  std::optional<ProxyConfigWithAnnotation> fetched_config_;
+  std::optional<ProxyConfigWithAnnotation> config_;
 
   // Map of the known bad proxies and the information about the retry time.
   ProxyRetryInfoMap proxy_retry_info_;

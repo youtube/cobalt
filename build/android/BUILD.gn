@@ -5,8 +5,15 @@
 import("//build/config/android/build_vars.gni")
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
+import("//build/config/clang/clang.gni")
+import("//build/config/coverage/coverage.gni")
+import("//build/config/gclient_args.gni")
 import("//build/config/python.gni")
 import("//build_overrides/build.gni")
+
+if (build_with_chromium) {
+  import("//base/allocator/partition_allocator/partition_alloc.gni")
+}
 
 if (enable_java_templates) {
   # Create or update the API versions cache if necessary by running a
@@ -16,12 +23,10 @@ if (enable_java_templates) {
     create_cache = true
   }
 
-  generate_build_config_srcjar("build_config_gen") {
-    use_final_fields = false
+  generate_build_config_srcjar("placeholder_build_config_srcjar") {
   }
 
-  generate_build_config_srcjar("build_config_for_testing_gen") {
-    use_final_fields = false
+  generate_build_config_srcjar("build_config_for_robolectric_srcjar") {
     testonly = true
   }
 
@@ -31,20 +36,38 @@ if (enable_java_templates) {
 
   java_library("build_java") {
     supports_android = true
+
+    # Caused odd errors: https://crbug.com/404877460
+    jacoco_never_instrument = true
+
+    # Required to prevent circular dependency from //tools/android/errorprone_plugin.
+    enable_errorprone = false
     srcjar_deps = [
-      ":build_config_gen",
       ":native_libraries_gen",
+      ":placeholder_build_config_srcjar",
     ]
     sources = [
+      "java/src/org/chromium/build/NullUtil.java",
       "java/src/org/chromium/build/annotations/AlwaysInline.java",
       "java/src/org/chromium/build/annotations/CheckDiscard.java",
+      "java/src/org/chromium/build/annotations/Contract.java",
       "java/src/org/chromium/build/annotations/DoNotClassMerge.java",
       "java/src/org/chromium/build/annotations/DoNotInline.java",
       "java/src/org/chromium/build/annotations/DoNotStripLogs.java",
+      "java/src/org/chromium/build/annotations/EnsuresNonNull.java",
+      "java/src/org/chromium/build/annotations/EnsuresNonNullIf.java",
       "java/src/org/chromium/build/annotations/IdentifierNameString.java",
-      "java/src/org/chromium/build/annotations/MainDex.java",
+      "java/src/org/chromium/build/annotations/Initializer.java",
       "java/src/org/chromium/build/annotations/MockedInTests.java",
+      "java/src/org/chromium/build/annotations/MonotonicNonNull.java",
+      "java/src/org/chromium/build/annotations/NullMarked.java",
+      "java/src/org/chromium/build/annotations/NullUnmarked.java",
+      "java/src/org/chromium/build/annotations/Nullable.java",
+      "java/src/org/chromium/build/annotations/OptimizeAsNonNull.java",
+      "java/src/org/chromium/build/annotations/RequiresNonNull.java",
+      "java/src/org/chromium/build/annotations/ServiceImpl.java",
       "java/src/org/chromium/build/annotations/UsedByReflection.java",
+      "java/src/org/chromium/build/annotations/UsedReflectively.java",
     ]
 
     jar_excluded_patterns = [ "*/build/BuildConfig.class" ]
@@ -71,7 +94,6 @@ if (enable_java_templates) {
     }
     robolectric_binary("build_junit_tests") {
       # Test has no JNI, so skip JNI Generator step.
-      generate_final_jni = false
       resources_package = "org.chromium.build"
       sources = [
         "junit/src/org/chromium/build/AndroidAssetsTest.java",
@@ -83,6 +105,21 @@ if (enable_java_templates) {
         "//build/android/test/incremental_javac_gn:no_signature_change_prebuilt_java",
         "//third_party/junit",
       ]
+    }
+  }
+}
+
+if (defined(sanitizer_arch)) {
+  action("generate_wrap_sh") {
+    script = "generate_wrap_sh.py"
+    outputs = [ "$target_gen_dir/$target_name/wrap.sh" ]
+    args = [
+      "--arch=$sanitizer_arch",
+      "--output",
+      rebase_path(outputs[0], root_build_dir),
+    ]
+    if (is_hwasan) {
+      args += [ "--is_hwasan" ]
     }
   }
 }
@@ -118,11 +155,11 @@ python_library("devil_chromium_py") {
 group("apk_installer_data") {
   # Other //build users let devil library fetch these from Google Storage.
   if (build_with_chromium) {
-    data_deps = [
-      "//build/android/pylib/device/commands",
-      "//tools/android/md5sum",
-    ]
-    data = [ "//third_party/android_build_tools/bundletool/bundletool.jar" ]
+    if (!is_component_build) {
+      data_deps = [ "//tools/android/devil_util" ]
+    }
+    data =
+        [ "//third_party/android_build_tools/bundletool/cipd/bundletool.jar" ]
   }
 }
 
@@ -145,10 +182,18 @@ python_library("test_runner_core_py") {
   data = [
     "pylib/gtest/filter/",
     "pylib/instrumentation/render_test.html.jinja",
+    "pylib/local/machine/local_machine_hostside_tradefed_config.xml",
     "test_wrapper/logdog_wrapper.py",
     "//third_party/requests/",
   ]
   data_deps = [ ":logdog_wrapper_py" ]
+  if (use_clang_coverage && checkout_clang_coverage_tools) {
+    # Test runner script may use `llvm-profdata` (if exists) to merge
+    # clang code coverage data after each instrumentation test to
+    # save space. The tool only exists when `checkout_clang_coverage_tools`
+    # gclient custom_var is true.
+    data += [ "${clang_base_path}/bin/llvm-profdata" ]
+  }
 }
 
 group("test_runner_device_support") {
@@ -158,6 +203,7 @@ group("test_runner_device_support") {
   # in pylib's constants.
   data = [
     "${public_android_sdk_build_tools}/aapt",
+    "${public_android_sdk_build_tools}/aapt2",
     "${public_android_sdk_build_tools}/dexdump",
     "${public_android_sdk_build_tools}/lib64/libc++.so",
     "${public_android_sdk_build_tools}/split-select",
@@ -171,13 +217,15 @@ group("test_runner_device_support") {
 
   # Other //build users let devil library fetch these from Google Storage.
   if (build_with_chromium) {
-    data_deps += [ "//tools/android/forwarder2" ]
+    if (!is_component_build) {
+      data_deps += [ "//tools/android/forwarder2" ]
+    }
     data += [ "//tools/android/avd/proto/" ]
     if (enable_chrome_android_internal) {
-       data += [ "//clank/tools/android/avd/proto/" ]
-     }
-    if (is_asan) {
-      data_deps += [ "//tools/android/asan/third_party:asan_device_setup" ]
+      data += [ "//clank/tools/android/avd/proto/" ]
+    }
+    if (use_full_mte) {
+      data_deps += [ "//tools/android/mte:mte_device_setup" ]
     }
   }
 
@@ -200,8 +248,7 @@ python_library("resource_sizes_py") {
 
   data = [
     build_vars_file,
-    android_readelf,
-    rebase_path("$android_ndk_library_path/libc++.so.1", root_build_dir),
+    "//third_party/llvm-build/Release+Asserts/bin/llvm-readobj",
   ]
 }
 
@@ -209,7 +256,7 @@ python_library("resource_sizes_py") {
 # logcat.
 # Hidden behind build_with_chromium because some third party repos that use
 # //build don't pull in //third_party/android_platform.
-# TODO(crbug.com/1120190): Move stack script into //build/third_party
+# TODO(crbug.com/40145789): Move stack script into //build/third_party
 #     and enable unconditionally.
 group("stack_tools") {
   if (build_with_chromium) {

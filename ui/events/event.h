@@ -35,6 +35,7 @@ namespace ui {
 
 class CancelModeEvent;
 class Event;
+class EventRewriter;
 class EventTarget;
 class KeyEvent;
 class LocatedEvent;
@@ -43,14 +44,16 @@ class MouseWheelEvent;
 class ScrollEvent;
 class TouchEvent;
 
-enum class DomCode;
+enum class DomCode : uint32_t;
 
 // Note: In order for Clone() to work properly, every concrete class
 // transitively inheriting Event must implement Clone() explicitly, even if any
 // ancestors have provided an implementation.
 class EVENTS_EXPORT Event {
  public:
-  using Properties = base::flat_map<std::string, std::vector<uint8_t>>;
+  using PropertyKey = std::string;
+  using PropertyValue = std::vector<uint8_t>;
+  using Properties = base::flat_map<PropertyKey, PropertyValue>;
 
   virtual ~Event();
 
@@ -70,7 +73,7 @@ class EVENTS_EXPORT Event {
     void set_time_stamp(base::TimeTicks time) { event_->time_stamp_ = time; }
 
    private:
-    raw_ptr<Event, DanglingUntriaged> event_;
+    raw_ptr<Event, AcrossTasksDanglingUntriaged> event_;
   };
 
   void SetNativeEvent(const PlatformEvent& event);
@@ -87,7 +90,7 @@ class EVENTS_EXPORT Event {
 
   // This is only intended to be used externally by classes that are modifying
   // events in an EventRewriter.
-  void set_flags(int flags) { flags_ = flags; }
+  void SetFlags(int flags);
 
   EventTarget* target() const { return target_; }
   EventPhase phase() const { return phase_; }
@@ -100,8 +103,13 @@ class EVENTS_EXPORT Event {
   int source_device_id() const { return source_device_id_; }
   void set_source_device_id(int id) { source_device_id_ = id; }
 
-  // Sets the properties associated with this Event.
+  // Sets and rewrites the properties associated with this Event. Please use
+  // SetProperty() if you only intend to modify an existing event.
+  // TODO(crbug.com/374334456): Switch to using SetProperty() where appropriate.
   void SetProperties(const Properties& properties);
+
+  // Sets the property value for the given key associated with this Event.
+  void SetProperty(const PropertyKey& key, const PropertyValue& value);
 
   // Returns the properties associated with this event, which may be null.
   // The properties are meant to provide a way to associate arbitrary key/value
@@ -125,56 +133,56 @@ class EVENTS_EXPORT Event {
 
   bool IsSynthesized() const { return (flags_ & EF_IS_SYNTHESIZED) != 0; }
 
-  bool IsCancelModeEvent() const { return type_ == ET_CANCEL_MODE; }
+  bool IsCancelModeEvent() const { return type_ == EventType::kCancelMode; }
 
   bool IsKeyEvent() const {
-    return type_ == ET_KEY_PRESSED || type_ == ET_KEY_RELEASED;
+    return type_ == EventType::kKeyPressed || type_ == EventType::kKeyReleased;
   }
 
   bool IsMouseEvent() const {
-    return type_ == ET_MOUSE_PRESSED ||
-           type_ == ET_MOUSE_DRAGGED ||
-           type_ == ET_MOUSE_RELEASED ||
-           type_ == ET_MOUSE_MOVED ||
-           type_ == ET_MOUSE_ENTERED ||
-           type_ == ET_MOUSE_EXITED ||
-           type_ == ET_MOUSEWHEEL ||
-           type_ == ET_MOUSE_CAPTURE_CHANGED;
+    return type_ == EventType::kMousePressed ||
+           type_ == EventType::kMouseDragged ||
+           type_ == EventType::kMouseReleased ||
+           type_ == EventType::kMouseMoved ||
+           type_ == EventType::kMouseEntered ||
+           type_ == EventType::kMouseExited ||
+           type_ == EventType::kMousewheel ||
+           type_ == EventType::kMouseCaptureChanged;
   }
 
   bool IsTouchEvent() const {
-    return type_ == ET_TOUCH_RELEASED ||
-           type_ == ET_TOUCH_PRESSED ||
-           type_ == ET_TOUCH_MOVED ||
-           type_ == ET_TOUCH_CANCELLED;
+    return type_ == EventType::kTouchReleased ||
+           type_ == EventType::kTouchPressed ||
+           type_ == EventType::kTouchMoved ||
+           type_ == EventType::kTouchCancelled;
   }
 
   bool IsGestureEvent() const {
     switch (type_) {
-      case ET_GESTURE_SCROLL_BEGIN:
-      case ET_GESTURE_SCROLL_END:
-      case ET_GESTURE_SCROLL_UPDATE:
-      case ET_GESTURE_TAP:
-      case ET_GESTURE_DOUBLE_TAP:
-      case ET_GESTURE_TAP_CANCEL:
-      case ET_GESTURE_TAP_DOWN:
-      case ET_GESTURE_TAP_UNCONFIRMED:
-      case ET_GESTURE_BEGIN:
-      case ET_GESTURE_END:
-      case ET_GESTURE_TWO_FINGER_TAP:
-      case ET_GESTURE_PINCH_BEGIN:
-      case ET_GESTURE_PINCH_END:
-      case ET_GESTURE_PINCH_UPDATE:
-      case ET_GESTURE_LONG_PRESS:
-      case ET_GESTURE_LONG_TAP:
-      case ET_GESTURE_SWIPE:
-      case ET_GESTURE_SHOW_PRESS:
+      case EventType::kGestureScrollBegin:
+      case EventType::kGestureScrollEnd:
+      case EventType::kGestureScrollUpdate:
+      case EventType::kGestureTap:
+      case EventType::kGestureDoubleTap:
+      case EventType::kGestureTapCancel:
+      case EventType::kGestureTapDown:
+      case EventType::kGestureTapUnconfirmed:
+      case EventType::kGestureBegin:
+      case EventType::kGestureEnd:
+      case EventType::kGestureTwoFingerTap:
+      case EventType::kGesturePinchBegin:
+      case EventType::kGesturePinchEnd:
+      case EventType::kGesturePinchUpdate:
+      case EventType::kGestureLongPress:
+      case EventType::kGestureLongTap:
+      case EventType::kGestureSwipe:
+      case EventType::kGestureShowPress:
         // When adding a gesture event which is paired with an event which
         // occurs earlier, add the event to |IsEndingEvent|.
         return true;
 
-      case ET_SCROLL_FLING_CANCEL:
-      case ET_SCROLL_FLING_START:
+      case EventType::kScrollFlingCancel:
+      case EventType::kScrollFlingStart:
         // These can be ScrollEvents too. EF_FROM_TOUCH determines if they're
         // Gesture or Scroll events.
         return (flags_ & EF_FROM_TOUCH) == EF_FROM_TOUCH;
@@ -189,11 +197,11 @@ class EVENTS_EXPORT Event {
   // should not prevent ending events from getting to their initial target.
   bool IsEndingEvent() const {
     switch (type_) {
-      case ET_TOUCH_CANCELLED:
-      case ET_GESTURE_TAP_CANCEL:
-      case ET_GESTURE_END:
-      case ET_GESTURE_SCROLL_END:
-      case ET_GESTURE_PINCH_END:
+      case EventType::kTouchCancelled:
+      case EventType::kGestureTapCancel:
+      case EventType::kGestureEnd:
+      case EventType::kGestureScrollEnd:
+      case EventType::kGesturePinchEnd:
         return true;
       default:
         return false;
@@ -203,30 +211,34 @@ class EVENTS_EXPORT Event {
   bool IsScrollEvent() const {
     // Flings can be GestureEvents too. EF_FROM_TOUCH determines if they're
     // Gesture or Scroll events.
-    return type_ == ET_SCROLL || ((type_ == ET_SCROLL_FLING_START ||
-                                   type_ == ET_SCROLL_FLING_CANCEL) &&
-                                  !(flags() & EF_FROM_TOUCH));
+    return type_ == EventType::kScroll ||
+           ((type_ == EventType::kScrollFlingStart ||
+             type_ == EventType::kScrollFlingCancel) &&
+            !(flags() & EF_FROM_TOUCH));
   }
 
   bool IsPinchEvent() const {
-    return type_ == ET_GESTURE_PINCH_BEGIN ||
-           type_ == ET_GESTURE_PINCH_UPDATE || type_ == ET_GESTURE_PINCH_END;
+    return type_ == EventType::kGesturePinchBegin ||
+           type_ == EventType::kGesturePinchUpdate ||
+           type_ == EventType::kGesturePinchEnd;
   }
 
   bool IsScrollGestureEvent() const {
-    return type_ == ET_GESTURE_SCROLL_BEGIN ||
-           type_ == ET_GESTURE_SCROLL_UPDATE || type_ == ET_GESTURE_SCROLL_END;
+    return type_ == EventType::kGestureScrollBegin ||
+           type_ == EventType::kGestureScrollUpdate ||
+           type_ == EventType::kGestureScrollEnd;
   }
 
   bool IsFlingScrollEvent() const {
-    return type_ == ET_SCROLL_FLING_CANCEL || type_ == ET_SCROLL_FLING_START;
+    return type_ == EventType::kScrollFlingCancel ||
+           type_ == EventType::kScrollFlingStart;
   }
 
-  bool IsMouseWheelEvent() const { return type_ == ET_MOUSEWHEEL; }
+  bool IsMouseWheelEvent() const { return type_ == EventType::kMousewheel; }
 
   bool IsLocatedEvent() const {
     return IsMouseEvent() || IsScrollEvent() || IsTouchEvent() ||
-           IsGestureEvent() || type_ == ET_DROP_TARGET_EVENT;
+           IsGestureEvent() || type_ == EventType::kDropTargetEvent;
   }
 
   // Convenience methods to cast |this| to a CancelModeEvent.
@@ -289,6 +301,14 @@ class EVENTS_EXPORT Event {
   void SetHandled();
   bool handled() const { return result_ != ER_UNHANDLED; }
 
+  // Marks the event as skipped. This immediately stops the propagation of the
+  // event like `StopPropagation()` but sets an extra bit so that the dispatcher
+  // of the event can use this extra information to decide to handle the event
+  // themselves. Note that `handled()` will still return true to stop the
+  // event from being passed to the next phase. Note that SetSkipped() can be
+  // called only for cancelable events.
+  void SetSkipped();
+
   // For debugging. Not a stable serialization format.
   virtual std::string ToString() const;
 
@@ -310,20 +330,24 @@ class EVENTS_EXPORT Event {
 
   void set_time_stamp(base::TimeTicks time_stamp) { time_stamp_ = time_stamp; }
 
+  // Override per concrete class if some data needs to get invalidated or
+  // updated when the event flags are updated.
+  virtual void OnFlagsUpdated() {}
+
  private:
   friend class EventTestApi;
+  friend class EventRewriter;
 
   EventType type_;
   base::TimeTicks time_stamp_;
   LatencyInfo latency_;
   int flags_;
   PlatformEvent native_event_;
-  bool delete_native_event_ = false;
   bool cancelable_ = true;
   // Neither Event copy constructor nor the assignment operator copies
   // `target_`, as `target_` should be explicitly set so the setter will be
   // responsible for tracking it.
-  raw_ptr<EventTarget, DanglingUntriaged> target_ = nullptr;
+  raw_ptr<EventTarget, AcrossTasksDanglingUntriaged> target_ = nullptr;
   EventPhase phase_ = EP_PREDISPATCH;
   EventResult result_ = ER_UNHANDLED;
 
@@ -459,10 +483,10 @@ class EVENTS_EXPORT MouseEvent : public LocatedEvent {
         movement_(model.movement_),
         pointer_details_(model.pointer_details_) {
     SetType(type);
-    set_flags(flags);
+    SetFlags(flags);
   }
 
-  // Note: Use the ctor for MouseWheelEvent if type is ET_MOUSEWHEEL.
+  // Note: Use the ctor for MouseWheelEvent if type is EventType::kMousewheel.
   MouseEvent(EventType type,
              const gfx::PointF& location,
              const gfx::PointF& root_location,
@@ -497,7 +521,7 @@ class EVENTS_EXPORT MouseEvent : public LocatedEvent {
     // TODO(eirage): convert this to builder pattern.
     void set_movement(const gfx::Vector2dF& movement) {
       event_->movement_ = movement;
-      event_->set_flags(event_->flags() | EF_UNADJUSTED_MOUSE);
+      event_->SetFlags(event_->flags() | EF_UNADJUSTED_MOUSE);
     }
 
    private:
@@ -624,7 +648,7 @@ class EVENTS_EXPORT MouseWheelEvent : public MouseEvent {
       base::TimeTicks time_stamp,
       int flags,
       int changed_button_flags,
-      const absl::optional<gfx::Vector2d> tick_120ths = absl::nullopt);
+      const std::optional<gfx::Vector2d> tick_120ths = std::nullopt);
 
   // DEPRECATED: Prefer the constructor that takes gfx::PointF.
   MouseWheelEvent(const gfx::Vector2d& offset,
@@ -667,7 +691,6 @@ class EVENTS_EXPORT TouchEvent : public LocatedEvent {
       : LocatedEvent(model, source, target),
         unique_event_id_(model.unique_event_id_),
         may_cause_scrolling_(model.may_cause_scrolling_),
-        hovering_(false),
         pointer_details_(model.pointer_details_) {}
 
   TouchEvent(EventType type,
@@ -749,7 +772,8 @@ class EVENTS_EXPORT TouchEvent : public LocatedEvent {
 //
 // For a keystroke event,
 // -- |bool is_char_| is false.
-// -- |EventType Event::type()| can be ET_KEY_PRESSED or ET_KEY_RELEASED.
+// -- |EventType Event::type()| can be EventType::kKeyPressed or
+// EventType::kKeyReleased.
 // -- |DomCode code_| and |int Event::flags()| represent the physical key event.
 //    - code_ is a platform-independent representation of the physical key,
 //      based on DOM UI Events KeyboardEvent |code| values. It does not
@@ -780,7 +804,7 @@ class EVENTS_EXPORT TouchEvent : public LocatedEvent {
 //
 // For a character event,
 // -- |bool is_char_| is true.
-// -- |EventType Event::type()| is ET_KEY_PRESSED.
+// -- |EventType Event::type()| is EventType::kKeyPressed.
 // -- |DomCode code_| is DomCode::NONE.
 // -- |DomKey key_| is a UTF-16 code point.
 // -- |KeyboardCode key_code_| is conflated with the character-valued key_
@@ -813,12 +837,12 @@ class EVENTS_EXPORT KeyEvent : public Event {
            base::TimeTicks time_stamp,
            bool is_char = false);
 
-  // Create a character event.
-  KeyEvent(char16_t character,
+  // Create an event with event type.
+  KeyEvent(EventType type,
            KeyboardCode key_code,
            DomCode code,
            int flags,
-           base::TimeTicks time_stamp = base::TimeTicks());
+           base::TimeTicks time_stamp);
 
   // Used for synthetic events with code of DOM KeyboardEvent (e.g. 'KeyA')
   // See also: ui/events/keycodes/dom/dom_values.txt
@@ -835,6 +859,13 @@ class EVENTS_EXPORT KeyEvent : public Event {
 
   // Sets whether to enable synthesizing key repeat in InitializeNative().
   static void SetSynthesizeKeyRepeatEnabled(bool enabled);
+
+  static ui::KeyEvent FromCharacter(
+      char16_t character,
+      KeyboardCode key_code,
+      DomCode code,
+      int flags,
+      base::TimeTicks time_stamp = base::TimeTicks());
 
   void InitializeNative();
 
@@ -908,6 +939,10 @@ class EVENTS_EXPORT KeyEvent : public Event {
   // Normalizes flags_ so that it describes the state after the event.
   // (Native X11 event flags describe the state before the event.)
   void NormalizeFlags();
+
+  // Invalidates the DomKey associated with this event as the flags updating can
+  // change the semantic meaning of the key.
+  void OnFlagsUpdated() override;
 
   // Event:
   std::string ToString() const override;

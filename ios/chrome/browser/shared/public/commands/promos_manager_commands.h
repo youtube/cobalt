@@ -7,18 +7,16 @@
 
 #import <StoreKit/StoreKit.h>
 
-#import "ios/chrome/browser/promos_manager/constants.h"
-
 @class ShowSigninCommand;
 
 // Commands to show app-wide promos.
 @protocol PromosManagerCommands <NSObject>
 
 // Displays an eligible promo (selected by the Promos Manager) if one exists.
-- (void)maybeDisplayPromo;
+- (void)showPromo;
 
 // Makes a request to Apple to present the user the App Store Rating Promo.
-- (void)requestAppStoreReview;
+- (void)showAppStoreReviewPrompt;
 
 // Asks the presenter to display the signin UI configured by `command`.
 - (void)showSignin:(ShowSigninCommand*)command;
@@ -27,7 +25,16 @@
 - (void)showWhatsNewPromo;
 
 // Display default browser promo.
-- (void)maybeDisplayDefaultBrowserPromo;
+- (void)showDefaultBrowserPromo;
+
+// Shows the default browser promo after the user tapped Remind Me Later.
+- (void)showDefaultBrowserPromoAfterRemindMeLater;
+
+// Shows the sign-in fullscreen promo.
+- (void)showSigninPromo;
+
+// Shows GLIC promo.
+- (void)showGLICPromo;
 
 @end
 

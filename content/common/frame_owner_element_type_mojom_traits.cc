@@ -26,7 +26,6 @@ content::mojom::ChildFrameOwnerElementType EnumTraits<
       // serializable. See the definition of `ChildFrameOwnerElementType`
       // for details.
       NOTREACHED();
-      return content::mojom::ChildFrameOwnerElementType::kIframe;
   }
 }
 

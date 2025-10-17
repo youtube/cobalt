@@ -33,6 +33,9 @@ component("controller") {
   if (use_blink_extensions_chromeos) {
     deps += [ "//third_party/blink/renderer/extensions/chromeos" ]
   }
+  if (use_blink_extensions_webview) {
+    deps += [ "//third_party/blink/renderer/extensions/webview" ]
+  }
 
   configs += [
     "//third_party/blink/renderer:config",
@@ -52,6 +55,12 @@ component("controller") {
     "controller_export.h",
     "dev_tools_frontend_impl.cc",
     "dev_tools_frontend_impl.h",
+    "javascript_call_stack_collector.cc",
+    "javascript_call_stack_collector.h",
+    "javascript_call_stack_generator.cc",
+    "javascript_call_stack_generator.h",
+    "memory_saver_controller.cc",
+    "memory_saver_controller.h",
     "memory_usage_monitor.cc",
     "memory_usage_monitor.h",
     "performance_manager/renderer_resource_coordinator_impl.cc",
@@ -147,7 +156,6 @@ test("blink_unittests") {
 
   if (is_ios) {
     bundle_deps = [
-      ":blink_unittests_bundle_data",
       ":blink_unittests_pak_bundle_data",
       "//components/shared_highlighting/core/common:data_driven_testing_data",
       "//media/test:media_bundle_data",
@@ -155,12 +163,14 @@ test("blink_unittests") {
       "//third_party/blink/renderer/core:core_test_bundle_data",
       "//third_party/blink/renderer/core:paint_test_bundle_data",
       "//third_party/blink/renderer/modules:accessibility_selection_test_bundle_data",
+      "//third_party/blink/renderer/platform:blink_platform_unittests_bundle_data",
       "//third_party/text-fragments-polyfill:test_bundle_data",
     ]
   } else {
     data_deps = [
       ":blink_unittests_data",
       "//content/shell:pak",
+      "//testing/buildbot/filters:blink_unittests_filters",
     ]
   }
 
@@ -177,15 +187,17 @@ test("blink_unittests") {
   }
 
   if (is_fuchsia) {
-    # TODO(https://crbug.com/1185811): Investigate removing the requirement for
-    # job_policy_ambient_mark_vmo_exec for the sake of V8's allocator in tests.
-    test_runner_shard = "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
     additional_manifest_fragments = [
       "//build/config/fuchsia/test/fonts.shard.test-cml",
       "//build/config/fuchsia/test/network.shard.test-cml",
+
+      # TODO(https://crbug.com/1185811): Investigate removing the requirement
+      # for VmexResource.
       "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml",
     ]
   }
+
+  fuzztests = [ "BlinkAttributeFuzzTestFixture.NoElementAttributeCrashes" ]
 }
 
 test("blink_perf_tests") {
@@ -197,7 +209,10 @@ source_set("blink_perf_tests_sources") {
   visibility = [ "*" ]
   testonly = true
 
-  sources = [ "tests/run_all_perftests.cc" ]
+  sources = [
+    "tests/run_all_perftests.cc",
+    "tests/thread_state_test_environment.h",
+  ]
 
   deps = [
     ":controller",
@@ -226,6 +241,7 @@ source_set("blink_bindings_test_sources") {
     "//third_party/blink/renderer/core:testing",
     "//third_party/blink/renderer/core:unit_test_support",
     "//third_party/blink/renderer/modules:modules",
+    "//third_party/blink/renderer/modules:modules_testing",
     "//third_party/blink/renderer/modules/mediastream:test_support",
     "//third_party/blink/renderer/platform:platform",
     "//third_party/blink/renderer/platform:test_support",
@@ -243,10 +259,13 @@ source_set("blink_unittests_sources") {
   testonly = true
 
   sources = [
+    "//third_party/blink/renderer/platform/testing/main_thread_isolate_unittest.cc",
+    "//third_party/blink/renderer/platform/testing/task_environment_unittest.cc",
     "performance_manager/renderer_resource_coordinator_impl_test.cc",
     "performance_manager/v8_detailed_memory_reporter_impl_test.cc",
     "performance_manager/v8_worker_memory_reporter_test.cc",
     "tests/run_all_tests.cc",
+    "tests/thread_state_test_environment.h",
   ]
   if (is_cobalt_hermetic_build) {
     sources += [ "tests/starboard/run_all_tests.cc" ]
@@ -292,6 +311,7 @@ source_set("blink_unittests_sources") {
     "//third_party/blink/renderer/platform:test_support",
     "//third_party/blink/renderer/platform:unit_tests",
     "//third_party/blink/renderer/platform/wtf",
+    "//third_party/fuzztest",
     "//third_party/libwebp",
     "//third_party/zlib",
     "//url",
@@ -311,10 +331,5 @@ if (is_ios) {
     public_deps = [ "//content/shell:pak" ]
     sources = [ "$root_out_dir/content_shell.pak" ]
     outputs = [ "{{bundle_resources_dir}}/content_shell.pak" ]
-  }
-
-  bundle_data_from_filelist("blink_unittests_bundle_data") {
-    testonly = true
-    filelist_name = "blink_unittests_bundle_data.filelist"
   }
 }

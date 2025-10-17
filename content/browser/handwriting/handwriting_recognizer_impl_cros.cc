@@ -5,16 +5,16 @@
 #include "content/browser/handwriting/handwriting_recognizer_impl_cros.h"
 
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/handwriting/handwriting.mojom.h"
 
 namespace {
@@ -65,23 +65,23 @@ CreateGestureModelDescriptor() {
 }
 
 // Returns whether the two language tags are semantically the same.
-// TODO(https://crbug.com/1166910): We may need a better language tag matching
+// TODO(crbug.com/40742391): We may need a better language tag matching
 // method (e.g. libicu's LocaleMatcher).
-bool LanguageTagsAreMatching(base::StringPiece a, base::StringPiece b) {
+bool LanguageTagsAreMatching(std::string_view a, std::string_view b) {
   // Per BCP 47, language tag comparisons are case-insensitive.
   return base::EqualsCaseInsensitiveASCII(a, b);
 }
 
 // Returns the model identifier (language in HandwritingRecognizerSpec) for
-// ml_service backend. Returns absl::nullopt if language_tag isn't supported.
-absl::optional<std::string> GetModelIdentifier(base::StringPiece language_tag) {
+// ml_service backend. Returns std::nullopt if language_tag isn't supported.
+std::optional<std::string> GetModelIdentifier(std::string_view language_tag) {
   if (LanguageTagsAreMatching(language_tag, kLanguageTagEnglish))
     return kModelEn;
 
   if (LanguageTagsAreMatching(language_tag, kLanguageTagGesture))
     return kModelGesture;
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace
@@ -108,7 +108,6 @@ void OnModelBinding(
     case LoadHandwritingModelResult::OK:
       // Handled above.
       NOTREACHED();
-      break;
     case LoadHandwritingModelResult::FEATURE_NOT_SUPPORTED_ERROR:
     case LoadHandwritingModelResult::LANGUAGE_NOT_SUPPORTED_ERROR:
     case LoadHandwritingModelResult::FEATURE_DISABLED_BY_USER:
@@ -137,11 +136,11 @@ void OnModelBinding(
 // The callback for `mojom::HandwritingRecognizer::Recognize` (CrOS).
 void OnRecognitionResult(
     CrOSHandwritingRecognizerImpl::GetPredictionCallback callback,
-    absl::optional<std::vector<chromeos::machine_learning::web_platform::mojom::
-                                   HandwritingPredictionPtr>>
+    std::optional<std::vector<chromeos::machine_learning::web_platform::mojom::
+                                  HandwritingPredictionPtr>>
         result_from_mlservice) {
   if (!result_from_mlservice.has_value()) {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
   std::vector<handwriting::mojom::HandwritingPredictionPtr> result_to_blink;
@@ -186,7 +185,7 @@ void CrOSHandwritingRecognizerImpl::Create(
     return;
   }
 
-  absl::optional<std::string> model_spec_language =
+  std::optional<std::string> model_spec_language =
       GetModelIdentifier(constraint_blink->languages[0]);
   if (!model_spec_language) {
     std::move(callback).Run(
@@ -220,7 +219,7 @@ void CrOSHandwritingRecognizerImpl::Create(
 
 // static
 bool CrOSHandwritingRecognizerImpl::SupportsLanguageTag(
-    base::StringPiece language_tag) {
+    std::string_view language_tag) {
   return GetModelIdentifier(language_tag).has_value();
 }
 

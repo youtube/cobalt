@@ -4,11 +4,11 @@
 
 #include "ui/gl/gl_context_egl.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "base/command_line.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "base/strings/string_split.h"
 #include "base/strings/string_number_conversions.h"
@@ -20,6 +20,7 @@
 #include "ui/gl/egl_util.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_display.h"
+#include "ui/gl/gl_features.h"
 #include "ui/gl/gl_fence.h"
 #include "ui/gl/gl_gl_api_implementation.h"
 #include "ui/gl/gl_surface_egl.h"
@@ -28,70 +29,14 @@
 #include "base/mac/mac_util.h"
 #endif
 
-#ifndef EGL_CHROMIUM_create_context_bind_generates_resource
-#define EGL_CHROMIUM_create_context_bind_generates_resource 1
-#define EGL_CONTEXT_BIND_GENERATES_RESOURCE_CHROMIUM 0x33AD
-#endif /* EGL_CHROMIUM_create_context_bind_generates_resource */
+#if BUILDFLAG(IS_WIN)
+#include "base/win/windows_version.h"
+#endif
 
-#ifndef EGL_ANGLE_create_context_webgl_compatibility
-#define EGL_ANGLE_create_context_webgl_compatibility 1
-#define EGL_CONTEXT_WEBGL_COMPATIBILITY_ANGLE 0x33AC
-#endif /* EGL_ANGLE_create_context_webgl_compatibility */
-
-#ifndef EGL_ANGLE_display_texture_share_group
-#define EGL_ANGLE_display_texture_share_group 1
-#define EGL_DISPLAY_TEXTURE_SHARE_GROUP_ANGLE 0x33AF
-#endif /* EGL_ANGLE_display_texture_share_group */
-
-#ifndef EGL_ANGLE_display_semaphore_share_group
-#define EGL_ANGLE_display_semaphore_share_group 1
-#define EGL_DISPLAY_SEMAPHORE_SHARE_GROUP_ANGLE 0x348D
-#endif /* EGL_ANGLE_display_semaphore_share_group */
-
-#ifndef EGL_ANGLE_external_context_and_surface
-#define EGL_ANGLE_external_context_and_surface 1
-#define EGL_EXTERNAL_CONTEXT_ANGLE 0x348E
-#define EGL_EXTERNAL_CONTEXT_SAVE_STATE_ANGLE 0x3490
-#endif /* EGL_ANGLE_external_context_and_surface */
-
-#ifndef EGL_ANGLE_create_context_client_arrays
-#define EGL_ANGLE_create_context_client_arrays 1
-#define EGL_CONTEXT_CLIENT_ARRAYS_ENABLED_ANGLE 0x3452
-#endif /* EGL_ANGLE_create_context_client_arrays */
-
-#ifndef EGL_ANGLE_robust_resource_initialization
-#define EGL_ANGLE_robust_resource_initialization 1
-#define EGL_ROBUST_RESOURCE_INITIALIZATION_ANGLE 0x3453
-#endif /* EGL_ANGLE_display_robust_resource_initialization */
-
-#ifndef EGL_ANGLE_create_context_backwards_compatible
-#define EGL_ANGLE_create_context_backwards_compatible 1
-#define EGL_CONTEXT_OPENGL_BACKWARDS_COMPATIBLE_ANGLE 0x3483
-#endif /* EGL_ANGLE_create_context_backwards_compatible */
-
-#ifndef EGL_CONTEXT_PRIORITY_LEVEL_IMG
-#define EGL_CONTEXT_PRIORITY_LEVEL_IMG 0x3100
-#define EGL_CONTEXT_PRIORITY_HIGH_IMG 0x3101
-#define EGL_CONTEXT_PRIORITY_MEDIUM_IMG 0x3102
-#define EGL_CONTEXT_PRIORITY_LOW_IMG 0x3103
-#endif /* EGL_CONTEXT_PRIORITY_LEVEL */
-
-#ifndef EGL_ANGLE_power_preference
-#define EGL_ANGLE_power_preference 1
-#define EGL_POWER_PREFERENCE_ANGLE 0x3482
-#define EGL_LOW_POWER_ANGLE 0x0001
-#define EGL_HIGH_POWER_ANGLE 0x0002
-#endif /* EGL_ANGLE_power_preference */
-
-#ifndef EGL_NV_robustness_video_memory_purge
-#define EGL_NV_robustness_video_memory_purge 1
-#define EGL_GENERATE_RESET_ON_VIDEO_MEMORY_PURGE_NV 0x334C
-#endif /*EGL_NV_robustness_video_memory_purge */
-
-#ifndef EGL_ANGLE_context_virtualization
-#define EGL_ANGLE_context_virtualization 1
-#define EGL_CONTEXT_VIRTUALIZATION_GROUP_ANGLE 0x3481
-#endif /* EGL_ANGLE_context_virtualization */
+#ifndef EGL_ANGLE_create_context_passthrough_shaders
+#define EGL_ANGLE_create_context_passthrough_shaders 1
+#define EGL_CONTEXT_PASSTHROUGH_SHADERS_ANGLE 0x3463
+#endif /* EGL_ANGLE_create_context_passthrough_shaders */
 
 using ui::GetEGLErrorString;
 using ui::GetLastEGLErrorString;
@@ -106,7 +51,7 @@ namespace {
 bool ChangeContextAttributes(std::vector<EGLint>& context_attributes,
                              EGLint attribute,
                              EGLint value) {
-  auto iter = base::ranges::find(context_attributes, attribute);
+  auto iter = std::ranges::find(context_attributes, attribute);
   if (iter != context_attributes.end()) {
     ++iter;
     if (iter != context_attributes.end()) {
@@ -118,13 +63,30 @@ bool ChangeContextAttributes(std::vector<EGLint>& context_attributes,
   return false;
 }
 
+bool IsARMSwiftShaderPlatform() {
+#if BUILDFLAG(IS_MAC)
+  return base::mac::GetCPUType() == base::mac::CPUType::kArm;
+#elif BUILDFLAG(IS_IOS)
+  return true;
+#elif BUILDFLAG(IS_WIN)
+  base::win::OSInfo::WindowsArchitecture windows_architecture =
+      base::win::OSInfo::GetInstance()->GetArchitecture();
+  base::win::OSInfo* os_info = base::win::OSInfo::GetInstance();
+  return windows_architecture == base::win::OSInfo::ARM64_ARCHITECTURE ||
+         os_info->IsWowX86OnARM64() || os_info->IsWowAMD64OnARM64();
+#else
+  // SwiftShader is not used on Android
+  return false;
+#endif
+}
+
 }  // namespace
 
 GLContextEGL::GLContextEGL(GLShareGroup* share_group)
     : GLContextReal(share_group) {}
 
-bool GLContextEGL::Initialize(GLSurface* compatible_surface,
-                              const GLContextAttribs& attribs) {
+bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
+                                  const GLContextAttribs& attribs) {
   DCHECK(compatible_surface);
   DCHECK(!context_);
 
@@ -138,6 +100,11 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
   // contexts are compatible
   if (!gl_display_->ext->b_EGL_KHR_no_config_context) {
     config_ = compatible_surface->GetConfig();
+    if (!config_) {
+      LOG(ERROR) << "Failed to get config for surface "
+                 << compatible_surface->GetHandle();
+      return false;
+    }
     EGLint config_renderable_type = 0;
     if (!eglGetConfigAttrib(gl_display_->GetDisplay(), config_,
                             EGL_RENDERABLE_TYPE, &config_renderable_type)) {
@@ -189,6 +156,12 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
   }
 #endif
 
+  if (attribs.passthrough_shaders &&
+      gl_display_->ext->b_EGL_ANGLE_create_context_passthrough_shaders) {
+    context_attributes.push_back(EGL_CONTEXT_PASSTHROUGH_SHADERS_ANGLE);
+    context_attributes.push_back(EGL_TRUE);
+  }
+
   // EGL_KHR_create_context allows requesting both a major and minor context
   // version
   if (gl_display_->ext->b_EGL_KHR_create_context) {
@@ -207,28 +180,20 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
     DCHECK(context_client_minor_version == 0);
   }
 
-  bool is_swangle = IsSoftwareGLImplementation(GetGLImplementationParts());
+  bool is_swangle = IsSwiftShaderGLImplementation(GetGLImplementationParts());
 
-#if BUILDFLAG(IS_MAC)
-  if (is_swangle && attribs.webgl_compatibility_context &&
-      base::mac::GetCPUType() == base::mac::CPUType::kArm) {
+  if (attribs.webgl_compatibility_context && is_swangle &&
+      IsARMSwiftShaderPlatform() &&
+      !features::IsSwiftShaderAllowedByCommandLine(
+          base::CommandLine::ForCurrentProcess())) {
     // crbug.com/1378476: LLVM 10 is used as the JIT compiler for SwiftShader,
     // which doesn't fully support ARM. Disable Swiftshader on ARM CPUs for
     // WebGL until LLVM is upgraded.
+    // Allow SwiftShader if explicitly requested by command line for testing.
     DVLOG(1) << __FUNCTION__
-             << ": Software WebGL contexts are not supported on ARM MacOS.";
+             << ": Software WebGL contexts are not supported on ARM CPUs.";
     return false;
   }
-#elif BUILDFLAG(IS_IOS)
-  if (is_swangle && attribs.webgl_compatibility_context) {
-    // crbug.com/1378476: LLVM 10 is used as the JIT compiler for SwiftShader,
-    // which doesn't fully support ARM. Disable Swiftshader on ARM CPUs for
-    // WebGL until LLVM is upgraded.
-    DVLOG(1) << __FUNCTION__
-             << ": Software WebGL contexts are not supported on iOS.";
-    return false;
-  }
-#endif
 
   if (gl_display_->ext->b_EGL_EXT_create_context_robustness || is_swangle) {
     DVLOG(1) << "EGL_EXT_create_context_robustness supported.";
@@ -288,12 +253,13 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
     }
   }
 
+  global_texture_share_group_ = attribs.global_texture_share_group;
   if (gl_display_->ext->b_EGL_ANGLE_display_texture_share_group) {
     context_attributes.push_back(EGL_DISPLAY_TEXTURE_SHARE_GROUP_ANGLE);
-    context_attributes.push_back(
-        attribs.global_texture_share_group ? EGL_TRUE : EGL_FALSE);
+    context_attributes.push_back(global_texture_share_group_ ? EGL_TRUE
+                                                             : EGL_FALSE);
   } else {
-    DCHECK(!attribs.global_texture_share_group);
+    DCHECK(!global_texture_share_group_);
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_display_semaphore_share_group) {
@@ -306,10 +272,13 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
 
   if (gl_display_->ext->b_EGL_ANGLE_create_context_client_arrays) {
     context_attributes.push_back(EGL_CONTEXT_CLIENT_ARRAYS_ENABLED_ANGLE);
-    context_attributes.push_back(
-        attribs.angle_create_context_client_arrays ? EGL_TRUE : EGL_FALSE);
+    context_attributes.push_back(attribs.allow_client_arrays ? EGL_TRUE
+                                                             : EGL_FALSE);
   } else {
-    DCHECK(!attribs.angle_create_context_client_arrays);
+    // Client arrays are allowed by default without
+    // ANGLE_create_context_client_arrays to control it. Verify that's the
+    // requested behavior.
+    DCHECK(attribs.allow_client_arrays);
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_robust_resource_initialization ||
@@ -354,16 +323,14 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
       context_attributes.push_back(EGL_EXTERNAL_CONTEXT_ANGLE);
       context_attributes.push_back(EGL_TRUE);
     }
-    if (attribs.angle_restore_external_context_state) {
-      context_attributes.push_back(EGL_EXTERNAL_CONTEXT_SAVE_STATE_ANGLE);
-      context_attributes.push_back(EGL_TRUE);
-    }
   }
 
+  angle_context_virtualization_group_number_ =
+      attribs.angle_context_virtualization_group_number;
   if (gl_display_->ext->b_EGL_ANGLE_context_virtualization) {
     context_attributes.push_back(EGL_CONTEXT_VIRTUALIZATION_GROUP_ANGLE);
     context_attributes.push_back(
-        static_cast<EGLint>(attribs.angle_context_virtualization_group_number));
+        static_cast<EGLint>(angle_context_virtualization_group_number_));
   }
 
   // Append final EGL_NONE to signal the context attributes are finished
@@ -423,6 +390,7 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
 
 void GLContextEGL::Destroy() {
   ReleaseBackpressureFences();
+  OnContextWillDestroy();
   if (context_) {
     if (!eglDestroyContext(gl_display_->GetDisplay(), context_)) {
       LOG(ERROR) << "eglDestroyContext failed with error "
@@ -449,6 +417,30 @@ GLDisplayEGL* GLContextEGL::GetGLDisplayEGL() {
   return gl_display_;
 }
 
+GLContextEGL* GLContextEGL::AsGLContextEGL() {
+  return this;
+}
+
+bool GLContextEGL::CanShareTexturesWithContext(GLContext* other_context) {
+  GLContextEGL* other_egl_context = other_context->AsGLContextEGL();
+  if (!other_egl_context) {
+    return false;
+  }
+
+  if (GLContext::CanShareTexturesWithContext(other_egl_context)) {
+    return true;
+  }
+
+  // Contexts can share texture using EGL_ANGLE_display_texture_share_group
+  // extension if they are on the same display and same virtualization group
+  // number.
+  return global_texture_share_group_ &&
+         other_egl_context->global_texture_share_group_ &&
+         angle_context_virtualization_group_number_ ==
+             other_egl_context->angle_context_virtualization_group_number_ &&
+         GetGLDisplayEGL() == other_egl_context->GetGLDisplayEGL();
+}
+
 void GLContextEGL::ReleaseBackpressureFences() {
 #if BUILDFLAG(IS_APPLE)
   bool has_backpressure_fences = HasBackpressureFences();
@@ -459,9 +451,9 @@ void GLContextEGL::ReleaseBackpressureFences() {
   if (has_backpressure_fences) {
     // If this context is not current, bind this context's API so that the YUV
     // converter can safely destruct
-    GLContext* current_context = GetRealCurrent();
-    if (current_context != this) {
-      SetCurrentGL(GetCurrentGL());
+    GLContext* prev_current_context = GetRealCurrent();
+    if (prev_current_context != this) {
+      SetThreadLocalCurrentGL(GetCurrentGL());
     }
 
     EGLContext current_egl_context = eglGetCurrentContext();
@@ -482,8 +474,10 @@ void GLContextEGL::ReleaseBackpressureFences() {
 #endif
 
     // Rebind the current context's API if needed.
-    if (current_context && current_context != this) {
-      SetCurrentGL(current_context->GetCurrentGL());
+    if (prev_current_context != this) {
+      SetThreadLocalCurrentGL(prev_current_context
+                                  ? prev_current_context->GetCurrentGL()
+                                  : nullptr);
     }
 
     if (context_ != current_egl_context) {
@@ -597,8 +591,7 @@ unsigned int GLContextEGL::CheckStickyGraphicsResetStatusImpl() {
   const ExtensionsGL& ext = g_current_gl_driver->ext;
   if ((graphics_reset_status_ == GL_NO_ERROR) &&
       gl_display_->ext->b_EGL_EXT_create_context_robustness &&
-      (ext.b_GL_KHR_robustness || ext.b_GL_EXT_robustness ||
-       ext.b_GL_ARB_robustness)) {
+      (ext.b_GL_KHR_robustness || ext.b_GL_EXT_robustness)) {
     graphics_reset_status_ = glGetGraphicsResetStatusARB();
   }
   return graphics_reset_status_;

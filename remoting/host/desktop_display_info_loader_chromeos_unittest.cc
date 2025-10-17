@@ -109,11 +109,11 @@ TEST_F(DesktopDisplayInfoLoaderChromeOsTest, ShouldReturnMultipleDisplays) {
 }
 
 TEST_F(DesktopDisplayInfoLoaderChromeOsTest,
-       ShouldReturnNativeResolutionEvenWhenDeviceScaleFactorIsSet) {
-  ash_proxy().AddDisplayFromSpecWithId("1000x500*2.25", kAnyId);
+       ShouldReturnLogicalResolutionWhenDeviceScaleFactorIsSet) {
+  ash_proxy().AddDisplayFromSpecWithId("1000x500*2", kAnyId);
 
   EXPECT_THAT(CalculateDisplayInfo(),
-              IsSingleDisplayWith(Dimensions(1000, 500)));
+              IsSingleDisplayWith(Dimensions(500, 250)));
 }
 
 TEST_F(DesktopDisplayInfoLoaderChromeOsTest,
@@ -128,7 +128,7 @@ TEST_F(DesktopDisplayInfoLoaderChromeOsTest,
 
 TEST_F(DesktopDisplayInfoLoaderChromeOsTest,
        OriginShouldRespectDeviceScaleFactor) {
-  ash_proxy().AddDisplayFromSpecWithId("10+20-100x100*2", kAnyId);
+  ash_proxy().AddDisplayFromSpecWithId("10+20-1000x500*2", kAnyId);
 
   EXPECT_THAT(CalculateDisplayInfo(), IsSingleDisplayWith(Origin(5, 10)));
 }

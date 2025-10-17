@@ -12,6 +12,7 @@
 ; Define constants for all of the parameter strings passed in.
 (define browser-pid "BROWSER_PID")
 (define bundle-id "BUNDLE_ID")
+(define helper-bundle-id "HELPER_BUNDLE_ID")
 (define bundle-path "BUNDLE_PATH")
 (define component-path "COMPONENT_PATH")
 (define disable-sandbox-denial-logging "DISABLE_SANDBOX_DENIAL_LOGGING")
@@ -23,11 +24,9 @@
 (define darwin-user-cache-dir "DARWIN_USER_CACHE_DIR")
 (define darwin-user-dir "DARWIN_USER_DIR")
 (define darwin-user-temp-dir "DARWIN_USER_TEMP_DIR")
-; There are two separate flags for syscall filtering to allow it
-; to be rolled out to one process type at a time, while still allowing
-; local development.
-(define filter-syscalls "FILTER_SYSCALLS")
-(define filter-syscalls-debug "FILTER_SYSCALLS_DEBUG")
+
+; Sandboxed processes which use Metal may need to disable the shader cache.
+(define disable-metal-shader-cache "DISABLE_METAL_SHADER_CACHE")
 
 ; --enable-sandbox-logging causes the sandbox to log failures to the syslog.
 (if (param-true? disable-sandbox-denial-logging)
@@ -65,17 +64,52 @@
     ; (https://crbug.com/662686)
     (allow file-read* (extension "com.apple.app-sandbox.read"))))
 
+; A function that profiles can call to allow forcibly disabling the Metal shader
+; cache in lieu of poking necessary holes in the sandbox for it.
+; See https://crbug.com/1159113
+(define (maybe-disable-metal-shader-cache)
+  (if (param-true? disable-metal-shader-cache)
+    (let ((metal-cache-dir (subpath (string-append (param darwin-user-cache-dir)
+                                                   "/com.apple.metal"))))
+      (deny file-read* metal-cache-dir)
+      (deny file-write* metal-cache-dir)
+      #t)
+    #f))
+
+; A function profiles can call to enable the requisite file access needed for
+; Metal shader compilation to work with the shader cache.
+;
+; Metal shader compilation may be offloaded to a helper process that needs
+; access to the user cache directory in order to cache its work to disk.
+; If this sandbox is applied to an executable that is not within an app bundle,
+; such as in a unit test, the helper-bundle-id parameter will not be set and
+; issuing sandbox extensions to the Metal cache directories will not be allowed.
+; See https://crbug.com/1453813
+(define (maybe-allow-metal-shader-cache-access)
+  (begin
+    (if (param helper-bundle-id)
+      (let ((helper-bundle-cache-dir
+            (string-append (param darwin-user-cache-dir)
+                            "/" (param helper-bundle-id))))
+        (allow file-issue-extension
+          (require-all
+            (extension-class "com.apple.app-sandbox.read-write")
+            (require-any
+              (subpath (string-append helper-bundle-cache-dir
+                                      "/com.apple.metalfe"))
+              (subpath (string-append helper-bundle-cache-dir
+                                      "/com.apple.gpuarchiver")))))))))
+
 ; Reads of signed Mach-O blobs created by the CVMS server.
 ; https://crbug.com/850021
 (define (allow-cvms-blobs)
-  (if (>= os-version 1014)
-    (begin
-      (allow file-read* file-write-unlink
-        (prefix "/private/tmp/cvmsCodeSignObj"))
-      (allow file-read*
-        (extension "com.apple.cvms.kernel")
-        (prefix "/private/var/db/CVMS/cvmsCodeSignObj"))
-)))
+  (begin
+    (allow file-read* file-write-unlink
+      (prefix "/private/tmp/cvmsCodeSignObj"))
+    (allow file-read*
+      (extension "com.apple.cvms.kernel")
+      (prefix "/private/var/db/CVMS/cvmsCodeSignObj"))
+))
 
 ; Allow logging for all processes.
 (allow file-write*
@@ -149,6 +183,15 @@
   (subpath "/System/Library/Preferences/Logging")
   (subpath "/System/Library/PrivateFrameworks")
   (subpath "/usr/lib")
+)
+
+; In some circumstances, Safari updates are installed below /Library/Apple and
+; SafariServices.framework in /System/Library/Frameworks is replaced with a
+; symlink into that directory tree. These paths must be readable to allow
+; the framework to be loaded.
+(allow file-read*
+  (subpath "/Library/Apple/System/Library/Frameworks")
+  (subpath "/Library/Apple/System/Library/PrivateFrameworks")
 )
 
 ; Reads from /etc.
@@ -227,15 +270,32 @@
   (sysctl-name "hw.activecpu")
   (sysctl-name "hw.busfrequency_compat")
   (sysctl-name "hw.byteorder")
+  (sysctl-name "hw.cacheconfig")
   (sysctl-name "hw.cachelinesize_compat")
+  (sysctl-name "hw.cpufamily")
   (sysctl-name "hw.cpufrequency_compat")
   (sysctl-name "hw.cputype")
+  (sysctl-name "hw.l1dcachesize_compat")
+  (sysctl-name "hw.l1icachesize_compat")
+  (sysctl-name "hw.l2cachesize_compat")
+  (sysctl-name "hw.l3cachesize_compat")
   (sysctl-name "hw.logicalcpu_max")
   (sysctl-name "hw.machine")
+  (sysctl-name "hw.memsize")
   (sysctl-name "hw.ncpu")
   (sysctl-name "hw.nperflevels")
+  (sysctl-name "hw.optional.arm.FEAT_BF16")
+  (sysctl-name "hw.optional.arm.FEAT_DotProd")
+  (sysctl-name "hw.optional.arm.FEAT_FCMA")
+  (sysctl-name "hw.optional.arm.FEAT_FHM")
+  (sysctl-name "hw.optional.arm.FEAT_FP16")
+  (sysctl-name "hw.optional.arm.FEAT_I8MM")
+  (sysctl-name "hw.optional.arm.FEAT_JSCVT")
+  (sysctl-name "hw.optional.arm.FEAT_LSE")
+  (sysctl-name "hw.optional.arm.FEAT_RDM")
   (sysctl-name "hw.optional.arm.FEAT_SHA512")
   (sysctl-name "hw.optional.armv8_2_sha512")
+  (sysctl-name "hw.packages")
   (sysctl-name "hw.pagesize_compat")
   (sysctl-name "hw.physicalcpu_max")
   (sysctl-name "hw.tbfrequency_compat")
@@ -259,86 +319,12 @@
   (literal "/private/var/run/syslog")
 )
 
-; This is available in 10.15+, and rolled out as a Finch experiment.
-(if (param-true? filter-syscalls)
-  (when (defined? 'syscall-unix)
-    (allow syscall-unix
-      (syscall-number SYS___disable_threadsignal)
-      (syscall-number SYS___mac_syscall)
-      (syscall-number SYS___pthread_kill)
-      (syscall-number SYS___pthread_markcancel)
-      (syscall-number SYS___pthread_sigmask)
-      (syscall-number SYS___semwait_signal)
-      (syscall-number SYS___semwait_signal_nocancel)
-      (syscall-number SYS_access)
-      (syscall-number SYS_bsdthread_create)
-      (syscall-number SYS_bsdthread_ctl)
-      (syscall-number SYS_bsdthread_register)
-      (syscall-number SYS_bsdthread_terminate)
-      (syscall-number SYS_close)
-      (syscall-number SYS_close_nocancel)
-      (syscall-number SYS_csops_audittoken)
-      (syscall-number SYS_exit)
-      (syscall-number SYS_fcntl)
-      (syscall-number SYS_fileport_makefd)
-      (syscall-number SYS_fileport_makeport)
-      (syscall-number SYS_fstat64)
-      (syscall-number SYS_fstatat64)
-      (syscall-number SYS_fstatfs64)
-      (syscall-number SYS_getattrlist)
-      (syscall-number SYS_getattrlistbulk)
-      (syscall-number SYS_getaudit_addr)
-      (syscall-number SYS_getdirentries64)
-      (syscall-number SYS_geteuid)
-      (syscall-number SYS_getgid)
-      (syscall-number SYS_gethostuuid)
-      (syscall-number SYS_getpid)
-      (syscall-number SYS_getppid)
-      (syscall-number SYS_getpriority)
-      (syscall-number SYS_getrlimit)
-      (syscall-number SYS_gettimeofday)
-      (syscall-number SYS_getuid)
-      (syscall-number SYS_ioctl)
-      (syscall-number SYS_issetugid)
-      (syscall-number SYS_kdebug_trace64)
-      (syscall-number SYS_kevent64)
-      (syscall-number SYS_kevent_id)
-      (syscall-number SYS_kevent_qos)
-      (syscall-number SYS_kqueue)
-      (syscall-number SYS_lstat64)
-      (syscall-number SYS_madvise)
-      (syscall-number SYS_mmap)
-      (syscall-number SYS_mprotect)
-      (syscall-number SYS_munmap)
-      (syscall-number SYS_open)
-      (syscall-number SYS_open_dprotected_np)
-      (syscall-number SYS_open_nocancel)
-      (syscall-number SYS_pread)
-      (syscall-number SYS_proc_info)
-      (syscall-number SYS_psynch_mutexdrop)
-      (syscall-number SYS_psynch_mutexwait)
-      (syscall-number SYS_psynch_rw_downgrade)
-      (syscall-number SYS_psynch_rw_longrdlock)
-      (syscall-number SYS_psynch_rw_rdlock)
-      (syscall-number SYS_psynch_rw_unlock)
-      (syscall-number SYS_psynch_rw_unlock2)
-      (syscall-number SYS_psynch_rw_upgrade)
-      (syscall-number SYS_psynch_rw_wrlock)
-      (syscall-number SYS_psynch_rw_yieldwrlock)
-      (syscall-number SYS_read)
-      (syscall-number SYS_read_nocancel)
-      (syscall-number SYS_readlink)
-      (syscall-number SYS_shm_open)
-      (syscall-number SYS_sigaction)
-      (syscall-number SYS_sigprocmask)
-      (syscall-number SYS_sigreturn)
-      (syscall-number SYS_stat64)
-      (syscall-number SYS_statfs64)
-      (syscall-number SYS_sysctl)
-      (syscall-number SYS_sysctlbyname)
-      (syscall-number SYS_thread_selfid)
-      (syscall-number SYS_ulock_wait)
-      (syscall-number SYS_ulock_wake)
-      (syscall-number SYS_workq_kernreturn)
-      (syscall-number SYS_workq_open)
-)))
+; Explicit denials. These are already covered by the blanket `(deny default)`,
+; but benefit from explanation as to why they're denied.
+(deny mach-lookup
+  ; CFPreferences falls back to in-process access to preference plists, known as
+  ; direct mode, when cfprefsd is inaccessible. This in-process access ensures
+  ; that our sandbox policy limits which preference domains can be accessed via
+  ; CFPreferences or NSUserDefaults.
+  (global-name "com.apple.cfprefsd.daemon")
+)

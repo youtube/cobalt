@@ -11,10 +11,16 @@
 #import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/chrome/common/app_group/app_group_metrics.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+namespace {
+// Delay in seconds before reporting the metrics coming from Open extensions.
+// This delay is needed to be sure the shared user default
+// is correctly synchronized.
+const int kDispatchTimeInSeconds = 2;
 
+// Maximum number of outcomes reported to UMA to avoid infinite loops.
+const int kMaxNumberOfLogs = 10;
+
+}  // namespace
 namespace app_group {
 
 namespace main_app {
@@ -31,12 +37,13 @@ void ProcessPendingLogs(ProceduralBlockWithData callback) {
 
   NSArray* pending_logs =
       [file_manager contentsOfDirectoryAtPath:[log_dir_url path] error:nil];
-  if (!pending_logs)
+  if (!pending_logs) {
     return;
+  }
   for (NSString* pending_log : pending_logs) {
     if ([pending_log hasSuffix:app_group::kPendingLogFileSuffix]) {
-      NSURL* file_url =
-          [log_dir_url URLByAppendingPathComponent:pending_log isDirectory:NO];
+      NSURL* file_url = [log_dir_url URLByAppendingPathComponent:pending_log
+                                                     isDirectory:NO];
       if (callback) {
         NSData* log_content = [file_manager contentsAtPath:[file_url path]];
         callback(log_content);
@@ -61,14 +68,51 @@ void EnableMetrics(NSString* client_id,
                       forKey:@(kInstallDate)];
 
   [shared_defaults setObject:brand_code forKey:@(kBrandCode)];
+
+  // Reporting the Open extension should be done only once on each session.
+  // When the open extension actually launch Chrome, it stores an Outcome entry
+  // in the shared NSUserDefaults. Add a delay to let the synchronization happen
+  // and be sure this entry is reported.
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    dispatch_after(
+        dispatch_time(DISPATCH_TIME_NOW,
+                      (int64_t)(kDispatchTimeInSeconds * NSEC_PER_SEC)),
+        dispatch_get_main_queue(), ^{
+          LogOpenExtensionMetrics();
+        });
+  });
 }
 
 void DisableMetrics() {
-  NSUserDefaults* shared_defaults =
-      [[NSUserDefaults alloc] initWithSuiteName:ApplicationGroup()];
+  NSUserDefaults* shared_defaults = GetGroupUserDefaults();
   [shared_defaults removeObjectForKey:@(kChromeAppClientID)];
   [shared_defaults removeObjectForKey:kContentExtensionDisplayCount];
   [shared_defaults removeObjectForKey:kSearchExtensionDisplayCount];
+  [shared_defaults removeObjectForKey:kOpenExtensionOutcomes];
+}
+
+void LogOpenExtensionMetrics() {
+  NSUserDefaults* shared_defaults = GetGroupUserDefaults();
+  NSDictionary<NSString*, NSNumber*>* open_extension_dictionary =
+      [shared_defaults dictionaryForKey:app_group::kOpenExtensionOutcomes];
+  // Clear the outcomes after reporting
+  [shared_defaults removeObjectForKey:kOpenExtensionOutcomes];
+
+  for (NSString* key in open_extension_dictionary) {
+    int event_count = [open_extension_dictionary valueForKey:key].intValue;
+    app_group::OpenExtensionOutcome bucket_for_histogram =
+        OutcomeTypeFromKey(key);
+
+    if (event_count > kMaxNumberOfLogs) {
+      event_count = kMaxNumberOfLogs;
+    }
+
+    for (int i = 0; i < event_count; i++) {
+      base::UmaHistogramEnumeration("IOSOpenExtensionOutcome",
+                                    bucket_for_histogram);
+    }
+  }
 }
 
 }  // namespace main_app

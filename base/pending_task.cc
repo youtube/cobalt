@@ -8,26 +8,26 @@
 
 namespace base {
 
-namespace {
+TaskMetadata::TaskMetadata() = default;
 
-// TODO(crbug.com/1153139): Reconcile with GetDefaultTaskLeeway() and
-// kMinLowResolutionThresholdMs once GetDefaultTaskLeeway() == 16ms.
-constexpr base::TimeDelta kMaxPreciseDelay = Milliseconds(32);
+TaskMetadata::TaskMetadata(const Location& posted_from,
+                           TimeTicks queue_time,
+                           TimeTicks delayed_run_time,
+                           TimeDelta leeway,
+                           subtle::DelayPolicy delay_policy)
+    : posted_from(posted_from),
+      queue_time(queue_time),
+      delayed_run_time(delayed_run_time),
+      leeway(leeway),
+      delay_policy(delay_policy) {}
 
-subtle::DelayPolicy MaybeOverrideDelayPolicy(subtle::DelayPolicy delay_policy,
-                                             TimeTicks queue_time,
-                                             TimeTicks delayed_run_time) {
-  if (delayed_run_time.is_null())
-    return subtle::DelayPolicy::kFlexibleNoSooner;
-  DCHECK(!queue_time.is_null());
-  if (delayed_run_time - queue_time >= kMaxPreciseDelay &&
-      delay_policy == subtle::DelayPolicy::kPrecise) {
-    return subtle::DelayPolicy::kFlexibleNoSooner;
-  }
-  return delay_policy;
-}
+TaskMetadata::TaskMetadata(TaskMetadata&& other) = default;
+TaskMetadata::TaskMetadata(const TaskMetadata& other) = default;
 
-}  // namespace
+TaskMetadata::~TaskMetadata() = default;
+
+TaskMetadata& TaskMetadata::operator=(TaskMetadata&& other) = default;
+TaskMetadata& TaskMetadata::operator=(const TaskMetadata& other) = default;
 
 PendingTask::PendingTask() = default;
 
@@ -37,14 +37,15 @@ PendingTask::PendingTask(const Location& posted_from,
                          TimeTicks delayed_run_time,
                          TimeDelta leeway,
                          subtle::DelayPolicy delay_policy)
-    : task(std::move(task)),
-      posted_from(posted_from),
-      queue_time(queue_time),
-      delayed_run_time(delayed_run_time),
-      leeway(leeway),
-      delay_policy(MaybeOverrideDelayPolicy(delay_policy,
-                                            queue_time,
-                                            delayed_run_time)) {}
+    : TaskMetadata(posted_from,
+                   queue_time,
+                   delayed_run_time,
+                   leeway,
+                   delay_policy),
+      task(std::move(task)) {}
+
+PendingTask::PendingTask(const TaskMetadata& metadata, OnceClosure task)
+    : TaskMetadata(metadata), task(std::move(task)) {}
 
 PendingTask::PendingTask(PendingTask&& other) = default;
 
@@ -52,23 +53,26 @@ PendingTask::~PendingTask() = default;
 
 PendingTask& PendingTask::operator=(PendingTask&& other) = default;
 
-TimeTicks PendingTask::GetDesiredExecutionTime() const {
-  if (!delayed_run_time.is_null())
+TimeTicks TaskMetadata::GetDesiredExecutionTime() const {
+  if (!delayed_run_time.is_null()) {
     return delayed_run_time;
+  }
   return queue_time;
 }
 
-TimeTicks PendingTask::earliest_delayed_run_time() const {
+TimeTicks TaskMetadata::earliest_delayed_run_time() const {
   DCHECK(!delayed_run_time.is_null());
-  if (delay_policy == subtle::DelayPolicy::kFlexiblePreferEarly)
+  if (delay_policy == subtle::DelayPolicy::kFlexiblePreferEarly) {
     return delayed_run_time - leeway;
+  }
   return delayed_run_time;
 }
 
-TimeTicks PendingTask::latest_delayed_run_time() const {
+TimeTicks TaskMetadata::latest_delayed_run_time() const {
   DCHECK(!delayed_run_time.is_null());
-  if (delay_policy == subtle::DelayPolicy::kFlexibleNoSooner)
+  if (delay_policy == subtle::DelayPolicy::kFlexibleNoSooner) {
     return delayed_run_time + leeway;
+  }
   return delayed_run_time;
 }
 
