@@ -76,6 +76,8 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Disable QUIC to save CPU budgets on m114.
       // Remove below if Cobalt rebase to m138+.
       switches::kDisableQuic,
+      // Disable mipmap generation to reduce memory usage.
+      switches::kDisableMipmapGeneration,
 });
 
 // Map of switches with parameters and their defaults.
