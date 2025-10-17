@@ -18,14 +18,13 @@
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   static_library("crashpad_wrapper") {
-    check_includes = false
-
     sources = [
       "wrapper.cc",
       "wrapper.h",
     ]
 
     deps = [
+      "//starboard:starboard_headers_only",
       "//starboard/elf_loader:evergreen_info",
       "//third_party/crashpad/crashpad/client",
       "//third_party/crashpad/crashpad/client:common",
