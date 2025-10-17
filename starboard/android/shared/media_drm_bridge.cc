@@ -22,7 +22,6 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/memory/raw_ref.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -201,9 +200,11 @@ DrmOperationResult MediaDrmBridge::CreateSessionWithAppProvisioning(
                env, j_media_drm_bridge_, j_ticket, j_init_data, j_mime));
 }
 
-void MediaDrmBridge::GenerateProvisionRequest() const {
+std::string MediaDrmBridge::GenerateProvisionRequest() const {
   JNIEnv* env = AttachCurrentThread();
-  Java_MediaDrmBridge_generateProvisionRequest(env, j_media_drm_bridge_);
+  ScopedJavaLocalRef<jbyteArray> j_provision_request =
+      Java_MediaDrmBridge_generateProvisionRequest(env, j_media_drm_bridge_);
+  return JavaByteArrayToString(env, j_provision_request);
 }
 
 DrmOperationResult MediaDrmBridge::ProvideProvisionResponse(
@@ -280,12 +281,6 @@ void MediaDrmBridge::OnSessionMessage(
       ticket, ToSbDrmSessionRequestType(static_cast<RequestType>(request_type)),
       JavaByteArrayToString(env, session_id),
       JavaByteArrayToString(env, message));
-}
-
-void MediaDrmBridge::OnProvisioningRequestMessage(
-    JNIEnv* env,
-    const JavaParamRef<jbyteArray>& message) {
-  host_->OnProvisioningRequest(JavaByteArrayToString(env, message));
 }
 
 void MediaDrmBridge::OnKeyStatusChange(
