@@ -53,7 +53,9 @@ TEST(CobaltSwitchDefaultsTest, MergeDisabledFeatures) {
 
   std::string disabled_features =
       GetSwitchValue(cmd_line_pxr, ::switches::kDisableFeatures);
-  EXPECT_EQ(std::string("PersistentOriginTrials,Vulkan"), disabled_features);
+  EXPECT_EQ(
+      std::string("PersistentOriginTrials,Vulkan,UserInteractionPeripherals"),
+      disabled_features);
 }
 
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {

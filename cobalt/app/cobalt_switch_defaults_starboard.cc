@@ -19,6 +19,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/network_session_configurator/common/network_switches.h"
+#include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
@@ -82,13 +83,17 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
 const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
   const base::CommandLine::SwitchMap cobalt_param_switch_defaults({
     // Disable Vulkan.
-    {switches::kDisableFeatures, "Vulkan"},
+    {switches::kDisableFeatures,
+     "Vulkan,"
+     // Don't launch services related to user-interaction via peripherals,
+     // e.g. video capture.
+     "UserInteractionPeripherals"},
         // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
         // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
         // creation, but egl extension required to support the attribute is
         // missing and causes errors. So Enable it by default.
         {switches::kEnableFeatures,
-         "LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation"},
+         "LimitImageDecodeCacheSize:mb/24,DefaultEnableANGLEValidation"},
     // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
         {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},

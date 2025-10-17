@@ -34,7 +34,7 @@ void AecDumpManagerImpl::AddReceiver(
 
 void AecDumpManagerImpl::AutoStart() {
   WebRTCInternals* webrtc_internals = WebRTCInternals::GetInstance();
-  if (webrtc_internals->IsAudioDebugRecordingsEnabled())
+  if (webrtc_internals && webrtc_internals->IsAudioDebugRecordingsEnabled())
     Start(webrtc_internals->GetAudioDebugRecordingsFilePath());
 }
 
@@ -59,7 +59,7 @@ void AecDumpManagerImpl::Add(
                      weak_factory_.GetWeakPtr(), id));
 
   WebRTCInternals* webrtc_internals = WebRTCInternals::GetInstance();
-  if (webrtc_internals->IsAudioDebugRecordingsEnabled()) {
+  if (webrtc_internals && webrtc_internals->IsAudioDebugRecordingsEnabled()) {
     CreateFileAndStartDump(webrtc_internals->GetAudioDebugRecordingsFilePath(),
                            id);
   }

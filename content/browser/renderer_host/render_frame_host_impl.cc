@@ -11110,6 +11110,13 @@ void RenderFrameHostImpl::ResetPermissionsPolicy() {
 void RenderFrameHostImpl::CreateAudioInputStreamFactory(
     mojo::PendingReceiver<blink::mojom::RendererAudioInputStreamFactory>
         receiver) {
+  // TODO(b/450888267): This should ideally be compiled out, but it will
+  // interfere with running WebPlatformTests, which in Cobalt we do by tacking
+  // out H5VCC Web APIs on top of content_shell (IOW BUILDFLAG(IS_COBALT) is
+  // set), which in turn expects this path to be working.
+  if (!base::FeatureList::IsEnabled(features::kUserInteractionPeripherals)) {
+    return;
+  }
   BrowserMainLoop* browser_main_loop = BrowserMainLoop::GetInstance();
   DCHECK(browser_main_loop);
   MediaStreamManager* msm = browser_main_loop->media_stream_manager();
@@ -11120,6 +11127,13 @@ void RenderFrameHostImpl::CreateAudioInputStreamFactory(
 void RenderFrameHostImpl::CreateAudioOutputStreamFactory(
     mojo::PendingReceiver<blink::mojom::RendererAudioOutputStreamFactory>
         receiver) {
+  // TODO(b/450888267): This should ideally be compiled out, but it will
+  // interfere with running WebPlatformTests, which in Cobalt we do by tacking
+  // out H5VCC Web APIs on top of content_shell (IOW BUILDFLAG(IS_COBALT) is
+  // set), which in turn expects this path to be working.
+  if (!base::FeatureList::IsEnabled(features::kUserInteractionPeripherals)) {
+    return;
+  }
   media::AudioSystem* audio_system =
       BrowserMainLoop::GetInstance()->audio_system();
   MediaStreamManager* media_stream_manager =

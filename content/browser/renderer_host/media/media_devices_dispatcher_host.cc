@@ -81,6 +81,13 @@ void MediaDevicesDispatcherHost::Create(
     int render_frame_id,
     MediaStreamManager* media_stream_manager,
     mojo::PendingReceiver<blink::mojom::MediaDevicesDispatcherHost> receiver) {
+  // TODO(b/450888267): This should ideally be compiled out, but it will
+  // interfere with running WebPlatformTests, which in Cobalt we do by tacking
+  // out H5VCC Web APIs on top of content_shell (IOW BUILDFLAG(IS_COBALT) is
+  // set), which in turn expects this path to be working.
+  if (!base::FeatureList::IsEnabled(features::kUserInteractionPeripherals)) {
+    return;
+  }
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   media_stream_manager->media_devices_manager()->RegisterDispatcherHost(
       std::make_unique<MediaDevicesDispatcherHost>(
