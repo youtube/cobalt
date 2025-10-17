@@ -503,7 +503,7 @@ struct tm ToTM(absl::Time t, absl::TimeZone tz) {
   return tm;
 }
 
-#if defined(ENABLE_BUILDFLAG_IS_COBALT) && !defined(SB_IS_DEFAULT_TC)
+#if defined(OS_STARBOARD) && !defined(SB_IS_DEFAULT_TC)
 // Not all Cobalt toolchains can compile these functions as constexpr as is
 // done upstream.
 
@@ -537,7 +537,7 @@ ABSL_ATTRIBUTE_CONST_FUNCTION int64_t ToInt64Milliseconds(
   }
   return d / Milliseconds(1);
 }
-#endif  // BUILDFLAG(IS_COBALT) && !defined(SB_IS_DEFAULT_TC)
+#endif  // BUILDFLAG(OS_STARBOARD) && !defined(SB_IS_DEFAULT_TC)
 
 ABSL_NAMESPACE_END
 }  // namespace absl

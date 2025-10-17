@@ -80,7 +80,7 @@ class BASE_EXPORT FieldTrialParamAssociator {
   using FieldTrialRefKey = std::pair<const std::string&, const std::string&>;
 
   Lock lock_;
-#if BUILDFLAG(IS_COBALT) && !defined(SB_IS_DEFAULT_TC)
+#if BUILDFLAG(IS_STARBOARD) && !defined(SB_IS_DEFAULT_TC)
   std::map<FieldTrialKey, FieldTrialParams> field_trial_params_;
 #else
   std::map<FieldTrialKey, FieldTrialParams, std::less<>> field_trial_params_;

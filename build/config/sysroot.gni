@@ -34,7 +34,10 @@ if (is_cobalt_hermetic_build) {
   # dependencies in cobalt.
   use_sysroot = use_sysroot && current_toolchain != default_toolchain
 }
-if (is_cobalt) {
+# TODO: b/371241293 - is_cobalt_hermetic_build is not forwarded to the
+# default_system_allocator_toolchain toolchain, so we use use_custom_libc
+# instead, as that is set in args.gn instead of using a default value.
+if (use_custom_libc) {
   use_sysroot =
       use_sysroot && current_toolchain != default_system_allocator_toolchain
 }

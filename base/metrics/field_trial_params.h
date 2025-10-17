@@ -43,7 +43,7 @@ struct FeatureParamTraits<std::string> {
   static CacheStorageType ToCacheStorageType(const std::string& value) {
     return CacheStorageType(value);
   }
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   static constexpr std::string FromCacheStorageType(
 #else
   static const std::string FromCacheStorageType(

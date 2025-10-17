@@ -33,7 +33,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
 #include "base/numerics/byte_conversions.h"
 #else
 #include "base/sys_byteorder.h"
@@ -62,7 +62,7 @@ void UUID::InitializeToZero() {
   memset(this, 0, sizeof(*this));
 }
 
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
 void UUID::InitializeFromBytes(const uint8_t* bytes_ptr) {
   // TODO(crbug.com/40284755): This span construction is unsound. The caller
   // should provide a span instead of an unbounded pointer.
@@ -130,7 +130,7 @@ bool UUID::InitializeWithNew() {
   // from libuuid is not available everywhere.
   // On Windows, do not use UuidCreate() to avoid a dependency on rpcrt4, so
   // that this function is usable early in DllMain().
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   base::RandBytes(base::byte_span_from_ref(*this));
 #else
   base::RandBytes(this, sizeof(*this));

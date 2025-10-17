@@ -49,7 +49,7 @@ void StackUnwindData::Initialize(
   // |unwinders| is iterated backward since |unwinders_factory_| generates
   // unwinders in increasing priority order. |unwinders_| is stored in
   // decreasing priority order for ease of use within the class.
-#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
   unwinders_.insert(unwinders_.end(),
                     std::make_move_iterator(unwinders.rbegin()),
                     std::make_move_iterator(unwinders.rend()));
