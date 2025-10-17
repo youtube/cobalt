@@ -23,18 +23,6 @@ import("//testing/test.gni")
 # Configuration for overall Android Starboard Platform.
 ##########################################################
 
-# This shared library contains only shared state variables needed
-# for shared JNI to work across library boundaries.
-shared_library("starboard_jni_state") {
-  sources = [
-    "jni_state.cc",
-    "jni_state.h",
-  ]
-
-  # Do not just hide symbols from us
-  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
-}
-
 config("starboard_platform_libs") {
   libs = [
     "EGL",
@@ -191,7 +179,11 @@ static_library("starboard_platform") {
     "crash_handler.h",
     "decode_target.cc",
     "decode_target.h",
+    "display_util.cc",
+    "display_util.h",
     "drm_create_system.cc",
+    "drm_session_id_mapper.cc",
+    "drm_session_id_mapper.h",
     "drm_system.cc",
     "drm_system.h",
     "egl_swap_buffers.cc",
@@ -202,9 +194,6 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
-    "jni_env_ext.cc",
-    "jni_env_ext.h",
-    "jni_utils.h",
     "log.cc",
     "log_flush.cc",
     "log_format.cc",
@@ -289,6 +278,8 @@ static_library("starboard_platform") {
     "video_max_video_input_size.h",
     "video_render_algorithm.cc",
     "video_render_algorithm.h",
+    "video_surface_texture_bridge.cc",
+    "video_surface_texture_bridge.h",
     "video_window.cc",
     "video_window.h",
 
@@ -318,7 +309,6 @@ static_library("starboard_platform") {
 
   public_deps = [
     ":starboard_base_symbolize",
-    ":starboard_jni_state",
     "//cobalt/android:jni_headers",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
@@ -394,7 +384,7 @@ test("starboard_platform_tests") {
               "//starboard/shared/starboard/drm/drm_test_helpers.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.h",
               "//starboard/shared/starboard/starboard_feature_test.cc",
-              "jni_env_ext_test.cc",
+              "drm_session_id_mapper_test.cc",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
             ]

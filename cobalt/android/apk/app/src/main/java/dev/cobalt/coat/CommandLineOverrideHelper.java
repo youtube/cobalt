@@ -72,6 +72,9 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-accelerated-video-encode");
         // Rasterize Tiles directly to GPU memory.
         paramOverrides.add("--enable-zero-copy");
+        // Disable QUIC to save CPU budgets on m114.
+        // Remove below if Cobalt rebase to m138+.
+        paramOverrides.add("--disable-quic");
 
         return paramOverrides;
     }

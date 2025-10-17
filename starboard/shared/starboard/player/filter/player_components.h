@@ -23,6 +23,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/result.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
@@ -152,9 +153,8 @@ class PlayerComponents {
                                     SbMediaVideoCodec codec,
                                     SbDrmSystem drm_system);
 
-    virtual std::unique_ptr<PlayerComponents> CreateComponents(
-        const CreationParameters& creation_parameters,
-        std::string* error_message);
+    virtual NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
+        const CreationParameters& creation_parameters);
 
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
    private:

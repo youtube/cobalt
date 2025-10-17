@@ -501,11 +501,4 @@ void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
   }
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_util_DisplayUtil_nativeOnDisplayChanged() {
-  // Display device change could change hdr capabilities.
-  MediaCapabilitiesCache::GetInstance()->ClearCache();
-  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
-}
-
 }  // namespace starboard

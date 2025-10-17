@@ -394,6 +394,21 @@ class CrashpadClient {
   //!
   //! \return `true` on success, `false` on failure with a message logged.
   static bool SendEvergreenInfoToHandler(EvergreenInfo evergreen_info);
+
+  //! \brief Inserts annotation mapping info for the handler
+  //!
+  //! A signal handler must have already been installed before calling this
+  //! method. Whether or not the annotation is sent to the Crashpad handler,
+  //! or just prepared to be sent, depends on whether the Crashpad handler is
+  //! started at launch or at crash.
+  //! \param[in] key The annotation's key.
+  //! \param[in] value The annotation's value.
+  //!
+  //! \return `true` on success, `false` on failure with a message logged.
+  //!
+  //! TODO: b/452049007 - Cobalt: remove this custom API if we're able to move
+  //! all client use cases onto Chromium's crash keys.
+  static bool InsertAnnotationForHandler(const char* key, const char* value);
 #endif  // BUILDFLAG(IS_STARBOARD)
 
   //! \brief Starts a handler process with an initial client.
