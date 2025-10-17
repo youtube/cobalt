@@ -10,6 +10,7 @@ if [ "$#" -ne 2 ]; then
   echo "Error: Incorrect number of arguments."
   echo "Usage: $0 <platform> <test_suite_name>"
   echo "Example: $0 linux-x64x11_devel unittests"
+  echo "Example: $0 evergreen-x64_devel net_unittests_loader" # Added example
   exit 1
 fi
 
@@ -20,11 +21,18 @@ TEST_SUITE="$2"
 # Derive the platform name for the filter path (e.g., "linux-x64x11_devel" -> "linux-x64x11").
 # This removes the suffix starting with the last underscore.
 FILTER_PLATFORM=${PLATFORM%_*}
-
-# Construct paths based on the provided arguments.
 BUILD_DIR="out/${PLATFORM}"
-EXECUTABLE_PATH="./${BUILD_DIR}/${TEST_SUITE}"
 FILTER_FILE="cobalt/testing/filters/${FILTER_PLATFORM}/${TEST_SUITE}_filter.json"
+
+
+# Check if the TEST_SUITE string ends with "_loader"
+if [[ "$TEST_SUITE" == *_loader ]]; then
+  # Construct the Python script path
+  EXECUTABLE_PATH="./${BUILD_DIR}/${TEST_SUITE}.py"
+else
+  # Construct the C++ executable path
+  EXECUTABLE_PATH="./${BUILD_DIR}/${TEST_SUITE}"
+fi
 
 # --- Build Step ---
 echo "🔨 Building ${TEST_SUITE} for ${PLATFORM}..."
@@ -55,9 +63,13 @@ else
   echo "ℹ️ No filter file found for this test suite."
 fi
 
-# This part will only run if the build command above succeeds.
-# The $GTEST_FILTER_FLAG will be empty if no filter is found or created.
-echo "Executing: ${EXECUTABLE_PATH} --single-process-tests $GTEST_FILTER_FLAG"
-"${EXECUTABLE_PATH}" --single-process-tests $GTEST_FILTER_FLAG
+# Check if the C++ executable exists before trying to run it
+if [ -f "$EXECUTABLE_PATH" ]; then
+  echo "Executing C++ test: ${EXECUTABLE_PATH} --single-process-tests $GTEST_FILTER_FLAG"
+  "${EXECUTABLE_PATH}" --single-process-tests $GTEST_FILTER_FLAG
+else
+    echo "❌ Error: test executable not found at ${EXECUTABLE_PATH}"
+    exit 1
+fi
 
 echo "✅ Done."
