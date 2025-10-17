@@ -21,7 +21,7 @@ config("symbolize_config") {
 }
 
 static_library("symbolize") {
-  visibility = [ "//base/*" ]
+  visibility = [ "//copied_base/base/*" ]
   sources = [
     "config.h",
     "demangle.cc",

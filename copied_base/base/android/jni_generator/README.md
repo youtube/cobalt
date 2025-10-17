@@ -61,8 +61,8 @@ To add JNI to a class:
 
 1. Enable the JNI processor by adding to your `android_library` target:
    ```python
-   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
-   deps = [ "//base:jni_java" ]
+   annotation_processor_deps = [ "//copied_base/base/android/jni_generator:jni_processor" ]
+   deps = [ "//copied_base/base:jni_java" ]
    ```
 2. Create a nested-interface annotated with `@NativeMethods` that contains
    the declaration of the corresponding static methods you wish to have

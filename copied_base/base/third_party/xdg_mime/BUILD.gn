@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 
 static_library("xdg_mime") {
-  visibility = [ "//base/*" ]
+  visibility = [ "//copied_base/base/*" ]
   sources = [
     "xdgmime.c",
     "xdgmime.h",

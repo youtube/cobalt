@@ -1,1 +1,1 @@
-mixins: "//base/metrics/COMMON_METADATA"
+mixins: "//copied_base/base/metrics/COMMON_METADATA"
