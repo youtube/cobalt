@@ -346,11 +346,11 @@ jobs:
     name: Check Binary Sizes
     if: startsWith(inputs.platform, 'evergreen-arm') && contains(fromJson(needs.initialize.outputs.build_configs), 'gold')
     steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          name: ci-essentials-${{ inputs.platform }}
-
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Download all size artifacts
         uses: actions/download-artifact@v4
         with:
@@ -359,7 +359,6 @@ jobs:
 
       - name: Process size artifacts
         run: |
-          chmod +x cobalt/testing/tools/process_size_artifacts.sh
           cobalt/testing/tools/process_size_artifacts.sh
         shell: bash
 
