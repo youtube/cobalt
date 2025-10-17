@@ -343,7 +343,7 @@ SPECIAL_CASES = {
         "Name": "RDK",
         "URL": "https://github.com/rdkcentral/rdk",
         "License": "Apache 2.0",
-        "License File": "/starboard/contrib/rdk/LICENSE",
+        "License File": ["/starboard/contrib/rdk/LICENSE"],
     },
     os.path.join('third_party', 'llvm-project'): {
         "Name": "LLVM",
@@ -355,13 +355,13 @@ SPECIAL_CASES = {
         "Name": "lz4",
         "URL": "https://github.com/lz4/lz4",
         "License": "BSD",
-        "License File": "/third_party/lz4_lib/LICENSE",
+        "License File": ["/third_party/lz4_lib/LICENSE"],
     },
     os.path.join('third_party', 'musl'): {
         "Name": "musl",
         "URL": "https://musl.libc.org/",
         "License": "MIT",
-        "License File": "/third_party/musl/COPYRIGHT",
+        "License File": ["/third_party/musl/COPYRIGHT"],
     },
 }
 
