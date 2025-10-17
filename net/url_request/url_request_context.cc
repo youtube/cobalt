@@ -141,8 +141,12 @@ void URLRequestContext::AssertNoURLRequests() const {
     DEBUG_ALIAS_FOR_GURL(url_buf, request->url());
     base::debug::Alias(&num_requests);
     base::debug::Alias(&load_flags);
+
+    //avoid crash in gold version
+#if !defined(COBALT_BUILD_TYPE_GOLD)
     CHECK(false) << "Leaked " << num_requests << " URLRequest(s). First URL: "
                  << request->url().spec().c_str() << ".";
+#endif
   }
 }
 
