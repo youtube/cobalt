@@ -503,7 +503,7 @@ struct tm ToTM(absl::Time t, absl::TimeZone tz) {
   return tm;
 }
 
-#if defined(COBALT) && !defined(SB_IS_DEFAULT_TC)
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && !defined(SB_IS_DEFAULT_TC)
 // Not all Cobalt toolchains can compile these functions as constexpr as is
 // done upstream.
 

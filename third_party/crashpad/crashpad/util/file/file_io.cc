@@ -54,6 +54,38 @@ class FileIOWriteAll final : public internal::WriteAllInternal {
   FileHandle file_;
 };
 
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+FileOperationResult ReadUntil(
+    FileHandle file,
+    bool can_log,
+    void* buffer,
+    size_t size) {
+  // Ensure bytes read fit within int32_t::max to make sure that they also fit
+  // into FileOperationResult on all platforms.
+  DCHECK_LE(size, size_t{std::numeric_limits<int32_t>::max()});
+  uintptr_t buffer_int = reinterpret_cast<uintptr_t>(buffer);
+  size_t total_bytes = 0;
+  size_t remaining = size;
+  while (remaining > 0) {
+    const FileOperationResult bytes_read =
+        FileIORead(file, can_log, reinterpret_cast<char*>(buffer_int), remaining);
+    if (bytes_read < 0) {
+      return bytes_read;
+    }
+
+    DCHECK_LE(static_cast<size_t>(bytes_read), remaining);
+
+    if (bytes_read == 0) {
+      break;
+    }
+
+    buffer_int += bytes_read;
+    remaining -= bytes_read;
+    total_bytes += bytes_read;
+  }
+  return total_bytes;
+}
+#else
 FileOperationResult ReadUntil(
     std::function<FileOperationResult(void*, size_t)> read_function,
     void* buffer,
@@ -83,11 +115,33 @@ FileOperationResult ReadUntil(
   }
   return total_bytes;
 }
+#endif
 
 }  // namespace
 
 namespace internal {
 
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+bool ReadExactly(
+    FileHandle file,
+    bool can_log,
+    void* buffer,
+    size_t size) {
+  const FileOperationResult result =
+      ReadUntil(file, can_log, buffer, size);
+  if (result < 0) {
+    return false;
+  }
+
+  if (static_cast<size_t>(result) != size) {
+    LOG_IF(ERROR, can_log) << "ReadExactly: expected " << size << ", observed "
+                           << result;
+    return false;
+  }
+
+  return true;
+}
+#else
 bool ReadExactly(
     std::function<FileOperationResult(bool, void*, size_t)> read_function,
     bool can_log,
@@ -107,6 +161,7 @@ bool ReadExactly(
 
   return true;
 }
+#endif
 
 bool WriteAllInternal::WriteAll(const void* buffer, size_t size) {
   uintptr_t buffer_int = reinterpret_cast<uintptr_t>(buffer);
@@ -129,6 +184,25 @@ bool WriteAllInternal::WriteAll(const void* buffer, size_t size) {
 
 }  // namespace internal
 
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+bool ReadFileExactly(FileHandle file, void* buffer, size_t size) {
+  return internal::ReadExactly(file, false, buffer, size);
+}
+
+FileOperationResult ReadFileUntil(FileHandle file, void* buffer, size_t size) {
+  return ReadUntil(file, false, buffer, size);
+}
+
+bool LoggingReadFileExactly(FileHandle file, void* buffer, size_t size) {
+  return internal::ReadExactly(file, true, buffer, size);
+}
+
+FileOperationResult LoggingReadFileUntil(FileHandle file,
+                                         void* buffer,
+                                         size_t size) {
+  return ReadUntil(file, true, buffer, size);
+}
+#else
 bool ReadFileExactly(FileHandle file, void* buffer, size_t size) {
   return internal::ReadExactly(
       std::bind_front(&FileIORead, file), false, buffer, size);
@@ -148,6 +222,7 @@ FileOperationResult LoggingReadFileUntil(FileHandle file,
                                          size_t size) {
   return ReadUntil(std::bind_front(&FileIORead, file, true), buffer, size);
 }
+#endif
 
 bool WriteFile(FileHandle file, const void* buffer, size_t size) {
   FileIOWriteAll write_all(file);

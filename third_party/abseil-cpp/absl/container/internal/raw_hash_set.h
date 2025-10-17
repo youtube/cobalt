@@ -3584,7 +3584,11 @@ class raw_hash_set {
                   size_t{(std::numeric_limits<uint32_t>::max)()});
     static constexpr size_t kBackingArrayAlignment =
         BackingArrayAlignment(alignof(slot_type));
+#if defined(ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17)
+    static PolicyFunctions value = {
+#else
     static constexpr PolicyFunctions value = {
+#endif
         static_cast<uint32_t>(sizeof(key_type)),
         static_cast<uint32_t>(sizeof(value_type)),
         static_cast<uint32_t>(sizeof(slot_type)),

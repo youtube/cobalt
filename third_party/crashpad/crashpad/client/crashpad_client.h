@@ -466,7 +466,11 @@ class CrashpadClient {
   //!     FirstChanceHandler and crashes the current process.
   //!
   //! \param[in] message A message to be logged before crashing.
+#if BUILDFLAG(IS_COBALT)
+  static void CrashWithoutDump(const std::string& message);
+#else
   [[noreturn]] static void CrashWithoutDump(const std::string& message);
+#endif
 
   //! \brief The type for custom handlers installed by clients.
   using FirstChanceHandler = bool (*)(int, siginfo_t*, ucontext_t*);
