@@ -12,27 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/shell/browser/shell_web_contents_view_delegate.h"
+#ifndef COBALT_TESTING_BROWSER_TESTS_COMMON_SHELL_CONTENT_TEST_CLIENT_H_
+#define COBALT_TESTING_BROWSER_TESTS_COMMON_SHELL_CONTENT_TEST_CLIENT_H_
 
-#include <memory>
-
-#include "content/public/browser/web_contents.h"
+#include "cobalt/shell/common/shell_content_client.h"
 
 namespace content {
 
-std::unique_ptr<WebContentsViewDelegate> CreateShellWebContentsViewDelegate(
-    WebContents* web_contents) {
-  return std::make_unique<ShellWebContentsViewDelegate>(web_contents);
-}
+class ShellContentTestClient : public ShellContentClient {
+ public:
+  ShellContentTestClient();
+  ~ShellContentTestClient() override;
 
-ShellWebContentsViewDelegate::ShellWebContentsViewDelegate(
-    WebContents* web_contents)
-    : web_contents_(web_contents) {}
-
-ShellWebContentsViewDelegate::~ShellWebContentsViewDelegate() {}
-
-void ShellWebContentsViewDelegate::ShowContextMenu(
-    RenderFrameHost& render_frame_host,
-    const ContextMenuParams& params) {}
+  std::u16string GetLocalizedString(int message_id) override;
+};
 
 }  // namespace content
+
+#endif  // COBALT_TESTING_BROWSER_TESTS_COMMON_SHELL_CONTENT_TEST_CLIENT_H_
