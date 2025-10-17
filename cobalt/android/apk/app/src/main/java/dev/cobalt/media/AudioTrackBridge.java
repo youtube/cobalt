@@ -435,7 +435,6 @@ public class AudioTrackBridge {
   }
 
   /** A wrapper of the android AudioTimestamp class to be used by JNI. */
-  @JNINamespace("starboard")
   private static class AudioTimestamp {
     private long framePosition;
     private long nanoTime;
