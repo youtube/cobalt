@@ -38,8 +38,7 @@ CONFIGS = ['gold', 'qa']
 
 def patch_args(out_dir):
   """
-  Ensures 'is_cobalt_on_google3 = true' is in the args.gn file and re-runs
-  'gn gen' to apply the change.
+  Ensures 'is_cobalt_on_google3 = true' is in the args.gn file.
   Will raise FileNotFoundError if args.gn is missing.
   """
   args_gn_path = os.path.join(out_dir, 'args.gn')
