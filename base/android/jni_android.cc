@@ -59,8 +59,12 @@ std::string getRepackagedName(const char* signature) {
 }
 
 bool shouldAddCobaltPrefix() {
+#if BUILDFLAG(IS_COBALT_ON_GOOGLE3)
   // The flag is set in cobalt/build/android/package.py
-  return BUILDFLAG(IS_COBALT_ON_GOOGLE3);
+  return true;
+#else
+  return false;
+#endif
 }
 
 // Java exception stack trace example:
